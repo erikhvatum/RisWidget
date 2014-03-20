@@ -3,12 +3,12 @@
 uniform sampler2D tex;
 
 // From vertex shader
-in vec2 vs_tex_coord;
+in vec2 vsTexCoord;
 
-layout (location = 0) out vec4 fs_color;
+layout (location = 0) out vec4 fsColor;
 
 void main()
 {
-//  fs_color = texture(tex, vs_tex_coord);
-    fs_color = vec4(0, 1, 0, 1);
+    fsColor = texture(tex, vsTexCoord);
+//  fsColor = vec4(0, 1, 0, 1);
 }

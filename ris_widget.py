@@ -23,7 +23,7 @@ class RisWidget(QtOpenGL.QGLWidget):
         glFormat.setVersion(4, 1)
         # We avoid relying on depcrecated fixed-function pipeline functionality; any attempt to use legacy OpenGL calls
         # should fail.
-#       glFormat.setProfile(QtOpenGL.QGLFormat.CoreProfile)
+        glFormat.setProfile(QtOpenGL.QGLFormat.CoreProfile)
         # It's highly likely that enabling swap interval 1 will not ameliorate tearing: any display supporting GL 4.1
         # supports double buffering, and tearing should not be visible with double buffering.  Therefore, the tearing
         # is caused by vsync being off or some fundamental brain damage in your out-of-date X11 display server; further
@@ -59,15 +59,15 @@ class RisWidget(QtOpenGL.QGLWidget):
 
         # Vertex positions
         quad = numpy.array([
-            -1.0, -1.0, 0.0, 1.0,
-            1.0, -1.0, 0.0, 1.0,
-            1.0,  1.0, 0.0, 1.0,
-            -1.0,  1.0, 0.0, 1.0,
+            0.75, -0.75,
+            -0.75, -0.75,
+            -0.75, 0.75,
+            0.75, 0.75,
             # Texture coordinates
             0.0, 0.0,
             1.0, 0.0,
-            1.0, 0.0,
-            0.0, 0.0], numpy.float32)
+            1.0, 1.0,
+            0.0, 1.0], numpy.float32)
 
         # Like other QtGui::QOpenGL.. primitives, QOpenGLBuffer's constructor does not assume that it is called
         # from within a valid GL context and therefore does not complete all requisite setup.  NB:
@@ -87,41 +87,79 @@ class RisWidget(QtOpenGL.QGLWidget):
         if vertPosLoc == -1:
             raise RisWidgetException('Could not find location of panel.glslf attribute "vert_pos".')
         self.shaderProgram.enableAttributeArray(vertPosLoc)
-        self.shaderProgram.setAttributeBuffer(vertPosLoc, GL.GL_FLOAT, 0, 4, 0)
+        self.shaderProgram.setAttributeBuffer(vertPosLoc, GL.GL_FLOAT, 0, 2, 0)
 
         texCoordLoc = 1#self.shaderProgram.attributeLocation('tex_coord')
         if texCoordLoc == -1:
             raise RisWidgetException('Could not find location of panel.glslf attribute "tex_coord".')
         self.shaderProgram.enableAttributeArray(texCoordLoc)
-        self.shaderProgram.setAttributeBuffer(texCoordLoc, GL.GL_FLOAT, 4 * 4 * 4, 2, 0)
+        self.shaderProgram.setAttributeBuffer(texCoordLoc, GL.GL_FLOAT, 2 * 4 * 4, 2, 0)
 
-#       checkerboard = numpy.array([
-#           0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
-#           0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,
-#           0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
-#           0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,
-#           0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
-#           0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,
-#           0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
-#           0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff], numpy.float32)
-#
-#       self.cbTex = QtGui.QOpenGLTexture(QtGui.QOpenGLTexture.Target2D)
-#       self.cbTex.setSize(8, 8, 1)
-#       self.cbTex.allocateStorage()
-#       self.cbTex.setData(QtGui.QOpenGLTexture.Red, QtGui.QOpenGLTexture.Float32, sip.voidptr(checkerboard.data))
+        checkerboard = numpy.array([
+            0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
+            0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,
+            0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
+            0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,
+            0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
+            0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,
+            0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
+            0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff], numpy.float32)
+
+        self.tex = GL.glGenTextures(1)
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex)
+        GL.glTexStorage2D(GL.GL_TEXTURE_2D, 4, GL.GL_RGBA8, 8, 8)
+        GL.glTexSubImage2D(GL.GL_TEXTURE_2D, 0, 0, 0, 8, 8, GL.GL_RED, GL.GL_UNSIGNED_BYTE, checkerboard)
+        GL.glTexParameteriv(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_SWIZZLE_RGBA, [GL.GL_RED, GL.GL_RED, GL.GL_RED, GL.GL_ONE])
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_NEAREST);
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_NEAREST);
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_CLAMP_TO_EDGE);
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_CLAMP_TO_EDGE);
+        GL.glGenerateMipmap(GL.GL_TEXTURE_2D);
+
+        self.projectionModelViewMatrixLoc = GL.glGetUniformLocation(self.shaderProgram.programId(), b'projectionModelViewMatrix')
+
+        self.cbTex = QtGui.QOpenGLTexture(QtGui.QOpenGLTexture.Target2D)
+        self.cbTex.setFormat(QtGui.QOpenGLTexture.R8_UNorm)
+        self.cbTex.setSize(8, 8, 1)
+        self.cbTex.allocateStorage()
+        self.cbTex.setData(QtGui.QOpenGLTexture.Red, QtGui.QOpenGLTexture.UInt8, sip.voidptr(checkerboard.data))
+        self.cbTex.setSwizzleMask(QtGui.QOpenGLTexture.RedValue, QtGui.QOpenGLTexture.RedValue, QtGui.QOpenGLTexture.RedValue, QtGui.QOpenGLTexture.OneValue)
+        self.cbTex.setWrapMode(QtGui.QOpenGLTexture.Repeat)
+
+        self.qglClearColor(QtGui.QColor(255/3, 255/3, 255/3, 255))
+        self.hasInitializeGlExecuted = True
 
 #       samplers = []
 #       GL.glGenSamplers(1, samplers)
 
     def paintGL(self):
-#       GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
-#       GL.glClear(GL.GL_COLOR_BUFFER_BIT)
+        GL.glClearDepth(1.0)
+        GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         if not self.shaderProgram.bind():
             raise ShaderBindingException(self.shaderProgram.log())
         self.panelVao.bind()
-#       self.cbTex.bind()
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex)
+        ws = self.size()
+        wsw = float(ws.width())
+        wsh = float(ws.height())
+        pmv = numpy.identity(4, numpy.float32)
+        if wsw >= wsh:
+            pmv[0, 0] = wsh/wsw
+        else:
+            pmv[1, 1] = wsw/wsh
+#       pmv[1, 1] = wsw/wsh
+#       pmv[2, 2] = -0.5
+#       pmv[2, 3] = -1.0
+#       pmv[3, 3] = 1 / self.ttt
+#       pmv[0, 3] = self.ttt
+#       self.ttt += 0.1
+#       print(pmv)
+        GL.glUniformMatrix4fv(self.projectionModelViewMatrixLoc, 1, True, pmv)
         try:
             GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
         finally:
             self.panelVao.release()
             self.shaderProgram.release()
+
+    def resizeGL(self, width, height):
+        GL.glViewport(0, 0, width, height)

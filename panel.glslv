@@ -1,12 +1,14 @@
 #version 410 core
 
-layout (location = 0) in vec4 vert_pos;
-layout (location = 1) in vec2 tex_coord;
+uniform mat4 projectionModelViewMatrix;
 
-out vec2 vs_tex_coord;
+layout (location = 0) in vec2 vertPos;
+layout (location = 1) in vec2 texCoord;
+
+out vec2 vsTexCoord;
 
 void main()
 {
-    gl_Position = vert_pos;
-    vs_tex_coord = tex_coord;
+    gl_Position = projectionModelViewMatrix * vec4(vertPos, 0.5, 1.0);
+    vsTexCoord = texCoord;
 }
