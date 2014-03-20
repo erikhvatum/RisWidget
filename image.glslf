@@ -1,9 +1,9 @@
 #version 410 core
 
-//uniform sampler2D tex;
+uniform sampler2D tex;
 
 // From vertex shader
-//in vec2 vs_tex_coord;
+in vec2 vs_tex_coord;
 
 layout (location = 0) out vec4 fs_color;
 

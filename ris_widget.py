@@ -52,48 +52,76 @@ class RisWidget(QtOpenGL.QGLWidget):
         if not self.shaderProgram.bind():
             raise ShaderBindingException(self.shaderProgram.log())
 
+        self.panelVao = QtGui.QOpenGLVertexArrayObject(self)
+        if not self.panelVao.create():
+            raise RisWidgetException(self.shaderProgram.log())
+        self.panelVao.bind()
+
+        # Vertex positions
         quad = numpy.array([
-            # Vertex positions
             -1.0, -1.0, 0.0, 1.0,
             1.0, -1.0, 0.0, 1.0,
             1.0,  1.0, 0.0, 1.0,
-#           -1.0,  1.0, 0.0, 1.0,
-            -1.0,  1.0, 0.0, 1.0], numpy.float32)
+            -1.0,  1.0, 0.0, 1.0,
             # Texture coordinates
-#           0.0, 0.0,
-#           1.0, 0.0,
-#           1.0, 0.0,
-#           0.0, 0.0], numpy.float32)
+            0.0, 0.0,
+            1.0, 0.0,
+            1.0, 0.0,
+            0.0, 0.0], numpy.float32)
 
         # Like other QtGui::QOpenGL.. primitives, QOpenGLBuffer's constructor does not assume that it is called
         # from within a valid GL context and therefore does not complete all requisite setup.  NB:
         # QtGui.QOpenGLBuffer.VertexBuffer represents GL_ARRAY_BUFFER.
         self.quadShaderBuff = QtGui.QOpenGLBuffer(QtGui.QOpenGLBuffer.VertexBuffer)
-        
         if not self.quadShaderBuff.create():
             raise BufferCreationException(self.shaderProgram.log())
         self.quadShaderBuff.setUsagePattern(QtGui.QOpenGLBuffer.StaticDraw)
         if not self.quadShaderBuff.bind():
             raise BufferBindingException(self.shaderProgram.log())
         self.quadShaderBuff.allocate(sip.voidptr(quad.data), quad.nbytes)
-        self.shaderProgram.enableAttributeArray(0)
-        self.shaderProgram.setAttributeBuffer(0, GL.GL_FLOAT, 0, 4, 0)
-
-        # quad is deleted to make clear that quad's data has been copied to the GPU
+        # quad is deleted to make clear that quad's data has been copied to the GPU by the .allocate call in the
+        # line above
         del quad
 
-        GL.glVertexAttribPointer(0, 4, GL.GL_FLOAT, False, 0, None)
-        GL.glEnableVertexAttribArray(0)
-#       GL.glVertexAttribPointer(1, 2, GL.GL_FLOAT, False, 0, ctypes.c_void_p(4*4))
+        vertPosLoc = 0#self.shaderProgram.attributeLocation('vert_pos')
+        if vertPosLoc == -1:
+            raise RisWidgetException('Could not find location of panel.glslf attribute "vert_pos".')
+        self.shaderProgram.enableAttributeArray(vertPosLoc)
+        self.shaderProgram.setAttributeBuffer(vertPosLoc, GL.GL_FLOAT, 0, 4, 0)
+
+        texCoordLoc = 1#self.shaderProgram.attributeLocation('tex_coord')
+        if texCoordLoc == -1:
+            raise RisWidgetException('Could not find location of panel.glslf attribute "tex_coord".')
+        self.shaderProgram.enableAttributeArray(texCoordLoc)
+        self.shaderProgram.setAttributeBuffer(texCoordLoc, GL.GL_FLOAT, 4 * 4 * 4, 2, 0)
+
+#       checkerboard = numpy.array([
+#           0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
+#           0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,
+#           0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
+#           0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,
+#           0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
+#           0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,
+#           0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
+#           0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff], numpy.float32)
+#
+#       self.cbTex = QtGui.QOpenGLTexture(QtGui.QOpenGLTexture.Target2D)
+#       self.cbTex.setSize(8, 8, 1)
+#       self.cbTex.allocateStorage()
+#       self.cbTex.setData(QtGui.QOpenGLTexture.Red, QtGui.QOpenGLTexture.Float32, sip.voidptr(checkerboard.data))
+
+#       samplers = []
+#       GL.glGenSamplers(1, samplers)
 
     def paintGL(self):
 #       GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
-        GL.glClear(GL.GL_COLOR_BUFFER_BIT)
+#       GL.glClear(GL.GL_COLOR_BUFFER_BIT)
         if not self.shaderProgram.bind():
             raise ShaderBindingException(self.shaderProgram.log())
-        if not self.quadShaderBuff.bind():
-            raise BufferBindingException(self.shaderProgram.log())
+        self.panelVao.bind()
+#       self.cbTex.bind()
         try:
             GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
         finally:
+            self.panelVao.release()
             self.shaderProgram.release()
