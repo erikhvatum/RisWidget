@@ -10,8 +10,8 @@ import sip
 from ris_widget_exceptions import *
 
 class RisWidget(QtOpenGL.QGLWidget):
-    '''RisWidget stands for Rapid Image Stream Widget.  If tearing is visible, try enabling vsync, and failing that, providing True
-    for enableSwapInterval1_ argument.'''
+    '''RisWidget stands for Rapid Image Stream Widget.  If tearing is visible, try enabling vsync in your OS's display
+    settings.  If that doesn't help, supply True for the enableSwapInterval1_ argument.'''
     def __init__(self, parent_ = None, enableSwapInterval1_ = False):
         super().__init__(RisWidget._makeGlFormat(enableSwapInterval1_), parent_)
         self.enableSwapInterval1 = enableSwapInterval1_
