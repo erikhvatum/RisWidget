@@ -2,6 +2,7 @@ import ctypes
 import numpy
 from OpenGL import GL
 from OpenGL.arrays import vbo
+import OpenGL.GL.ARB.texture_rg
 import OpenGL.GL.shaders
 import os
 from PyQt5 import QtCore, QtGui, QtWidgets, QtOpenGL
@@ -99,27 +100,31 @@ class RisWidget(QtOpenGL.QGLWidget):
         self.shaderProgram.setAttributeBuffer(texCoordLoc, GL.GL_FLOAT, 2 * 4 * 4, 2, 0)
 
         checkerboard = numpy.array([
-            0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
-            0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,
-            0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
-            0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,
-            0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
-            0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,
-            0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
-            0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff], numpy.float32)
+            [0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000],
+            [0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff],
+            [0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000],
+            [0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff],
+            [0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000],
+            [0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff],
+            [0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000],
+            [0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff]], numpy.uint16)
 
         self.imTex = GL.glGenTextures(1)
         GL.glBindTexture(GL.GL_TEXTURE_2D, self.imTex)
-        GL.glTexStorage2D(GL.GL_TEXTURE_2D, 4, GL.GL_RGBA8, 8, 8)
-        GL.glTexSubImage2D(GL.GL_TEXTURE_2D, 0, 0, 0, 8, 8, GL.GL_RED, GL.GL_UNSIGNED_BYTE, checkerboard)
-        GL.glTexParameteriv(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_SWIZZLE_RGBA, [GL.GL_RED, GL.GL_RED, GL.GL_RED, GL.GL_ONE])
+
+        GL.glTexStorage2D(GL.GL_TEXTURE_2D, 1, OpenGL.GL.ARB.texture_rg.GL_R16UI, checkerboard.shape[1], checkerboard.shape[0])
+        GL.glTexSubImage2D(GL.GL_TEXTURE_2D, 0, 0, 0, checkerboard.shape[1], checkerboard.shape[0], GL.GL_RED_INTEGER, GL.GL_UNSIGNED_SHORT, checkerboard)
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_NEAREST)
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_NEAREST)
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_CLAMP_TO_EDGE)
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_CLAMP_TO_EDGE)
-        GL.glGenerateMipmap(GL.GL_TEXTURE_2D)
 
-        self.projectionModelViewMatrixLoc = GL.glGetUniformLocation(self.shaderProgram.programId(), b'projectionModelViewMatrix')
+        pid = self.shaderProgram.programId()
+        self.gtpEnabledLoc = GL.glGetUniformLocation(pid, b'gtp.isEnabled')
+        self.gtpMinLoc     = GL.glGetUniformLocation(pid, b'gtp.minVal')
+        self.gtpMaxLoc     = GL.glGetUniformLocation(pid, b'gtp.maxVal')
+        self.gtpGammaLoc   = GL.glGetUniformLocation(pid, b'gtp.gammaVal')
+        self.projectionModelViewMatrixLoc = GL.glGetUniformLocation(pid, b'projectionModelViewMatrix')
 
         self.qglClearColor(QtGui.QColor(255/3, 255/3, 255/3, 255))
 
@@ -129,40 +134,134 @@ class RisWidget(QtOpenGL.QGLWidget):
     def paintGL(self):
         GL.glClearDepth(1.0)
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
-        if not self.shaderProgram.bind():
-            raise ShaderBindingException(self.shaderProgram.log())
-        self.panelVao.bind()
-        GL.glBindTexture(GL.GL_TEXTURE_2D, self.imTex)
+        if self.imTex is not None:
+            if not self.shaderProgram.bind():
+                raise ShaderBindingException(self.shaderProgram.log())
+            self.panelVao.bind()
+            GL.glBindTexture(GL.GL_TEXTURE_2D, self.imTex)
 
-        # Rescale projection matrix such that display aspect ratio is preserved and contents fill either horizontal
-        # or vertical (whichever is smaller)
-        ws = self.size()
-        if ws != self.prevWindowSize:
-            wsw = float(ws.width())
-            wsh = float(ws.height())
-            pmv = numpy.identity(4, numpy.float32)
-            if wsw >= wsh:
-                pmv[0, 0] = wsh/wsw
-            else:
-                pmv[1, 1] = wsw/wsh
-            GL.glUniformMatrix4fv(self.projectionModelViewMatrixLoc, 1, True, pmv)
-            self.prevWindowSize = ws
+            # Rescale projection matrix such that display aspect ratio is preserved and contents fill either horizontal
+            # or vertical (whichever is smaller)
+            ws = self.size()
+            if ws != self.prevWindowSize:
+                wsw = float(ws.width())
+                wsh = float(ws.height())
+                pmv = numpy.identity(4, numpy.float32)
+                if wsw >= wsh:
+                    pmv[0, 0] = wsh/wsw
+                else:
+                    pmv[1, 1] = wsw/wsh
+                GL.glUniformMatrix4fv(self.projectionModelViewMatrixLoc, 1, True, pmv)
+                self.prevWindowSize = ws
 
-        try:
-            GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
-        finally:
-            self.panelVao.release()
-            self.shaderProgram.release()
+            try:
+                GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
+            finally:
+                self.panelVao.release()
+                self.shaderProgram.release()
 
     def resizeGL(self, width, height):
         GL.glViewport(0, 0, width, height)
 
-    def showImage(self, imageData, pixelGlType, recycleTexture = False):
-        '''Only enable rycleTexture when replacing an image that differs only by pixel value.  For
-        example, do enable recycleTexture when showing frames from the same video file; do not enable
-        recycleTexture when displaying a random assortment of images with various sizes and color depths. '''
+    def showImage(self, imageData, recycleTexture = False):
+        '''Enable rycleTexture when replacing an image that differs only by pixel value.  For example,
+        do enable recycleTexture when showing frames from the same video file; do not enable recycleTexture
+        when displaying a random assortment of images with various sizes and color depths. '''
+        if type(imageData) is not numpy.ndarray:
+            raise TypeError('type(imageData) is not numpy.ndarray')
+        if imageData.dtype != numpy.uint16:
+            raise TypeError('imageData.dtype != numpy.uint16')
+        if imageData.ndim != 2:
+            raise ValueError('imageData.ndim != 2')
+
+        self.context().makeCurrent()
+        self.shaderProgram.bind()
+
         if not recycleTexture and self.imTex is not None:
-            gl.glDeleteTextures(self.imTex)
+            GL.glDeleteTextures(self.imTex)
             self.imTex = None
+
         if self.imTex is None:
-        GL.glTexSubImage2D()
+            self.imTex = GL.glGenTextures(1)
+            GL.glBindTexture(GL.GL_TEXTURE_2D, self.imTex)
+            GL.glTexStorage2D(GL.GL_TEXTURE_2D, 1, OpenGL.GL.ARB.texture_rg.GL_R16UI, imageData.shape[1], imageData.shape[0])
+        else:
+            GL.glBindTexture(GL.GL_TEXTURE_2D, self.imTex)
+
+        GL.glTexSubImage2D(GL.GL_TEXTURE_2D, 0, 0, 0, imageData.shape[1], imageData.shape[0], GL.GL_RED_INTEGER, GL.GL_UNSIGNED_SHORT, imageData)
+#       GL.glTexImage2Dui(GL.GL_TEXTURE_2D, 0, OpenGL.GL.ARB.texture_rg.GL_R16UI, imageData.shape[1], imageData.shape[0], 0, GL.GL_RED_INTEGER, GL.GL_UNSIGNED_SHORT, imageData)
+#       GL.glTexParameteriv(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_SWIZZLE_RGBA, [GL.GL_RED, GL.GL_RED, GL.GL_RED, GL.GL_ONE])
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_CLAMP_TO_EDGE)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_CLAMP_TO_EDGE)
+#       GL.glGenerateMipmap(GL.GL_TEXTURE_2D)
+
+        self.update()
+
+    def setGtpEnabled(self, gtpEnabled, update=True):
+        '''Enable or disable gamma transformation.  If update is true, the widget will be refreshed.'''
+        self.context().makeCurrent()
+        self.shaderProgram.bind()
+        GL.glUniform1i(self.gtpEnabledLoc, gtpEnabled)
+        if update:
+            self.update()
+
+    def setGtpMinimum(self, gtpMinimum, update=True):
+        '''Set gamma transformation minimum intensity parameter.  If update is true, the widget will be refreshed.'''
+        self.context().makeCurrent()
+        self.shaderProgram.bind()
+        GL.glUniform1f(self.gtpMinLoc, gtpMinimum)
+        if update:
+            self.update()
+
+    def setGtpMaximum(self, gtpMaximum, update=True):
+        '''Set gamma transformation minimum intensity parameter.  If update is true, the widget will be refreshed.'''
+        self.context().makeCurrent()
+        self.shaderProgram.bind()
+        GL.glUniform1f(self.gtpMaxLoc, gtpMaximum)
+        if update:
+            self.update()
+
+    def setGtpGamma(self, gtpGamma, update=True):
+        '''Set gamma transformation gamma parameter.  If update is true, the widget will be refreshed.'''
+        self.context().makeCurrent()
+        self.shaderProgram.bind()
+        GL.glUniform1f(self.gtpGammaLoc, gtpGamma)
+        if update:
+            self.update()
+
+    def setGtpParams(self, gtpEnabled, gtpMinimum, gtpMaximum, gtpGamma, update=True):
+        '''Set all gamma transformation parameters.  If update is true, the widget will be refreshed.'''
+        self.context().makeCurrent()
+        self.shaderProgram.bind()
+        GL.glUniform1i(self.gtpEnabledLoc, gtpEnabled)
+        GL.glUniform1f(self.gtpMinLoc, gtpMinimum)
+        GL.glUniform1f(self.gtpMaxLoc, gtpMaximum)
+        GL.glUniform1f(self.gtpGammaLoc, gtpGamma)
+        if update:
+            self.update()
+
+    def getGtpParams(self):
+        '''Returns a dict containing all gamma transformation parameter values.'''
+        self.context().makeCurrent()
+        pid = self.shaderProgram.programId()
+        ret = {}
+
+        v = numpy.array([-1], numpy.int32)
+        GL.glGetUniformiv(pid, self.gtpEnabledLoc, v)
+        ret['gtpEnabled'] = True if v[0] == 1 else False
+
+        v = numpy.array([None], numpy.float32)
+        GL.glGetUniformfv(pid, self.gtpMaxLoc, v)
+        ret['gtpMaximum'] = v[0]
+
+        v[0] = numpy.nan
+        GL.glGetUniformfv(pid, self.gtpMinLoc, v)
+        ret['gtpMinimum'] = v[0]
+
+        v[0] = numpy.nan
+        GL.glGetUniformfv(pid, self.gtpGammaLoc, v)
+        ret['gtpGamma'] = v[0]
+
+        return ret
