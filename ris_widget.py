@@ -178,7 +178,7 @@ class RisWidget(QtOpenGL.QGLWidget):
         self.shaderProgram.bind()
 
         if not recycleTexture and self.imTex is not None:
-            GL.glDeleteTextures(self.imTex)
+            GL.glDeleteTextures([self.imTex])
             self.imTex = None
 
         if self.imTex is None:
