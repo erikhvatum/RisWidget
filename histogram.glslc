@@ -1,3 +1,15 @@
 #version 430 core
 
+layout (binding = 0, r16ui) uniform uimage2D image;
+layout (binding = 1, r32ui) uniform uimage2DArray histograms;
+uniform uint binCount = 256;
 
+layout (local_size_x = 8, local_size_y = 8) in;
+
+void main()
+{
+    ivec2 imagePos = ivec2(gl_GlobalInvocationID.xy);
+    uint intensity = uint(imageLoad(image, imagePos).r);
+    uint bin = intensity / binCount;
+    imageAtomicAdd(histograms, ivec3(gl_WorkGroupID.xy, bin), 1);
+}
