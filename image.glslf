@@ -7,6 +7,7 @@ struct GammaTransformParams
     float maxVal;
     float gammaVal;
 };
+
 uniform GammaTransformParams gtp = GammaTransformParams(false, 0.0, 65535.0, 1.0);
 uniform usampler2D tex;
 
@@ -15,7 +16,9 @@ in vec2 vsTexCoord;
 
 layout (location = 0) out vec4 fsColor;
 
-void main()
+subroutine void PanelColorer();
+
+subroutine (PanelColorer) void imagePanelColorer()
 {
     if(gtp.isEnabled)
     {
@@ -40,4 +43,16 @@ void main()
     {
         fsColor = vec4(vec3(texture(tex, vsTexCoord).rrr) / 65535.0, 1);
     }
+}
+
+subroutine (PanelColorer) void histogramPanelColorer()
+{
+    fsColor = vec4(0, 1, 0, 1);
+}
+
+subroutine uniform PanelColorer panelColorer;
+
+void main()
+{
+    panelColorer();
 }

@@ -7,6 +7,7 @@ import OpenGL.GL.shaders as GLS
 import os
 from PyQt5 import QtCore, QtGui, QtWidgets, QtOpenGL
 import sip
+import transformations
 
 from ris_widget_exceptions import *
 
@@ -112,6 +113,13 @@ class RisWidget(QtOpenGL.QGLWidget):
         self.gtpGammaLoc   = GLS.glGetUniformLocation(self.shaderProgram, b'gtp.gammaVal')
         self.projectionModelViewMatrixLoc = GLS.glGetUniformLocation(self.shaderProgram, b'projectionModelViewMatrix')
 
+        self.modelMatrix = None
+        self.projectionMatrix = None
+
+        self.panelColorerLoc = GL.glGetSubroutineUniformLocation(self.shaderProgram, GL.GL_FRAGMENT_SHADER, b'panelColorer')
+        self.imagePanelColorerLoc     = GL.glGetSubroutineIndex(self.shaderProgram, GL.GL_FRAGMENT_SHADER, b'imagePanelColorer')
+        self.histogramPanelColorerLoc = GL.glGetSubroutineIndex(self.shaderProgram, GL.GL_FRAGMENT_SHADER, b'histogramPanelColorer')
+
         self.qglClearColor(QtGui.QColor(255/3, 255/3, 255/3, 255))
 
 #       samplers = []
@@ -131,14 +139,26 @@ class RisWidget(QtOpenGL.QGLWidget):
             if ws != self.prevWindowSize:
                 wsw = float(ws.width())
                 wsh = float(ws.height())
-                pmv = numpy.identity(4, numpy.float32)
+                self.projectionMatrix = numpy.identity(4, numpy.float32)
                 if wsw >= wsh:
-                    pmv[0, 0] = wsh/wsw
+                    self.projectionMatrix[0, 0] = wsh/wsw
                 else:
-                    pmv[1, 1] = wsw/wsh
-                GLS.glUniformMatrix4fv(self.projectionModelViewMatrixLoc, 1, True, pmv)
+                    self.projectionMatrix[1, 1] = wsw/wsh
                 self.prevWindowSize = ws
 
+            GL.glUniformSubroutinesuiv(GL.GL_FRAGMENT_SHADER, 1, [self.imagePanelColorerLoc])
+            self.modelMatrix = numpy.dot(
+                transformations.translation_matrix([0, 1/3, 0]),
+                transformations.scale_matrix(2/3, direction=[0, 1, 0])).astype(numpy.float32)
+            GLS.glUniformMatrix4fv(self.projectionModelViewMatrixLoc, 1, True, numpy.dot(self.projectionMatrix, self.modelMatrix))
+            GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
+
+            GL.glUniformSubroutinesuiv(GL.GL_FRAGMENT_SHADER, 1, [self.histogramPanelColorerLoc])
+            self.modelMatrix = numpy.dot(
+                transformations.translation_matrix([0, -2/3, 0]),
+                transformations.scale_matrix(1/3, direction=[0, 1, 0])).astype(numpy.float32)
+            self.modelMatrix = self.modelMatrix.astype(numpy.float32)
+            GLS.glUniformMatrix4fv(self.projectionModelViewMatrixLoc, 1, True, numpy.dot(self.projectionMatrix, self.modelMatrix))
             GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
 
     def resizeGL(self, width, height):
