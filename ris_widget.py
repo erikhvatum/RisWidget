@@ -1,4 +1,5 @@
 import ctypes
+import math
 import numpy
 from OpenGL import GL
 from OpenGL.arrays import vbo
@@ -131,11 +132,14 @@ class RisWidget(QtOpenGL.QGLWidget):
             sys.exit(-1)
         GLS.glUseProgram(self.histoCalcProg)
         self.histoBinCountLoc = GLS.glGetUniformLocation(self.histoCalcProg, b'binCount')
+        self.histoInvocationRegionSizeLoc = GLS.glGetUniformLocation(self.histoCalcProg, b'invocationRegionSize')
         self.histoImageLoc = 0
         self.histogramsLoc = 1
         self.histogramsTex = None
         # Hardcode work group count parameter for now
-        self.histoWgCountPerAxis = 1
+        self.histoWgCountPerAxis = 2
+        # This value must match local_size_x and local_size_y in histogram.glslc
+        self.histoLiCountPerAxis = 4
 
     def _initHistoDrawProg(self):
         try:
@@ -148,8 +152,8 @@ class RisWidget(QtOpenGL.QGLWidget):
         GLS.glUseProgram(self.histoDrawProg)
         self.histoDrawProjectionModelViewMatrixLoc = GLS.glGetUniformLocation(self.histoDrawProg, b'projectionModelViewMatrix')
         self.histoDrawBinCountLoc = GLS.glGetUniformLocation(self.histoDrawProg, b'binCount')
-        self.histoDrawBinScaleLoc = GLS.glGetUniformLocation(self.histoDrawProg, 'binScale')
-        self.histoDrawBinIndexLoc = GLS.glGetAttribLocation(self.histoDrawProg, 'binIndex')
+        self.histoDrawBinScaleLoc = GLS.glGetUniformLocation(self.histoDrawProg, b'binScale')
+        self.histoDrawBinIndexLoc = GLS.glGetAttribLocation(self.histoDrawProg, b'binIndex')
         self.histoDrawPointBuff = None
         self.histoDrawPointVao = None
         self.drawHistogramsLoc = 0
@@ -158,7 +162,7 @@ class RisWidget(QtOpenGL.QGLWidget):
         self._initPanelProg()
         self._initHistoCalcProg()
         self._initHistoDrawProg()
-        self.setBinCount(256, update=False)
+        self.setBinCount(8, update=False)
 
     def _loadImageData(self, imageData, reallocate):
         GLS.glUseProgram(self.panelProg)
@@ -205,10 +209,13 @@ class RisWidget(QtOpenGL.QGLWidget):
             GL.GL_RED_INTEGER, GL.GL_UNSIGNED_INT,
             numpy.zeros((self.histoWgCountPerAxis, self.histoWgCountPerAxis, self.histoBinCount), dtype=numpy.uint32))
 
+        axisInvocations = self.histoWgCountPerAxis * self.histoLiCountPerAxis
+        GL.glUniform2i(self.histoInvocationRegionSizeLoc, math.ceil(imageData.shape[1] / axisInvocations), math.ceil(imageData.shape[0] / axisInvocations))
+
     def setBinCount(self, binCount, update=True):
         self.histoBinCount = binCount
         self.context().makeCurrent()
-        GL.glProgramUniform1ui(self.histoCalcProg, self.histoBinCountLoc, self.histoBinCount)
+        GL.glProgramUniform1f(self.histoCalcProg, self.histoBinCountLoc, self.histoBinCount)
 
         GLS.glUseProgram(self.histoDrawProg)
 
@@ -302,9 +309,10 @@ class RisWidget(QtOpenGL.QGLWidget):
 
     def histbug(self):
         self.context().makeCurrent()
-        a = numpy.zeros((self.histoWgCountPerAxis, self.histoWgCountPerAxis, 256), dtype=numpy.uint32)
+        a = numpy.zeros((self.histoWgCountPerAxis, self.histoWgCountPerAxis, self.histoBinCount), dtype=numpy.uint32)
         GLS.glUseProgram(self.histoCalcProg)
         GL.glBindTexture(GL.GL_TEXTURE_2D_ARRAY, self.histogramsTex)
+        # The order of this thing is very weird
         return GL.glGetTexImage(GL.GL_TEXTURE_2D_ARRAY, 0, GL.GL_RED_INTEGER, GL.GL_UNSIGNED_INT, a)
 
     def paintGL(self):

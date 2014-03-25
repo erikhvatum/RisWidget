@@ -2,20 +2,27 @@
 
 layout (binding = 0, r16ui) uniform readonly uimage2D image;
 layout (binding = 1, r32ui) uniform coherent uimage2DArray histograms;
-layout (location = 0) uniform uint binCount;
+uniform float binCount;
+uniform ivec2 invocationRegionSize;
 
-layout (local_size_x = 1, local_size_y = 1) in;
+layout (local_size_x = 4, local_size_y = 4) in;
 
 void main()
 {
-//  ivec2 imagePos = ivec2(gl_GlobalInvocationID.xy);
-    ivec2 imageSize = imageSize(image);
-    for(int x=0, y; x < imageSize.x; ++x)
+    ivec2 start = ivec2(gl_GlobalInvocationID.xy) * invocationRegionSize;
+    ivec2 size = imageSize(image);
+    // Ensure that processing of remainder blocks for non-divisible images does not proceed beyond image edge
+    ivec2 end = ivec2(min(start.x + invocationRegionSize.x, size.x),
+                      min(start.y + invocationRegionSize.y, size.y));
+
+    float intensity;
+    int bin;
+    for(int y = start.y, x; y < end.y; ++y)
     {
-        for(y = 0; y < imageSize.y; ++y)
+        for(x = start.x; x < end.x; ++x)
         {
-            float intensity = imageLoad(image, ivec2(x, y)).r;
-            uint bin = uint(floor(intensity / 65535.0 * binCount));
+            intensity = imageLoad(image, ivec2(x, y)).r;
+            bin = int(floor(intensity / 65535.0 * binCount));
             imageAtomicAdd(histograms, ivec3(gl_WorkGroupID.x, gl_WorkGroupID.y, bin), 1);
         }
     }
