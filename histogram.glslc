@@ -24,6 +24,7 @@ void main()
             intensity = imageLoad(image, ivec2(x, y)).r;
             bin = int(floor(intensity / 65535.0 * binCount));
             imageAtomicAdd(histograms, ivec3(gl_WorkGroupID.x, gl_WorkGroupID.y, bin), 1);
+//          imageAtomicAdd(histograms, ivec3(0, 0, bin), 1);
         }
     }
 }

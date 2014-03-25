@@ -137,7 +137,7 @@ class RisWidget(QtOpenGL.QGLWidget):
         self.histogramsLoc = 1
         self.histogramsTex = None
         # Hardcode work group count parameter for now
-        self.histoWgCountPerAxis = 2
+        self.histoWgCountPerAxis = 8
         # This value must match local_size_x and local_size_y in histogram.glslc
         self.histoLiCountPerAxis = 4
 
@@ -162,7 +162,7 @@ class RisWidget(QtOpenGL.QGLWidget):
         self._initPanelProg()
         self._initHistoCalcProg()
         self._initHistoDrawProg()
-        self.setBinCount(8, update=False)
+        self.setBinCount(256, update=False)
 
     def _loadImageData(self, imageData, reallocate):
         GLS.glUseProgram(self.panelProg)
