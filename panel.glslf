@@ -47,7 +47,7 @@ subroutine (PanelColorer) void imagePanelColorer()
 
 subroutine (PanelColorer) void histogramPanelColorer()
 {
-    fsColor = vec4(0, 1, 0, 1);
+    fsColor = vec4(0, 0, 0, 1);
 }
 
 subroutine uniform PanelColorer panelColorer;
