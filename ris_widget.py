@@ -54,9 +54,14 @@ class RisWidget(QtOpenGL.QGLWidget):
         return loc
 
     def _initPanelProg(self):
-        self.panelProg = GLS.compileProgram(
-            GLS.compileShader([self._loadSource('panel.glslv')], GLS.GL_VERTEX_SHADER),
-            GLS.compileShader([self._loadSource('panel.glslf')], GLS.GL_FRAGMENT_SHADER))
+        try:
+            self.panelProg = GLS.compileProgram(
+                GLS.compileShader([self._loadSource('panel.glslv')], GLS.GL_VERTEX_SHADER),
+                GLS.compileShader([self._loadSource('panel.glslf')], GLS.GL_FRAGMENT_SHADER))
+        except GL.GLError as e:
+            print('In panel.glslv or panel.glslf:\n' + e.description.decode('utf-8'))
+            sys.exit(-1)
+
         GLS.glUseProgram(self.panelProg)
 
         self.panelVao = GL.glGenVertexArrays(1)
@@ -126,20 +131,33 @@ class RisWidget(QtOpenGL.QGLWidget):
 
     def _initHistoCalcProg(self):
         try:
-            self.histoCalcProg = GLS.compileProgram(GLS.compileShader([self._loadSource('histogram.glslc')], GL.GL_COMPUTE_SHADER))
+            self.histoCalcProg = GLS.compileProgram(GLS.compileShader([self._loadSource('histogramCalc.glslc')], GL.GL_COMPUTE_SHADER))
         except GL.GLError as e:
-            print(e.description)
+            print('In histogramCalc.glslc:\n' + e.description.decode('utf-8'))
             sys.exit(-1)
-        GLS.glUseProgram(self.histoCalcProg)
         self.histoBinCountLoc = GLS.glGetUniformLocation(self.histoCalcProg, b'binCount')
         self.histoInvocationRegionSizeLoc = GLS.glGetUniformLocation(self.histoCalcProg, b'invocationRegionSize')
         self.histoImageLoc = 0
-        self.histogramsLoc = 1
-        self.histogramsTex = None
+        self.histogramBlocksLoc  = 1
+        self.histogramBlocksTex = None
         # Hardcode work group count parameter for now
         self.histoWgCountPerAxis = 8
-        # This value must match local_size_x and local_size_y in histogram.glslc
+        # This value must match local_size_x and local_size_y in histogramCalc.glslc
         self.histoLiCountPerAxis = 4
+
+    def _initHistoConsolidateProg(self):
+        try:
+            self.histoConsolidateProg = GLS.compileProgram(GLS.compileShader([self._loadSource('histogramConsolidate.glslc')], GL.GL_COMPUTE_SHADER))
+        except GL.GLError as e:
+            print('In histogramConsolidate.glslc:\n' + e.description.decode('utf-8'))
+            sys.exit(-1)
+        self.histoConsolidateHistogramsLoc = 0
+        self.histoConsolidateHistogramLoc = 1
+        self.histogramTex = None
+        self.histoConsolidateBinCountLoc = GLS.glGetUniformLocation(self.histoConsolidateProg, b'binCount')
+        self.histoConsolidateInvocationBinCountLoc = GLS.glGetUniformLocation(self.histoConsolidateProg, b'invocationBinCount')
+        # This value must match local_size_x in histogramConsolidate.glslc
+        self.histoConsolidateLiCount = 16
 
     def _initHistoDrawProg(self):
         try:
@@ -147,7 +165,7 @@ class RisWidget(QtOpenGL.QGLWidget):
                 GLS.compileShader([self._loadSource('histogram.glslv')], GLS.GL_VERTEX_SHADER),
                 GLS.compileShader([self._loadSource('histogram.glslf')], GLS.GL_FRAGMENT_SHADER))
         except GL.GLError as e:
-            print(e.description)
+            print('In histogram.glslv or histogram.glslf:\n' + e.description.decode('utf-8'))
             sys.exit(-1)
         GLS.glUseProgram(self.histoDrawProg)
         self.histoDrawProjectionModelViewMatrixLoc = GLS.glGetUniformLocation(self.histoDrawProg, b'projectionModelViewMatrix')
@@ -156,11 +174,12 @@ class RisWidget(QtOpenGL.QGLWidget):
         self.histoDrawBinIndexLoc = GLS.glGetAttribLocation(self.histoDrawProg, b'binIndex')
         self.histoDrawPointBuff = None
         self.histoDrawPointVao = None
-        self.drawHistogramsLoc = 0
+        self.drawHistogramLoc = 0
 
     def initializeGL(self):
         self._initPanelProg()
         self._initHistoCalcProg()
+        self._initHistoConsolidateProg()
         self._initHistoDrawProg()
         self.setBinCount(256, update=False)
 
@@ -185,22 +204,22 @@ class RisWidget(QtOpenGL.QGLWidget):
 
         GLS.glUseProgram(self.histoCalcProg)
 
-        if reallocate and self.histogramsTex is not None:
-            GL.glDeleteTextures([self.histogramsTex])
-            self.histogramsTex = None
+        if reallocate and self.histogramBlocksTex is not None:
+            GL.glDeleteTextures([self.histogramBlocksTex])
+            self.histogramBlocksTex = None
 
-        if self.histogramsTex is None:
-            self.histogramsTex = GL.glGenTextures(1)
-            GL.glBindTexture(GL.GL_TEXTURE_2D_ARRAY, self.histogramsTex)
+        if self.histogramBlocksTex is None:
+            self.histogramBlocksTex = GL.glGenTextures(1)
+            GL.glBindTexture(GL.GL_TEXTURE_2D_ARRAY, self.histogramBlocksTex)
             GL.glTexStorage3D(
                 GL.GL_TEXTURE_2D_ARRAY,
                 1,
                 OpenGL.GL.ARB.texture_rg.GL_R32UI,
                 self.histoWgCountPerAxis, self.histoWgCountPerAxis, self.histoBinCount)
         else:
-            GL.glBindTexture(GL.GL_TEXTURE_2D_ARRAY, self.histogramsTex)
+            GL.glBindTexture(GL.GL_TEXTURE_2D_ARRAY, self.histogramBlocksTex)
 
-        # Zero-out histogram data... this is slow and should be improved
+        # Zero-out block histogram data... this is slow and should be improved
         GL.glTexSubImage3D(
             GL.GL_TEXTURE_2D_ARRAY,
             0,
@@ -209,13 +228,41 @@ class RisWidget(QtOpenGL.QGLWidget):
             GL.GL_RED_INTEGER, GL.GL_UNSIGNED_INT,
             numpy.zeros((self.histoWgCountPerAxis, self.histoWgCountPerAxis, self.histoBinCount), dtype=numpy.uint32))
 
+        if reallocate and self.histogramTex is not None:
+            GL.glDeleteTextures([self.histogramTex])
+            self.histogramTex = None
+
+        if self.histogramTex is None:
+            self.histogramTex = GL.glGenTextures(1)
+            GL.glBindTexture(GL.GL_TEXTURE_1D, self.histogramTex)
+            GL.glTexStorage1D(
+                GL.GL_TEXTURE_1D,
+                1,
+                OpenGL.GL.ARB.texture_rg.GL_R32UI,
+                self.histoBinCount)
+        else:
+            GL.glBindTexture(GL.GL_TEXTURE_1D, self.histogramTex)
+
         axisInvocations = self.histoWgCountPerAxis * self.histoLiCountPerAxis
         GL.glUniform2i(self.histoInvocationRegionSizeLoc, math.ceil(imageData.shape[1] / axisInvocations), math.ceil(imageData.shape[0] / axisInvocations))
+
+        # Another pessimal zeroing...
+        GL.glTexSubImage1D(
+            GL.GL_TEXTURE_1D,
+            0,
+            0,
+            self.histoBinCount,
+            GL.GL_RED_INTEGER, GL.GL_UNSIGNED_INT,
+            numpy.zeros((self.histoBinCount), dtype=numpy.uint32))
 
     def setBinCount(self, binCount, update=True):
         self.histoBinCount = binCount
         self.context().makeCurrent()
+
         GL.glProgramUniform1f(self.histoCalcProg, self.histoBinCountLoc, self.histoBinCount)
+
+        GL.glProgramUniform1ui(self.histoConsolidateProg, self.histoConsolidateBinCountLoc, self.histoBinCount)
+        GL.glProgramUniform1ui(self.histoConsolidateProg, self.histoConsolidateInvocationBinCountLoc, math.ceil(self.histoBinCount / self.histoConsolidateLiCount))
 
         GLS.glUseProgram(self.histoDrawProg)
 
@@ -237,6 +284,7 @@ class RisWidget(QtOpenGL.QGLWidget):
 
         if update:
             self._execHistoCalcProg()
+            self._execHistoConsolidateProg()
             self.update()
 
     def _execPanelProg(self):
@@ -282,15 +330,23 @@ class RisWidget(QtOpenGL.QGLWidget):
         GL.glBindImageTexture(self.histoImageLoc, self.imTex, 0, False, 0, GL.GL_READ_ONLY, OpenGL.GL.ARB.texture_rg.GL_R16UI)
 
         GL.glBindTexture(GL.GL_TEXTURE_2D_ARRAY, 0)
-        GL.glBindImageTexture(self.histogramsLoc, self.histogramsTex, 0, True, 0, GL.GL_WRITE_ONLY, OpenGL.GL.ARB.texture_rg.GL_R32UI)
+        GL.glBindImageTexture(self.histogramBlocksLoc , self.histogramBlocksTex, 0, True, 0, GL.GL_WRITE_ONLY, OpenGL.GL.ARB.texture_rg.GL_R32UI)
 
         GL.glDispatchCompute(self.histoWgCountPerAxis, self.histoWgCountPerAxis, 1)
 
         # Wait for compute shader execution to complete
         GL.glMemoryBarrier(GL.GL_SHADER_IMAGE_ACCESS_BARRIER_BIT)
 
+    def _execHistoConsolidateProg(self):
+        GLS.glUseProgram(self.histoConsolidateProg)
+        GL.glBindTexture(GL.GL_TEXTURE_2D_ARRAY, 0)
+        GL.glBindImageTexture(self.histoConsolidateHistogramsLoc, self.histogramBlocksTex, 0, True, 0, GL.GL_READ_ONLY, OpenGL.GL.ARB.texture_rg.GL_R32UI)
+        GL.glBindTexture(GL.GL_TEXTURE_1D, 0)
+        GL.glBindImageTexture(self.histoConsolidateHistogramLoc, self.histogramTex, 0, False, 0, GL.GL_WRITE_ONLY, OpenGL.GL.ARB.texture_rg.GL_R32UI)
+        GL.glDispatchCompute(self.histoWgCountPerAxis, self.histoWgCountPerAxis, 1)
+        GL.glMemoryBarrier(GL.GL_SHADER_IMAGE_ACCESS_BARRIER_BIT)
+
     def _execHistoDrawProg(self):
-        m = self.histbug().max()
         GLS.glUseProgram(self.histoDrawProg)
         GL.glUniform1ui(self.histoDrawBinCountLoc, self.histoBinCount)
         GL.glUniform1f(self.histoDrawBinScaleLoc, 20)
@@ -301,19 +357,19 @@ class RisWidget(QtOpenGL.QGLWidget):
         self.modelMatrix = self.modelMatrix.astype(numpy.float32)
         GLS.glUniformMatrix4fv(self.histoDrawProjectionModelViewMatrixLoc, 1, True, numpy.dot(self.projectionMatrix, self.modelMatrix))
 
-        GL.glBindTexture(GL.GL_TEXTURE_2D_ARRAY, 0)
-        GL.glBindImageTexture(self.drawHistogramsLoc, self.histogramsTex, 0, True, 0, GL.GL_READ_ONLY, OpenGL.GL.ARB.texture_rg.GL_R32UI)
+        GL.glBindTexture(GL.GL_TEXTURE_1D, 0)
+        GL.glBindImageTexture(self.drawHistogramLoc, self.histogramTex, 0, True, 0, GL.GL_READ_ONLY, OpenGL.GL.ARB.texture_rg.GL_R32UI)
 
         GL.glBindVertexArray(self.histoDrawPointVao)
+        GL.glDrawArrays(GL.GL_LINE_STRIP, 0, self.histoBinCount)
+        GL.glPointSize(4)
         GL.glDrawArrays(GL.GL_POINTS, 0, self.histoBinCount)
 
-    def histbug(self):
+    def getHistogram(self):
         self.context().makeCurrent()
-        a = numpy.zeros((self.histoWgCountPerAxis, self.histoWgCountPerAxis, self.histoBinCount), dtype=numpy.uint32)
-        GLS.glUseProgram(self.histoCalcProg)
-        GL.glBindTexture(GL.GL_TEXTURE_2D_ARRAY, self.histogramsTex)
-        # The order of this thing is very weird
-        return GL.glGetTexImage(GL.GL_TEXTURE_2D_ARRAY, 0, GL.GL_RED_INTEGER, GL.GL_UNSIGNED_INT, a)
+        a = numpy.zeros((self.histoBinCount), dtype=numpy.uint32)
+        GL.glBindTexture(GL.GL_TEXTURE_1D, self.histogramTex)
+        return GL.glGetTexImage(GL.GL_TEXTURE_1D, 0, GL.GL_RED_INTEGER, GL.GL_UNSIGNED_INT, a)
 
     def paintGL(self):
         self._execPanelProg()
@@ -335,6 +391,7 @@ class RisWidget(QtOpenGL.QGLWidget):
         self.context().makeCurrent()
         self._loadImageData(imageData, reallocate)
         self._execHistoCalcProg()
+        self._execHistoConsolidateProg()
         self.update()
 
     def setGtpEnabled(self, gtpEnabled, update=True):

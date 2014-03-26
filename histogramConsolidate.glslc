@@ -1,0 +1,23 @@
+#version 430 core
+
+layout (binding = 0, r32ui) uniform readonly uimage2DArray histograms;
+layout (binding = 1, r32ui) uniform coherent uimage1D histogram;
+
+uniform uint binCount;
+uniform uint invocationBinCount;
+
+layout (local_size_x = 16) in;
+
+void main()
+{
+    uint start = gl_LocalInvocationID.x * invocationBinCount;
+    // Ensure that processing of remainder blocks for non-divisible bin count does not proceed beyond last bin
+    uint end = min(start + invocationBinCount, binCount);
+
+    uint binValue;
+    for(uint bin = start; bin < end; ++bin)
+    {
+        binValue = imageLoad(histograms, ivec3(gl_WorkGroupID.x, gl_WorkGroupID.y, bin)).r;
+        imageAtomicAdd(histogram, int(bin), binValue);
+    }
+}
