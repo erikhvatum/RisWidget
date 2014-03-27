@@ -130,8 +130,8 @@ class RisWidget(QtOpenGL.QGLWidget):
         self.gtpGammaLoc   = GLS.glGetUniformLocation(self.panelProg, b'gtp.gammaVal')
         self.projectionModelViewMatrixLoc = GLS.glGetUniformLocation(self.panelProg, b'projectionModelViewMatrix')
 
-        self.modelMatrix = None
-        self.projectionMatrix = None
+        self.imPmvMat = None
+        self.histoPmvMat = None
 
         self.panelColorerLoc                    = GL.glGetSubroutineUniformLocation(self.panelProg, GL.GL_FRAGMENT_SHADER, b'panelColorer')
         self.imagePanelGammaTransformColorerLoc = GL.glGetSubroutineIndex(self.panelProg, GL.GL_FRAGMENT_SHADER, b'imagePanelGammaTransformColorer')
@@ -220,6 +220,9 @@ class RisWidget(QtOpenGL.QGLWidget):
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_CLAMP_TO_EDGE)
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_CLAMP_TO_EDGE)
+
+        self.imAspectRatio = imageData.shape[1] / imageData.shape[0]
+        self.imSize = type('', (), {'w' : imageData.shape[1], 'h' : imageData.shape[0]})
 
         GLS.glUseProgram(self.histoCalcProg)
 
@@ -314,30 +317,16 @@ class RisWidget(QtOpenGL.QGLWidget):
         if self.imTex is not None:
             GLS.glUseProgram(self.panelProg)
             GL.glBindVertexArray(self.panelVao)
+
+            # Draw image panel
             GL.glBindTexture(GL.GL_TEXTURE_2D, self.imTex)
-
-            # Rescale projection matrix such that display aspect ratio is preserved and contents fill either horizontal
-            # or vertical (whichever is smaller)
-            if self.windowSizeChanged:
-                self.projectionMatrix = numpy.identity(4, numpy.float32)
-                if self.currWindowSize.w >= self.currWindowSize.h:
-                    self.projectionMatrix[0, 0] = self.currWindowSize.h / self.currWindowSize.w
-                else:
-                    self.projectionMatrix[1, 1] = self.currWindowSize.w / self.currWindowSize.h
-
             GL.glUniformSubroutinesuiv(GL.GL_FRAGMENT_SHADER, 1, [self.imagePanelGammaTransformColorerLoc if self.gtpEnabled else self.imagePanelPassthroughColorerLoc])
-            self.modelMatrix = numpy.dot(
-                transformations.translation_matrix([0, 1/3, 0]),
-                transformations.scale_matrix(2/3, direction=[0, 1, 0])).astype(numpy.float32)
-            GLS.glUniformMatrix4fv(self.projectionModelViewMatrixLoc, 1, True, numpy.dot(self.projectionMatrix, self.modelMatrix))
+            GLS.glUniformMatrix4fv(self.projectionModelViewMatrixLoc, 1, True, self.imPmvMat)
             GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
 
+            # Draw histogram panel
             GL.glUniformSubroutinesuiv(GL.GL_FRAGMENT_SHADER, 1, [self.histogramPanelColorerLoc])
-            self.modelMatrix = numpy.dot(
-                transformations.translation_matrix([0, -2/3, 0]),
-                transformations.scale_matrix(1/3, direction=[0, 1, 0])).astype(numpy.float32)
-            self.modelMatrix = self.modelMatrix.astype(numpy.float32)
-            GLS.glUniformMatrix4fv(self.projectionModelViewMatrixLoc, 1, True, numpy.dot(self.projectionMatrix, self.modelMatrix) if self.currWindowSize.h > self.currWindowSize.w else self.modelMatrix)
+            GLS.glUniformMatrix4fv(self.projectionModelViewMatrixLoc, 1, True, self.histoPmvMat)
             GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
 
     def _execHistoCalcProg(self):
@@ -388,12 +377,7 @@ class RisWidget(QtOpenGL.QGLWidget):
         GLS.glUseProgram(self.histoDrawProg)
         GL.glUniform1ui(self.histoDrawBinCountLoc, self.histoBinCount)
         GL.glUniform1f(self.histoDrawBinScaleLoc, self.histoMinMax[1])
-
-        self.modelMatrix = numpy.dot(
-            transformations.translation_matrix([0, -2/3, 0]),
-            transformations.scale_matrix(1/3, direction=[0, 1, 0])).astype(numpy.float32)
-        self.modelMatrix = self.modelMatrix.astype(numpy.float32)
-        GLS.glUniformMatrix4fv(self.histoDrawProjectionModelViewMatrixLoc, 1, True, numpy.dot(self.projectionMatrix, self.modelMatrix) if self.currWindowSize.h > self.currWindowSize.w else self.modelMatrix)
+        GLS.glUniformMatrix4fv(self.histoDrawProjectionModelViewMatrixLoc, 1, True, self.histoPmvMat)
 
         GL.glBindTexture(GL.GL_TEXTURE_1D, 0)
         GL.glBindImageTexture(self.drawHistogramLoc, self.histogramTex, 0, True, 0, GL.GL_READ_ONLY, OpenGL.GL.ARB.texture_rg.GL_R32UI)
@@ -416,13 +400,41 @@ class RisWidget(QtOpenGL.QGLWidget):
         '''Returns a tuple (min, max) copied from data cached in local memory.'''
         return (self.histoMinMax[0], self.histoMinMax[1])
 
+    def _updateMats(self):
+        if self.windowSizeChanged:
+            # Image view aspect ratio is always maintained.  The image is centered along whichever axis
+            # does not fit.
+            imViewAspectRatio = 3/2 * self.windowAspectRatio
+            correctionFactor = self.imAspectRatio / imViewAspectRatio
+            self.imPmvMat = numpy.dot(
+                transformations.translation_matrix([0, 1/3, 0]),
+                transformations.scale_matrix(2/3, direction=[0, 1, 0]))
+            if correctionFactor <= 1:
+                self.imPmvMat = numpy.dot(
+                    transformations.scale_matrix(correctionFactor, direction=[1, 0, 0]),
+                    self.imPmvMat).astype(numpy.float32)
+            else:
+                self.imPmvMat = numpy.dot(
+                    transformations.scale_matrix(1 / correctionFactor, direction=[0, 1, 0]),
+                    self.imPmvMat).astype(numpy.float32)
+
+            # Histogram is always 1/3 window height and fills window width
+            self.histoPmvMat = numpy.dot(
+                transformations.translation_matrix([0, -2/3, 0]),
+                transformations.scale_matrix(1/3, direction=[0, 1, 0]))
+            self.histoPmvMat = self.histoPmvMat.astype(numpy.float32)
+
     def paintGL(self):
         ws = self.size()
         self.currWindowSize = type('', (), {'w' : float(ws.width()), 'h' : float(ws.height())}) # so sue me
         del ws
         self.windowSizeChanged = self.currWindowSize != self.prevWindowSize
+        self.windowAspectRatio = self.currWindowSize.w / self.currWindowSize.h
+
+        self._updateMats()
         self._execPanelProg()
         self._execHistoDrawProg()
+
         self.prevWindowSize = self.currWindowSize
 
     def resizeGL(self, width, height):
