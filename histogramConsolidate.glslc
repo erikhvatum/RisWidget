@@ -1,7 +1,11 @@
 #version 430 core
 
-layout (binding = 0, r32ui) uniform readonly uimage2DArray histograms;
+layout (binding = 0, r32ui) uniform readonly uimage2DArray histogramBlocks;
 layout (binding = 1, r32ui) uniform coherent uimage1D histogram;
+layout (std430, binding = 0) coherent buffer Extrema {
+    uint minBinVal;
+    uint maxBinVal;
+};
 
 uniform uint binCount;
 uniform uint invocationBinCount;
@@ -10,14 +14,32 @@ layout (local_size_x = 16) in;
 
 void main()
 {
+    /* Accumulate block histogramBlocks into single histogram representing the entire image */
+
     uint start = gl_LocalInvocationID.x * invocationBinCount;
     // Ensure that processing of remainder blocks for non-divisible bin count does not proceed beyond last bin
     uint end = min(start + invocationBinCount, binCount);
 
-    uint binValue;
-    for(uint bin = start; bin < end; ++bin)
+    uint binValue, bin;
+    for(bin = start; bin < end; ++bin)
     {
-        binValue = imageLoad(histograms, ivec3(gl_WorkGroupID.x, gl_WorkGroupID.y, bin)).r;
+        binValue = imageLoad(histogramBlocks, ivec3(gl_WorkGroupID.x, gl_WorkGroupID.y, bin)).r;
         imageAtomicAdd(histogram, int(bin), binValue);
+    }
+
+
+    /* Use the 16 threads of the first workgroup to find the min and max bin values */
+
+    // Wait for all invocations to complete block accumulation
+    barrier();
+
+    if(gl_WorkGroupID.x == 0 && gl_WorkGroupID.y == 0)
+    {
+        for(bin = start; bin < end; ++bin)
+        {
+            binValue = imageLoad(histogram, int(bin));
+            atomicMin(minBinVal, binValue);
+            atomicMax(maxBinVal, binValue);
+        }
     }
 }
