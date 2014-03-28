@@ -1,3 +1,25 @@
+# The MIT License (MIT)
+#
+# Copyright (c) 2014 Erik Hvatum
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import ctypes
 import math
 import numpy
@@ -11,7 +33,9 @@ import sip
 import sys
 import transformations
 
-from ris_widget_exceptions import *
+from ris_widget.ris import Ris
+from ris_widget.ris_exceptions import *
+from ris_widget.ris_widget_exceptions import *
 
 class RisWidget(QtOpenGL.QGLWidget):
     '''RisWidget stands for Rapid Image Stream Widget.  If tearing is visible, try enabling vsync in your OS's display
@@ -440,7 +464,7 @@ class RisWidget(QtOpenGL.QGLWidget):
     def resizeGL(self, width, height):
         GL.glViewport(0, 0, width, height)
 
-    def showImage(self, imageData, reallocate = True):
+    def showImage(self, imageData, reallocate=True):
         '''Disable reallocate when replacing an image that differs only by pixel value.  For example,
         do disable reallocate when showing frames from the same video file; do not disable reallocate
         when displaying a random assortment of images of various sizes and color depths. '''
@@ -456,14 +480,29 @@ class RisWidget(QtOpenGL.QGLWidget):
         self._execHistoConsolidateProg()
         self.update()
 
+    def attachRis(self, ris, startRis=True, showRisFrames=True):
+        if self.ris is not None:
+            self.detachRis(self.ris)
+        self.ris = ris
+        self.showRisFrames = showRisFrames
+        self.ris.addSink(self)
+        if runRis:
+            self.ris.start()
+
+    def detachRis(self, stopRis=True):
+        if stopRis:
+            self.ris.stop()
+        self.ris.removeSink(self)
+        self.ris = None
+
     def setGtpEnabled(self, gtpEnabled, update=True):
-        '''Enable or disable gamma transformation.  If update is true, the widget will be refreshed.'''
+        '''Enable or disable gamma transformation.  If update is true, the widget will be refreshed immediately.'''
         self.gtpEnabled = gtpEnabled
         if update:
             self.update()
 
     def setGtpMinimum(self, gtpMinimum, update=True):
-        '''Set gamma transformation minimum intensity parameter.  If update is true, the widget will be refreshed.'''
+        '''Set gamma transformation minimum intensity parameter.  If update is true, the widget will be refreshed immediately.'''
         self.context().makeCurrent()
         GLS.glUseProgram(self.panelProg)
         GLS.glUniform1f(self.gtpMinLoc, gtpMinimum)
@@ -471,7 +510,7 @@ class RisWidget(QtOpenGL.QGLWidget):
             self.update()
 
     def setGtpMaximum(self, gtpMaximum, update=True):
-        '''Set gamma transformation minimum intensity parameter.  If update is true, the widget will be refreshed.'''
+        '''Set gamma transformation minimum intensity parameter.  If update is true, the widget will be refreshed immediately.'''
         self.context().makeCurrent()
         GLS.glUseProgram(self.panelProg)
         GLS.glUniform1f(self.gtpMaxLoc, gtpMaximum)
@@ -479,7 +518,7 @@ class RisWidget(QtOpenGL.QGLWidget):
             self.update()
 
     def setGtpGamma(self, gtpGamma, update=True):
-        '''Set gamma transformation gamma parameter.  If update is true, the widget will be refreshed.'''
+        '''Set gamma transformation gamma parameter.  If update is true, the widget will be refreshed immediately.'''
         self.context().makeCurrent()
         GLS.glUseProgram(self.panelProg)
         GLS.glUniform1f(self.gtpGammaLoc, gtpGamma)
@@ -487,7 +526,7 @@ class RisWidget(QtOpenGL.QGLWidget):
             self.update()
 
     def setGtpParams(self, gtpEnabled, gtpMinimum, gtpMaximum, gtpGamma, update=True):
-        '''Set all gamma transformation parameters.  If update is true, the widget will be refreshed.'''
+        '''Set all gamma transformation parameters.  If update is true, the widget will be refreshed immediately.'''
         self.context().makeCurrent()
         GLS.glUseProgram(self.panelProg)
         self.gtpEnabled = gtpEnabled
