@@ -20,12 +20,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-class RisException(BaseException):
-    def __init__(self, description='(no description)'):
-        self.description = description
+from ris_widget.ris import Ris
 
-class DuplicateSinkException(RisException):
-    pass
+class MicroManagerSnapStream(Ris):
+    def __init__(self, mmc):
+        super().__init__()
+        self.mmc = mmc
+        self.stop = True
 
-class SpecifiedSinkNotAttachedException(RisException):
-    pass
+    def _doStart(self):
+        self.stop = False

@@ -49,6 +49,7 @@ class RisWidget(QtOpenGL.QGLWidget):
         self.windowSizeChanged = None
         self.setWindowTitle(windowTitle_)
         self.iinfo_uint32 = numpy.iinfo(numpy.uint32)
+        self.ris = None
 
     @staticmethod
     def _makeGlFormat(enableSwapInterval1_):
@@ -485,15 +486,18 @@ class RisWidget(QtOpenGL.QGLWidget):
             self.detachRis(self.ris)
         self.ris = ris
         self.showRisFrames = showRisFrames
-        self.ris.addSink(self)
-        if runRis:
+        self.ris.attachSink(self)
+        if startRis:
             self.ris.start()
 
     def detachRis(self, stopRis=True):
         if stopRis:
             self.ris.stop()
-        self.ris.removeSink(self)
+        self.ris.detachSink(self)
         self.ris = None
+
+    def risImageAcquired(self, ris):
+        print('risImageAcquired')
 
     def setGtpEnabled(self, gtpEnabled, update=True):
         '''Enable or disable gamma transformation.  If update is true, the widget will be refreshed immediately.'''
