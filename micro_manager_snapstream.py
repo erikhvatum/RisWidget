@@ -28,33 +28,32 @@ class MicroManagerSnapStream(Ris):
     def __init__(self, mmc):
         super().__init__()
         self.mmc = mmc
-        self.stopLock = threading.Lock()
-        with self.stopLock:
-            self.stop = True
+        self.wantStopLock = threading.Lock()
+        with self.wantStopLock:
+            self.wantStop = True
 
     def _doStart(self):
         self.prevShape = None
-        with self.stopLock:
-            self.stop = False
+        with self.wantStopLock:
+            self.wantStop = False
         self.acquire()
 
     def _doStop(self):
-        with self.stopLock:
-            self.stop = True
+        with self.wantStopLock:
+            self.wantStop = True
 
     def _doAcquire(self):
-        stop = None
-        with self.stopLock:
-            stop = self.stop
-        if not stop:
+        wantStop = None
+        with self.wantStopLock:
+            wantStop = self.wantStop
+        if not wantStop:
             self.mmc.snapImage()
 
-        with self.stopLock:
-            stop = self.stop
-        if not stop:
+        with self.wantStopLock:
+            wantStop = self.wantStop
+        if not wantStop:
             image = self.mmc.getImage()
-
-        self._signalImageAcquired(image)
+            self._signalImageAcquired(image)
 
     def _imageAcquired(self, image):
         sameShape = image.shape == self.prevShape

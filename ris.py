@@ -89,7 +89,7 @@ class _StreamWorker(QtCore.QObject):
         self.ris._doAcquire()
 
     def stopStreamSlot(self):
-        self.manager.ris._doStop()
+        self.ris._doStop()
 
 class _StreamManager(QtCore.QObject):
     '''Something derived from QObject and residing in the main thread must exist
