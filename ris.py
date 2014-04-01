@@ -30,12 +30,8 @@ class Ris:
     source, and pass an instance of your class as the argument to RisWidget.attachRis(...)
     in order to display streamed images.  Note that you don't need this just to show an
     image or two.  For that, use RisWidget.showImage(..).'''
-    def __init__(self, maxStreamAheadCount=2):
-        self._maxStreamAheadCount = maxStreamAheadCount
-        self._currStreamAheadCount = 0
-        self._currStreamAheadCountLock = threading.Lock()
-        self._currStreamAheadCountDecreased = threading.Condition(self._currStreamAheadCountLock)
 
+    def __init__(self):
         # self._sinks could be a set, but maintaining sink order offers no surprises, a
         # list is fast to iterate through in order, and the only case where fast lookup
         # would be desired (adding and removing streams when a large number of streams
@@ -62,6 +58,9 @@ class Ris:
     def stop(self):
         self._streamManager.stopStream()
 
+    def acquire(self):
+        self._streamManager.acquire()
+
     def _doStart(self):
         raise NotImplementedError('A class inheriting Ris must implement the _doStart member function.')
 
@@ -71,30 +70,23 @@ class Ris:
     def _doAcquire(self):
         raise NotImplementedError('A class inheriting Ris must implement the _doAcquire member function.')
 
+    def _signalImageAcquired(self, image):
+        self._streamManager.imageAcquiredSignal.emit(image)
+
     def _imageAcquired(self, image):
-        for sink in self._sinks:
+        for sink in self.sinks:
             sink.risImageAcquired(self, image)
 
-
 class _StreamWorker(QtCore.QObject):
-    # The stream notifies the main thread of changes by emitting these signals.
-    newImageSignal = QtCore.pyqtSignal(list)
-    exceptionSignal = QtCore.pyqtSignal(list)
-
-    def __init__(self, manager):
+    def __init__(self, ris):
         super().__init__(None)
-        self.manager = manager
+        self.ris = ris
 
     def startStreamSlot(self):
-        self.manager.ris._doStart()
-        self.loop()
+        self.ris._doStart()
 
-    def loop(self):
-        with self.manager.ris._currStreamAheadCountLock:
-            if self._maxStreamAheadCount == self._currStreamAheadCount:
-                self._currStreamAheadCountDecreased.wait()
-        self.manager.ris._doAcquire()
-
+    def acquireSlot(self):
+        self.ris._doAcquire()
 
     def stopStreamSlot(self):
         self.manager.ris._doStop()
@@ -110,15 +102,20 @@ class _StreamManager(QtCore.QObject):
     are smarter than your average callback in that they are actually handlers
     executed by the main thread's event loop function and run in the main thread.'''
 
+    # The stream notifies the main thread of image acquisitions and such by emitting these signals.
+    imageAcquiredSignal = QtCore.pyqtSignal(object)
+    #exceptionSignal = QtCore.pyqtSignal(object)
+
     # These signals are used to asynchronously control the stream.  That is, a _StreamWorker
     # listens to its _StreamManager for startStreamSignal and stopStreamSignal.
     startStreamSignal = QtCore.pyqtSignal()
     stopStreamSignal = QtCore.pyqtSignal()
+    acquireSignal = QtCore.pyqtSignal()
 
     def __init__(self, ris):
         super().__init__(None)
         self.ris = ris
-        self.streamWorker = _StreamWorker(self)
+        self.streamWorker = _StreamWorker(self.ris)
         # Refer to the first example in the "detailed description" section of
         # http://qt-project.org/doc/qt-5/qthread.html for information on exactly
         # what is going on in the next few lines and why.
@@ -129,7 +126,8 @@ class _StreamManager(QtCore.QObject):
         self.streamWorkerThread.finished.connect(self.streamWorkerThread.deleteLater, QtCore.Qt.QueuedConnection)
         self.startStreamSignal.connect(self.streamWorker.startStreamSlot, QtCore.Qt.QueuedConnection)
         self.stopStreamSignal.connect(self.streamWorker.stopStreamSlot, QtCore.Qt.QueuedConnection)
-        self.streamWorker.newImageSignal.connect(self.ris._imageAcquired, QtCore.Qt.QueuedConnection)
+        self.acquireSignal.connect(self.streamWorker.acquireSlot, QtCore.Qt.QueuedConnection)
+        self.imageAcquiredSignal.connect(self.imageAcquiredSlot, QtCore.Qt.QueuedConnection)
         self.streamWorkerThread.start()
 
     def __del__(self):
@@ -141,3 +139,9 @@ class _StreamManager(QtCore.QObject):
 
     def stopStream(self):
         self.stopStreamSignal.emit()
+
+    def acquire(self):
+        self.acquireSignal.emit()
+
+    def imageAcquiredSlot(self, image):
+        self.ris._imageAcquired(image)
