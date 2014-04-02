@@ -36,6 +36,7 @@ import transformations
 from ris_widget.ris import Ris
 from ris_widget.ris_exceptions import *
 from ris_widget.ris_widget_exceptions import *
+from ris_widget.shader_program import ShaderProgram
 
 class RisWidget(QtOpenGL.QGLWidget):
     '''RisWidget stands for Rapid Image Stream Widget.  If tearing is visible, try enabling vsync in your OS's display
@@ -82,86 +83,82 @@ class RisWidget(QtOpenGL.QGLWidget):
         with open(os.path.join(os.path.dirname(__file__), sourceFileName), 'r') as src:
             return src.read()
 
-    def _getAttribLoc(self, attribName):
-        loc = GLS.glGetAttribLocation(self.panelProg, attribName)
-        if loc == -1:
-            raise RisWidgetException('Could not find location of panel.glslf attribute "{}".'.format(attribName))
-        return loc
-
     def _initPanelProg(self):
-        try:
-            self.panelProg = GLS.compileProgram(
-                GLS.compileShader([self._loadSource('panel.glslv')], GLS.GL_VERTEX_SHADER),
-                GLS.compileShader([self._loadSource('panel.glslf')], GLS.GL_FRAGMENT_SHADER))
-        except GL.GLError as e:
-            print('In panel.glslv or panel.glslf:\n' + e.description.decode('utf-8'))
-            sys.exit(-1)
+        self.panelProg = ShaderProgram(
+            self.context(),
+            [
+                ('panel.glslv', GLS.GL_VERTEX_SHADER),
+                ('panel.glslf', GLS.GL_FRAGMENT_SHADER,
+                    ('panelColorer',
+                     'imagePanelGammaTransformColorer',
+                     'imagePanelPassthroughColorer',
+                     'histogramPanelColorer'))
+            ],
+            [
+                ('gtp.minVal', 'gtpMin'),
+                ('gtp.maxVal', 'gtpMax'),
+                ('gtp.gammaVal', 'gtpGamma'),
+                'projectionModelViewMatrix'
+            ],
+            [
+                'vertPos',
+                'texCoord'
+            ]
+            )
 
-        GLS.glUseProgram(self.panelProg)
+        with self.panelProg:
+            self.panelProg.vao = GL.glGenVertexArrays(1)
+            GL.glBindVertexArray(self.panelProg.vao)
 
-        self.panelVao = GL.glGenVertexArrays(1)
-        GL.glBindVertexArray(self.panelVao)
+            quad = numpy.array([
+                # Vertex positions
+                1.0, -1.0,
+                -1.0, -1.0,
+                -1.0, 1.0,
+                1.0, 1.0,
+                # Texture coordinates
+                0.0, 0.0,
+                1.0, 0.0,
+                1.0, 1.0,
+                0.0, 1.0], numpy.float32)
 
-        quad = numpy.array([
-            # Vertex positions
-            1.0, -1.0,
-            -1.0, -1.0,
-            -1.0, 1.0,
-            1.0, 1.0,
-            # Texture coordinates
-            0.0, 0.0,
-            1.0, 0.0,
-            1.0, 1.0,
-            0.0, 1.0], numpy.float32)
+            self.quadShaderBuff = GL.glGenBuffers(1)
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.quadShaderBuff)
+            GL.glBufferData(GL.GL_ARRAY_BUFFER, quad, GL.GL_STATIC_DRAW)
 
-        self.quadShaderBuff = GL.glGenBuffers(1)
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.quadShaderBuff)
-        GL.glBufferData(GL.GL_ARRAY_BUFFER, quad, GL.GL_STATIC_DRAW)
+            # quad is deleted to make clear that quad's data has been copied to the GPU by the glBufferData directly above
+            del quad
 
-        # quad is deleted to make clear that quad's data has been copied to the GPU by the glBufferData directly above
-        del quad
+            GLS.glEnableVertexAttribArray(self.panelProg.vertPosLoc)
+            GLS.glVertexAttribPointer(self.panelProg.vertPosLoc, 2, GL.GL_FLOAT, False, 0, ctypes.c_void_p(0))
 
-        vertPosLoc = self._getAttribLoc('vertPos')
-        GLS.glEnableVertexAttribArray(vertPosLoc)
-        GLS.glVertexAttribPointer(vertPosLoc, 2, GL.GL_FLOAT, False, 0, ctypes.c_void_p(0))
+            GLS.glEnableVertexAttribArray(self.panelProg.texCoordLoc)
+            GLS.glVertexAttribPointer(self.panelProg.texCoordLoc, 2, GL.GL_FLOAT, False, 0, ctypes.c_void_p(2 * 4 * 4))
 
-        texCoordLoc = self._getAttribLoc('texCoord')
-        GLS.glEnableVertexAttribArray(texCoordLoc)
-        GLS.glVertexAttribPointer(texCoordLoc, 2, GL.GL_FLOAT, False, 0, ctypes.c_void_p(2 * 4 * 4))
+            checkerboard = numpy.array([
+                [0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000],
+                [0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff],
+                [0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000],
+                [0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff],
+                [0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000],
+                [0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff],
+                [0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000],
+                [0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff]], numpy.uint16)
 
-        checkerboard = numpy.array([
-            [0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000],
-            [0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff],
-            [0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000],
-            [0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff],
-            [0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000],
-            [0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff],
-            [0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000],
-            [0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff]], numpy.uint16)
+            self.imTex = GL.glGenTextures(1)
+            GL.glBindTexture(GL.GL_TEXTURE_2D, self.imTex)
 
-        self.imTex = GL.glGenTextures(1)
-        GL.glBindTexture(GL.GL_TEXTURE_2D, self.imTex)
+            GL.glTexStorage2D(GL.GL_TEXTURE_2D, 1, OpenGL.GL.ARB.texture_rg.GL_R16UI, checkerboard.shape[1], checkerboard.shape[0])
+            GL.glTexSubImage2D(GL.GL_TEXTURE_2D, 0, 0, 0, checkerboard.shape[1], checkerboard.shape[0], GL.GL_RED_INTEGER, GL.GL_UNSIGNED_SHORT, checkerboard)
+            GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_NEAREST)
+            GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_NEAREST)
+            GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_CLAMP_TO_EDGE)
+            GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_CLAMP_TO_EDGE)
 
-        GL.glTexStorage2D(GL.GL_TEXTURE_2D, 1, OpenGL.GL.ARB.texture_rg.GL_R16UI, checkerboard.shape[1], checkerboard.shape[0])
-        GL.glTexSubImage2D(GL.GL_TEXTURE_2D, 0, 0, 0, checkerboard.shape[1], checkerboard.shape[0], GL.GL_RED_INTEGER, GL.GL_UNSIGNED_SHORT, checkerboard)
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_NEAREST)
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_NEAREST)
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_CLAMP_TO_EDGE)
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_CLAMP_TO_EDGE)
-
-        self.gtpEnabled = False
-        self.gtpMinLoc     = GLS.glGetUniformLocation(self.panelProg, b'gtp.minVal')
-        self.gtpMaxLoc     = GLS.glGetUniformLocation(self.panelProg, b'gtp.maxVal')
-        self.gtpGammaLoc   = GLS.glGetUniformLocation(self.panelProg, b'gtp.gammaVal')
-        self.projectionModelViewMatrixLoc = GLS.glGetUniformLocation(self.panelProg, b'projectionModelViewMatrix')
+            self.gtpEnabled = False
 
         self.imPmvMat = None
         self.histoPmvMat = None
-
-        self.panelColorerLoc                    = GL.glGetSubroutineUniformLocation(self.panelProg, GL.GL_FRAGMENT_SHADER, b'panelColorer')
-        self.imagePanelGammaTransformColorerLoc = GL.glGetSubroutineIndex(self.panelProg, GL.GL_FRAGMENT_SHADER, b'imagePanelGammaTransformColorer')
-        self.imagePanelPassthroughColorerLoc    = GL.glGetSubroutineIndex(self.panelProg, GL.GL_FRAGMENT_SHADER, b'imagePanelPassthroughColorer')
-        self.histogramPanelColorerLoc           = GL.glGetSubroutineIndex(self.panelProg, GL.GL_FRAGMENT_SHADER, b'histogramPanelColorer')
 
         self.qglClearColor(QtGui.QColor(255/3, 255/3, 255/3, 255))
 
@@ -228,7 +225,6 @@ class RisWidget(QtOpenGL.QGLWidget):
         self.setBinCount(2048, update=False)
 
     def _loadImageData(self, imageData, reallocate):
-        GLS.glUseProgram(self.panelProg)
         if reallocate and self.imTex is not None:
             GL.glDeleteTextures([self.imTex])
             self.imTex = None
@@ -248,8 +244,6 @@ class RisWidget(QtOpenGL.QGLWidget):
 
         self.imAspectRatio = imageData.shape[1] / imageData.shape[0]
         self.imSize = type('', (), {'w' : imageData.shape[1], 'h' : imageData.shape[0]})
-
-        GLS.glUseProgram(self.histoCalcProg)
 
         if reallocate and self.histogramBlocksTex is not None:
             GL.glDeleteTextures([self.histogramBlocksTex])
@@ -291,7 +285,7 @@ class RisWidget(QtOpenGL.QGLWidget):
             GL.glBindTexture(GL.GL_TEXTURE_1D, self.histogramTex)
 
         axisInvocations = self.histoWgCountPerAxis * self.histoLiCountPerAxis
-        GL.glUniform2i(self.histoInvocationRegionSizeLoc, math.ceil(imageData.shape[1] / axisInvocations), math.ceil(imageData.shape[0] / axisInvocations))
+        GL.glProgramUniform2i(self.histoCalcProg, self.histoInvocationRegionSizeLoc, math.ceil(imageData.shape[1] / axisInvocations), math.ceil(imageData.shape[0] / axisInvocations))
 
         # Another pessimal zeroing...
         GL.glTexSubImage1D(
@@ -340,19 +334,19 @@ class RisWidget(QtOpenGL.QGLWidget):
         GL.glClearDepth(1.0)
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         if self.imTex is not None:
-            GLS.glUseProgram(self.panelProg)
-            GL.glBindVertexArray(self.panelVao)
+            with self.panelProg:
+                GL.glBindVertexArray(self.panelProg.vao)
 
-            # Draw image panel
-            GL.glBindTexture(GL.GL_TEXTURE_2D, self.imTex)
-            GL.glUniformSubroutinesuiv(GL.GL_FRAGMENT_SHADER, 1, [self.imagePanelGammaTransformColorerLoc if self.gtpEnabled else self.imagePanelPassthroughColorerLoc])
-            GLS.glUniformMatrix4fv(self.projectionModelViewMatrixLoc, 1, True, self.imPmvMat)
-            GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
+                # Draw image panel
+                GL.glBindTexture(GL.GL_TEXTURE_2D, self.imTex)
+                GL.glUniformSubroutinesuiv(GL.GL_FRAGMENT_SHADER, 1, [self.panelProg.imagePanelGammaTransformColorerLoc if self.gtpEnabled else self.panelProg.imagePanelPassthroughColorerLoc])
+                GLS.glUniformMatrix4fv(self.panelProg.projectionModelViewMatrixLoc, 1, True, self.imPmvMat)
+                GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
 
-            # Draw histogram panel
-            GL.glUniformSubroutinesuiv(GL.GL_FRAGMENT_SHADER, 1, [self.histogramPanelColorerLoc])
-            GLS.glUniformMatrix4fv(self.projectionModelViewMatrixLoc, 1, True, self.histoPmvMat)
-            GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
+                # Draw histogram panel
+                GL.glUniformSubroutinesuiv(GL.GL_FRAGMENT_SHADER, 1, [self.panelProg.histogramPanelColorerLoc])
+                GLS.glUniformMatrix4fv(self.panelProg.projectionModelViewMatrixLoc, 1, True, self.histoPmvMat)
+                GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
 
     def _execHistoCalcProg(self):
         GLS.glUseProgram(self.histoCalcProg)
@@ -508,35 +502,32 @@ class RisWidget(QtOpenGL.QGLWidget):
     def setGtpMinimum(self, gtpMinimum, update=True):
         '''Set gamma transformation minimum intensity parameter.  If update is true, the widget will be refreshed immediately.'''
         self.context().makeCurrent()
-        GLS.glUseProgram(self.panelProg)
-        GLS.glUniform1f(self.gtpMinLoc, gtpMinimum)
+        GLS.glProgramUniform1f(self.panelProg, self.panelProg.gtpMinLoc, gtpMinimum)
         if update:
             self.update()
 
     def setGtpMaximum(self, gtpMaximum, update=True):
         '''Set gamma transformation minimum intensity parameter.  If update is true, the widget will be refreshed immediately.'''
         self.context().makeCurrent()
-        GLS.glUseProgram(self.panelProg)
-        GLS.glUniform1f(self.gtpMaxLoc, gtpMaximum)
+        GLS.glProgramUniform1f(self.panelProg, self.panelProg.gtpMaxLoc, gtpMaximum)
         if update:
             self.update()
 
     def setGtpGamma(self, gtpGamma, update=True):
         '''Set gamma transformation gamma parameter.  If update is true, the widget will be refreshed immediately.'''
         self.context().makeCurrent()
-        GLS.glUseProgram(self.panelProg)
-        GLS.glUniform1f(self.gtpGammaLoc, gtpGamma)
+        GLS.glProgramUniform1f(self.panelProg, self.panelProg.gtpGammaLoc, gtpGamma)
         if update:
             self.update()
 
     def setGtpParams(self, gtpEnabled, gtpMinimum, gtpMaximum, gtpGamma, update=True):
         '''Set all gamma transformation parameters.  If update is true, the widget will be refreshed immediately.'''
         self.context().makeCurrent()
-        GLS.glUseProgram(self.panelProg)
         self.gtpEnabled = gtpEnabled
-        GLS.glUniform1f(self.gtpMinLoc, gtpMinimum)
-        GLS.glUniform1f(self.gtpMaxLoc, gtpMaximum)
-        GLS.glUniform1f(self.gtpGammaLoc, gtpGamma)
+        with self.panelProg:
+            GLS.glUniform1f(self.panelProg.gtpMinLoc, gtpMinimum)
+            GLS.glUniform1f(self.panelProg.gtpMaxLoc, gtpMaximum)
+            GLS.glUniform1f(self.panelProg.gtpGammaLoc, gtpGamma)
         if update:
             self.update()
 
@@ -548,15 +539,15 @@ class RisWidget(QtOpenGL.QGLWidget):
         ret['gtpEnabled'] = self.gtpEnabled
 
         v = numpy.array([None], numpy.float32)
-        GLS.glGetUniformfv(self.panelProg, self.gtpMaxLoc, v)
+        GLS.glGetUniformfv(self.panelProg, self.panelProg.gtpMaxLoc, v)
         ret['gtpMaximum'] = v[0]
 
         v[0] = numpy.nan
-        GLS.glGetUniformfv(self.panelProg, self.gtpMinLoc, v)
+        GLS.glGetUniformfv(self.panelProg, self.panelProg.gtpMinLoc, v)
         ret['gtpMinimum'] = v[0]
 
         v[0] = numpy.nan
-        GLS.glGetUniformfv(self.panelProg, self.gtpGammaLoc, v)
+        GLS.glGetUniformfv(self.panelProg, self.panelProg.gtpGammaLoc, v)
         ret['gtpGamma'] = v[0]
 
         return ret

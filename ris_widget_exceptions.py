@@ -31,6 +31,9 @@ class ShaderException(RisWidgetException):
 class ShaderCompilationException(ShaderException):
     pass
 
+class ShaderValidationException(ShaderException):
+    pass
+
 class ShaderLinkingException(ShaderException):
     pass
 
