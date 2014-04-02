@@ -496,8 +496,8 @@ class RisWidget(QtOpenGL.QGLWidget):
         self.ris.detachSink(self)
         self.ris = None
 
-    def risImageAcquired(self, ris, image):
-        pass
+    def risImageAcquired(self, ris, imageData):
+        self.showImage(imageData)
 
     def setGtpEnabled(self, gtpEnabled, update=True):
         '''Enable or disable gamma transformation.  If update is true, the widget will be refreshed immediately.'''

@@ -20,41 +20,4 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import threading
 
-from ris_widget.ris import Ris
-
-class MicroManagerSnapStream(Ris):
-    def __init__(self, mmc):
-        super().__init__()
-        self.mmc = mmc
-        self.wantStopLock = threading.Lock()
-        with self.wantStopLock:
-            self.wantStop = True
-
-    def _doStart(self):
-        self.prevShape = None
-        with self.wantStopLock:
-            self.wantStop = False
-        self.acquire()
-
-    def _doStop(self):
-        with self.wantStopLock:
-            self.wantStop = True
-
-    def _doAcquire(self):
-        wantStop = None
-        with self.wantStopLock:
-            wantStop = self.wantStop
-        if not wantStop:
-            self.mmc.snapImage()
-
-        with self.wantStopLock:
-            wantStop = self.wantStop
-        if not wantStop:
-            image = self.mmc.getImage()
-            self._signalImageAcquired(image)
-
-    def _imageAcquired(self, image):
-        super()._imageAcquired(image)
-        self.acquire()

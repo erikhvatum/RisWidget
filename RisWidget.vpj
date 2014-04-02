@@ -9,6 +9,7 @@
 			Name="Python Sources"
 			Filters="*.py">
 			<F N="__init__.py"/>
+			<F N="loop_cache_sink_stream.py"/>
 			<F N="micro_manager_snapstream.py"/>
 			<F N="ris.py"/>
 			<F N="ris_exceptions.py"/>

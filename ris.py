@@ -74,7 +74,7 @@ class Ris:
         self._streamManager.imageAcquiredSignal.emit(image)
 
     def _imageAcquired(self, image):
-        for sink in self.sinks:
+        for sink in self._sinks:
             sink.risImageAcquired(self, image)
 
 class _StreamWorker(QtCore.QObject):
