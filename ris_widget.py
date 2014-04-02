@@ -41,16 +41,33 @@ from ris_widget.shader_program import ShaderProgram
 class RisWidget(QtOpenGL.QGLWidget):
     '''RisWidget stands for Rapid Image Stream Widget.  If tearing is visible, try enabling vsync in your OS's display
     settings.  If that doesn't help, supply True for the enableSwapInterval1_ argument.'''
+    class Size:
+        def __init__(self, w = None, h = None):
+            self.w = w
+            self.h = h
+        def set(self, w, h):
+            self.w = w
+            self.h = h
+
     def __init__(self, parent_ = None, windowTitle_ = 'RisWidget', enableSwapInterval1_ = False):
         super().__init__(RisWidget._makeGlFormat(enableSwapInterval1_), parent_)
         self.enableSwapInterval1 = enableSwapInterval1_
-        self.imTex = None
         self.prevWindowSize = None
         self.currWindowSize = None
         self.windowSizeChanged = None
         self.setWindowTitle(windowTitle_)
         self.iinfo_uint32 = numpy.iinfo(numpy.uint32)
         self.ris = None
+
+        self.image = None
+        self.imageSize = None
+        self.imageAspectRatio = None
+        self.histogramBinCount = None
+        self.histogramBlocks = None
+        self.histogram = None
+        self.histogramData = None
+        self.imagePmv = None
+        self.histogramPmv = None
 
     @staticmethod
     def _makeGlFormat(enableSwapInterval1_):
@@ -79,10 +96,6 @@ class RisWidget(QtOpenGL.QGLWidget):
         glFormat.setDoubleBuffer(True)
         return glFormat
 
-    def _loadSource(self, sourceFileName):
-        with open(os.path.join(os.path.dirname(__file__), sourceFileName), 'r') as src:
-            return src.read()
-
     def _initPanelProg(self):
         self.panelProg = ShaderProgram(
             self.context(),
@@ -104,7 +117,9 @@ class RisWidget(QtOpenGL.QGLWidget):
                 'vertPos',
                 'texCoord'
             ]
-            )
+        )
+
+        self.panelProg.gtpEnabled = False
 
         with self.panelProg:
             self.panelProg.vao = GL.glGenVertexArrays(1)
@@ -145,8 +160,8 @@ class RisWidget(QtOpenGL.QGLWidget):
                 [0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000],
                 [0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff]], numpy.uint16)
 
-            self.imTex = GL.glGenTextures(1)
-            GL.glBindTexture(GL.GL_TEXTURE_2D, self.imTex)
+            self.image = GL.glGenTextures(1)
+            GL.glBindTexture(GL.GL_TEXTURE_2D, self.image)
 
             GL.glTexStorage2D(GL.GL_TEXTURE_2D, 1, OpenGL.GL.ARB.texture_rg.GL_R16UI, checkerboard.shape[1], checkerboard.shape[0])
             GL.glTexSubImage2D(GL.GL_TEXTURE_2D, 0, 0, 0, checkerboard.shape[1], checkerboard.shape[0], GL.GL_RED_INTEGER, GL.GL_UNSIGNED_SHORT, checkerboard)
@@ -155,67 +170,61 @@ class RisWidget(QtOpenGL.QGLWidget):
             GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_CLAMP_TO_EDGE)
             GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_CLAMP_TO_EDGE)
 
-            self.gtpEnabled = False
-
-        self.imPmvMat = None
-        self.histoPmvMat = None
-
-        self.qglClearColor(QtGui.QColor(255/3, 255/3, 255/3, 255))
-
     def _initHistoCalcProg(self):
-        try:
-            self.histoCalcProg = GLS.compileProgram(GLS.compileShader([self._loadSource('histogramCalc.glslc')], GL.GL_COMPUTE_SHADER))
-        except GL.GLError as e:
-            print('In histogramCalc.glslc:\n' + e.description.decode('utf-8'))
-            sys.exit(-1)
-        self.histoBinCountLoc = GLS.glGetUniformLocation(self.histoCalcProg, b'binCount')
-        self.histoInvocationRegionSizeLoc = GLS.glGetUniformLocation(self.histoCalcProg, b'invocationRegionSize')
-        self.histoImageLoc = 0
-        self.histogramBlocksLoc  = 1
-        self.histogramBlocksTex = None
+        self.histoCalcProg = ShaderProgram(
+            self.context(),
+            [('histogramCalc.glslc', GL.GL_COMPUTE_SHADER)],
+            [
+                'binCount',
+                'invocationRegionSize'
+            ]
+        )
+        self.histoCalcProg.imageLoc = 0
+        self.histoCalcProg.blocksLoc = 1
         # Hardcode work group count parameter for now
-        self.histoWgCountPerAxis = 8
+        self.histoCalcProg.wgCountPerAxis = 8
         # This value must match local_size_x and local_size_y in histogramCalc.glslc
-        self.histoLiCountPerAxis = 4
+        self.histoCalcProg.liCountPerAxis = 4
 
     def _initHistoConsolidateProg(self):
-        try:
-            self.histoConsolidateProg = GLS.compileProgram(GLS.compileShader([self._loadSource('histogramConsolidate.glslc')], GL.GL_COMPUTE_SHADER))
-        except GL.GLError as e:
-            print('In histogramConsolidate.glslc:\n' + e.description.decode('utf-8'))
-            sys.exit(-1)
-        self.histoConsolidateHistogramBlocksLoc = 0
-        self.histoConsolidateHistogramLoc = 1
-        self.histogramTex = None
-        self.histoConsolidateExtremaLoc = 0
-        self.histoConsolidateBinCountLoc = GLS.glGetUniformLocation(self.histoConsolidateProg, b'binCount')
-        self.histoConsolidateInvocationBinCountLoc = GLS.glGetUniformLocation(self.histoConsolidateProg, b'invocationBinCount')
+        self.histoConsolidateProg = ShaderProgram(
+            self.context(),
+            [('histogramConsolidate.glslc', GL.GL_COMPUTE_SHADER)],
+            [
+                'binCount',
+                'invocationBinCount'
+            ]
+        )
+        self.histoConsolidateProg.blocksLoc = 0
+        self.histoConsolidateProg.histogramLoc = 1
+        self.histoConsolidateProg.extremaLoc = 0
         # This value must match local_size_x in histogramConsolidate.glslc
-        self.histoConsolidateLiCount = 16
+        self.histoConsolidateProg.liCount = 16
 
-        GLS.glUseProgram(self.histoConsolidateProg)
-        self.histoConsolidateExtremaBuff = GL.glGenBuffers(1)
-        GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, self.histoConsolidateExtremaBuff)
+        self.histoConsolidateProg.extremaBuff = GL.glGenBuffers(1)
+        GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, self.histoConsolidateProg.extremaBuff)
         GL.glBufferData(GL.GL_SHADER_STORAGE_BUFFER, 2 * 4, None, GL.GL_DYNAMIC_COPY)
-        self.histoMinMax = None
-        self.histo = None
+        self.histoConsolidateProg.extrema = numpy.ndarray((2), numpy.uint32)
 
     def _initHistoDrawProg(self):
-        try:
-            self.histoDrawProg = GLS.compileProgram(
-                GLS.compileShader([self._loadSource('histogram.glslv')], GLS.GL_VERTEX_SHADER),
-                GLS.compileShader([self._loadSource('histogram.glslf')], GLS.GL_FRAGMENT_SHADER))
-        except GL.GLError as e:
-            print('In histogram.glslv or histogram.glslf:\n' + e.description.decode('utf-8'))
-            sys.exit(-1)
-        GLS.glUseProgram(self.histoDrawProg)
-        self.histoDrawProjectionModelViewMatrixLoc = GLS.glGetUniformLocation(self.histoDrawProg, b'projectionModelViewMatrix')
-        self.histoDrawBinCountLoc = GLS.glGetUniformLocation(self.histoDrawProg, b'binCount')
-        self.histoDrawBinScaleLoc = GLS.glGetUniformLocation(self.histoDrawProg, b'binScale')
-        self.histoDrawBinIndexLoc = GLS.glGetAttribLocation(self.histoDrawProg, b'binIndex')
-        self.histoDrawPointBuff = None
-        self.histoDrawPointVao = None
-        self.drawHistogramLoc = 0
+        self.histoDrawProg = ShaderProgram(
+            self.context(),
+            [
+                ('histogram.glslv', GLS.GL_VERTEX_SHADER),
+                ('histogram.glslf', GLS.GL_FRAGMENT_SHADER)
+            ],
+            [
+                'projectionModelViewMatrix',
+                'binCount',
+                'binScale'
+            ],
+            [   
+                'binIndex'
+            ]
+        )
+        self.histoDrawProg.pointBuff = None
+        self.histoDrawProg.pointVao = None
+        self.histoDrawProg.histogramLoc = 0
 
     def initializeGL(self):
         self._initPanelProg()
@@ -223,18 +232,19 @@ class RisWidget(QtOpenGL.QGLWidget):
         self._initHistoConsolidateProg()
         self._initHistoDrawProg()
         self.setBinCount(2048, update=False)
+        self.qglClearColor(QtGui.QColor(255/3, 255/3, 255/3, 255))
 
     def _loadImageData(self, imageData, reallocate):
-        if reallocate and self.imTex is not None:
-            GL.glDeleteTextures([self.imTex])
-            self.imTex = None
+        if reallocate and self.image is not None:
+            GL.glDeleteTextures([self.image])
+            self.image = None
 
-        if self.imTex is None:
-            self.imTex = GL.glGenTextures(1)
-            GL.glBindTexture(GL.GL_TEXTURE_2D, self.imTex)
+        if self.image is None:
+            self.image = GL.glGenTextures(1)
+            GL.glBindTexture(GL.GL_TEXTURE_2D, self.image)
             GL.glTexStorage2D(GL.GL_TEXTURE_2D, 1, OpenGL.GL.ARB.texture_rg.GL_R16UI, imageData.shape[1], imageData.shape[0])
         else:
-            GL.glBindTexture(GL.GL_TEXTURE_2D, self.imTex)
+            GL.glBindTexture(GL.GL_TEXTURE_2D, self.image)
 
         GL.glTexSubImage2D(GL.GL_TEXTURE_2D, 0, 0, 0, imageData.shape[1], imageData.shape[0], GL.GL_RED_INTEGER, GL.GL_UNSIGNED_SHORT, imageData)
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
@@ -242,88 +252,87 @@ class RisWidget(QtOpenGL.QGLWidget):
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_CLAMP_TO_EDGE)
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_CLAMP_TO_EDGE)
 
-        self.imAspectRatio = imageData.shape[1] / imageData.shape[0]
-        self.imSize = type('', (), {'w' : imageData.shape[1], 'h' : imageData.shape[0]})
+        self.imageAspectRatio = imageData.shape[1] / imageData.shape[0]
+        self.imageSize = self.Size(imageData.shape[1], imageData.shape[0])
 
-        if reallocate and self.histogramBlocksTex is not None:
-            GL.glDeleteTextures([self.histogramBlocksTex])
-            self.histogramBlocksTex = None
+        if reallocate and self.histogramBlocks is not None:
+            GL.glDeleteTextures([self.histogramBlocks])
+            self.histogramBlocks = None
 
-        if self.histogramBlocksTex is None:
-            self.histogramBlocksTex = GL.glGenTextures(1)
-            GL.glBindTexture(GL.GL_TEXTURE_2D_ARRAY, self.histogramBlocksTex)
+        if self.histogramBlocks is None:
+            self.histogramBlocks = GL.glGenTextures(1)
+            GL.glBindTexture(GL.GL_TEXTURE_2D_ARRAY, self.histogramBlocks)
             GL.glTexStorage3D(
                 GL.GL_TEXTURE_2D_ARRAY,
                 1,
                 OpenGL.GL.ARB.texture_rg.GL_R32UI,
-                self.histoWgCountPerAxis, self.histoWgCountPerAxis, self.histoBinCount)
+                self.histoCalcProg.wgCountPerAxis, self.histoCalcProg.wgCountPerAxis, self.histogramBinCount)
         else:
-            GL.glBindTexture(GL.GL_TEXTURE_2D_ARRAY, self.histogramBlocksTex)
+            GL.glBindTexture(GL.GL_TEXTURE_2D_ARRAY, self.histogramBlocks)
 
         # Zero-out block histogram data... this is slow and should be improved
         GL.glTexSubImage3D(
             GL.GL_TEXTURE_2D_ARRAY,
             0,
             0, 0, 0,
-            self.histoWgCountPerAxis, self.histoWgCountPerAxis, self.histoBinCount,
+            self.histoCalcProg.wgCountPerAxis, self.histoCalcProg.wgCountPerAxis, self.histogramBinCount,
             GL.GL_RED_INTEGER, GL.GL_UNSIGNED_INT,
-            numpy.zeros((self.histoWgCountPerAxis, self.histoWgCountPerAxis, self.histoBinCount), dtype=numpy.uint32))
+            numpy.zeros((self.histoCalcProg.wgCountPerAxis, self.histoCalcProg.wgCountPerAxis, self.histogramBinCount), dtype=numpy.uint32))
 
-        if reallocate and self.histogramTex is not None:
-            GL.glDeleteTextures([self.histogramTex])
-            self.histogramTex = None
+        if reallocate and self.histogram is not None:
+            GL.glDeleteTextures([self.histogram])
+            self.histogram = None
 
-        if self.histogramTex is None:
-            self.histogramTex = GL.glGenTextures(1)
-            GL.glBindTexture(GL.GL_TEXTURE_1D, self.histogramTex)
+        if self.histogram is None:
+            self.histogram = GL.glGenTextures(1)
+            GL.glBindTexture(GL.GL_TEXTURE_1D, self.histogram)
             GL.glTexStorage1D(
                 GL.GL_TEXTURE_1D,
                 1,
                 OpenGL.GL.ARB.texture_rg.GL_R32UI,
-                self.histoBinCount)
+                self.histogramBinCount)
         else:
-            GL.glBindTexture(GL.GL_TEXTURE_1D, self.histogramTex)
+            GL.glBindTexture(GL.GL_TEXTURE_1D, self.histogram)
 
-        axisInvocations = self.histoWgCountPerAxis * self.histoLiCountPerAxis
-        GL.glProgramUniform2i(self.histoCalcProg, self.histoInvocationRegionSizeLoc, math.ceil(imageData.shape[1] / axisInvocations), math.ceil(imageData.shape[0] / axisInvocations))
+        axisInvocations = self.histoCalcProg.wgCountPerAxis * self.histoCalcProg.liCountPerAxis
+        GL.glProgramUniform2i(self.histoCalcProg.prog, self.histoCalcProg.invocationRegionSizeLoc, math.ceil(imageData.shape[1] / axisInvocations), math.ceil(imageData.shape[0] / axisInvocations))
 
         # Another pessimal zeroing...
         GL.glTexSubImage1D(
             GL.GL_TEXTURE_1D,
             0,
             0,
-            self.histoBinCount,
+            self.histogramBinCount,
             GL.GL_RED_INTEGER, GL.GL_UNSIGNED_INT,
-            numpy.zeros((self.histoBinCount), dtype=numpy.uint32))
+            numpy.zeros((self.histogramBinCount), dtype=numpy.uint32))
 
     def setBinCount(self, binCount, update=True):
-        self.histoBinCount = binCount
+        self.histogramBinCount = binCount
         self.context().makeCurrent()
 
-        GL.glProgramUniform1f(self.histoCalcProg, self.histoBinCountLoc, self.histoBinCount)
+        GL.glProgramUniform1f(self.histoCalcProg.prog, self.histoCalcProg.binCountLoc, self.histogramBinCount)
 
-        GL.glProgramUniform1ui(self.histoConsolidateProg, self.histoConsolidateBinCountLoc, self.histoBinCount)
-        GL.glProgramUniform1ui(self.histoConsolidateProg, self.histoConsolidateInvocationBinCountLoc, math.ceil(self.histoBinCount / self.histoConsolidateLiCount))
+        GL.glProgramUniform1ui(self.histoConsolidateProg.prog, self.histoConsolidateProg.binCountLoc, self.histogramBinCount)
+        GL.glProgramUniform1ui(self.histoConsolidateProg.prog, self.histoConsolidateProg.invocationBinCountLoc, math.ceil(self.histogramBinCount / self.histoConsolidateProg.liCount))
 
-        GLS.glUseProgram(self.histoDrawProg)
+        with self.histoDrawProg:
+            GL.glUniform1ui(self.histoDrawProg.binCountLoc, self.histogramBinCount)
 
-        GL.glUniform1ui(self.histoDrawBinCountLoc, self.histoBinCount)
+            if self.histoDrawProg.pointBuff is not None:
+                GL.glDeleteVertexArrays(1, [self.histoDrawProg.pointVao])
+                GL.glDeleteBuffers(1, [self.histoDrawProg.pointBuff])
 
-        if self.histoDrawPointBuff is not None:
-            GL.glDeleteVertexArrays(1, [self.histoDrawPointVao])
-            GL.glDeleteBuffers(1, [self.histoDrawPointBuff])
+            self.histoDrawProg.pointVao = GL.glGenVertexArrays(1)
+            GL.glBindVertexArray(self.histoDrawProg.pointVao)
 
-        self.histoDrawPointVao = GL.glGenVertexArrays(1)
-        GL.glBindVertexArray(self.histoDrawPointVao)
+            self.histoDrawProg.pointBuff = GL.glGenBuffers(1)
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.histoDrawProg.pointBuff)
+            GL.glBufferData(GL.GL_ARRAY_BUFFER, numpy.arange(self.histogramBinCount, dtype=numpy.float32), GL.GL_STATIC_DRAW)
 
-        self.histoDrawPointBuff = GL.glGenBuffers(1)
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.histoDrawPointBuff)
-        GL.glBufferData(GL.GL_ARRAY_BUFFER, numpy.arange(self.histoBinCount, dtype=numpy.float32), GL.GL_STATIC_DRAW)
+            GLS.glEnableVertexAttribArray(self.histoDrawProg.binIndexLoc)
+            GLS.glVertexAttribPointer(self.histoDrawProg.binIndexLoc, 1, GL.GL_FLOAT, False, 0, ctypes.c_void_p(0))
 
-        GLS.glEnableVertexAttribArray(self.histoDrawBinIndexLoc)
-        GLS.glVertexAttribPointer(self.histoDrawBinIndexLoc, 1, GL.GL_FLOAT, False, 0, ctypes.c_void_p(0))
-
-        self.histo = numpy.zeros((self.histoBinCount), dtype=numpy.uint32)
+        self.histogramData = numpy.zeros((self.histogramBinCount), dtype=numpy.uint32)
 
         if update:
             self._execHistoCalcProg()
@@ -331,80 +340,72 @@ class RisWidget(QtOpenGL.QGLWidget):
             self.update()
 
     def _execPanelProg(self):
-        GL.glClearDepth(1.0)
-        GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
-        if self.imTex is not None:
-            with self.panelProg:
-                GL.glBindVertexArray(self.panelProg.vao)
+        with self.panelProg:
+            GL.glBindVertexArray(self.panelProg.vao)
 
-                # Draw image panel
-                GL.glBindTexture(GL.GL_TEXTURE_2D, self.imTex)
-                GL.glUniformSubroutinesuiv(GL.GL_FRAGMENT_SHADER, 1, [self.panelProg.imagePanelGammaTransformColorerLoc if self.gtpEnabled else self.panelProg.imagePanelPassthroughColorerLoc])
-                GLS.glUniformMatrix4fv(self.panelProg.projectionModelViewMatrixLoc, 1, True, self.imPmvMat)
-                GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
+            # Draw image panel
+            GL.glBindTexture(GL.GL_TEXTURE_2D, self.image)
+            GL.glUniformSubroutinesuiv(GL.GL_FRAGMENT_SHADER, 1, [self.panelProg.imagePanelGammaTransformColorerLoc if self.gtpEnabled else self.panelProg.imagePanelPassthroughColorerLoc])
+            GLS.glUniformMatrix4fv(self.panelProg.projectionModelViewMatrixLoc, 1, True, self.imagePmv)
+            GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
 
-                # Draw histogram panel
-                GL.glUniformSubroutinesuiv(GL.GL_FRAGMENT_SHADER, 1, [self.panelProg.histogramPanelColorerLoc])
-                GLS.glUniformMatrix4fv(self.panelProg.projectionModelViewMatrixLoc, 1, True, self.histoPmvMat)
-                GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
+            # Draw histogram panel
+            GL.glUniformSubroutinesuiv(GL.GL_FRAGMENT_SHADER, 1, [self.panelProg.histogramPanelColorerLoc])
+            GLS.glUniformMatrix4fv(self.panelProg.projectionModelViewMatrixLoc, 1, True, self.histogramPmv)
+            GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
 
     def _execHistoCalcProg(self):
-        GLS.glUseProgram(self.histoCalcProg)
+        with self.histoCalcProg:
+            GL.glBindTexture(GL.GL_TEXTURE_2D, 0)
+            GL.glBindImageTexture(self.histoCalcProg.imageLoc, self.image, 0, False, 0, GL.GL_READ_ONLY, OpenGL.GL.ARB.texture_rg.GL_R16UI)
 
-        GL.glBindTexture(GL.GL_TEXTURE_2D, 0)
-        GL.glBindImageTexture(self.histoImageLoc, self.imTex, 0, False, 0, GL.GL_READ_ONLY, OpenGL.GL.ARB.texture_rg.GL_R16UI)
+            GL.glBindTexture(GL.GL_TEXTURE_2D_ARRAY, 0)
+            GL.glBindImageTexture(self.histoCalcProg.blocksLoc, self.histogramBlocks, 0, True, 0, GL.GL_WRITE_ONLY, OpenGL.GL.ARB.texture_rg.GL_R32UI)
 
-        GL.glBindTexture(GL.GL_TEXTURE_2D_ARRAY, 0)
-        GL.glBindImageTexture(self.histogramBlocksLoc , self.histogramBlocksTex, 0, True, 0, GL.GL_WRITE_ONLY, OpenGL.GL.ARB.texture_rg.GL_R32UI)
+            GL.glDispatchCompute(self.histoCalcProg.wgCountPerAxis, self.histoCalcProg.wgCountPerAxis, 1)
 
-        GL.glDispatchCompute(self.histoWgCountPerAxis, self.histoWgCountPerAxis, 1)
-
-        # Wait for compute shader execution to complete
-        GL.glMemoryBarrier(GL.GL_SHADER_IMAGE_ACCESS_BARRIER_BIT)
+            # Wait for compute shader execution to complete
+            GL.glMemoryBarrier(GL.GL_SHADER_IMAGE_ACCESS_BARRIER_BIT)
 
     def _execHistoConsolidateProg(self):
-        GLS.glUseProgram(self.histoConsolidateProg)
+        with self.histoConsolidateProg:
+            GL.glBindTexture(GL.GL_TEXTURE_2D_ARRAY, 0)
+            GL.glBindImageTexture(self.histoConsolidateProg.blocksLoc, self.histogramBlocks, 0, True, 0, GL.GL_READ_ONLY, OpenGL.GL.ARB.texture_rg.GL_R32UI)
 
-        GL.glBindTexture(GL.GL_TEXTURE_2D_ARRAY, 0)
-        GL.glBindImageTexture(self.histoConsolidateHistogramBlocksLoc, self.histogramBlocksTex, 0, True, 0, GL.GL_READ_ONLY, OpenGL.GL.ARB.texture_rg.GL_R32UI)
+            GL.glBindTexture(GL.GL_TEXTURE_1D, 0)
+            GL.glBindImageTexture(self.histoConsolidateProg.histogramLoc, self.histogram, 0, False, 0, GL.GL_READ_WRITE, OpenGL.GL.ARB.texture_rg.GL_R32UI)
 
-        GL.glBindTexture(GL.GL_TEXTURE_1D, 0)
-        GL.glBindImageTexture(self.histoConsolidateHistogramLoc, self.histogramTex, 0, False, 0, GL.GL_READ_WRITE, OpenGL.GL.ARB.texture_rg.GL_R32UI)
+            GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, self.histoConsolidateProg.extremaBuff)
+            self.histoConsolidateProg.extrema[0], self.histoConsolidateProg.extrema[1] = self.iinfo_uint32.max, self.iinfo_uint32.min
+            GL.glBufferSubData(GL.GL_SHADER_STORAGE_BUFFER, 0, self.histoConsolidateProg.extrema)
 
-        GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, self.histoConsolidateExtremaBuff)
-        if self.histoMinMax is None:
-            self.histoMinMax = numpy.array([self.iinfo_uint32.max, self.iinfo_uint32.min], dtype=numpy.uint32)
-        else:
-            self.histoMinMax[0], self.histoMinMax[1] = self.iinfo_uint32.max, self.iinfo_uint32.min
-        GL.glBufferSubData(GL.GL_SHADER_STORAGE_BUFFER, 0, self.histoMinMax)
+            GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, 0)
+            GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, self.histoConsolidateProg.extremaLoc, self.histoConsolidateProg.extremaBuff)
 
-        GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, 0)
-        GL.glBindBufferBase(GL.GL_SHADER_STORAGE_BUFFER, self.histoConsolidateExtremaLoc, self.histoConsolidateExtremaBuff)
+            GL.glDispatchCompute(self.histoCalcProg.wgCountPerAxis, self.histoCalcProg.wgCountPerAxis, 1)
 
-        GL.glDispatchCompute(self.histoWgCountPerAxis, self.histoWgCountPerAxis, 1)
+            # Wait for compute shader execution to complete
+            GL.glMemoryBarrier(GL.GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL.GL_BUFFER_UPDATE_BARRIER_BIT)
 
-        # Wait for compute shader execution to complete
-        GL.glMemoryBarrier(GL.GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL.GL_BUFFER_UPDATE_BARRIER_BIT)
+            GL.glBindTexture(GL.GL_TEXTURE_1D, self.histogram)
+            GL.glGetTexImage(GL.GL_TEXTURE_1D, 0, GL.GL_RED_INTEGER, GL.GL_UNSIGNED_INT, self.histogramData)
 
-        GL.glBindTexture(GL.GL_TEXTURE_1D, self.histogramTex)
-        GL.glGetTexImage(GL.GL_TEXTURE_1D, 0, GL.GL_RED_INTEGER, GL.GL_UNSIGNED_INT, self.histo)
-
-        GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, self.histoConsolidateExtremaBuff)
-        GL.glGetBufferSubData(GL.GL_SHADER_STORAGE_BUFFER, 0, self.histoMinMax.nbytes, self.histoMinMax)
+            GL.glBindBuffer(GL.GL_SHADER_STORAGE_BUFFER, self.histoConsolidateProg.extremaBuff)
+            GL.glGetBufferSubData(GL.GL_SHADER_STORAGE_BUFFER, 0, self.histoConsolidateProg.extrema.nbytes, self.histoConsolidateProg.extrema)
 
     def _execHistoDrawProg(self):
-        GLS.glUseProgram(self.histoDrawProg)
-        GL.glUniform1ui(self.histoDrawBinCountLoc, self.histoBinCount)
-        GL.glUniform1f(self.histoDrawBinScaleLoc, self.histoMinMax[1])
-        GLS.glUniformMatrix4fv(self.histoDrawProjectionModelViewMatrixLoc, 1, True, self.histoPmvMat)
+        with self.histoDrawProg:
+            GL.glUniform1ui(self.histoDrawProg.binCountLoc, self.histogramBinCount)
+            GL.glUniform1f(self.histoDrawProg.binScaleLoc, self.histoConsolidateProg.extrema[1])
+            GLS.glUniformMatrix4fv(self.histoDrawProg.projectionModelViewMatrixLoc, 1, True, self.histogramPmv)
 
-        GL.glBindTexture(GL.GL_TEXTURE_1D, 0)
-        GL.glBindImageTexture(self.drawHistogramLoc, self.histogramTex, 0, True, 0, GL.GL_READ_ONLY, OpenGL.GL.ARB.texture_rg.GL_R32UI)
+            GL.glBindTexture(GL.GL_TEXTURE_1D, 0)
+            GL.glBindImageTexture(self.histoDrawProg.histogramLoc, self.histogram, 0, True, 0, GL.GL_READ_ONLY, OpenGL.GL.ARB.texture_rg.GL_R32UI)
 
-        GL.glBindVertexArray(self.histoDrawPointVao)
-        GL.glDrawArrays(GL.GL_LINE_STRIP, 0, self.histoBinCount)
-        GL.glPointSize(4)
-        GL.glDrawArrays(GL.GL_POINTS, 0, self.histoBinCount)
+            GL.glBindVertexArray(self.histoDrawProg.pointVao)
+            GL.glDrawArrays(GL.GL_LINE_STRIP, 0, self.histogramBinCount)
+            GL.glPointSize(4)
+            GL.glDrawArrays(GL.GL_POINTS, 0, self.histogramBinCount)
 
     def getHistogram(self):
         '''Returns a reference to the local memory histogram cache as a numpy array.  This data is
@@ -413,48 +414,51 @@ class RisWidget(QtOpenGL.QGLWidget):
         immediately after histogram calculation.  NNB: "histogram calculation" is done blockwise,
         so it would be more accurate to say, "after histogram consolidation;" ie, after every
         block's histogram has been summed into a single histogram representing the entire image.'''
-        return self.histo
+        return self.histogramData
 
     def getHistogramMinMax(self):
         '''Returns a tuple (min, max) copied from data cached in local memory.'''
-        return (self.histoMinMax[0], self.histoMinMax[1])
+        return (self.histoConsolidateProg.extrema[0], self.histoConsolidateProg.extrema[1])
 
     def _updateMats(self):
         if self.windowSizeChanged:
             # Image view aspect ratio is always maintained.  The image is centered along whichever axis
             # does not fit.
             imViewAspectRatio = 3/2 * self.windowAspectRatio
-            correctionFactor = self.imAspectRatio / imViewAspectRatio
-            self.imPmvMat = numpy.dot(
+            correctionFactor = self.imageAspectRatio / imViewAspectRatio
+            self.imagePmv = numpy.dot(
                 transformations.translation_matrix([0, 1/3, 0]),
                 transformations.scale_matrix(2/3, direction=[0, 1, 0]))
             if correctionFactor <= 1:
-                self.imPmvMat = numpy.dot(
+                self.imagePmv = numpy.dot(
                     transformations.scale_matrix(correctionFactor, direction=[1, 0, 0]),
-                    self.imPmvMat).astype(numpy.float32)
+                    self.imagePmv).astype(numpy.float32)
             else:
-                self.imPmvMat = numpy.dot(
+                self.imagePmv = numpy.dot(
                     transformations.scale_matrix(1 / correctionFactor, direction=[0, 1, 0]),
-                    self.imPmvMat).astype(numpy.float32)
+                    self.imagePmv).astype(numpy.float32)
 
             # Histogram is always 1/3 window height and fills window width
-            self.histoPmvMat = numpy.dot(
+            self.histogramPmv = numpy.dot(
                 transformations.translation_matrix([0, -2/3, 0]),
                 transformations.scale_matrix(1/3, direction=[0, 1, 0]))
-            self.histoPmvMat = self.histoPmvMat.astype(numpy.float32)
+            self.histogramPmv = self.histogramPmv.astype(numpy.float32)
 
     def paintGL(self):
-        ws = self.size()
-        self.currWindowSize = type('', (), {'w' : float(ws.width()), 'h' : float(ws.height())}) # so sue me
-        del ws
-        self.windowSizeChanged = self.currWindowSize != self.prevWindowSize
-        self.windowAspectRatio = self.currWindowSize.w / self.currWindowSize.h
+        GL.glClearDepth(1.0)
+        GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
+        if self.image is not None:
+            ws = self.size()
+            self.currWindowSize = self.Size(float(ws.width()), float(ws.height()))
+            del ws
+            self.windowSizeChanged = self.currWindowSize != self.prevWindowSize
+            self.windowAspectRatio = self.currWindowSize.w / self.currWindowSize.h
 
-        self._updateMats()
-        self._execPanelProg()
-        self._execHistoDrawProg()
+            self._updateMats()
+            self._execPanelProg()
+            self._execHistoDrawProg()
 
-        self.prevWindowSize = self.currWindowSize
+            self.prevWindowSize = self.currWindowSize
 
     def resizeGL(self, width, height):
         GL.glViewport(0, 0, width, height)
@@ -495,28 +499,28 @@ class RisWidget(QtOpenGL.QGLWidget):
 
     def setGtpEnabled(self, gtpEnabled, update=True):
         '''Enable or disable gamma transformation.  If update is true, the widget will be refreshed immediately.'''
-        self.gtpEnabled = gtpEnabled
+        self.panelProg.gtpEnabled = gtpEnabled
         if update:
             self.update()
 
     def setGtpMinimum(self, gtpMinimum, update=True):
         '''Set gamma transformation minimum intensity parameter.  If update is true, the widget will be refreshed immediately.'''
         self.context().makeCurrent()
-        GLS.glProgramUniform1f(self.panelProg, self.panelProg.gtpMinLoc, gtpMinimum)
+        GLS.glProgramUniform1f(self.panelProg.prog, self.panelProg.gtpMinLoc, gtpMinimum)
         if update:
             self.update()
 
     def setGtpMaximum(self, gtpMaximum, update=True):
         '''Set gamma transformation minimum intensity parameter.  If update is true, the widget will be refreshed immediately.'''
         self.context().makeCurrent()
-        GLS.glProgramUniform1f(self.panelProg, self.panelProg.gtpMaxLoc, gtpMaximum)
+        GLS.glProgramUniform1f(self.panelProg.prog, self.panelProg.gtpMaxLoc, gtpMaximum)
         if update:
             self.update()
 
     def setGtpGamma(self, gtpGamma, update=True):
         '''Set gamma transformation gamma parameter.  If update is true, the widget will be refreshed immediately.'''
         self.context().makeCurrent()
-        GLS.glProgramUniform1f(self.panelProg, self.panelProg.gtpGammaLoc, gtpGamma)
+        GLS.glProgramUniform1f(self.panelProg.prog, self.panelProg.gtpGammaLoc, gtpGamma)
         if update:
             self.update()
 
@@ -536,18 +540,18 @@ class RisWidget(QtOpenGL.QGLWidget):
         self.context().makeCurrent()
         ret = {}
 
-        ret['gtpEnabled'] = self.gtpEnabled
+        ret['gtpEnabled'] = self.panelProg.gtpEnabled
 
         v = numpy.array([None], numpy.float32)
-        GLS.glGetUniformfv(self.panelProg, self.panelProg.gtpMaxLoc, v)
+        GLS.glGetUniformfv(self.panelProg.prog, self.panelProg.gtpMaxLoc, v)
         ret['gtpMaximum'] = v[0]
 
         v[0] = numpy.nan
-        GLS.glGetUniformfv(self.panelProg, self.panelProg.gtpMinLoc, v)
+        GLS.glGetUniformfv(self.panelProg.prog, self.panelProg.gtpMinLoc, v)
         ret['gtpMinimum'] = v[0]
 
         v[0] = numpy.nan
-        GLS.glGetUniformfv(self.panelProg, self.panelProg.gtpGammaLoc, v)
+        GLS.glGetUniformfv(self.panelProg.prog, self.panelProg.gtpGammaLoc, v)
         ret['gtpGamma'] = v[0]
 
         return ret

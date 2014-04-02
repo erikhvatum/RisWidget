@@ -23,6 +23,7 @@
 from OpenGL import GL
 import OpenGL.GL.shaders as GLS
 import os
+import sys
 
 from ris_widget.ris_widget_exceptions import *
 
@@ -97,22 +98,24 @@ class ShaderProgram:
                         self._addAttr(subroutineFunc, v)
 
         # uniforms
-        for uniformName in uniformNames:
-            if type(uniformName) == tuple or type(uniformName) == list:
-                nameInProg, nameInClass = uniformName
-            else:
-                nameInProg = nameInClass = uniformName
-            v = GL.glGetUniformLocation(self.prog, nameInProg.encode('utf-8'))
-            if v < 0:
-                raise ShaderException('Failed to get index of uniform "{}" in "{}".'.format(nameInProg, sfnats[0]))
-            self._addAttr(nameInClass, v)
+        if uniformNames is not None:
+            for uniformName in uniformNames:
+                if type(uniformName) == tuple or type(uniformName) == list:
+                    nameInProg, nameInClass = uniformName
+                else:
+                    nameInProg = nameInClass = uniformName
+                v = GL.glGetUniformLocation(self.prog, nameInProg.encode('utf-8'))
+                if v < 0:
+                    raise ShaderException('Failed to get index of uniform "{}" in "{}".'.format(nameInProg, sfnats[0]))
+                self._addAttr(nameInClass, v)
 
         # attributes
-        for attributeName in attributeNames:
-            v = GLS.glGetAttribLocation(self.prog, attributeName)
-            if v < 0:
-                raise ShaderException('Failed to get index of attribute "{}" in "{}".'.format(attributeName, sfnats[0]))
-            self._addAttr(attributeName, v)
+        if attributeNames is not None:
+            for attributeName in attributeNames:
+                v = GLS.glGetAttribLocation(self.prog, attributeName)
+                if v < 0:
+                    raise ShaderException('Failed to get index of attribute "{}" in "{}".'.format(attributeName, sfnats[0]))
+                self._addAttr(attributeName, v)
 
     def __del__(self):
         if self.prog is not None:
@@ -138,5 +141,5 @@ class ShaderProgram:
     def __enter__(self):
         self.use()
 
-    def __exit__(self, blah_a, blah_b, blah_c):
+    def __exit__(self, type_, value, traceback):
         self.unuse()

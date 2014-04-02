@@ -23,7 +23,7 @@
 #version 430 core
 
 layout (binding = 0, r16ui) uniform readonly uimage2D image;
-layout (binding = 1, r32ui) uniform coherent uimage2DArray histogramBlocks;
+layout (binding = 1, r32ui) uniform coherent uimage2DArray blocks;
 uniform float binCount;
 uniform ivec2 invocationRegionSize;
 
@@ -45,7 +45,7 @@ void main()
         {
             intensity = imageLoad(image, ivec2(x, y)).r;
             bin = int(floor(intensity / 65535.0 * binCount));
-            imageAtomicAdd(histogramBlocks, ivec3(gl_WorkGroupID.x, gl_WorkGroupID.y, bin), 1);
+            imageAtomicAdd(blocks, ivec3(gl_WorkGroupID.x, gl_WorkGroupID.y, bin), 1);
         }
     }
 }

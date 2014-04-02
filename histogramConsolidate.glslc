@@ -22,7 +22,7 @@
 
 #version 430 core
 
-layout (binding = 0, r32ui) uniform readonly uimage2DArray histogramBlocks;
+layout (binding = 0, r32ui) uniform readonly uimage2DArray blocks;
 layout (binding = 1, r32ui) uniform coherent uimage1D histogram;
 layout (std430, binding = 0) coherent buffer Extrema {
     uint minBinVal;
@@ -36,7 +36,7 @@ layout (local_size_x = 16) in;
 
 void main()
 {
-    /* Accumulate block histogramBlocks into single histogram representing the entire image */
+    /* Accumulate block blocks into single histogram representing the entire image */
 
     uint start = gl_LocalInvocationID.x * invocationBinCount;
     // Ensure that processing of remainder blocks for non-divisible bin count does not proceed beyond last bin
@@ -45,7 +45,7 @@ void main()
     uint binValue, bin;
     for(bin = start; bin < end; ++bin)
     {
-        binValue = imageLoad(histogramBlocks, ivec3(gl_WorkGroupID.x, gl_WorkGroupID.y, bin)).r;
+        binValue = imageLoad(blocks, ivec3(gl_WorkGroupID.x, gl_WorkGroupID.y, bin)).r;
         imageAtomicAdd(histogram, int(bin), binValue);
     }
 
