@@ -214,16 +214,21 @@ class RisWidget(QtOpenGL.QGLWidget):
         self._initHistoCalcProg()
         self._initHistoConsolidateProg()
         self._initHistoDrawProg()
-        checkerboard = numpy.array([
-            [0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000],
-            [0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff],
-            [0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000],
-            [0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff],
-            [0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000],
-            [0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff],
-            [0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000],
-            [0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff]], numpy.uint16)
-        self.showImage(checkerboard, False)
+        checkerboard = numpy.zeros((1600), dtype=numpy.uint16)
+        f = 65535 / 1599
+        a = True
+        i = 0
+        for r in range(40):
+            for c in range(40):
+                if a:
+                    checkerboard[i] = round(i * f)
+                a = not a
+                i += 1
+            a = not a
+        checkerboard = checkerboard.reshape((40,40))
+        #checkerboard = numpy.tile(numpy.array([[0xffff, 0x0000],
+        #                                       [0x0000, 0xffff]], dtype=numpy.uint16), (8, 8))
+        self.showImage(checkerboard, filterTexture=False)
 
     def setBinCount(self, binCount, update=True):
         self.histogramBinCount = binCount

@@ -47,6 +47,7 @@ void main()
     {
         binValue = imageLoad(blocks, ivec3(gl_WorkGroupID.x, gl_WorkGroupID.y, bin)).r;
         imageAtomicAdd(histogram, int(bin), binValue);
+//      imageAtomicMax(histogram, int(bin), min(binValue, 1));
     }
 
 
