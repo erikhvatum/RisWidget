@@ -61,6 +61,8 @@ class Ris:
     def acquire(self):
         self._streamManager.acquire()
 
+    ## Overridable callbacks that are executed on the main thread
+
     def _doStart(self):
         raise NotImplementedError('A class inheriting Ris must implement the _doStart member function.')
 

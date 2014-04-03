@@ -16,6 +16,7 @@
 			<F N="ris_widget.py"/>
 			<F N="ris_widget_exceptions.py"/>
 			<F N="shader_program.py"/>
+			<F N="size.py"/>
 		</Folder>
 		<Folder
 			Name="Shaders"

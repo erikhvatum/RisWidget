@@ -37,18 +37,11 @@ from ris_widget.ris import Ris
 from ris_widget.ris_exceptions import *
 from ris_widget.ris_widget_exceptions import *
 from ris_widget.shader_program import ShaderProgram
+from ris_widget.size import Size
 
 class RisWidget(QtOpenGL.QGLWidget):
     '''RisWidget stands for Rapid Image Stream Widget.  If tearing is visible, try enabling vsync in your OS's display
     settings.  If that doesn't help, supply True for the enableSwapInterval1_ argument.'''
-    class Size:
-        def __init__(self, w = None, h = None):
-            self.w = w
-            self.h = h
-        def set(self, w, h):
-            self.w = w
-            self.h = h
-
     def __init__(self, parent_ = None, windowTitle_ = 'RisWidget', enableSwapInterval1_ = False):
         super().__init__(RisWidget._makeGlFormat(enableSwapInterval1_), parent_)
         self.enableSwapInterval1 = enableSwapInterval1_
@@ -431,7 +424,7 @@ class RisWidget(QtOpenGL.QGLWidget):
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         if self.image is not None:
             ws = self.size()
-            self.currWindowSize = self.Size(float(ws.width()), float(ws.height()))
+            self.currWindowSize = Size(float(ws.width()), float(ws.height()))
             del ws
             self.windowSizeChanged = self.currWindowSize != self.prevWindowSize
             self.windowAspectRatio = self.currWindowSize.w / self.currWindowSize.h
@@ -448,7 +441,7 @@ class RisWidget(QtOpenGL.QGLWidget):
 
     def _loadImageData(self, imageData, filterTexture):
         self.imageAspectRatio = imageData.shape[1] / imageData.shape[0]
-        newImageSize = self.Size(imageData.shape[1], imageData.shape[0])
+        newImageSize = Size(imageData.shape[1], imageData.shape[0])
         reallocate = newImageSize != self.imageSize
         self.imageSize = newImageSize
 
@@ -502,7 +495,8 @@ class RisWidget(QtOpenGL.QGLWidget):
         self.ris = None
 
     def risImageAcquired(self, ris, imageData):
-        self.showImage(imageData)
+        if self.showRisFrames:
+            self.showImage(imageData)
 
     def setGtpEnabled(self, gtpEnabled, update=True):
         '''Enable or disable gamma transformation.  If update is true, the widget will be refreshed immediately.'''
