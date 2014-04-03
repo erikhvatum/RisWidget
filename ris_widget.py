@@ -51,9 +51,12 @@ class RisWidget(QtOpenGL.QGLWidget):
         self.setWindowTitle(windowTitle_)
         self.iinfo_uint32 = numpy.iinfo(numpy.uint32)
         self.ris = None
+        self.showRisFrames = None
 
         self.image = None
         self.imageSize = None
+        self.prevImageSize = None
+        self.imageSizeChanged = None
         self.imageAspectRatio = None
         self.histogramIsStale = True
         self.histogramDataStructuresAreStale = True
@@ -396,7 +399,7 @@ class RisWidget(QtOpenGL.QGLWidget):
             self.histogramIsStale = False
 
     def _updateMats(self):
-        if self.windowSizeChanged:
+        if self.windowSizeChanged or self.imageSizeChanged:
             # Image view aspect ratio is always maintained.  The image is centered along whichever axis
             # does not fit.
             imViewAspectRatio = 3/2 * self.windowAspectRatio
@@ -428,6 +431,7 @@ class RisWidget(QtOpenGL.QGLWidget):
             del ws
             self.windowSizeChanged = self.currWindowSize != self.prevWindowSize
             self.windowAspectRatio = self.currWindowSize.w / self.currWindowSize.h
+            self.imageSizeChanged = self.imageSize != self.prevImageSize
 
             self._updateHisto()
             self._updateMats()
@@ -435,6 +439,7 @@ class RisWidget(QtOpenGL.QGLWidget):
             self._execHistoDrawProg()
 
             self.prevWindowSize = self.currWindowSize
+            self.prevImageSize = self.imageSize
 
     def resizeGL(self, width, height):
         GL.glViewport(0, 0, width, height)
