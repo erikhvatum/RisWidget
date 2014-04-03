@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 import threading
+import time
 
 from ris_widget.ris import Ris
 from ris_widget.ris_exceptions import *
@@ -67,6 +68,7 @@ class LoopCacheSinkStream(Ris):
                     self.prevIdxSent = -1
                 self.prevIdxSent += 1
                 self._signalImageAcquired(self.imagesDataCache[self.prevIdxSent])
+#       time.sleep(0.1)
 
     def _imageAcquired(self, image):
         super()._imageAcquired(image)

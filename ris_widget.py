@@ -31,6 +31,7 @@ import os
 from PyQt5 import QtCore, QtGui, QtWidgets, QtOpenGL
 import sip
 import sys
+import time
 import transformations
 
 from ris_widget.ris import Ris
@@ -52,6 +53,7 @@ class RisWidget(QtOpenGL.QGLWidget):
         self.iinfo_uint32 = numpy.iinfo(numpy.uint32)
         self.ris = None
         self.showRisFrames = None
+        self.timeAtLastFrameEnd = None
 
         self.image = None
         self.imageSize = None
@@ -440,6 +442,12 @@ class RisWidget(QtOpenGL.QGLWidget):
 
             self.prevWindowSize = self.currWindowSize
             self.prevImageSize = self.imageSize
+
+            t = time.time()
+            if self.timeAtLastFrameEnd is not None:
+                d = t - self.timeAtLastFrameEnd
+                print('{}s\t{}fps'.format(d, 1/d))
+            self.timeAtLastFrameEnd = t
 
     def resizeGL(self, width, height):
         GL.glViewport(0, 0, width, height)

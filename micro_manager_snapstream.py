@@ -22,6 +22,7 @@
 
 import threading
 
+
 from ris_widget.ris import Ris
 
 class MicroManagerSnapStream(Ris):
