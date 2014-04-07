@@ -55,6 +55,9 @@ class RisWidget(QtOpenGL.QGLWidget):
         self.showRisFrames = None
         self.timeAtLastFrameEnd = None
 
+        ##TODO REMOVE
+        self.debugPrintFps = False
+
         self.image = None
         self.imageSize = None
         self.prevImageSize = None
@@ -444,9 +447,10 @@ class RisWidget(QtOpenGL.QGLWidget):
             self.prevImageSize = self.imageSize
 
             t = time.time()
-            if self.timeAtLastFrameEnd is not None:
-                d = t - self.timeAtLastFrameEnd
-                print('{}s\t{}fps'.format(d, 1/d))
+            if self.debugPrintFps:
+                if self.timeAtLastFrameEnd is not None:
+                    d = t - self.timeAtLastFrameEnd
+                    print('{}s\t{}fps'.format(d, 1/d))
             self.timeAtLastFrameEnd = t
 
     def resizeGL(self, width, height):
