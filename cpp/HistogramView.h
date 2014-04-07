@@ -20,13 +20,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef __RIS_WIDGET__COMMON_H_01936724387909345__
-#define __RIS_WIDGET__COMMON_H_01936724387909345__
+#pragma once
 
-#include <QGLWidget>
-#include <QMainWindow>
-#include <QString>
-#include <QThread>
-
-#endif
-
+#include "Common.h"

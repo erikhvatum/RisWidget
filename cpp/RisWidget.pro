@@ -21,12 +21,13 @@
 # SOFTWARE.
 
 TEMPLATE = lib
-QT += core gui widgets
+QT += core gui widgets opengl
 CONFIG += static c++11
 TARGET = RisWidget
 INCLUDEPATH += .
 
 # Input
-HEADERS += Common.h RisWidget.h
-FORMS += RisWidget.ui
-SOURCES += RisWidget.cpp
+HEADERS += Common.h HistogramWidget.h HistogramView.h ImageWidget.h ImageView.h RisWidget.h
+FORMS += RisWidget.ui HistogramWidget.ui ImageWidget.ui
+SOURCES += RisWidget.cpp HistogramWidget.cpp HistogramView.cpp ImageWidget.cpp ImageWidget.cpp
+
