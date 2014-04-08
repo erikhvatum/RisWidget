@@ -20,19 +20,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "Skunkworks.h"
+#include "Common.h"
+#include "RisWidgetException.h"
 
-Skunkworks::Skunkworks(QWidget* parent)
-  : QLabel(parent)
-{
-    setText("**skunkworks**");
-}
-
-Skunkworks::Skunkworks(const Skunkworks &)
+RisWidgetException::RisWidgetException(std::string&& description_)
+  : m_description(std::move(description_))
 {
 }
 
-Skunkworks& Skunkworks::operator = (const Skunkworks &)
+RisWidgetException::RisWidgetException(const std::string& description_)
+  : m_description(description_)
 {
-    return *this;
+}
+
+const std::string& RisWidgetException::description() const
+{
+    return m_description;
 }

@@ -24,11 +24,34 @@
 #include "ImageWidget.h"
 
 ImageWidget::ImageWidget(QWidget* parent)
-  : QWidget(parent)
+  : QWidget(parent),
+    m_imageView(nullptr)
 {
     setupUi(this);
+    if(layout() == nullptr)
+    {
+        QHBoxLayout* layout_(new QHBoxLayout);
+        setLayout(layout_);
+    }
 }
 
 ImageWidget::~ImageWidget()
 {
+}
+
+ImageView* ImageWidget::imageView()
+{
+    return m_imageView;
+}
+
+void ImageWidget::makeImageView(const QGLFormat& format, const View::SharedGlObjectsPtr& sharedGlObjects)
+{
+    if(m_imageView != nullptr)
+    {
+        throw RisWidgetException("ImageWidget::makeImageView(..): m_imageView != nullptr.  "
+                                 "ImageWidget::makeImageView(..) must not be called more than once per "
+                                 "ImageWidget instance.");
+    }
+    m_imageView = new ImageView(format, this, sharedGlObjects);
+    layout()->addWidget(m_imageView);
 }

@@ -20,22 +20,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
-
 #include "Common.h"
 #include "View.h"
 
-class ImageView
-  : public View
+View::View(const QGLFormat& format,
+                       QWidget* parent,
+                       const SharedGlObjectsPtr& sharedGlObjects_,
+                       const View* shareWidget,
+                       Qt::WindowFlags flags)
+  : QGLWidget(format, parent, shareWidget, flags),
+    m_sharedGlObjects(sharedGlObjects_)
 {
-    Q_OBJECT;
+}
 
-public:
-    ImageView(const QGLFormat& format,
-              QWidget* parent,
-              const SharedGlObjectsPtr& sharedGlObjects_,
-              const View* shareWidget = nullptr,
-              Qt::WindowFlags flags = 0);
-    virtual ~ImageView();
-};
+View::~View()
+{
+}
 
+const View::SharedGlObjectsPtr& View::sharedGlObjects()
+{
+    return m_sharedGlObjects;
+}

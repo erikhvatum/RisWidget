@@ -20,24 +20,30 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-%Module skunkworks
+#pragma once
 
-%Import QtCore/QtCoremod.sip
-%Import QtGui/QtGuimod.sip
-%Import QtOpenGL/QtOpenGLmod.sip
-%Import QtWidgets/QtWidgetsmod.sip
+#include "Common.h"
 
-class Skunkworks
-  : public QLabel
+class View
+  : public QGLWidget
 {
-%TypeHeaderCode
-#include <Skunkworks.h>
-%End
+    Q_OBJECT;
 
 public:
-    Skunkworks(QWidget* parent /TransferThis/ = 0);
+    class SharedGlObjects
+    {
+    };
+    typedef std::shared_ptr<SharedGlObjects> SharedGlObjectsPtr;
 
-private:
-    Skunkworks(const Skunkworks&);
+    View(const QGLFormat& format,
+         QWidget* parent,
+         const SharedGlObjectsPtr& sharedGlObjects_,
+         const View* shareWidget = nullptr,
+         Qt::WindowFlags flags = 0);
+    virtual ~View();
+
+    const SharedGlObjectsPtr& sharedGlObjects();
+
+protected:
+    SharedGlObjectsPtr m_sharedGlObjects;
 };
-

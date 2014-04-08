@@ -22,14 +22,38 @@
 
 #include "Common.h"
 #include "HistogramWidget.h"
+#include "ImageView.h"
 
 HistogramWidget::HistogramWidget(QWidget* parent)
-  : QWidget(parent)
+  : QWidget(parent),
+    m_histogramView(nullptr)
 {
     setupUi(this);
+    if(layout() == nullptr)
+    {
+        QHBoxLayout* layout_(new QHBoxLayout);
+        setLayout(layout_);
+    }
 }
 
 HistogramWidget::~HistogramWidget()
 {
 }
 
+HistogramView* HistogramWidget::histogramView()
+{
+    return m_histogramView;
+}
+
+
+void HistogramWidget::makeHistogramView(const QGLFormat& format, const View::SharedGlObjectsPtr& sharedGlObjects, ImageView* imageView)
+{
+    if(m_histogramView != nullptr)
+    {
+        throw RisWidgetException("HistogramWidget::makeHistogramView(..): m_histogramView != nullptr.  "
+                                 "HistogramWidget::makeHistogramView(..) must not be called more than once per "
+                                 "HistogramWidget instance.");
+    }
+    m_histogramView = new HistogramView(format, this, sharedGlObjects, imageView);
+    layout()->addWidget(m_histogramView);
+}

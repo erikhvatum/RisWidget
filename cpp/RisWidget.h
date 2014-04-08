@@ -23,15 +23,28 @@
 #pragma once
 
 #include "Common.h"
+#include "HistogramWidget.h"
+#include "ImageWidget.h"
 #include "ui_RisWidget.h"
 
 class RisWidget
   : public QMainWindow,
-    public Ui::RisWidget
+    protected Ui::RisWidget
 {
     Q_OBJECT;
 
 public:
-    explicit RisWidget(QWidget* parent = nullptr, Qt::WindowFlags flags = 0);
+    explicit RisWidget(bool enableSwapInterval1 = false,
+                       QString windowTitle_ = "RisWidget",
+                       QWidget* parent = nullptr,
+                       Qt::WindowFlags flags = 0);
     virtual ~RisWidget();
+
+    ImageWidget* imageWidget();
+    HistogramWidget* histogramWidget();
+
+protected:
+    View::SharedGlObjectsPtr m_sharedGlObjects;
+
+    void setupImageAndHistogramWidgets(const bool& enableSwapInterval1);
 };

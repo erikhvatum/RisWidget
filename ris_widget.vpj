@@ -194,6 +194,18 @@
 		<Folder
 			Name="cpp"
 			Filters="*.cpp;*.h">
+			<Folder
+				Name="qt generated files"
+				Filters="">
+				<F N="cpp/moc_HistogramView.cpp"/>
+				<F N="cpp/moc_HistogramWidget.cpp"/>
+				<F N="cpp/moc_ImageView.cpp"/>
+				<F N="cpp/moc_ImageWidget.cpp"/>
+				<F N="cpp/moc_RisWidget.cpp"/>
+				<F N="cpp/ui_HistogramWidget.h"/>
+				<F N="cpp/ui_ImageWidget.h"/>
+				<F N="cpp/ui_RisWidget.h"/>
+			</Folder>
 			<F N="cpp/Common.h"/>
 			<F N="cpp/HistogramView.cpp"/>
 			<F N="cpp/HistogramView.h"/>
@@ -209,10 +221,24 @@
 			<F N="cpp/RisWidget.h"/>
 			<F N="cpp/RisWidget.pro"/>
 			<F N="cpp/RisWidget.ui"/>
+			<F N="cpp/RisWidgetException.h"/>
+			<F N="cpp/View.cpp"/>
+			<F N="cpp/View.h"/>
+		</Folder>
+		<Folder
+			Name="sip generated files"
+			Filters="">
+			<F N="ris_widget.sbf"/>
+			<F N="sipAPIris_widget.h"/>
+			<F N="sipris_widgetcmodule.cpp"/>
+			<F N="sipris_widgetHistogramView.cpp"/>
+			<F N="sipris_widgetHistogramWidget.cpp"/>
+			<F N="sipris_widgetImageView.cpp"/>
+			<F N="sipris_widgetImageWidget.cpp"/>
+			<F N="sipris_widgetRisWidget.cpp"/>
 		</Folder>
 		<F N="dead_simple_build.bash"/>
 		<F N="Makefile"/>
-		<F N="ris_widget.sbf"/>
 		<F N="ris_widget.sip"/>
 	</Files>
 </Project>

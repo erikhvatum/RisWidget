@@ -38,8 +38,14 @@ class RisWidget
 %End
 
 public:
-    explicit RisWidget(QWidget* parent = nullptr, Qt::WindowFlags flags = 0);
+    explicit RisWidget(bool enableSwapInterval1 = false,
+                       QString windowTitle_ = "RisWidget",
+                       QWidget* parent = nullptr,
+                       Qt::WindowFlags flags = 0);
     virtual ~RisWidget();
+
+    ImageWidget* imageWidget();
+    HistogramWidget* histogramWidget();
 };
 
 
@@ -55,17 +61,22 @@ class ImageWidget
 public:
     explicit ImageWidget(QWidget* parent = nullptr);
     virtual ~ImageWidget();
+
+    ImageView* imageView();
 };
 
 
 
 
 class ImageView
-  : public QGLWidget
+  : public View /NoDefaultCtors/
 {
 %TypeHeaderCode
 #include "cpp/ImageView.h"
 %End
+
+public:
+    virtual ~ImageView();
 };
 
 
@@ -81,15 +92,43 @@ class HistogramWidget
 public:
     HistogramWidget(QWidget* parent = nullptr);
     virtual ~HistogramWidget();
+
+    HistogramView* histogramView();
 };
 
 
 
 
 class HistogramView
-  : public QGLWidget
+  : public View /NoDefaultCtors/
 {
 %TypeHeaderCode
 #include "cpp/HistogramView.h"
 %End
+
+public:
+    virtual ~HistogramView();
+
+};
+
+
+
+
+class View
+  : public QGLWidget /NoDefaultCtors/
+{
+%TypeHeaderCode
+#include "cpp/View.h"
+%End
+
+public:
+    class SharedGlObjects
+    {
+    %TypeHeaderCode
+    #include "cpp/View.h"
+    %End
+    };
+    typedef std::shared_ptr<SharedGlObjects> SharedGlObjectsPtr;
+
+    virtual ~View();
 };

@@ -22,3 +22,16 @@
 
 #include "Common.h"
 #include "HistogramView.h"
+
+HistogramView::HistogramView(const QGLFormat& format,
+                             QWidget* parent,
+                             const SharedGlObjectsPtr& sharedGlObjects_,
+                             const View* shareWidget,
+                             Qt::WindowFlags flags)
+  : View(format, parent, sharedGlObjects_, shareWidget, flags)
+{
+}
+
+HistogramView::~HistogramView()
+{
+}

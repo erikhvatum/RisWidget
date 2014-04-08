@@ -26,13 +26,23 @@
 #include "ImageView.h"
 #include "ui_ImageWidget.h"
 
+class RisWidget;
+
 class ImageWidget
   : public QWidget,
-    public Ui::ImageWidget
+    protected Ui::ImageWidget
 {
     Q_OBJECT;
+    friend class RisWidget;
 
 public:
     explicit ImageWidget(QWidget* parent = nullptr);
     virtual ~ImageWidget();
+
+    ImageView* imageView();
+
+protected:
+    ImageView* m_imageView;
+
+    void makeImageView(const QGLFormat& format, const View::SharedGlObjectsPtr& sharedGlObjects);
 };

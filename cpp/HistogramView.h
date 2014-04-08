@@ -23,9 +23,18 @@
 #pragma once
 
 #include "Common.h"
+#include "View.h"
 
 class HistogramView
-  : public QGLWidget
+  : public View
 {
     Q_OBJECT;
+
+public:
+    HistogramView(const QGLFormat& format,
+                  QWidget* parent,
+                  const SharedGlObjectsPtr& sharedGlObjects_,
+                  const View* shareWidget = nullptr,
+                  Qt::WindowFlags flags = 0);
+    virtual ~HistogramView();
 };

@@ -22,3 +22,16 @@
 
 #include "Common.h"
 #include "ImageView.h"
+
+ImageView::ImageView(const QGLFormat& format,
+                     QWidget* parent,
+                     const SharedGlObjectsPtr& sharedGlObjects_,
+                     const View* shareWidget,
+                     Qt::WindowFlags flags)
+  : View(format, parent, sharedGlObjects_, shareWidget, flags)
+{
+}
+
+ImageView::~ImageView()
+{
+}

@@ -35,7 +35,9 @@ HEADERS += Common.h \
            HistogramView.h \
            ImageWidget.h \
            ImageView.h \
-           RisWidget.h
+           RisWidget.h \
+           RisWidgetException.h \
+           View.h
 
 FORMS +=   RisWidget.ui \
            HistogramWidget.ui \
@@ -45,5 +47,6 @@ SOURCES += RisWidget.cpp \
            HistogramWidget.cpp \
            HistogramView.cpp \
            ImageWidget.cpp \
-           ImageView.cpp
-
+           ImageView.cpp \
+           RisWidgetException.cpp \
+           View.cpp

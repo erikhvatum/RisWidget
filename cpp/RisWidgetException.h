@@ -20,20 +20,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#pragma once
 
-#include <QtWidgets/QLabel>
-#include <QtWidgets/QWidget>
-#include <QtCore/QString>
+#include "Common.h"
 
-class Skunkworks
-  : public QLabel
+class RisWidgetException
 {
-    Q_OBJECT
-
 public:
-    explicit Skunkworks(QWidget* parent = 0);
+    explicit RisWidgetException(std::string&& description_);
+    explicit RisWidgetException(const std::string& description_ = std::string(""));
 
-private:
-    Skunkworks(const Skunkworks &);
-    Skunkworks& operator = (const Skunkworks &);
+    const std::string& description() const;
+
+protected:
+    std::string m_description;
 };
+

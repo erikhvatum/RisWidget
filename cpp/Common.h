@@ -30,10 +30,15 @@
 #include <glm/glm.hpp>
 #pragma GCC diagnostic pop
 
+#include <memory>
 #include <QGLWidget>
+#include <QHBoxLayout>
 #include <QMainWindow>
 #include <QString>
 #include <QThread>
+#include <string>
+
+#include "RisWidgetException.h"
 
 #endif
 

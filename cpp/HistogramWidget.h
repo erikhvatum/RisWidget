@@ -26,14 +26,25 @@
 #include "HistogramView.h"
 #include "ui_HistogramWidget.h"
 
+class ImageView;
+class RisWidget;
+
 class HistogramWidget
   : public QWidget,
     protected Ui::HistogramWidget
 {
     Q_OBJECT;
+    friend class RisWidget;
 
 public:
-    HistogramWidget(QWidget* parent = nullptr);
+    explicit HistogramWidget(QWidget* parent = nullptr);
     virtual ~HistogramWidget();
+
+    HistogramView* histogramView();
+
+protected:
+    HistogramView* m_histogramView;
+
+    void makeHistogramView(const QGLFormat& format, const View::SharedGlObjectsPtr& sharedGlObjects, ImageView* imageView);
 };
 
