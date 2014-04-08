@@ -37,7 +37,8 @@ HEADERS += Common.h \
            ImageView.h \
            RisWidget.h \
            RisWidgetException.h \
-           View.h
+           View.h \
+	   GlProgram.h
 
 FORMS +=   RisWidget.ui \
            HistogramWidget.ui \
@@ -49,4 +50,5 @@ SOURCES += RisWidget.cpp \
            ImageWidget.cpp \
            ImageView.cpp \
            RisWidgetException.cpp \
-           View.cpp
+           View.cpp \
+	   GlProgram.cpp

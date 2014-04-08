@@ -30,6 +30,8 @@
 #include <glm/glm.hpp>
 #pragma GCC diagnostic pop
 
+#include <forward_list>
+#include <limits>
 #include <memory>
 #include <QGLWidget>
 #include <QHBoxLayout>

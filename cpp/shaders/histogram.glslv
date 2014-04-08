@@ -20,32 +20,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
+#version 430 core
 
-#include "Common.h"
-#include "GlProgram.h"
+uniform mat4 projectionModelViewMatrix;
+uniform uint binCount;
+uniform float binScale;
+layout (binding = 0, r32ui) uniform readonly uimage1D histogram;
 
-class View
-  : public QGLWidget
+in float binIndex;
+
+void main()
 {
-    Q_OBJECT;
-
-public:
-    struct SharedGlObjects
-    {
-        HistoCalcProg histoCalcProg;
-    };
-    typedef std::shared_ptr<SharedGlObjects> SharedGlObjectsPtr;
-
-    View(const QGLFormat& format,
-         QWidget* parent,
-         const SharedGlObjectsPtr& sharedGlObjects_,
-         const View* shareWidget = nullptr,
-         Qt::WindowFlags flags = 0);
-    virtual ~View();
-
-    const SharedGlObjectsPtr& sharedGlObjects();
-
-protected:
-    SharedGlObjectsPtr m_sharedGlObjects;
-};
+    uint binValue = imageLoad(histogram, int(binIndex)).r;
+    gl_Position = projectionModelViewMatrix * vec4((float(binIndex) / float(binCount) - 0.5) * 2.0,
+//                                                 (log(float(binValue)) / binScale - 0.5) * 2.0,
+                                                   (float(binValue) / binScale - 0.5) * 2.0,
+                                                   0.4,
+                                                   1.0);
+}

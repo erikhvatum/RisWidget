@@ -20,32 +20,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
+#version 430 core
 
-#include "Common.h"
-#include "GlProgram.h"
+uniform usampler2D tex;
 
-class View
-  : public QGLWidget
+// From vertex shader
+in vec2 vsTexCoord;
+
+layout (location = 0) out vec4 fsColor;
+
+void main()
 {
-    Q_OBJECT;
-
-public:
-    struct SharedGlObjects
-    {
-        HistoCalcProg histoCalcProg;
-    };
-    typedef std::shared_ptr<SharedGlObjects> SharedGlObjectsPtr;
-
-    View(const QGLFormat& format,
-         QWidget* parent,
-         const SharedGlObjectsPtr& sharedGlObjects_,
-         const View* shareWidget = nullptr,
-         Qt::WindowFlags flags = 0);
-    virtual ~View();
-
-    const SharedGlObjectsPtr& sharedGlObjects();
-
-protected:
-    SharedGlObjectsPtr m_sharedGlObjects;
-};
+    fsColor = vec4(1, 1, 1, 1);
+}

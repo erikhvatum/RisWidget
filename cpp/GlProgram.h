@@ -23,29 +23,38 @@
 #pragma once
 
 #include "Common.h"
-#include "GlProgram.h"
 
-class View
-  : public QGLWidget
+class GlProgram
 {
-    Q_OBJECT;
-
 public:
-    struct SharedGlObjects
-    {
-        HistoCalcProg histoCalcProg;
-    };
-    typedef std::shared_ptr<SharedGlObjects> SharedGlObjectsPtr;
+    GlProgram();
+    virtual ~GlProgram();
+    GlProgram(const GlProgram&) = delete;
+    GlProgram& operator = (const GlProgram&) = delete;
 
-    View(const QGLFormat& format,
-         QWidget* parent,
-         const SharedGlObjectsPtr& sharedGlObjects_,
-         const View* shareWidget = nullptr,
-         Qt::WindowFlags flags = 0);
-    virtual ~View();
+    const GLuint& id() const;
+    operator GLuint () const;
 
-    const SharedGlObjectsPtr& sharedGlObjects();
+    void build();
 
 protected:
-    SharedGlObjectsPtr m_sharedGlObjects;
+    GLuint m_id{std::numeric_limits<GLuint>::min()};
+
+    struct Source
+    {
+        GLenum type;
+        std::string fileName;
+        std::string code;
+    };
+    virtual void getSources(std::forward_list<Source>& sources) = 0;
+};
+
+class HistoCalcProg
+  : public GlProgram
+{
+public:
+    HistoCalcProg();
+
+protected:
+    virtual void getSources(std::forward_list<Source>& sources);
 };

@@ -206,7 +206,19 @@
 				<F N="cpp/ui_ImageWidget.h"/>
 				<F N="cpp/ui_RisWidget.h"/>
 			</Folder>
+			<Folder
+				Name="shaders"
+				Filters="">
+				<F N="cpp/shaders/histogram.glslf"/>
+				<F N="cpp/shaders/histogram.glslv"/>
+				<F N="cpp/shaders/histogramCalc.glslc"/>
+				<F N="cpp/shaders/histogramConsolidate.glslc"/>
+				<F N="cpp/shaders/panel.glslf"/>
+				<F N="cpp/shaders/panel.glslv"/>
+			</Folder>
 			<F N="cpp/Common.h"/>
+			<F N="cpp/GlProgram.cpp"/>
+			<F N="cpp/GlProgram.h"/>
 			<F N="cpp/HistogramView.cpp"/>
 			<F N="cpp/HistogramView.h"/>
 			<F N="cpp/HistogramWidget.cpp"/>
@@ -221,6 +233,7 @@
 			<F N="cpp/RisWidget.h"/>
 			<F N="cpp/RisWidget.pro"/>
 			<F N="cpp/RisWidget.ui"/>
+			<F N="cpp/RisWidgetException.cpp"/>
 			<F N="cpp/RisWidgetException.h"/>
 			<F N="cpp/View.cpp"/>
 			<F N="cpp/View.h"/>

@@ -20,32 +20,32 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
+#version 430 core
 
-#include "Common.h"
-#include "GlProgram.h"
+layout (binding = 0, r16ui) uniform readonly uimage2D image;
+layout (binding = 1, r32ui) uniform coherent uimage2DArray blocks;
+uniform float binCount;
+uniform ivec2 invocationRegionSize;
 
-class View
-  : public QGLWidget
+layout (local_size_x = 4, local_size_y = 4) in;
+
+void main()
 {
-    Q_OBJECT;
+    ivec2 start = ivec2(gl_GlobalInvocationID.xy) * invocationRegionSize;
+    ivec2 size = imageSize(image);
+    // Ensure that processing of remainder blocks for non-divisible images does not proceed beyond image edge
+    ivec2 end = ivec2(min(start.x + invocationRegionSize.x, size.x),
+                      min(start.y + invocationRegionSize.y, size.y));
 
-public:
-    struct SharedGlObjects
+    float intensity;
+    int bin;
+    for(int y = start.y, x; y < end.y; ++y)
     {
-        HistoCalcProg histoCalcProg;
-    };
-    typedef std::shared_ptr<SharedGlObjects> SharedGlObjectsPtr;
-
-    View(const QGLFormat& format,
-         QWidget* parent,
-         const SharedGlObjectsPtr& sharedGlObjects_,
-         const View* shareWidget = nullptr,
-         Qt::WindowFlags flags = 0);
-    virtual ~View();
-
-    const SharedGlObjectsPtr& sharedGlObjects();
-
-protected:
-    SharedGlObjectsPtr m_sharedGlObjects;
-};
+        for(x = start.x; x < end.x; ++x)
+        {
+            intensity = imageLoad(image, ivec2(x, y)).r;
+            bin = int(floor(intensity / 65535.0 * binCount));
+            imageAtomicAdd(blocks, ivec3(gl_WorkGroupID.x, gl_WorkGroupID.y, bin), 1);
+        }
+    }
+}

@@ -20,32 +20,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
+#version 430 core
 
-#include "Common.h"
-#include "GlProgram.h"
+uniform mat4 projectionModelViewMatrix;
 
-class View
-  : public QGLWidget
+layout (location = 0) in vec2 vertPos;
+layout (location = 1) in vec2 texCoord;
+
+out vec2 vsTexCoord;
+
+void main()
 {
-    Q_OBJECT;
-
-public:
-    struct SharedGlObjects
-    {
-        HistoCalcProg histoCalcProg;
-    };
-    typedef std::shared_ptr<SharedGlObjects> SharedGlObjectsPtr;
-
-    View(const QGLFormat& format,
-         QWidget* parent,
-         const SharedGlObjectsPtr& sharedGlObjects_,
-         const View* shareWidget = nullptr,
-         Qt::WindowFlags flags = 0);
-    virtual ~View();
-
-    const SharedGlObjectsPtr& sharedGlObjects();
-
-protected:
-    SharedGlObjectsPtr m_sharedGlObjects;
-};
+    gl_Position = projectionModelViewMatrix * vec4(vertPos, 0.5, 1.0);
+    vsTexCoord = texCoord;
+}

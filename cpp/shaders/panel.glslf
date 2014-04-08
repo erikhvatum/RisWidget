@@ -20,32 +20,56 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
+#version 430 core
 
-#include "Common.h"
-#include "GlProgram.h"
-
-class View
-  : public QGLWidget
+struct GammaTransformParams
 {
-    Q_OBJECT;
-
-public:
-    struct SharedGlObjects
-    {
-        HistoCalcProg histoCalcProg;
-    };
-    typedef std::shared_ptr<SharedGlObjects> SharedGlObjectsPtr;
-
-    View(const QGLFormat& format,
-         QWidget* parent,
-         const SharedGlObjectsPtr& sharedGlObjects_,
-         const View* shareWidget = nullptr,
-         Qt::WindowFlags flags = 0);
-    virtual ~View();
-
-    const SharedGlObjectsPtr& sharedGlObjects();
-
-protected:
-    SharedGlObjectsPtr m_sharedGlObjects;
+    float minVal;
+    float maxVal;
+    float gammaVal;
 };
+
+uniform GammaTransformParams gtp = GammaTransformParams(0.0, 65535.0, 1.0);
+uniform usampler2D tex;
+
+// From vertex shader
+in vec2 vsTexCoord;
+
+layout (location = 0) out vec4 fsColor;
+
+subroutine void PanelColorer();
+
+subroutine (PanelColorer) void imagePanelGammaTransformColorer()
+{
+    float intensity = texture(tex, vsTexCoord).r;
+    if(intensity <= gtp.minVal)
+    {
+        fsColor = vec4(0, 0, 1, 1);
+    }
+    else if(intensity >= gtp.maxVal)
+    {
+        fsColor = vec4(1, 0, 0, 1);
+    }
+    else
+    {
+        float scaled = pow(clamp((intensity - gtp.minVal) / (gtp.maxVal - gtp.minVal), 0.0, 1.0), gtp.gammaVal);
+        fsColor = vec4(scaled, scaled, scaled, 1.0);
+    }
+}
+
+subroutine (PanelColorer) void imagePanelPassthroughColorer()
+{
+    fsColor = vec4(vec3(texture(tex, vsTexCoord).rrr) / 65535.0, 1);
+}
+
+subroutine (PanelColorer) void histogramPanelColorer()
+{
+    fsColor = vec4(0, 0, 0, 1);
+}
+
+subroutine uniform PanelColorer panelColorer;
+
+void main()
+{
+    panelColorer();
+}

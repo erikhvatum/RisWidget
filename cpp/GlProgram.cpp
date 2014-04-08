@@ -20,32 +20,40 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
-
 #include "Common.h"
 #include "GlProgram.h"
 
-class View
-  : public QGLWidget
+GlProgram::GlProgram()
 {
-    Q_OBJECT;
+}
 
-public:
-    struct SharedGlObjects
-    {
-        HistoCalcProg histoCalcProg;
-    };
-    typedef std::shared_ptr<SharedGlObjects> SharedGlObjectsPtr;
+GlProgram::~GlProgram()
+{
+}
 
-    View(const QGLFormat& format,
-         QWidget* parent,
-         const SharedGlObjectsPtr& sharedGlObjects_,
-         const View* shareWidget = nullptr,
-         Qt::WindowFlags flags = 0);
-    virtual ~View();
+const GLuint& GlProgram::id() const
+{
+    return m_id;
+}
 
-    const SharedGlObjectsPtr& sharedGlObjects();
+GlProgram::operator GLuint () const
+{
+    return m_id;
+}
 
-protected:
-    SharedGlObjectsPtr m_sharedGlObjects;
-};
+GlProgram::build()
+{
+    std::forward_list<Source> sources;
+    getSources(sources);
+}
+
+HistoCalcProg::HistoCalcProg()
+{
+}
+
+void HistoCalcProg::getSources(std::forward_list<Source>& sources)
+{
+    sources.emplace_front(GL_COMPUTE_SHADER, "histogramCalc.glslc", R"*?*?*?*//(
+#include "shaders/histogramCalc.glslc"
+)*?*?*?*//");
+}
