@@ -23,6 +23,13 @@
 #ifndef __RIS_WIDGET__COMMON_H_01936724387909345__
 #define __RIS_WIDGET__COMMON_H_01936724387909345__
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+#define GLM_FORCE_CXX11
+#define GLM_FORCE_RADIANS
+#include <glm/glm.hpp>
+#pragma GCC diagnostic pop
+
 #include <QGLWidget>
 #include <QMainWindow>
 #include <QString>

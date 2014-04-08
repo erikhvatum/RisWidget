@@ -27,6 +27,9 @@
 %Import QtOpenGL/QtOpenGLmod.sip
 %Import QtWidgets/QtWidgetsmod.sip
 
+
+
+
 class RisWidget
   : public QMainWindow
 {
@@ -35,7 +38,58 @@ class RisWidget
 %End
 
 public:
-    RisWidget(QWidget* parent = nullptr, Qt::WindowFlags flags = 0);
+    explicit RisWidget(QWidget* parent = nullptr, Qt::WindowFlags flags = 0);
     virtual ~RisWidget();
 };
 
+
+
+
+class ImageWidget
+  : public QWidget
+{
+%TypeHeaderCode
+#include "cpp/ImageWidget.h"
+%End
+
+public:
+    explicit ImageWidget(QWidget* parent = nullptr);
+    virtual ~ImageWidget();
+};
+
+
+
+
+class ImageView
+  : public QGLWidget
+{
+%TypeHeaderCode
+#include "cpp/ImageView.h"
+%End
+};
+
+
+
+
+class HistogramWidget
+  : public QWidget
+{
+%TypeHeaderCode
+#include "cpp/HistogramWidget.h"
+%End
+
+public:
+    HistogramWidget(QWidget* parent = nullptr);
+    virtual ~HistogramWidget();
+};
+
+
+
+
+class HistogramView
+  : public QGLWidget
+{
+%TypeHeaderCode
+#include "cpp/HistogramView.h"
+%End
+};

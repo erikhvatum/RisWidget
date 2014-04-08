@@ -32,6 +32,6 @@ class RisWidget
     Q_OBJECT;
 
 public:
-    RisWidget(QWidget* parent = nullptr, Qt::WindowFlags flags = 0);
+    explicit RisWidget(QWidget* parent = nullptr, Qt::WindowFlags flags = 0);
     virtual ~RisWidget();
 };

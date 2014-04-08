@@ -21,13 +21,29 @@
 # SOFTWARE.
 
 TEMPLATE = lib
+LANGUAGE = C++
 QT += core gui widgets opengl
-CONFIG += static c++11
+CONFIG += static c++11 precompile_header exceptions rtti stl thread
+CONFIG -= app_bundle
 TARGET = RisWidget
-INCLUDEPATH += .
+INCLUDEPATH += /usr/local/glm
 
-# Input
-HEADERS += Common.h HistogramWidget.h HistogramView.h ImageWidget.h ImageView.h RisWidget.h
-FORMS += RisWidget.ui HistogramWidget.ui ImageWidget.ui
-SOURCES += RisWidget.cpp HistogramWidget.cpp HistogramView.cpp ImageWidget.cpp ImageWidget.cpp
+PRECOMPILED_HEADER = Common.h
+
+HEADERS += Common.h \
+           HistogramWidget.h \
+           HistogramView.h \
+           ImageWidget.h \
+           ImageView.h \
+           RisWidget.h
+
+FORMS +=   RisWidget.ui \
+           HistogramWidget.ui \
+           ImageWidget.ui
+
+SOURCES += RisWidget.cpp \
+           HistogramWidget.cpp \
+           HistogramView.cpp \
+           ImageWidget.cpp \
+           ImageView.cpp
 

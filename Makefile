@@ -10,8 +10,8 @@ LIBRARY = ris_widget.so
 CPP_FILES := sipris_widgetRisWidget.cpp sipris_widgetcmodule.cpp $(wildcard *.cpp)
 OBJS := $(patsubst %.cpp, %.o, $(CPP_FILES))
 CC = g++
-CPPFLAGS = -c -pipe -O2 -fPIC -std=c++0x -march=native -Wall -W -D_REENTRANT -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -I/usr/lib64/qt5/mkspecs/linux-g++ -I. -I/usr/include/qt5 -I/usr/include/qt5/QtWidgets -I/usr/include/qt5/QtGui -I/usr/include/qt5/QtCore -I/usr/include/python3.3
-LDFLAGS = -Wl,-O1 -std=c++0x -shared -lQt5Widgets -lQt5Gui -lQt5Core -lGL -lpthread cpp/*.o
+CPPFLAGS = -c -pipe -O2 -fPIC -std=c++0x -march=native -Wall -W -D_REENTRANT -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -I/usr/lib64/qt5/mkspecs/linux-g++ -I. -I/usr/include/qt5 -I/usr/include/qt5/QtWidgets -I/usr/include/qt5/QtGui -I/usr/include/qt5/QtCore -I/usr/include/qt5/QtOpenGL -I/usr/include/python3.3
+LDFLAGS = -Wl,-O1 -std=c++0x -shared -lQt5Widgets -lQt5Gui -lQt5Core -lQt5OpenGL -lGL -lpthread cpp/*.o
 RUNSIP = sip -c . -b ris_widget.sbf -I /usr/share/sip/PyQt5 -x VendorID -t WS_X11 -t Qt_5_2_0 -g ris_widget.sip
 
 all: $(LIBRARY)

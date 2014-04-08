@@ -23,9 +23,16 @@
 #pragma once
 
 #include "Common.h"
+#include "ImageView.h"
+#include "ui_ImageWidget.h"
 
-class ImageView
-  : public QWidget
+class ImageWidget
+  : public QWidget,
+    public Ui::ImageWidget
 {
     Q_OBJECT;
+
+public:
+    explicit ImageWidget(QWidget* parent = nullptr);
+    virtual ~ImageWidget();
 };

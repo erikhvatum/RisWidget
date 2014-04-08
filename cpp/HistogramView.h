@@ -23,3 +23,9 @@
 #pragma once
 
 #include "Common.h"
+
+class HistogramView
+  : public QGLWidget
+{
+    Q_OBJECT;
+};

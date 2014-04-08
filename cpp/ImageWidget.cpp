@@ -21,4 +21,14 @@
 // SOFTWARE.
 
 #include "Common.h"
-#include "ImageView.h"
+#include "ImageWidget.h"
+
+ImageWidget::ImageWidget(QWidget* parent)
+  : QWidget(parent)
+{
+    setupUi(this);
+}
+
+ImageWidget::~ImageWidget()
+{
+}

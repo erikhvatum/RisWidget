@@ -23,3 +23,17 @@
 #pragma once
 
 #include "Common.h"
+#include "HistogramView.h"
+#include "ui_HistogramWidget.h"
+
+class HistogramWidget
+  : public QWidget,
+    protected Ui::HistogramWidget
+{
+    Q_OBJECT;
+
+public:
+    HistogramWidget(QWidget* parent = nullptr);
+    virtual ~HistogramWidget();
+};
+

@@ -21,4 +21,15 @@
 // SOFTWARE.
 
 #include "Common.h"
-#include "HistogramView.h"
+#include "HistogramWidget.h"
+
+HistogramWidget::HistogramWidget(QWidget* parent)
+  : QWidget(parent)
+{
+    setupUi(this);
+}
+
+HistogramWidget::~HistogramWidget()
+{
+}
+

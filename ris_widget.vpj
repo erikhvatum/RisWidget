@@ -210,6 +210,7 @@
 			<F N="cpp/RisWidget.pro"/>
 			<F N="cpp/RisWidget.ui"/>
 		</Folder>
+		<F N="dead_simple_build.bash"/>
 		<F N="Makefile"/>
 		<F N="ris_widget.sbf"/>
 		<F N="ris_widget.sip"/>
