@@ -26,11 +26,13 @@
 RisWidgetException::RisWidgetException(std::string&& description_)
   : m_description(std::move(description_))
 {
+    std::cerr << m_description << std::endl;
 }
 
 RisWidgetException::RisWidgetException(const std::string& description_)
   : m_description(description_)
 {
+    std::cerr << m_description << std::endl;
 }
 
 const std::string& RisWidgetException::description() const

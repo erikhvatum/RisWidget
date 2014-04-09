@@ -34,27 +34,25 @@ public:
 
     const GLuint& id() const;
     operator GLuint () const;
+    QGLContext* context();
+    void setContext(QGLContext* context_);
 
     void build();
+    void del();
 
 protected:
-    GLuint m_id{std::numeric_limits<GLuint>::min()};
+    GLuint m_id{std::numeric_limits<GLuint>::max()};
+    QGLContext* m_context{nullptr};
 
-    struct Source
-    {
-        GLenum type;
-        std::string fileName;
-        std::string code;
-    };
-    virtual void getSources(std::forward_list<Source>& sources) = 0;
+    virtual void getSources(std::vector<QString>& sourceFileNames) = 0;
 };
 
 class HistoCalcProg
   : public GlProgram
 {
 public:
-    HistoCalcProg();
+    using GlProgram::GlProgram;
 
 protected:
-    virtual void getSources(std::forward_list<Source>& sources);
+    virtual void getSources(std::vector<QString>& sourceFileNames);
 };

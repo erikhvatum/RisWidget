@@ -33,7 +33,10 @@ class View
 public:
     struct SharedGlObjects
     {
+        bool inited{false};
         HistoCalcProg histoCalcProg;
+
+        void init(QGLContext* context);
     };
     typedef std::shared_ptr<SharedGlObjects> SharedGlObjectsPtr;
 
@@ -48,4 +51,6 @@ public:
 
 protected:
     SharedGlObjectsPtr m_sharedGlObjects;
+
+    virtual void initializeGL();
 };

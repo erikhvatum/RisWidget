@@ -232,6 +232,7 @@
 			<F N="cpp/RisWidget.cpp"/>
 			<F N="cpp/RisWidget.h"/>
 			<F N="cpp/RisWidget.pro"/>
+			<F N="cpp/RisWidget.qrc"/>
 			<F N="cpp/RisWidget.ui"/>
 			<F N="cpp/RisWidgetException.cpp"/>
 			<F N="cpp/RisWidgetException.h"/>

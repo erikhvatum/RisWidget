@@ -30,6 +30,13 @@ RisWidget::RisWidget(bool enableSwapInterval1,
   : QMainWindow(parent, flags),
     m_sharedGlObjects(new View::SharedGlObjects)
 {
+    static bool resourcesInited{false};
+    if(!resourcesInited)
+    {
+        Q_INIT_RESOURCE(RisWidget);
+        resourcesInited = true;
+    }
+
     setWindowTitle(windowTitle_);
     setupUi(this);
     setupImageAndHistogramWidgets(enableSwapInterval1);

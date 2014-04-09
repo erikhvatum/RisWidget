@@ -122,13 +122,13 @@ class View
 %End
 
 public:
-    class SharedGlObjects
+    /*class SharedGlObjects
     {
     %TypeHeaderCode
     #include "cpp/View.h"
     %End
     };
-    typedef std::shared_ptr<SharedGlObjects> SharedGlObjectsPtr;
+    typedef std::shared_ptr<SharedGlObjects> SharedGlObjectsPtr;*/
 
     virtual ~View();
 };

@@ -28,6 +28,8 @@ CONFIG -= app_bundle
 TARGET = RisWidget
 INCLUDEPATH += /usr/local/glm
 
+RESOURCES = RisWidget.qrc
+
 PRECOMPILED_HEADER = Common.h
 
 HEADERS += Common.h \
@@ -38,7 +40,7 @@ HEADERS += Common.h \
            RisWidget.h \
            RisWidgetException.h \
            View.h \
-	   GlProgram.h
+           GlProgram.h
 
 FORMS +=   RisWidget.ui \
            HistogramWidget.ui \
@@ -51,4 +53,4 @@ SOURCES += RisWidget.cpp \
            ImageView.cpp \
            RisWidgetException.cpp \
            View.cpp \
-	   GlProgram.cpp
+           GlProgram.cpp

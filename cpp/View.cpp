@@ -23,6 +23,16 @@
 #include "Common.h"
 #include "View.h"
 
+void View::SharedGlObjects::init(QGLContext* context)
+{
+    if(!inited)
+    {
+        histoCalcProg.setContext(context);
+        histoCalcProg.build();
+        inited = true;
+    }
+}
+
 View::View(const QGLFormat& format,
                        QWidget* parent,
                        const SharedGlObjectsPtr& sharedGlObjects_,
@@ -40,4 +50,10 @@ View::~View()
 const View::SharedGlObjectsPtr& View::sharedGlObjects()
 {
     return m_sharedGlObjects;
+}
+
+void View::initializeGL()
+{
+    qglClearColor(QColor(255/3, 255/3, 255/3, 255));
+    m_sharedGlObjects->init(context());
 }

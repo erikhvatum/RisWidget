@@ -33,7 +33,7 @@
     <property name="title">
      <string>File</string>
     </property>
-    <addaction name="actionQuit"/>
+    <addaction name="actionClose"/>
    </widget>
    <addaction name="menuFile"/>
   </widget>
@@ -56,9 +56,12 @@
    </attribute>
    <widget class="HistogramWidget" name="m_histogramWidget"/>
   </widget>
-  <action name="actionQuit">
+  <action name="actionClose">
    <property name="text">
-    <string>Quit</string>
+    <string>Close</string>
+   </property>
+   <property name="toolTip">
+    <string>Close</string>
    </property>
   </action>
  </widget>
@@ -79,7 +82,7 @@
  <resources/>
  <connections>
   <connection>
-   <sender>actionQuit</sender>
+   <sender>actionClose</sender>
    <signal>triggered()</signal>
    <receiver>RisWidget</receiver>
    <slot>close()</slot>
