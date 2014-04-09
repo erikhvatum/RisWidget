@@ -56,3 +56,33 @@ public:
 protected:
     virtual void getSources(std::vector<QString>& sourceFileNames);
 };
+
+class HistoConsolidateProg
+  : public GlProgram
+{
+public:
+    using GlProgram::GlProgram;
+
+protected:
+    virtual void getSources(std::vector<QString> &sourceFileNames);
+};
+
+class ImageDrawProg
+  : public GlProgram
+{
+public:
+    using GlProgram::GlProgram;
+
+protected:
+    virtual void getSources(std::vector<QString> &sourceFileNames);
+};
+
+class HistoDrawProg
+  : public GlProgram
+{
+public:
+    using GlProgram::GlProgram;
+
+protected:
+    virtual void getSources(std::vector<QString> &sourceFileNames);
+};

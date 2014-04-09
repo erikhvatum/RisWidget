@@ -213,8 +213,8 @@
 				<F N="cpp/shaders/histogram.glslv"/>
 				<F N="cpp/shaders/histogramCalc.glslc"/>
 				<F N="cpp/shaders/histogramConsolidate.glslc"/>
-				<F N="cpp/shaders/panel.glslf"/>
-				<F N="cpp/shaders/panel.glslv"/>
+				<F N="cpp/shaders/image.glslf"/>
+				<F N="cpp/shaders/image.glslv"/>
 			</Folder>
 			<F N="cpp/Common.h"/>
 			<F N="cpp/GlProgram.cpp"/>

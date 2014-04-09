@@ -35,3 +35,11 @@ HistogramView::HistogramView(const QGLFormat& format,
 HistogramView::~HistogramView()
 {
 }
+
+void HistogramView::initializeGL()
+{
+    View::initializeGL();
+    qglClearColor(QColor(0, 0, 0, 255));
+}
+
+

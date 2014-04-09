@@ -35,3 +35,9 @@ ImageView::ImageView(const QGLFormat& format,
 ImageView::~ImageView()
 {
 }
+
+void ImageView::initializeGL()
+{
+    View::initializeGL();
+    qglClearColor(QColor(255/3, 255/3, 255/3, 255));
+}

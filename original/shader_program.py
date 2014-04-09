@@ -65,12 +65,12 @@ class ShaderProgram:
 
         failed = None
         GLS.glLinkProgram(self.prog)
-        if GLS.glGetProgramiv(self.prog, GLS.GL_VALIDATE_STATUS) == GL.GL_FALSE:
-            failed = 'Validation'
+        if GLS.glGetProgramiv(self.prog, GLS.GL_LINK_STATUS) == GL.GL_FALSE:
+            failed = 'Linking'
         else:
             GLS.glValidateProgram(self.prog)
-            if GLS.glGetProgramiv(self.prog, GLS.GL_LINK_STATUS) == GL.GL_FALSE:
-                failed = 'Linking'
+            if GLS.glGetProgramiv(self.prog, GLS.GL_VALIDATE_STATUS) == GL.GL_FALSE:
+                failed = 'Validation'
 
         for shader in shaders:
             GLS.glDeleteShader(shader)

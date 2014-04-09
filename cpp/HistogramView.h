@@ -37,4 +37,7 @@ public:
                   const View* shareWidget = nullptr,
                   Qt::WindowFlags flags = 0);
     virtual ~HistogramView();
+
+protected:
+    virtual void initializeGL();
 };

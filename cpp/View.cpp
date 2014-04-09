@@ -29,6 +29,16 @@ void View::SharedGlObjects::init(QGLContext* context)
     {
         histoCalcProg.setContext(context);
         histoCalcProg.build();
+
+        histoConsolidateProg.setContext(context);
+        histoConsolidateProg.build();
+
+        imageDrawProg.setContext(context);
+        imageDrawProg.build();
+
+        histoDrawProg.setContext(context);
+        histoDrawProg.build();
+
         inited = true;
     }
 }
@@ -54,6 +64,5 @@ const View::SharedGlObjectsPtr& View::sharedGlObjects()
 
 void View::initializeGL()
 {
-    qglClearColor(QColor(255/3, 255/3, 255/3, 255));
     m_sharedGlObjects->init(context());
 }

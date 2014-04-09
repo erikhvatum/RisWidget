@@ -1,0 +1,11 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource>
+	<file>shaders/histogramCalc.glslc</file>
+	<file>shaders/histogramConsolidate.glslc</file>
+	<file>shaders/image.glslv</file>
+	<file>shaders/image.glslf</file>
+	<file>shaders/histogram.glslv</file>
+	<file>shaders/histogram.glslf</file>
+</qresource>
+</RCC>
+

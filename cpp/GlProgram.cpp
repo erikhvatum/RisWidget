@@ -66,11 +66,15 @@ void GlProgram::build()
     m_id = glCreateProgram();
     std::list<GLuint> shaders;
 
+
     try
     {
         QString src;
         GLuint shader;
         GLint param;
+
+        /* Compile shaders */
+
         for(const QString& sfn : sourceFileNames)
         {
             if(sfn.endsWith(".glslc", Qt::CaseInsensitive))
@@ -132,6 +136,69 @@ void GlProgram::build()
                     throw RisWidgetException(std::string("GlProgram::build(): Compilation of shader \"") +
                                              sfn.toStdString() + std::string("\" failed:\n") + err.get());
                 }
+                else
+                {
+                    throw RisWidgetException(std::string("GlProgram::build(): Compilation of shader \"") +
+                                             sfn.toStdString() + std::string("\" failed: (GL shader info log is empty)."));
+                }
+            }
+            glAttachShader(m_id, shader);
+        }
+
+        /* Link shaders and validate resulting program */
+
+        auto listsrcs = [&](){
+            bool first{true};
+            std::string ret;
+            for(const QString& sfn : sourceFileNames)
+            {
+                if(first)
+                {
+                    first = false;
+                }
+                else
+                {
+                    ret += ", ";
+                }
+                ret += '"';
+                ret += sfn.toStdString();
+                ret += '"';
+            }
+            return ret;
+        };
+
+        std::string failed;
+
+        glLinkProgram(m_id);
+        glGetProgramiv(m_id, GL_LINK_STATUS, &param);
+        if(param == GL_FALSE)
+        {
+            failed = "Linking";
+        }
+        else
+        {
+            glValidateProgram(m_id);
+            glGetProgramiv(m_id, GL_VALIDATE_STATUS, &param);
+            if(param == GL_FALSE)
+            {
+                failed = "Validation";
+            }
+        }
+
+        if(!failed.empty())
+        {
+            glGetProgramiv(m_id, GL_INFO_LOG_LENGTH, &param);
+            if(param > 0)
+            {
+                std::unique_ptr<char[]> err(new char[param]);
+                glGetProgramInfoLog(m_id, param, nullptr, err.get());
+                throw RisWidgetException(std::string("GlProgram::build(): ") + failed + std::string(" of shader program with source files ") +
+                                         listsrcs() + std::string(" failed: ") + err.get());
+            }
+            else
+            {
+                throw RisWidgetException(std::string("GlProgram::build(): ") + failed + std::string(" of shader program with source files ") +
+                                         listsrcs() + std::string(" failed: (GL program info log is empty)"));
             }
         }
     }
@@ -140,10 +207,12 @@ void GlProgram::build()
         for(const GLuint& shader : shaders)
         {
             glDetachShader(m_id, shader);
+            glDeleteShader(shader);
         }
         throw e;
     }
 
+    // Once linked into a program, the shader component "object files" (for lack of a better term) are no longer needed.
     for(const GLuint& shader : shaders)
     {
         glDeleteShader(shader);
@@ -162,4 +231,21 @@ void GlProgram::del()
 void HistoCalcProg::getSources(std::vector<QString>& sourceFileNames)
 {
     sourceFileNames.emplace_back(":/shaders/histogramCalc.glslc");
+}
+
+void HistoConsolidateProg::getSources(std::vector<QString> &sourceFileNames)
+{
+    sourceFileNames.emplace_back(":/shaders/histogramConsolidate.glslc");
+}
+
+void ImageDrawProg::getSources(std::vector<QString> &sourceFileNames)
+{
+    sourceFileNames.emplace_back(":/shaders/image.glslv");
+    sourceFileNames.emplace_back(":/shaders/image.glslf");
+}
+
+void HistoDrawProg::getSources(std::vector<QString> &sourceFileNames)
+{
+    sourceFileNames.emplace_back(":/shaders/histogram.glslv");
+    sourceFileNames.emplace_back(":/shaders/histogram.glslf");
 }

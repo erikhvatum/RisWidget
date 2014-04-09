@@ -34,7 +34,11 @@ public:
     struct SharedGlObjects
     {
         bool inited{false};
+
         HistoCalcProg histoCalcProg;
+        HistoConsolidateProg histoConsolidateProg;
+        ImageDrawProg imageDrawProg;
+        HistoDrawProg histoDrawProg;
 
         void init(QGLContext* context);
     };

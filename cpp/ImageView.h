@@ -37,5 +37,8 @@ public:
               const View* shareWidget = nullptr,
               Qt::WindowFlags flags = 0);
     virtual ~ImageView();
+
+protected:
+    virtual void initializeGL();
 };
 

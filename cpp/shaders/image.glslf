@@ -62,11 +62,6 @@ subroutine (PanelColorer) void imagePanelPassthroughColorer()
     fsColor = vec4(vec3(texture(tex, vsTexCoord).rrr) / 65535.0, 1);
 }
 
-subroutine (PanelColorer) void histogramPanelColorer()
-{
-    fsColor = vec4(0, 0, 0, 1);
-}
-
 subroutine uniform PanelColorer panelColorer;
 
 void main()
