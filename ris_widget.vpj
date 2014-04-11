@@ -251,6 +251,26 @@
 			<F N="sipris_widgetImageWidget.cpp"/>
 			<F N="sipris_widgetRisWidget.cpp"/>
 		</Folder>
+		<Folder
+			Name="original"
+			Filters="">
+			<F N="original/ris_widget/__init__.py"/>
+			<F N="original/ris_widget/histogram.glslf"/>
+			<F N="original/ris_widget/histogram.glslv"/>
+			<F N="original/ris_widget/histogramCalc.glslc"/>
+			<F N="original/ris_widget/histogramConsolidate.glslc"/>
+			<F N="original/ris_widget/loop_cache_sink_stream.py"/>
+			<F N="original/ris_widget/micro_manager_focus_sink.py"/>
+			<F N="original/ris_widget/micro_manager_snapstream.py"/>
+			<F N="original/ris_widget/panel.glslf"/>
+			<F N="original/ris_widget/panel.glslv"/>
+			<F N="original/ris_widget/ris.py"/>
+			<F N="original/ris_widget/ris_exceptions.py"/>
+			<F N="original/ris_widget/ris_widget.py"/>
+			<F N="original/ris_widget/ris_widget_exceptions.py"/>
+			<F N="original/ris_widget/shader_program.py"/>
+			<F N="original/ris_widget/size.py"/>
+		</Folder>
 		<F N="dead_simple_build.bash"/>
 		<F N="Makefile"/>
 		<F N="ris_widget.sip"/>

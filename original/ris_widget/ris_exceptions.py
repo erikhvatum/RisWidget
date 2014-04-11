@@ -29,3 +29,9 @@ class DuplicateSinkException(RisException):
 
 class SpecifiedSinkNotAttachedException(RisException):
     pass
+
+class FocusAlreadyInProgress(RisException):
+    pass
+
+class FocusAborted(RisException):
+    pass

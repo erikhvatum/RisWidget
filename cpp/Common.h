@@ -35,7 +35,9 @@
 #include <list>
 #include <memory>
 #include <QFile>
-//#define GL_GLEXT_PROTOTYPES
+#ifndef Q_OS_WIN
+#define GL_GLEXT_PROTOTYPES
+#endif
 #include <QGLWidget>
 #include <QHBoxLayout>
 //#include <qopenglfunctions_4_3_core.h>
