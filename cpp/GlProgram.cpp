@@ -54,6 +54,22 @@ QGLContext* GlProgram::context()
 void GlProgram::setContext(QGLContext* context_)
 {
     m_context = context_;
+#ifdef Q_OS_WIN
+    PFNGLCREATEPROGRAMPROC    glCreateProgram   = reinterpret_cast<PFNGLCREATEPROGRAMPROC>(m_context->getProcAddress("glCreateProgram"));
+    PFNGLCREATESHADERPROC     glCreateShader    = reinterpret_cast<PFNGLCREATESHADERPROC>(m_context->getProcAddress("glCreateShader"));
+    PFNGLSHADERSOURCEPROC     glShaderSource    = reinterpret_cast<PFNGLSHADERSOURCEPROC>(m_context->getProcAddress("glShaderSource"));
+    PFNGLCOMPILESHADERPROC    glCompileShader   = reinterpret_cast<PFNGLCOMPILESHADERPROC>(m_context->getProcAddress("glCompileShader"));
+    PFNGLGETSHADERIVPROC      glGetShaderiv     = reinterpret_cast<PFNGLGETSHADERIVPROC>(m_context->getProcAddress("glGetShaderiv"));
+    PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog= reinterpret_cast<PFNGLGETSHADERINFOLOGPROC>(m_context->getProcAddress("glGetShaderInfoLog"));
+    PFNGLATTACHSHADERPROC     glAttachShader    = reinterpret_cast<PFNGLATTACHSHADERPROC>(m_context->getProcAddress("glAttachShader"));
+    PFNGLLINKPROGRAMPROC      glLinkProgram     = reinterpret_cast<PFNGLLINKPROGRAMPROC>(m_context->getProcAddress("glLinkProgram"));
+    PFNGLGETPROGRAMIVPROC     glGetProgramiv    = reinterpret_cast<PFNGLGETPROGRAMIVPROC>(m_context->getProcAddress("glGetProgramiv"));
+    PFNGLVALIDATEPROGRAMPROC  glValidateProgram = reinterpret_cast<PFNGLVALIDATEPROGRAMPROC>(m_context->getProcAddress("glValidateProgram"));
+    PFNGLGETPROGRAMINFOLOGPROC   glGetProgramInfoLog = reinterpret_cast<PFNGLGETPROGRAMINFOLOGPROC>(m_context->getProcAddress("glGetProgramInfoLog"));
+    PFNGLDELETESHADERPROC     glDeleteShader    = reinterpret_cast<PFNGLDELETESHADERPROC>(m_context->getProcAddress("glDeleteShader"));
+    PFNGLDETACHSHADERPROC     glDetachShader    = reinterpret_cast<PFNGLDETACHSHADERPROC>(m_context->getProcAddress("glDetachShader"));
+    PFNGLDELETEPROGRAMPROC    glDeleteProgram   = reinterpret_cast<PFNGLDELETEPROGRAMPROC>(m_context->getProcAddress("glDeleteProgram"));
+#endif
 }
 
 void GlProgram::build()
@@ -65,7 +81,6 @@ void GlProgram::build()
     GLenum type;
     m_id = glCreateProgram();
     std::list<GLuint> shaders;
-
 
     try
     {

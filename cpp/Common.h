@@ -35,9 +35,10 @@
 #include <list>
 #include <memory>
 #include <QFile>
-#define GL_GLEXT_PROTOTYPES
+//#define GL_GLEXT_PROTOTYPES
 #include <QGLWidget>
 #include <QHBoxLayout>
+//#include <qopenglfunctions_4_3_core.h>
 #include <QMainWindow>
 // Note: QPointers act as weak references to QObject derived class instances.  See here:
 // http://qt-project.org/doc/qt-5/qpointer.html

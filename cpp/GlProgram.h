@@ -40,6 +40,23 @@ public:
     void build();
     void del();
 
+#ifdef Q_OS_WIN
+    PFNGLCREATEPROGRAMPROC    glCreateProgram{nullptr};
+    PFNGLCREATESHADERPROC     glCreateShader{nullptr};
+    PFNGLSHADERSOURCEPROC     glShaderSource{nullptr};
+    PFNGLCOMPILESHADERPROC    glCompileShader{nullptr};
+    PFNGLGETSHADERIVPROC      glGetShaderiv{nullptr};
+    PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog{nullptr};
+    PFNGLATTACHSHADERPROC     glAttachShader{nullptr};
+    PFNGLLINKPROGRAMPROC      glLinkProgram{nullptr};
+    PFNGLGETPROGRAMIVPROC     glGetProgramiv{nullptr};
+    PFNGLVALIDATEPROGRAMPROC  glValidateProgram{nullptr};
+    PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog{nullptr};
+    PFNGLDELETESHADERPROC     glDeleteShader{nullptr};
+    PFNGLDETACHSHADERPROC     glDetachShader{nullptr};
+    PFNGLDELETEPROGRAMPROC    glDeleteProgram{nullptr};
+#endif
+
 protected:
     GLuint m_id{std::numeric_limits<GLuint>::max()};
     QGLContext* m_context{nullptr};
