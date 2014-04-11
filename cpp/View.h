@@ -35,10 +35,10 @@ public:
     {
         bool inited{false};
 
-        HistoCalcProg histoCalcProg;
-        HistoConsolidateProg histoConsolidateProg;
-        ImageDrawProg imageDrawProg;
-        HistoDrawProg histoDrawProg;
+        HistoCalcProg histoCalcProg{"histoCalcProg"};
+        HistoConsolidateProg histoConsolidateProg{"histoConsolidateProg"};
+        ImageDrawProg imageDrawProg{"imageDrawProg"};
+        HistoDrawProg histoDrawProg{"histoDrawProg"};
 
         void init(QGLContext* context);
     };

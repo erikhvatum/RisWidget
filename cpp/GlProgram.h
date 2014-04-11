@@ -27,8 +27,12 @@
 class GlProgram
 {
 public:
-    GlProgram();
+    explicit GlProgram(const std::string& name_);
     virtual ~GlProgram();
+    // The destructor calls glDeleteProgram, so a copy constructor would have to do a deep copy or keep a reference
+    // count for m_id.  Both are problematic in terms of unintended side effects, and copying a fully linked shader
+    // program is not something routinely required, so copying is forbidden in order that any attempt to do so,
+    // intentional or unintentional, will hopefully result in this very comment being read.
     GlProgram(const GlProgram&) = delete;
     GlProgram& operator = (const GlProgram&) = delete;
 
@@ -36,6 +40,7 @@ public:
     operator GLuint () const;
     QGLContext* context();
     void setContext(QGLContext* context_);
+    const std::string& name() const;
 
     void build();
     void del();
@@ -60,8 +65,18 @@ public:
 protected:
     GLuint m_id{std::numeric_limits<GLuint>::max()};
     QGLContext* m_context{nullptr};
+    std::string m_name;
 
     virtual void getSources(std::vector<QString>& sourceFileNames) = 0;
+    // GlProgram provides a no-op implementation rather than making this pure virtual as a convenience for derived
+    // classes that do not require the postBuild hook.  Additionally, this means that there is no need for postBuild
+    // overrides in derived classes to call GlProgram::postBuild().
+    virtual void postBuild();
+
+    GLint getUniLoc(const char* uniName);
+    GLint getSubUniLoc(const GLenum& type, const char* subUniName);
+    GLuint getSubIdx(const GLenum& type, const char* subName);
+    GLint getAttrLoc(const char* attrName);
 };
 
 class HistoCalcProg
@@ -70,8 +85,17 @@ class HistoCalcProg
 public:
     using GlProgram::GlProgram;
 
+    GLint binCountLoc{std::numeric_limits<GLint>::min()};
+    GLint invocationRegionSizeLoc{std::numeric_limits<GLint>::min()};
+    const GLint imageLoc{0};
+    const GLint blocksLoc{1};
+    const GLuint wgCountPerAxis{8};
+    // This value must match local_size_x and local_size_y in histogramCalc.glslc
+    const GLuint liCountPerAxis{4};
+
 protected:
     virtual void getSources(std::vector<QString>& sourceFileNames);
+    virtual void postBuild();
 };
 
 class HistoConsolidateProg
@@ -80,8 +104,17 @@ class HistoConsolidateProg
 public:
     using GlProgram::GlProgram;
 
+    GLint binCountLoc{std::numeric_limits<GLint>::min()};
+    GLint invocationBinCountLoc{std::numeric_limits<GLint>::min()};
+    const GLint blocksLoc{0};
+    const GLint histogramLoc{1};
+    const GLint extremaLoc{0};
+    // This value must match local_size_x in histogramConsolidate.glslc
+    const GLuint liCount{16};
+
 protected:
     virtual void getSources(std::vector<QString> &sourceFileNames);
+    virtual void postBuild();
 };
 
 class ImageDrawProg
@@ -90,8 +123,21 @@ class ImageDrawProg
 public:
     using GlProgram::GlProgram;
 
+    GLint panelColorerLoc{std::numeric_limits<GLint>::min()};
+    GLuint imagePanelGammaTransformColorerIdx{std::numeric_limits<GLuint>::max()};
+    GLuint imagePanelPassthroughColorerIdx{std::numeric_limits<GLuint>::max()};
+
+    GLint gtpMinLoc{std::numeric_limits<GLint>::min()};
+    GLint gtpMaxLoc{std::numeric_limits<GLint>::min()};
+    GLint gtpGammaLoc{std::numeric_limits<GLint>::min()};
+    GLint projectionModelViewMatrixLoc{std::numeric_limits<GLint>::min()};
+
+    GLint vertPosLoc{std::numeric_limits<GLint>::min()};
+    GLint texCoordLoc{std::numeric_limits<GLint>::min()};
+
 protected:
     virtual void getSources(std::vector<QString> &sourceFileNames);
+    virtual void postBuild();
 };
 
 class HistoDrawProg
@@ -100,6 +146,13 @@ class HistoDrawProg
 public:
     using GlProgram::GlProgram;
 
+    GLint projectionModelViewMatrixLoc{std::numeric_limits<GLint>::min()};
+    GLint binCountLoc{std::numeric_limits<GLint>::min()};
+    GLint binScaleLoc{std::numeric_limits<GLint>::min()};
+
+    GLint binIndexLoc{std::numeric_limits<GLint>::min()};
+
 protected:
     virtual void getSources(std::vector<QString> &sourceFileNames);
+    virtual void postBuild();
 };

@@ -23,8 +23,13 @@
 #include "Common.h"
 #include "GlProgram.h"
 
-GlProgram::GlProgram()
+GlProgram::GlProgram(const std::string& name_)
+  : m_name(name_)
 {
+    if(m_name.empty())
+    {
+        m_name = "(unnamed)";
+    }
 }
 
 GlProgram::~GlProgram()
@@ -65,11 +70,16 @@ void GlProgram::setContext(QGLContext* context_)
     PFNGLLINKPROGRAMPROC      glLinkProgram     = reinterpret_cast<PFNGLLINKPROGRAMPROC>(m_context->getProcAddress("glLinkProgram"));
     PFNGLGETPROGRAMIVPROC     glGetProgramiv    = reinterpret_cast<PFNGLGETPROGRAMIVPROC>(m_context->getProcAddress("glGetProgramiv"));
     PFNGLVALIDATEPROGRAMPROC  glValidateProgram = reinterpret_cast<PFNGLVALIDATEPROGRAMPROC>(m_context->getProcAddress("glValidateProgram"));
-    PFNGLGETPROGRAMINFOLOGPROC   glGetProgramInfoLog = reinterpret_cast<PFNGLGETPROGRAMINFOLOGPROC>(m_context->getProcAddress("glGetProgramInfoLog"));
+    PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog = reinterpret_cast<PFNGLGETPROGRAMINFOLOGPROC>(m_context->getProcAddress("glGetProgramInfoLog"));
     PFNGLDELETESHADERPROC     glDeleteShader    = reinterpret_cast<PFNGLDELETESHADERPROC>(m_context->getProcAddress("glDeleteShader"));
     PFNGLDETACHSHADERPROC     glDetachShader    = reinterpret_cast<PFNGLDETACHSHADERPROC>(m_context->getProcAddress("glDetachShader"));
     PFNGLDELETEPROGRAMPROC    glDeleteProgram   = reinterpret_cast<PFNGLDELETEPROGRAMPROC>(m_context->getProcAddress("glDeleteProgram"));
 #endif
+}
+
+const std::string& GlProgram::name() const
+{
+    return m_name;
 }
 
 void GlProgram::build()
@@ -148,13 +158,13 @@ void GlProgram::build()
                 {
                     std::unique_ptr<char[]> err(new char[param]);
                     glGetShaderInfoLog(shader, param, nullptr, err.get());
-                    throw RisWidgetException(std::string("GlProgram::build(): Compilation of shader \"") +
-                                             sfn.toStdString() + std::string("\" failed:\n") + err.get());
+                    throw RisWidgetException(std::string("GlProgram::build(): Compilation of shader \"") + sfn.toStdString() +
+                                             "\" failed:\n" + err.get());
                 }
                 else
                 {
-                    throw RisWidgetException(std::string("GlProgram::build(): Compilation of shader \"") +
-                                             sfn.toStdString() + std::string("\" failed: (GL shader info log is empty)."));
+                    throw RisWidgetException(std::string("GlProgram::build(): Compilation of shader \"") + sfn.toStdString() +
+                                             std::string("\" failed: (GL shader info log is empty)."));
                 }
             }
             glAttachShader(m_id, shader);
@@ -207,13 +217,13 @@ void GlProgram::build()
             {
                 std::unique_ptr<char[]> err(new char[param]);
                 glGetProgramInfoLog(m_id, param, nullptr, err.get());
-                throw RisWidgetException(std::string("GlProgram::build(): ") + failed + std::string(" of shader program with source files ") +
-                                         listsrcs() + std::string(" failed: ") + err.get());
+                throw RisWidgetException(std::string("GlProgram::build(): ") + failed + " of shader program \"" + m_name +
+                                         "\" with source files " + listsrcs() + " failed: " + err.get());
             }
             else
             {
-                throw RisWidgetException(std::string("GlProgram::build(): ") + failed + std::string(" of shader program with source files ") +
-                                         listsrcs() + std::string(" failed: (GL program info log is empty)"));
+                throw RisWidgetException(std::string("GlProgram::build(): ") + failed + " of shader program \"" + m_name +
+                                         "\" with source files " + listsrcs() + " failed: (GL program info log is empty)");
             }
         }
     }
@@ -227,11 +237,17 @@ void GlProgram::build()
         throw e;
     }
 
-    // Once linked into a program, the shader component "object files" (for lack of a better term) are no longer needed.
+    // Once linked into a program, the shader component "object files" (for lack of a better term) are no longer needed
     for(const GLuint& shader : shaders)
     {
         glDeleteShader(shader);
     }
+
+    postBuild();
+}
+
+void GlProgram::postBuild()
+{
 }
 
 void GlProgram::del()
@@ -243,14 +259,71 @@ void GlProgram::del()
     }
 }
 
+GLint GlProgram::getUniLoc(const char* uniName)
+{
+    GLint ret{glGetUniformLocation(m_id, uniName)};
+    if(ret < 0)
+    {
+        throw RisWidgetException(std::string("GlProgram: Failed to get location of uniform \"") + uniName + "\" in \"" + m_name + "\".");
+    }
+    return ret;
+}
+
+GLint GlProgram::getSubUniLoc(const GLenum& type, const char* subUniName)
+{
+    GLint ret{glGetSubroutineUniformLocation(m_id, type, subUniName)};
+    if(ret < 0)
+    {
+        throw RisWidgetException(std::string("GlProgram: Failed to get location of subroutine uniform \"") + subUniName + "\" in \"" +
+                                 m_name + "\".");
+    }
+    return ret;
+}
+
+GLuint GlProgram::getSubIdx(const GLenum& type, const char* subName)
+{
+    GLuint ret{glGetSubroutineIndex(m_id, type, subName)};
+    if(ret == GL_INVALID_INDEX)
+    {
+        throw RisWidgetException(std::string("GlProgram: Failed to get location of subroutine index \"") + subName + "\" in \"" +
+                                 m_name + "\".");
+    }
+    return ret;
+}
+
+GLint GlProgram::getAttrLoc(const char* attrName)
+{
+    GLint ret{glGetAttribLocation(m_id, attrName)};
+    if(ret < 0)
+    {
+        throw RisWidgetException(std::string("GlProgram: Failed to get location of attribute \"") + attrName + "\" in \"" +
+                                 m_name + "\".");
+    }
+    return ret;
+}
+
 void HistoCalcProg::getSources(std::vector<QString>& sourceFileNames)
 {
+    // Note that a colon prepended to a filename opened by a Qt object refers to a path in the Qt resource bundle built
+    // into a program/library's binary
     sourceFileNames.emplace_back(":/shaders/histogramCalc.glslc");
+}
+
+void HistoCalcProg::postBuild()
+{
+    binCountLoc = getUniLoc("binCount");
+    invocationRegionSizeLoc = getUniLoc("invocationRegionSize");
 }
 
 void HistoConsolidateProg::getSources(std::vector<QString> &sourceFileNames)
 {
     sourceFileNames.emplace_back(":/shaders/histogramConsolidate.glslc");
+}
+
+void HistoConsolidateProg::postBuild()
+{
+    binCountLoc = getUniLoc("binCount");
+    invocationBinCountLoc = getUniLoc("invocationBinCount");
 }
 
 void ImageDrawProg::getSources(std::vector<QString> &sourceFileNames)
@@ -259,8 +332,32 @@ void ImageDrawProg::getSources(std::vector<QString> &sourceFileNames)
     sourceFileNames.emplace_back(":/shaders/image.glslf");
 }
 
+void ImageDrawProg::postBuild()
+{
+    panelColorerLoc = getSubUniLoc(GL_FRAGMENT_SHADER, "panelColorer");
+    imagePanelGammaTransformColorerIdx = getSubIdx(GL_FRAGMENT_SHADER, "imagePanelGammaTransformColorer");
+    imagePanelPassthroughColorerIdx = getSubIdx(GL_FRAGMENT_SHADER, "imagePanelPassthroughColorer");
+
+    gtpMinLoc = getUniLoc("gtp.minVal");
+    gtpMaxLoc = getUniLoc("gtp.maxVal");
+    gtpGammaLoc = getUniLoc("gtp.gammaVal");
+    projectionModelViewMatrixLoc = getUniLoc("projectionModelViewMatrix");
+
+    vertPosLoc = getAttrLoc("vertPos");
+    texCoordLoc = getAttrLoc("texCoord");
+}
+
 void HistoDrawProg::getSources(std::vector<QString> &sourceFileNames)
 {
     sourceFileNames.emplace_back(":/shaders/histogram.glslv");
     sourceFileNames.emplace_back(":/shaders/histogram.glslf");
 }
+
+void HistoDrawProg::postBuild()
+{
+    binCountLoc = getUniLoc("binCount");
+    binScaleLoc = getUniLoc("binScale");
+
+    binIndexLoc = getAttrLoc("binIndex");
+}
+
