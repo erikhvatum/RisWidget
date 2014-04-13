@@ -60,20 +60,24 @@ void GlProgram::setContext(QGLContext* context_)
 {
     m_context = context_;
 #ifdef Q_OS_WIN
-    PFNGLCREATEPROGRAMPROC    glCreateProgram   = reinterpret_cast<PFNGLCREATEPROGRAMPROC>(m_context->getProcAddress("glCreateProgram"));
-    PFNGLCREATESHADERPROC     glCreateShader    = reinterpret_cast<PFNGLCREATESHADERPROC>(m_context->getProcAddress("glCreateShader"));
-    PFNGLSHADERSOURCEPROC     glShaderSource    = reinterpret_cast<PFNGLSHADERSOURCEPROC>(m_context->getProcAddress("glShaderSource"));
-    PFNGLCOMPILESHADERPROC    glCompileShader   = reinterpret_cast<PFNGLCOMPILESHADERPROC>(m_context->getProcAddress("glCompileShader"));
-    PFNGLGETSHADERIVPROC      glGetShaderiv     = reinterpret_cast<PFNGLGETSHADERIVPROC>(m_context->getProcAddress("glGetShaderiv"));
-    PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog= reinterpret_cast<PFNGLGETSHADERINFOLOGPROC>(m_context->getProcAddress("glGetShaderInfoLog"));
-    PFNGLATTACHSHADERPROC     glAttachShader    = reinterpret_cast<PFNGLATTACHSHADERPROC>(m_context->getProcAddress("glAttachShader"));
-    PFNGLLINKPROGRAMPROC      glLinkProgram     = reinterpret_cast<PFNGLLINKPROGRAMPROC>(m_context->getProcAddress("glLinkProgram"));
-    PFNGLGETPROGRAMIVPROC     glGetProgramiv    = reinterpret_cast<PFNGLGETPROGRAMIVPROC>(m_context->getProcAddress("glGetProgramiv"));
-    PFNGLVALIDATEPROGRAMPROC  glValidateProgram = reinterpret_cast<PFNGLVALIDATEPROGRAMPROC>(m_context->getProcAddress("glValidateProgram"));
-    PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog = reinterpret_cast<PFNGLGETPROGRAMINFOLOGPROC>(m_context->getProcAddress("glGetProgramInfoLog"));
-    PFNGLDELETESHADERPROC     glDeleteShader    = reinterpret_cast<PFNGLDELETESHADERPROC>(m_context->getProcAddress("glDeleteShader"));
-    PFNGLDETACHSHADERPROC     glDetachShader    = reinterpret_cast<PFNGLDETACHSHADERPROC>(m_context->getProcAddress("glDetachShader"));
-    PFNGLDELETEPROGRAMPROC    glDeleteProgram   = reinterpret_cast<PFNGLDELETEPROGRAMPROC>(m_context->getProcAddress("glDeleteProgram"));
+    glCreateProgram   = reinterpret_cast<PFNGLCREATEPROGRAMPROC>(m_context->getProcAddress("glCreateProgram"));
+    glCreateShader    = reinterpret_cast<PFNGLCREATESHADERPROC>(m_context->getProcAddress("glCreateShader"));
+    glShaderSource    = reinterpret_cast<PFNGLSHADERSOURCEPROC>(m_context->getProcAddress("glShaderSource"));
+    glCompileShader   = reinterpret_cast<PFNGLCOMPILESHADERPROC>(m_context->getProcAddress("glCompileShader"));
+    glGetShaderiv     = reinterpret_cast<PFNGLGETSHADERIVPROC>(m_context->getProcAddress("glGetShaderiv"));
+    glGetShaderInfoLog= reinterpret_cast<PFNGLGETSHADERINFOLOGPROC>(m_context->getProcAddress("glGetShaderInfoLog"));
+    glAttachShader    = reinterpret_cast<PFNGLATTACHSHADERPROC>(m_context->getProcAddress("glAttachShader"));
+    glLinkProgram     = reinterpret_cast<PFNGLLINKPROGRAMPROC>(m_context->getProcAddress("glLinkProgram"));
+    glGetProgramiv    = reinterpret_cast<PFNGLGETPROGRAMIVPROC>(m_context->getProcAddress("glGetProgramiv"));
+    glValidateProgram = reinterpret_cast<PFNGLVALIDATEPROGRAMPROC>(m_context->getProcAddress("glValidateProgram"));
+    glGetProgramInfoLog = reinterpret_cast<PFNGLGETPROGRAMINFOLOGPROC>(m_context->getProcAddress("glGetProgramInfoLog"));
+    glDeleteShader    = reinterpret_cast<PFNGLDELETESHADERPROC>(m_context->getProcAddress("glDeleteShader"));
+    glDetachShader    = reinterpret_cast<PFNGLDETACHSHADERPROC>(m_context->getProcAddress("glDetachShader"));
+    glDeleteProgram   = reinterpret_cast<PFNGLDELETEPROGRAMPROC>(m_context->getProcAddress("glDeleteProgram"));
+    glGetUniformLocation   = reinterpret_cast<PFNGLGETUNIFORMLOCATIONPROC>(m_context->getProcAddress("glGetUniformLocation"));
+    glGetSubroutineUniformLocation = reinterpret_cast<PFNGLGETSUBROUTINEUNIFORMLOCATIONPROC>(m_context->getProcAddress("glGetSubroutineUniformLocation"));
+    glGetSubroutineIndex = reinterpret_cast<PFNGLGETSUBROUTINEINDEXPROC>(m_context->getProcAddress("glGetSubroutineIndex"));
+    glGetAttribLocation = reinterpret_cast<PFNGLGETATTRIBLOCATIONPROC>(m_context->getProcAddress("glGetAttribLocation"));
 #endif
 }
 
@@ -302,6 +306,11 @@ GLint GlProgram::getAttrLoc(const char* attrName)
     return ret;
 }
 
+HistoCalcProg::HistoCalcProg(const std::string& name_)
+  : GlProgram(name_)
+{
+}
+
 void HistoCalcProg::getSources(std::vector<QString>& sourceFileNames)
 {
     // Note that a colon prepended to a filename opened by a Qt object refers to a path in the Qt resource bundle built
@@ -315,6 +324,11 @@ void HistoCalcProg::postBuild()
     invocationRegionSizeLoc = getUniLoc("invocationRegionSize");
 }
 
+HistoConsolidateProg::HistoConsolidateProg(const std::string& name_)
+  : GlProgram(name_)
+{
+}
+
 void HistoConsolidateProg::getSources(std::vector<QString> &sourceFileNames)
 {
     sourceFileNames.emplace_back(":/shaders/histogramConsolidate.glslc");
@@ -324,6 +338,11 @@ void HistoConsolidateProg::postBuild()
 {
     binCountLoc = getUniLoc("binCount");
     invocationBinCountLoc = getUniLoc("invocationBinCount");
+}
+
+ImageDrawProg::ImageDrawProg(const std::string& name_)
+  : GlProgram(name_)
+{
 }
 
 void ImageDrawProg::getSources(std::vector<QString> &sourceFileNames)
@@ -345,6 +364,11 @@ void ImageDrawProg::postBuild()
 
     vertPosLoc = getAttrLoc("vertPos");
     texCoordLoc = getAttrLoc("texCoord");
+}
+
+HistoDrawProg::HistoDrawProg(const std::string& name_)
+  : GlProgram(name_)
+{
 }
 
 void HistoDrawProg::getSources(std::vector<QString> &sourceFileNames)

@@ -244,9 +244,9 @@
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <ProgramDataBaseFileName>$(IntDir)vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
       <StringPooling>true</StringPooling>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <FloatingPointModel>Precise</FloatingPointModel>
       <UseProcessorExtensions>HOST</UseProcessorExtensions>
+      <Cpp0xSupport>true</Cpp0xSupport>
     </ClCompile>
     <Link>
       <IgnoreImportLibrary>true</IgnoreImportLibrary>

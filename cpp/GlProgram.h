@@ -45,6 +45,9 @@ public:
     void build();
     void del();
 
+    // Windows needs us to tell it about these functions; the Windows OS brain cells that know about these functions
+    // died, were never born, or just aren't up to it at this particular time of day.  Which, looking at Windows8, is
+    // hardly surprising.
 #ifdef Q_OS_WIN
     PFNGLCREATEPROGRAMPROC    glCreateProgram{nullptr};
     PFNGLCREATESHADERPROC     glCreateShader{nullptr};
@@ -59,7 +62,11 @@ public:
     PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog{nullptr};
     PFNGLDELETESHADERPROC     glDeleteShader{nullptr};
     PFNGLDETACHSHADERPROC     glDetachShader{nullptr};
-    PFNGLDELETEPROGRAMPROC    glDeleteProgram{nullptr};
+	PFNGLDELETEPROGRAMPROC    glDeleteProgram{nullptr};
+	PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation{nullptr};
+    PFNGLGETSUBROUTINEUNIFORMLOCATIONPROC glGetSubroutineUniformLocation{nullptr};
+    PFNGLGETSUBROUTINEINDEXPROC glGetSubroutineIndex{nullptr};
+    PFNGLGETATTRIBLOCATIONPROC glGetAttribLocation{nullptr};
 #endif
 
 protected:
@@ -83,7 +90,7 @@ class HistoCalcProg
   : public GlProgram
 {
 public:
-    using GlProgram::GlProgram;
+    explicit HistoCalcProg(const std::string& name_);
 
     GLint binCountLoc{std::numeric_limits<GLint>::min()};
     GLint invocationRegionSizeLoc{std::numeric_limits<GLint>::min()};
@@ -102,7 +109,7 @@ class HistoConsolidateProg
   : public GlProgram
 {
 public:
-    using GlProgram::GlProgram;
+    explicit HistoConsolidateProg(const std::string& name_);
 
     GLint binCountLoc{std::numeric_limits<GLint>::min()};
     GLint invocationBinCountLoc{std::numeric_limits<GLint>::min()};
@@ -121,7 +128,7 @@ class ImageDrawProg
   : public GlProgram
 {
 public:
-    using GlProgram::GlProgram;
+    explicit ImageDrawProg(const std::string& name_);
 
     GLint panelColorerLoc{std::numeric_limits<GLint>::min()};
     GLuint imagePanelGammaTransformColorerIdx{std::numeric_limits<GLuint>::max()};
@@ -144,7 +151,7 @@ class HistoDrawProg
   : public GlProgram
 {
 public:
-    using GlProgram::GlProgram;
+    explicit HistoDrawProg(const std::string& name_);
 
     GLint projectionModelViewMatrixLoc{std::numeric_limits<GLint>::min()};
     GLint binCountLoc{std::numeric_limits<GLint>::min()};
