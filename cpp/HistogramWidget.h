@@ -43,8 +43,9 @@ public:
     HistogramView* histogramView();
 
 protected:
+    QWidget* m_histogramViewHolder;
     HistogramView* m_histogramView;
 
-    void makeHistogramView(const QGLFormat& format, const View::SharedGlObjectsPtr& sharedGlObjects, ImageView* imageView);
+    void makeHistogramView(const QSurfaceFormat& format, const SharedGlObjectsPtr& sharedGlObjects, ImageView* imageView);
 };
 

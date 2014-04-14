@@ -33,24 +33,26 @@ RESOURCES = RisWidget.qrc
 PRECOMPILED_HEADER = Common.h
 
 HEADERS += Common.h \
+           GlProgram.h \
            HistogramWidget.h \
            HistogramView.h \
            ImageWidget.h \
            ImageView.h \
            RisWidget.h \
            RisWidgetException.h \
-           View.h \
-           GlProgram.h
+           SharedGlObjects.h \
+           View.h
 
 FORMS +=   RisWidget.ui \
            HistogramWidget.ui \
            ImageWidget.ui
 
 SOURCES += RisWidget.cpp \
+           GlProgram.cpp \
            HistogramWidget.cpp \
            HistogramView.cpp \
            ImageWidget.cpp \
            ImageView.cpp \
            RisWidgetException.cpp \
-           View.cpp \
-           GlProgram.cpp
+           SharedGlObjects.cpp \
+           View.cpp

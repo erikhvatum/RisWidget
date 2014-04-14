@@ -42,7 +42,8 @@ public:
     ImageView* imageView();
 
 protected:
+    QWidget* m_imageViewHolder;
     ImageView* m_imageView;
 
-    void makeImageView(const QGLFormat& format, const View::SharedGlObjectsPtr& sharedGlObjects);
+    void makeImageView(const QSurfaceFormat& format, const SharedGlObjectsPtr& sharedGlObjects);
 };

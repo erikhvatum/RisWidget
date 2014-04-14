@@ -23,12 +23,10 @@
 #include "Common.h"
 #include "ImageView.h"
 
-ImageView::ImageView(const QGLFormat& format,
-                     QWidget* parent,
+ImageView::ImageView(const QSurfaceFormat& format,
                      const SharedGlObjectsPtr& sharedGlObjects_,
-                     const View* shareWidget,
-                     Qt::WindowFlags flags)
-  : View(format, parent, sharedGlObjects_, shareWidget, flags)
+                     View* shareWidget)
+  : View(format, sharedGlObjects_, shareWidget)
 {
 }
 
@@ -36,8 +34,6 @@ ImageView::~ImageView()
 {
 }
 
-void ImageView::initializeGL()
+void ImageView::render()
 {
-    View::initializeGL();
-    qglClearColor(QColor(255/3, 255/3, 255/3, 255));
 }

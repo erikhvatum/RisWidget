@@ -23,38 +23,46 @@
 #pragma once
 
 #include "Common.h"
-#include "GlProgram.h"
+#include "SharedGlObjects.h"
 
 class View
-  : public QGLWidget
+  : public QWindow
 {
     Q_OBJECT;
 
 public:
-    struct SharedGlObjects
-    {
-        bool inited{false};
-
-        HistoCalcProg histoCalcProg{"histoCalcProg"};
-        HistoConsolidateProg histoConsolidateProg{"histoConsolidateProg"};
-        ImageDrawProg imageDrawProg{"imageDrawProg"};
-        HistoDrawProg histoDrawProg{"histoDrawProg"};
-
-        void init(QGLContext* context);
-    };
-    typedef std::shared_ptr<SharedGlObjects> SharedGlObjectsPtr;
-
-    View(const QGLFormat& format,
-         QWidget* parent,
+    View(const QSurfaceFormat& format,
          const SharedGlObjectsPtr& sharedGlObjects_,
-         const View* shareWidget = nullptr,
-         Qt::WindowFlags flags = 0);
+         View* sharedContextView);
     virtual ~View();
 
+    QOpenGLContext* context();
+    void makeCurrent();
     const SharedGlObjectsPtr& sharedGlObjects();
+    QOpenGLFunctions_4_3_Core* glfs();
+    void setClearColor(const glm::vec4& color);
+
+    // Call this thread-safe function to refresh view contents.  The refresh is queued and happens after the thread
+    // associated with the view wakes up.  Multiple calls to update made while the view is busy coalesce into a single
+    // refresh.
+    void update();
 
 protected:
+    QOpenGLContext* m_context;
     SharedGlObjectsPtr m_sharedGlObjects;
+    QOpenGLFunctions_4_3_Core* m_glfs{nullptr};
+    std::atomic_bool m_deferredUpdatePending{false};
+    glm::vec4 m_clearColor{0.0f, 0.0f, 0.0f, 0.0f};
 
-    virtual void initializeGL();
+    virtual void resizeEvent(QResizeEvent* event);
+    virtual void exposeEvent(QExposeEvent* event);
+    virtual void render() = 0;
+
+signals:
+    void deferredUpdate();
+
+protected slots:
+    // Does render pre, calls render(), does render post. Thus, inheriting classes do not need to make GL
+    // context current or call swap buffers in their render() implementations.
+    void onDeferredUpdate();
 };

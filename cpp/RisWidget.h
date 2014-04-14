@@ -25,6 +25,7 @@
 #include "Common.h"
 #include "HistogramWidget.h"
 #include "ImageWidget.h"
+#include "SharedGlObjects.h"
 #include "ui_RisWidget.h"
 
 class RisWidget
@@ -34,8 +35,7 @@ class RisWidget
     Q_OBJECT;
 
 public:
-    explicit RisWidget(bool enableSwapInterval1 = false,
-                       QString windowTitle_ = "RisWidget",
+    explicit RisWidget(QString windowTitle_ = "RisWidget",
                        QWidget* parent = nullptr,
                        Qt::WindowFlags flags = 0);
     virtual ~RisWidget();
@@ -44,7 +44,7 @@ public:
     HistogramWidget* histogramWidget();
 
 protected:
-    View::SharedGlObjectsPtr m_sharedGlObjects;
+    SharedGlObjectsPtr m_sharedGlObjects;
 
-    void setupImageAndHistogramWidgets(const bool& enableSwapInterval1);
+    void setupImageAndHistogramWidgets();
 };

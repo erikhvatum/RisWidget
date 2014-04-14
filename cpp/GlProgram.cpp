@@ -22,9 +22,11 @@
 
 #include "Common.h"
 #include "GlProgram.h"
+#include "View.h"
 
 GlProgram::GlProgram(const std::string& name_)
-  : m_name(name_)
+  : m_view(nullptr),
+    m_name(name_)
 {
     if(m_name.empty())
     {
@@ -34,9 +36,9 @@ GlProgram::GlProgram(const std::string& name_)
 
 GlProgram::~GlProgram()
 {
-    if(m_context)
+    if(m_view != nullptr)
     {
-        m_context->makeCurrent();
+        m_view->makeCurrent();
         del();
     }
 }
@@ -51,34 +53,15 @@ GlProgram::operator GLuint () const
     return m_id;
 }
 
-QGLContext* GlProgram::context()
+View* GlProgram::view()
 {
-    return m_context;
+    return m_view;
 }
 
-void GlProgram::setContext(QGLContext* context_)
+void GlProgram::setView(View* view)
 {
-    m_context = context_;
-#ifdef Q_OS_WIN
-    glCreateProgram   = reinterpret_cast<PFNGLCREATEPROGRAMPROC>(m_context->getProcAddress("glCreateProgram"));
-    glCreateShader    = reinterpret_cast<PFNGLCREATESHADERPROC>(m_context->getProcAddress("glCreateShader"));
-    glShaderSource    = reinterpret_cast<PFNGLSHADERSOURCEPROC>(m_context->getProcAddress("glShaderSource"));
-    glCompileShader   = reinterpret_cast<PFNGLCOMPILESHADERPROC>(m_context->getProcAddress("glCompileShader"));
-    glGetShaderiv     = reinterpret_cast<PFNGLGETSHADERIVPROC>(m_context->getProcAddress("glGetShaderiv"));
-    glGetShaderInfoLog= reinterpret_cast<PFNGLGETSHADERINFOLOGPROC>(m_context->getProcAddress("glGetShaderInfoLog"));
-    glAttachShader    = reinterpret_cast<PFNGLATTACHSHADERPROC>(m_context->getProcAddress("glAttachShader"));
-    glLinkProgram     = reinterpret_cast<PFNGLLINKPROGRAMPROC>(m_context->getProcAddress("glLinkProgram"));
-    glGetProgramiv    = reinterpret_cast<PFNGLGETPROGRAMIVPROC>(m_context->getProcAddress("glGetProgramiv"));
-    glValidateProgram = reinterpret_cast<PFNGLVALIDATEPROGRAMPROC>(m_context->getProcAddress("glValidateProgram"));
-    glGetProgramInfoLog = reinterpret_cast<PFNGLGETPROGRAMINFOLOGPROC>(m_context->getProcAddress("glGetProgramInfoLog"));
-    glDeleteShader    = reinterpret_cast<PFNGLDELETESHADERPROC>(m_context->getProcAddress("glDeleteShader"));
-    glDetachShader    = reinterpret_cast<PFNGLDETACHSHADERPROC>(m_context->getProcAddress("glDetachShader"));
-    glDeleteProgram   = reinterpret_cast<PFNGLDELETEPROGRAMPROC>(m_context->getProcAddress("glDeleteProgram"));
-    glGetUniformLocation   = reinterpret_cast<PFNGLGETUNIFORMLOCATIONPROC>(m_context->getProcAddress("glGetUniformLocation"));
-    glGetSubroutineUniformLocation = reinterpret_cast<PFNGLGETSUBROUTINEUNIFORMLOCATIONPROC>(m_context->getProcAddress("glGetSubroutineUniformLocation"));
-    glGetSubroutineIndex = reinterpret_cast<PFNGLGETSUBROUTINEINDEXPROC>(m_context->getProcAddress("glGetSubroutineIndex"));
-    glGetAttribLocation = reinterpret_cast<PFNGLGETATTRIBLOCATIONPROC>(m_context->getProcAddress("glGetAttribLocation"));
-#endif
+    m_view = view;
+    m_glfs = m_view->glfs();
 }
 
 const std::string& GlProgram::name() const
@@ -93,7 +76,7 @@ void GlProgram::build()
     std::vector<QString> sourceFileNames;
     getSources(sourceFileNames);
     GLenum type;
-    m_id = glCreateProgram();
+    m_id = m_glfs->glCreateProgram();
     std::list<GLuint> shaders;
 
     try
@@ -149,19 +132,19 @@ void GlProgram::build()
                                          sfn.toStdString() + "\".  Is it a zero byte file?  If so, it probably shouldn't be.");
             }
 
-            shader = glCreateShader(type);
+            shader = m_glfs->glCreateShader(type);
             const char* sp{s.constData()};
             GLint sl{static_cast<GLint>(s.size())};
-            glShaderSource(shader, 1, &sp, &sl);
-            glCompileShader(shader);
-            glGetShaderiv(shader, GL_COMPILE_STATUS, &param);
+            m_glfs->glShaderSource(shader, 1, &sp, &sl);
+            m_glfs->glCompileShader(shader);
+            m_glfs->glGetShaderiv(shader, GL_COMPILE_STATUS, &param);
             if(param == GL_FALSE)
             {
-                glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &param);
+                m_glfs->glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &param);
                 if(param > 0)
                 {
                     std::unique_ptr<char[]> err(new char[param]);
-                    glGetShaderInfoLog(shader, param, nullptr, err.get());
+                    m_glfs->glGetShaderInfoLog(shader, param, nullptr, err.get());
                     throw RisWidgetException(std::string("GlProgram::build(): Compilation of shader \"") + sfn.toStdString() +
                                              "\" failed:\n" + err.get());
                 }
@@ -171,7 +154,7 @@ void GlProgram::build()
                                              std::string("\" failed: (GL shader info log is empty)."));
                 }
             }
-            glAttachShader(m_id, shader);
+            m_glfs->glAttachShader(m_id, shader);
         }
 
         /* Link shaders and validate resulting program */
@@ -198,16 +181,16 @@ void GlProgram::build()
 
         std::string failed;
 
-        glLinkProgram(m_id);
-        glGetProgramiv(m_id, GL_LINK_STATUS, &param);
+        m_glfs->glLinkProgram(m_id);
+        m_glfs->glGetProgramiv(m_id, GL_LINK_STATUS, &param);
         if(param == GL_FALSE)
         {
             failed = "Linking";
         }
         else
         {
-            glValidateProgram(m_id);
-            glGetProgramiv(m_id, GL_VALIDATE_STATUS, &param);
+            m_glfs->glValidateProgram(m_id);
+            m_glfs->glGetProgramiv(m_id, GL_VALIDATE_STATUS, &param);
             if(param == GL_FALSE)
             {
                 failed = "Validation";
@@ -216,11 +199,11 @@ void GlProgram::build()
 
         if(!failed.empty())
         {
-            glGetProgramiv(m_id, GL_INFO_LOG_LENGTH, &param);
+            m_glfs->glGetProgramiv(m_id, GL_INFO_LOG_LENGTH, &param);
             if(param > 0)
             {
                 std::unique_ptr<char[]> err(new char[param]);
-                glGetProgramInfoLog(m_id, param, nullptr, err.get());
+                m_glfs->glGetProgramInfoLog(m_id, param, nullptr, err.get());
                 throw RisWidgetException(std::string("GlProgram::build(): ") + failed + " of shader program \"" + m_name +
                                          "\" with source files " + listsrcs() + " failed: " + err.get());
             }
@@ -235,8 +218,8 @@ void GlProgram::build()
     {
         for(const GLuint& shader : shaders)
         {
-            glDetachShader(m_id, shader);
-            glDeleteShader(shader);
+            m_glfs->glDetachShader(m_id, shader);
+            m_glfs->glDeleteShader(shader);
         }
         throw e;
     }
@@ -244,7 +227,7 @@ void GlProgram::build()
     // Once linked into a program, the shader component "object files" (for lack of a better term) are no longer needed
     for(const GLuint& shader : shaders)
     {
-        glDeleteShader(shader);
+        m_glfs->glDeleteShader(shader);
     }
 
     postBuild();
@@ -258,14 +241,14 @@ void GlProgram::del()
 {
     if(m_id != std::numeric_limits<GLuint>::max())
     {
-        glDeleteProgram(m_id);
+        m_glfs->glDeleteProgram(m_id);
         m_id = std::numeric_limits<GLuint>::max();
     }
 }
 
 GLint GlProgram::getUniLoc(const char* uniName)
 {
-    GLint ret{glGetUniformLocation(m_id, uniName)};
+    GLint ret{m_glfs->glGetUniformLocation(m_id, uniName)};
     if(ret < 0)
     {
         throw RisWidgetException(std::string("GlProgram: Failed to get location of uniform \"") + uniName + "\" in \"" + m_name + "\".");
@@ -275,7 +258,7 @@ GLint GlProgram::getUniLoc(const char* uniName)
 
 GLint GlProgram::getSubUniLoc(const GLenum& type, const char* subUniName)
 {
-    GLint ret{glGetSubroutineUniformLocation(m_id, type, subUniName)};
+    GLint ret{m_glfs->glGetSubroutineUniformLocation(m_id, type, subUniName)};
     if(ret < 0)
     {
         throw RisWidgetException(std::string("GlProgram: Failed to get location of subroutine uniform \"") + subUniName + "\" in \"" +
@@ -286,7 +269,7 @@ GLint GlProgram::getSubUniLoc(const GLenum& type, const char* subUniName)
 
 GLuint GlProgram::getSubIdx(const GLenum& type, const char* subName)
 {
-    GLuint ret{glGetSubroutineIndex(m_id, type, subName)};
+    GLuint ret{m_glfs->glGetSubroutineIndex(m_id, type, subName)};
     if(ret == GL_INVALID_INDEX)
     {
         throw RisWidgetException(std::string("GlProgram: Failed to get location of subroutine index \"") + subName + "\" in \"" +
@@ -297,7 +280,7 @@ GLuint GlProgram::getSubIdx(const GLenum& type, const char* subName)
 
 GLint GlProgram::getAttrLoc(const char* attrName)
 {
-    GLint ret{glGetAttribLocation(m_id, attrName)};
+    GLint ret{m_glfs->glGetAttribLocation(m_id, attrName)};
     if(ret < 0)
     {
         throw RisWidgetException(std::string("GlProgram: Failed to get location of attribute \"") + attrName + "\" in \"" +

@@ -30,25 +30,28 @@
 #include <glm/glm.hpp>
 #pragma GCC diagnostic pop
 
+#include <atomic>
 #include <iostream>
 #include <limits>
 #include <list>
 #include <memory>
 #include <QFile>
-#ifndef Q_OS_WIN
-#define GL_GLEXT_PROTOTYPES
-#endif
-#include <QGLWidget>
 #include <QHBoxLayout>
-//#include <qopenglfunctions_4_3_core.h>
 #include <QMainWindow>
+#include <QOpenGLFunctions_4_3_Core>
 // Note: QPointers act as weak references to QObject derived class instances.  See here:
 // http://qt-project.org/doc/qt-5/qpointer.html
 #include <QPointer>
+#include <QResizeEvent>
+#include <QScreen>
+#include <QSharedPointer>
 #include <QString>
+#include <QSurface>
 #include <QThread>
+#include <QWindow>
 #include <string>
 #include <vector>
+
 
 #include "RisWidgetException.h"
 

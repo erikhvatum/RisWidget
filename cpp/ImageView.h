@@ -31,14 +31,12 @@ class ImageView
     Q_OBJECT;
 
 public:
-    ImageView(const QGLFormat& format,
-              QWidget* parent,
+    ImageView(const QSurfaceFormat& format,
               const SharedGlObjectsPtr& sharedGlObjects_,
-              const View* shareWidget = nullptr,
-              Qt::WindowFlags flags = 0);
+              View* shareWidget = nullptr);
     virtual ~ImageView();
 
 protected:
-    virtual void initializeGL();
+    virtual void render();
 };
 

@@ -25,6 +25,7 @@
 
 ImageWidget::ImageWidget(QWidget* parent)
   : QWidget(parent),
+    m_imageViewHolder(nullptr),
     m_imageView(nullptr)
 {
     setupUi(this);
@@ -44,14 +45,17 @@ ImageView* ImageWidget::imageView()
     return m_imageView;
 }
 
-void ImageWidget::makeImageView(const QGLFormat& format, const View::SharedGlObjectsPtr& sharedGlObjects)
+void ImageWidget::makeImageView(const QSurfaceFormat& format, const SharedGlObjectsPtr& sharedGlObjects)
 {
-    if(m_imageView != nullptr)
+    if(m_imageViewHolder != nullptr || m_imageView != nullptr)
     {
-        throw RisWidgetException("ImageWidget::makeImageView(..): m_imageView != nullptr.  "
+        throw RisWidgetException("ImageWidget::makeImageView(..): m_imageViewHolder != nullptr || m_imageView != nullptr.  "
                                  "ImageWidget::makeImageView(..) must not be called more than once per "
                                  "ImageWidget instance.");
     }
-    m_imageView = new ImageView(format, this, sharedGlObjects);
-    layout()->addWidget(m_imageView);
+    m_imageView = new ImageView(format, sharedGlObjects);
+    m_imageViewHolder = QWidget::createWindowContainer(m_imageView, this);
+    layout()->addWidget(m_imageViewHolder);
+    m_imageViewHolder->show();
+    m_imageView->show();
 }

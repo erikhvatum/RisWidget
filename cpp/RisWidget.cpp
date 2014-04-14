@@ -23,12 +23,11 @@
 #include "Common.h"
 #include "RisWidget.h"
 
-RisWidget::RisWidget(bool enableSwapInterval1,
-                     QString windowTitle_,
+RisWidget::RisWidget(QString windowTitle_,
                      QWidget* parent,
                      Qt::WindowFlags flags)
   : QMainWindow(parent, flags),
-    m_sharedGlObjects(new View::SharedGlObjects)
+    m_sharedGlObjects(new SharedGlObjects)
 {
     static bool resourcesInited{false};
     if(!resourcesInited)
@@ -39,43 +38,46 @@ RisWidget::RisWidget(bool enableSwapInterval1,
 
     setWindowTitle(windowTitle_);
     setupUi(this);
-    setupImageAndHistogramWidgets(enableSwapInterval1);
+    setupImageAndHistogramWidgets();
 }
 
 RisWidget::~RisWidget()
 {
 }
 
-void RisWidget::setupImageAndHistogramWidgets(const bool& enableSwapInterval1)
+void RisWidget::setupImageAndHistogramWidgets()
 {
-    QGLFormat format
-    (
-        // Want hardware rendering (should be enabled by default, but this can't hurt)
-        QGL::DirectRendering |
-        // Likewise, double buffering should be enabled by default
-        QGL::DoubleBuffer |
-        // We avoid relying on depcrecated fixed-function pipeline functionality; any attempt to use legacy OpenGL calls
-        // should fail.
-        QGL::NoDeprecatedFunctions |
-        // Disable unused features
-        QGL::NoDepthBuffer |
-        QGL::NoAccumBuffer |
-        QGL::NoStencilBuffer |
-        QGL::NoStereoBuffers |
-        QGL::NoOverlay |
-        QGL::NoSampleBuffers
-    );
+    QSurfaceFormat format{/*QSurfaceFormat::DebugContext*/};
     // Our weakest target platform is Macmini6,1, having Intel HD 4000 graphics, supporting up to OpenGL 4.1 on OS X.
     format.setVersion(4, 3);
-    // It's highly likely that enabling swap interval 1 will not ameliorate tearing: any display supporting GL 4.1
-    // supports double buffering, and tearing should not be visible with double buffering.  Therefore, the tearing is
-    // caused by vsync being off or some fundamental brain damage in your out-of-date X11 display server; further
-    // breaking things with swap interval won't help.  But, perhaps you can manage to convince yourself that it's
-    // tearing less, and by the simple expedient of displaying less, it will be.
-    format.setSwapInterval(enableSwapInterval1 ? 1 : 0);
+    format.setProfile(QSurfaceFormat::CoreProfile);
+    format.setSwapBehavior(QSurfaceFormat::TripleBuffer);
+    format.setRenderableType(QSurfaceFormat::OpenGL);
+//  QGLFormat format
+//  (
+//      // Want hardware rendering (should be enabled by default, but this can't hurt)
+//      QGL::DirectRendering |
+//      // Likewise, double buffering should be enabled by default
+//      QGL::DoubleBuffer |
+//      // We avoid relying on depcrecated fixed-function pipeline functionality; any attempt to use legacy OpenGL calls
+//      // should fail.
+//      QGL::NoDeprecatedFunctions |
+//      // Disable unused features
+//      QGL::NoDepthBuffer |
+//      QGL::NoAccumBuffer |
+//      QGL::NoStencilBuffer |
+//      QGL::NoStereoBuffers |
+//      QGL::NoOverlay |
+//      QGL::NoSampleBuffers
+//  );
 
     m_imageWidget->makeImageView(format, m_sharedGlObjects);
     m_histogramWidget->makeHistogramView(format, m_sharedGlObjects, m_imageWidget->imageView());
+
+    m_sharedGlObjects->init(m_imageWidget->imageView(), m_histogramWidget->histogramView());
+
+    m_imageWidget->imageView()->setClearColor(glm::vec4(1.0f/3.0f, 1.0f/3.0f, 1.0f/3.0f, 0.0f));
+    m_histogramWidget->histogramView()->setClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
 }
 
 ImageWidget* RisWidget::imageWidget()

@@ -24,6 +24,8 @@
 
 #include "Common.h"
 
+class View;
+
 class GlProgram
 {
 public:
@@ -38,41 +40,19 @@ public:
 
     const GLuint& id() const;
     operator GLuint () const;
-    QGLContext* context();
-    void setContext(QGLContext* context_);
+    View* view();
+    void setView(View* view);
     const std::string& name() const;
 
     void build();
     void del();
 
-    // Windows needs us to tell it about these functions; the Windows OS brain cells that know about these functions
-    // died, were never born, or just aren't up to it at this particular time of day.  Which, looking at Windows8, is
-    // hardly surprising.
-#ifdef Q_OS_WIN
-    PFNGLCREATEPROGRAMPROC    glCreateProgram{nullptr};
-    PFNGLCREATESHADERPROC     glCreateShader{nullptr};
-    PFNGLSHADERSOURCEPROC     glShaderSource{nullptr};
-    PFNGLCOMPILESHADERPROC    glCompileShader{nullptr};
-    PFNGLGETSHADERIVPROC      glGetShaderiv{nullptr};
-    PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog{nullptr};
-    PFNGLATTACHSHADERPROC     glAttachShader{nullptr};
-    PFNGLLINKPROGRAMPROC      glLinkProgram{nullptr};
-    PFNGLGETPROGRAMIVPROC     glGetProgramiv{nullptr};
-    PFNGLVALIDATEPROGRAMPROC  glValidateProgram{nullptr};
-    PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog{nullptr};
-    PFNGLDELETESHADERPROC     glDeleteShader{nullptr};
-    PFNGLDETACHSHADERPROC     glDetachShader{nullptr};
-	PFNGLDELETEPROGRAMPROC    glDeleteProgram{nullptr};
-	PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation{nullptr};
-    PFNGLGETSUBROUTINEUNIFORMLOCATIONPROC glGetSubroutineUniformLocation{nullptr};
-    PFNGLGETSUBROUTINEINDEXPROC glGetSubroutineIndex{nullptr};
-    PFNGLGETATTRIBLOCATIONPROC glGetAttribLocation{nullptr};
-#endif
-
 protected:
     GLuint m_id{std::numeric_limits<GLuint>::max()};
-    QGLContext* m_context{nullptr};
+    View* m_view;
     std::string m_name;
+    // A copy of m_view->m_glfs
+    QOpenGLFunctions_4_3_Core* m_glfs{nullptr};
 
     virtual void getSources(std::vector<QString>& sourceFileNames) = 0;
     // GlProgram provides a no-op implementation rather than making this pure virtual as a convenience for derived

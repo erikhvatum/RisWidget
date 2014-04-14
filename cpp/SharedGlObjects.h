@@ -20,20 +20,29 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#pragma once
+
 #include "Common.h"
-#include "HistogramView.h"
+#include "GlProgram.h"
 
-HistogramView::HistogramView(const QSurfaceFormat& format,
-                             const SharedGlObjectsPtr& sharedGlObjects_,
-                             View* shareWidget)
-  : View(format, sharedGlObjects_, shareWidget)
-{
-}
+class View;
 
-HistogramView::~HistogramView()
+class SharedGlObjects
 {
-}
+public:
+    SharedGlObjects();
+    SharedGlObjects(const SharedGlObjects&) = delete;
+    SharedGlObjects& operator = (const SharedGlObjects&) = delete;
 
-void HistogramView::render()
-{
-}
+    HistoCalcProg histoCalcProg{"histoCalcProg"};
+    HistoConsolidateProg histoConsolidateProg{"histoConsolidateProg"};
+    ImageDrawProg imageDrawProg{"imageDrawProg"};
+    HistoDrawProg histoDrawProg{"histoDrawProg"};
+
+    void init(View* imageView, View* histogramView);
+
+protected:
+    bool m_inited{false};
+};
+
+typedef std::shared_ptr<SharedGlObjects> SharedGlObjectsPtr;

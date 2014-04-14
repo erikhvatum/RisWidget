@@ -38,8 +38,7 @@ class RisWidget
 %End
 
 public:
-    explicit RisWidget(bool enableSwapInterval1 = false,
-                       QString windowTitle_ = "RisWidget",
+    explicit RisWidget(QString windowTitle_ = "RisWidget",
                        QWidget* parent = nullptr,
                        Qt::WindowFlags flags = 0);
     virtual ~RisWidget();

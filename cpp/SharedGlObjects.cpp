@@ -21,19 +21,32 @@
 // SOFTWARE.
 
 #include "Common.h"
-#include "HistogramView.h"
+#include "SharedGlObjects.h"
+#include "View.h"
 
-HistogramView::HistogramView(const QSurfaceFormat& format,
-                             const SharedGlObjectsPtr& sharedGlObjects_,
-                             View* shareWidget)
-  : View(format, sharedGlObjects_, shareWidget)
+SharedGlObjects::SharedGlObjects()
 {
 }
 
-HistogramView::~HistogramView()
+void SharedGlObjects::init(View* imageView, View* histogramView)
 {
-}
+    if(m_inited)
+    {
+        throw RisWidgetException("void SharedGlObjects::init(View* histogramView, View* imageView): Called multiple "
+                                 "times for the same SharedGlObjects instance.");
+    }
 
-void HistogramView::render()
-{
+    histoCalcProg.setView(histogramView);
+    histoCalcProg.build();
+
+    histoConsolidateProg.setView(histogramView);
+    histoConsolidateProg.build();
+
+    imageDrawProg.setView(imageView);
+    imageDrawProg.build();
+
+    histoDrawProg.setView(histogramView);
+    histoDrawProg.build();
+
+    m_inited = true;
 }

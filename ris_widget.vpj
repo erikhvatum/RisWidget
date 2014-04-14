@@ -236,6 +236,8 @@
 			<F N="cpp/RisWidget.ui"/>
 			<F N="cpp/RisWidgetException.cpp"/>
 			<F N="cpp/RisWidgetException.h"/>
+			<F N="cpp/SharedGlObjects.cpp"/>
+			<F N="cpp/SharedGlObjects.h"/>
 			<F N="cpp/View.cpp"/>
 			<F N="cpp/View.h"/>
 		</Folder>

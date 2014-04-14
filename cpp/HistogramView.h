@@ -31,13 +31,11 @@ class HistogramView
     Q_OBJECT;
 
 public:
-    HistogramView(const QGLFormat& format,
-                  QWidget* parent,
+    HistogramView(const QSurfaceFormat& format,
                   const SharedGlObjectsPtr& sharedGlObjects_,
-                  const View* shareWidget = nullptr,
-                  Qt::WindowFlags flags = 0);
+                  View* shareWidget = nullptr);
     virtual ~HistogramView();
 
 protected:
-    virtual void initializeGL();
+    virtual void render();
 };
