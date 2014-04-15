@@ -109,6 +109,28 @@ void RisWidget::showImage(PyObject* image)
     {
         throw RisWidgetException("RisWidget::showImage(PyObject* image): image argument must be a numpy array.");
     }
+    PyArrayObject* imageao = reinterpret_cast<PyArrayObject*>(image);
+    if(PyArray_NDIM(imageao) != 2)
+    {
+        throw RisWidgetException("RisWidget::showImage(PyObject* image): image argument must be a 2d numpy array.");
+    }
+    if(PyArray_TYPE(imageao) != NPY_USHORT)
+    {
+        throw RisWidgetException("RisWidget::showImage(PyObject* image): image argument must be a numpy array of type uint16.");
+    }
+    npy_intp* dimensions = PyArray_DIMS(imageao);
+    std::cerr << dimensions[0] << ", " << dimensions[1] << std::endl;
+    void* d = PyArray_DATA(imageao);
+    npy_intp* strides = PyArray_STRIDES(imageao);
+    for(int y=0, x; y < dimensions[0]; ++y)
+    {
+        for(x=0; x < dimensions[1]; ++x)
+        {
+            if(x != 0) std::cerr << ", ";
+            std::cerr << *reinterpret_cast<std::uint16_t*>(d + y*strides[0] + x*strides[1]);
+        }
+        std::cerr << std::endl;
+    }
 }
 
 #ifdef STAND_ALONE_EXECUTABLE

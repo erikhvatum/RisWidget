@@ -40,6 +40,8 @@ class RisWidget
 %End
 
 public:
+    // This constructor must retain the GIL during execution as it may call numpy's import_array() C API function, which
+    // can result in a Python import amongst other things that impact the interpreter
     explicit RisWidget(QString windowTitle_ = "RisWidget",
                        QWidget* parent = nullptr,
                        Qt::WindowFlags flags = 0) /HoldGIL/;
