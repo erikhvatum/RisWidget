@@ -321,6 +321,11 @@ void HistoConsolidateProg::postBuild()
 {
     binCountLoc = getUniLoc("binCount");
     invocationBinCountLoc = getUniLoc("invocationBinCount");
+
+    m_glfs->glUseProgram(m_id);
+    m_glfs->glGenBuffers(1, &extremaBuff);
+    m_glfs->glBindBuffer(GL_SHADER_STORAGE_BUFFER, extremaBuff);
+    m_glfs->glBufferData(GL_SHADER_STORAGE_BUFFER, 2 * 4, nullptr, GL_DYNAMIC_COPY);
 }
 
 ImageDrawProg::ImageDrawProg(const std::string& name_)
@@ -347,6 +352,32 @@ void ImageDrawProg::postBuild()
 
     vertPosLoc = getAttrLoc("vertPos");
     texCoordLoc = getAttrLoc("texCoord");
+
+    float quad[] = {
+        // Vertex positions
+        1.0f, -1.0f,
+        -1.0f, -1.0f,
+        -1.0f, 1.0f,
+        1.0f, 1.0f,
+       // Texture coordinates
+        0.0f, 0.0f,
+        1.0f, 0.0f,
+        1.0f, 1.0f,
+        0.0f, 1.0f
+    };
+
+    m_glfs->glUseProgram(m_id);
+    m_glfs->glGenVertexArrays(1, &quadVao);
+    m_glfs->glBindVertexArray(quadVao);
+    m_glfs->glGenBuffers(1, &quadVaoBuff);
+    m_glfs->glBindBuffer(GL_ARRAY_BUFFER, quadVaoBuff);
+    m_glfs->glBufferData(GL_ARRAY_BUFFER, sizeof(quad), quad, GL_STATIC_DRAW);
+    
+    m_glfs->glEnableVertexAttribArray(vertPosLoc);
+    m_glfs->glVertexAttribPointer(vertPosLoc, 2, GL_FLOAT, false, 0, nullptr);
+
+    m_glfs->glEnableVertexAttribArray(texCoordLoc);
+    m_glfs->glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT, false, 0, reinterpret_cast<void*>(2 * 4 * 4));
 }
 
 HistoDrawProg::HistoDrawProg(const std::string& name_)

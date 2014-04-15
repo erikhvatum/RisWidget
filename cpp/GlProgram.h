@@ -98,6 +98,9 @@ public:
     const GLint extremaLoc{0};
     // This value must match local_size_x in histogramConsolidate.glslc
     const GLuint liCount{16};
+    GLuint extremaBuff{std::numeric_limits<GLuint>::max()};
+    std::uint32_t extrema[2]{std::numeric_limits<std::uint32_t>::max(),
+                             std::numeric_limits<std::uint32_t>::min()};
 
 protected:
     virtual void getSources(std::vector<QString> &sourceFileNames);
@@ -114,10 +117,14 @@ public:
     GLuint imagePanelGammaTransformColorerIdx{std::numeric_limits<GLuint>::max()};
     GLuint imagePanelPassthroughColorerIdx{std::numeric_limits<GLuint>::max()};
 
+    bool gtpEnabled{false};
     GLint gtpMinLoc{std::numeric_limits<GLint>::min()};
     GLint gtpMaxLoc{std::numeric_limits<GLint>::min()};
     GLint gtpGammaLoc{std::numeric_limits<GLint>::min()};
     GLint projectionModelViewMatrixLoc{std::numeric_limits<GLint>::min()};
+
+    GLuint quadVaoBuff{std::numeric_limits<GLuint>::max()};
+    GLuint quadVao{std::numeric_limits<GLuint>::max()};
 
     GLint vertPosLoc{std::numeric_limits<GLint>::min()};
     GLint texCoordLoc{std::numeric_limits<GLint>::min()};
@@ -136,6 +143,10 @@ public:
     GLint projectionModelViewMatrixLoc{std::numeric_limits<GLint>::min()};
     GLint binCountLoc{std::numeric_limits<GLint>::min()};
     GLint binScaleLoc{std::numeric_limits<GLint>::min()};
+    GLint histogramLoc{std::numeric_limits<GLint>::min()};
+
+    GLuint pointVaoBuff{std::numeric_limits<GLuint>::max()};
+    GLuint pointVao{std::numeric_limits<GLuint>::max()};
 
     GLint binIndexLoc{std::numeric_limits<GLint>::min()};
 
