@@ -112,6 +112,7 @@ void View::update()
 {
     if(!m_deferredUpdatePending.load())
     {
+        m_deferredUpdatePending.store(true);
         emit deferredUpdate();
     }
 }

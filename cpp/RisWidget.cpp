@@ -89,3 +89,17 @@ HistogramWidget* RisWidget::histogramWidget()
 {
     return m_histogramWidget;
 }
+
+#ifdef STAND_ALONE_EXECUTABLE
+#include <QApplication>
+
+int main(int argc, char** argv)
+{
+    QApplication app(argc, argv);
+    RisWidget risWidget;
+    risWidget.show();
+    return app.exec();
+}
+
+#endif
+

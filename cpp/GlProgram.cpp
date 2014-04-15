@@ -36,11 +36,11 @@ GlProgram::GlProgram(const std::string& name_)
 
 GlProgram::~GlProgram()
 {
-    if(m_view != nullptr)
+    /*if(m_view != nullptr && m_view->context()->isValid())
     {
         m_view->makeCurrent();
         del();
-    }
+    }*/
 }
 
 const GLuint& GlProgram::id() const
