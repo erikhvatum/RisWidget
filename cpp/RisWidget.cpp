@@ -23,17 +23,30 @@
 #include "Common.h"
 #include "RisWidget.h"
 
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#define PY_ARRAY_UNIQUE_SYMBOL RisWidget_ARRAY_API
+#include <numpy/arrayobject.h>
+
+static void* do_import_array()
+{
+    // import_array() is actually a macro that returns NULL if it fails, so it has to be wrapped in order to be called
+    // from a constructor which necessarily does not return anything
+    import_array();
+    return reinterpret_cast<void*>(1);
+}
+
 RisWidget::RisWidget(QString windowTitle_,
                      QWidget* parent,
                      Qt::WindowFlags flags)
   : QMainWindow(parent, flags),
     m_sharedGlObjects(new SharedGlObjects)
 {
-    static bool resourcesInited{false};
-    if(!resourcesInited)
+    static bool oneTimeInitDone{false};
+    if(!oneTimeInitDone)
     {
         Q_INIT_RESOURCE(RisWidget);
-        resourcesInited = true;
+        do_import_array();
+        oneTimeInitDone = true;
     }
 
     setWindowTitle(windowTitle_);
@@ -88,6 +101,14 @@ ImageWidget* RisWidget::imageWidget()
 HistogramWidget* RisWidget::histogramWidget()
 {
     return m_histogramWidget;
+}
+
+void RisWidget::showImage(PyObject* image)
+{
+    if(!PyArray_Check(image))
+    {
+        throw RisWidgetException("RisWidget::showImage(PyObject* image): image argument must be a numpy array.");
+    }
 }
 
 #ifdef STAND_ALONE_EXECUTABLE

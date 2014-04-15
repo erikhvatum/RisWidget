@@ -43,6 +43,8 @@ public:
     ImageWidget* imageWidget();
     HistogramWidget* histogramWidget();
 
+    void showImage(PyObject* image);
+
 protected:
     SharedGlObjectsPtr m_sharedGlObjects;
 

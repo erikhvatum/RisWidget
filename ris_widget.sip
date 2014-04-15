@@ -27,6 +27,8 @@
 %Import QtOpenGL/QtOpenGLmod.sip
 %Import QtWidgets/QtWidgetsmod.sip
 
+%DefaultDocstringFormat "deindented"
+
 
 
 
@@ -40,11 +42,17 @@ class RisWidget
 public:
     explicit RisWidget(QString windowTitle_ = "RisWidget",
                        QWidget* parent = nullptr,
-                       Qt::WindowFlags flags = 0);
+                       Qt::WindowFlags flags = 0) /HoldGIL/;
     virtual ~RisWidget();
 
     ImageWidget* imageWidget();
     HistogramWidget* histogramWidget();
+
+    void showImage(PyObject* image) /ReleaseGIL/;
+%Docstring
+    RisWidget.showImage(image): Display the contents of image, which must be a
+    2-dimensional numpy array of type uint16.
+%End
 };
 
 

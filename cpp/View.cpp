@@ -45,6 +45,7 @@ View::View(const QSurfaceFormat& format,
     }
 
     makeCurrent();
+
     m_glfs = m_context->versionFunctions<QOpenGLFunctions_4_3_Core>();
     if(m_glfs == nullptr)
     {

@@ -35,6 +35,7 @@
 #include <limits>
 #include <list>
 #include <memory>
+#include <Python.h>
 #include <QFile>
 #include <QHBoxLayout>
 #include <QMainWindow>
