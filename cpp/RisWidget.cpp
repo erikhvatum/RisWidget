@@ -127,7 +127,7 @@ void RisWidget::showImage(PyObject* image)
         for(x=0; x < dimensions[1]; ++x)
         {
             if(x != 0) std::cerr << ", ";
-            std::cerr << *reinterpret_cast<std::uint16_t*>(d + y*strides[0] + x*strides[1]);
+            std::cerr << *reinterpret_cast<std::uint16_t*>(reinterpret_cast<std::uint8_t*>(d) + y*strides[0] + x*strides[1]);
         }
         std::cerr << std::endl;
     }
