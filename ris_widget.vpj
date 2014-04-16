@@ -229,6 +229,8 @@
 			<F N="cpp/ImageWidget.cpp"/>
 			<F N="cpp/ImageWidget.h"/>
 			<F N="cpp/ImageWidget.ui"/>
+			<F N="cpp/Renderer.cpp"/>
+			<F N="cpp/Renderer.h"/>
 			<F N="cpp/RisWidget.cpp"/>
 			<F N="cpp/RisWidget.h"/>
 			<F N="cpp/RisWidget.pro"/>
@@ -236,8 +238,6 @@
 			<F N="cpp/RisWidget.ui"/>
 			<F N="cpp/RisWidgetException.cpp"/>
 			<F N="cpp/RisWidgetException.h"/>
-			<F N="cpp/SharedGlObjects.cpp"/>
-			<F N="cpp/SharedGlObjects.h"/>
 			<F N="cpp/View.cpp"/>
 			<F N="cpp/View.h"/>
 		</Folder>

@@ -38,9 +38,9 @@ HEADERS += Common.h \
            HistogramView.h \
            ImageWidget.h \
            ImageView.h \
+	   Renderer.h \
            RisWidget.h \
            RisWidgetException.h \
-           SharedGlObjects.h \
            View.h
 
 FORMS +=   RisWidget.ui \
@@ -53,6 +53,6 @@ SOURCES += RisWidget.cpp \
            HistogramView.cpp \
            ImageWidget.cpp \
            ImageView.cpp \
+	   Renderer.cpp \
            RisWidgetException.cpp \
-           SharedGlObjects.cpp \
            View.cpp
