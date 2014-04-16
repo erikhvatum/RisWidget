@@ -34,15 +34,26 @@ public:
     SharedGlObjects(const SharedGlObjects&) = delete;
     SharedGlObjects& operator = (const SharedGlObjects&) = delete;
 
-    HistoCalcProg histoCalcProg{"histoCalcProg"};
-    HistoConsolidateProg histoConsolidateProg{"histoConsolidateProg"};
-    ImageDrawProg imageDrawProg{"imageDrawProg"};
-    HistoDrawProg histoDrawProg{"histoDrawProg"};
+    HistoCalcProg histoCalcProg;
+    HistoConsolidateProg histoConsolidateProg;
+    ImageDrawProg imageDrawProg;
+    HistoDrawProg histoDrawProg;
 
     void init(View* imageView, View* histogramView);
 
+    GLuint image;
+    QSize imageSize;
+    float imageAspectRatio;
+
+    bool histogramIsStale;
+    bool histogramDataStructuresAreStale;
+    const std::uint32_t histogramBinCount;
+    GLuint histogramBlocks;
+    GLuint histogram;
+    std::vector<std::uint32_t> histogramData;
+
 protected:
-    bool m_inited{false};
+    bool m_inited;
 };
 
 typedef std::shared_ptr<SharedGlObjects> SharedGlObjectsPtr;

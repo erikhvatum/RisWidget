@@ -103,34 +103,71 @@ HistogramWidget* RisWidget::histogramWidget()
     return m_histogramWidget;
 }
 
-void RisWidget::showImage(PyObject* image)
+void RisWidget::showImage(const std::uint16_t* imageData, const QSize& imageSize, bool filterTexture)
 {
-    if(!PyArray_Check(image))
+    m_imageWidget->imageView()->makeCurrent();
+    loadImageData(imageData, imageSize, filterTexture);
+    update();
+}
+
+void RisWidget::showImage(PyObject* image, bool filterTexture)
+{
+    PyObject* imageao = PyArray_FromAny(image, PyArray_DescrFromType(NPY_USHORT), 2, 2, NPY_ARRAY_CARRAY_RO, nullptr);
+    if(imageao == nullptr)
     {
-        throw RisWidgetException("RisWidget::showImage(PyObject* image): image argument must be a numpy array.");
+        throw RisWidgetException("RisWidget::showImage(PyObject* image): image argument must be an "
+                                 "array-like object convertable to a 2d uint16 numpy array.");
     }
-    PyArrayObject* imageao = reinterpret_cast<PyArrayObject*>(image);
-    if(PyArray_NDIM(imageao) != 2)
+    npy_intp* shape = PyArray_DIMS(imageao);
+    showImage(reinterpret_cast<const std::uint16_t*>(PyArray_DATA(imageao)), QSize(shape[1], shape[0]));
+    Py_DECREF(imageao);
+}
+
+void RisWidget::loadImageData(const std::uint16_t* imageData, const QSize& imageSize, const bool& filterTexture)
+{
+    if(imageSize.width() <= 0 || imageSize.height() <= 0)
     {
-        throw RisWidgetException("RisWidget::showImage(PyObject* image): image argument must be a 2d numpy array.");
+        throw RisWidgetException("RisWidget::showImage(const std::uint16_t* imageData, const QSize& imageSize): "
+                                 "At least one dimension of imageSize is less than or equal to zero.");
     }
-    if(PyArray_TYPE(imageao) != NPY_USHORT)
+    m_sharedGlObjects->imageAspectRatio = static_cast<float>(imageSize.width()) / imageSize.height();
+    bool reallocate = m_sharedGlObjects->imageSize != imageSize;
+    m_sharedGlObjects->imageSize = imageSize;
+
+    m_sharedGlObjects->histogramIsStale = true;
+    m_sharedGlObjects->histogramDataStructuresAreStale = reallocate;
+
+    QOpenGLFunctions_4_3_Core* glfs = m_imageWidget->imageView()->glfs();
+
+    if(reallocate && m_sharedGlObjects->image != std::numeric_limits<GLuint>::max())
     {
-        throw RisWidgetException("RisWidget::showImage(PyObject* image): image argument must be a numpy array of type uint16.");
+        glfs->glDeleteTextures(1, m_sharedGlObjects->image);
+        m_sharedGlObjects->image = std::numeric_limits<GLuint>::max();
     }
-    npy_intp* dimensions = PyArray_DIMS(imageao);
-    std::cerr << dimensions[0] << ", " << dimensions[1] << std::endl;
-    void* d = PyArray_DATA(imageao);
-    npy_intp* strides = PyArray_STRIDES(imageao);
-    for(int y=0, x; y < dimensions[0]; ++y)
+
+    if(m_sharedGlObjects->image == std::numeric_limits<GLuint>::max())
     {
-        for(x=0; x < dimensions[1]; ++x)
-        {
-            if(x != 0) std::cerr << ", ";
-            std::cerr << *reinterpret_cast<std::uint16_t*>(reinterpret_cast<std::uint8_t*>(d) + y*strides[0] + x*strides[1]);
-        }
-        std::cerr << std::endl;
+        glfs->glGenTextures(1, &m_sharedGlObjects->image);
+        glfs->glBindTexture(GL_TEXTURE_2D, m_sharedGlObjects->image)
+        glfs->glTexStorage2D(GL_TEXTURE_2D, 1, GL_R16UI, imageSize.width(), imageSize.height());
     }
+    else
+    {
+        glfs->glBindTexture(GL_TEXTURE_2D, m_sharedGlObjects->image)
+    }
+
+    glfs->glTexImage2D(GL_TEXTURE_2D,
+                       0,
+                       GL_R16UI,
+                       imageSize.width(), imageSize.height(),
+                       0,
+                       GL_RED_INTEGER, GL_UNSIGNED_SHORT,
+                       reinterpret_cast<GLvoid*>(imageData));
+    GLenum filterType = filterTexture ? GL_LINEAR : GL_NEAREST;
+    glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filterType);
+    glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filterType);
+    glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
 
 #ifdef STAND_ALONE_EXECUTABLE

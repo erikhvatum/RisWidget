@@ -43,10 +43,14 @@ public:
     ImageWidget* imageWidget();
     HistogramWidget* histogramWidget();
 
-    void showImage(PyObject* image);
+    void showImage(const std::uint16_t* imageData, const QSize& imageSize, bool filterTexture=true);
+    void showImage(PyObject* image, bool filterTexture=true);
 
 protected:
     SharedGlObjectsPtr m_sharedGlObjects;
 
     void setupImageAndHistogramWidgets();
+    void updateImageData(const std::uint16_t* imageData, const QSize& imageSize, const bool& filterTexture);
+    // Executes histogramCalc and histogramConsolidate
+    void updateHistogramData();
 };

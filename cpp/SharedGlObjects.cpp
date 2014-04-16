@@ -25,6 +25,20 @@
 #include "View.h"
 
 SharedGlObjects::SharedGlObjects()
+  : histoCalcProg("histoCalcProg"),
+    histoConsolidateProg("histoConsolidateProg"),
+    imageDrawProg("imageDrawProg"),
+    histoDrawProg("histoDrawProg"),
+    image(std::numeric_limits<GLuint>::max()),
+    imageSize(std::numeric_limits<int>::min(), std::numeric_limits<int>::min()),
+    histogramIsStale(true),
+    histogramDataStructuresAreStale(true),
+    histogramBinCount(2048),
+    histogramBlocks(std::numeric_limits<GLuint>::max()),
+    histogram(std::numeric_limits<GLuint>::max()),
+    histogramData(histogramBinCount, 0),
+    histogramPmv(1.0f),
+    m_inited(false)
 {
 }
 
