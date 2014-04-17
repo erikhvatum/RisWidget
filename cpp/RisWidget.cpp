@@ -51,46 +51,32 @@ RisWidget::RisWidget(QString windowTitle_,
 
     setWindowTitle(windowTitle_);
     setupUi(this);
-    setupImageAndHistogramWidgets();
+    Renderer::staticInit();
+    makeViews();
+    makeRenderer();
 }
 
 RisWidget::~RisWidget()
 {
 }
 
-void RisWidget::setupImageAndHistogramWidgets()
+void RisWidget::makeViews()
 {
-    QSurfaceFormat format{/*QSurfaceFormat::DebugContext*/};
-    // Our weakest target platform is Macmini6,1, having Intel HD 4000 graphics, supporting up to OpenGL 4.1 on OS X.
-    format.setVersion(4, 3);
-    format.setProfile(QSurfaceFormat::CoreProfile);
-    format.setSwapBehavior(QSurfaceFormat::TripleBuffer);
-    format.setRenderableType(QSurfaceFormat::OpenGL);
-//  QGLFormat format
-//  (
-//      // Want hardware rendering (should be enabled by default, but this can't hurt)
-//      QGL::DirectRendering |
-//      // Likewise, double buffering should be enabled by default
-//      QGL::DoubleBuffer |
-//      // We avoid relying on depcrecated fixed-function pipeline functionality; any attempt to use legacy OpenGL calls
-//      // should fail.
-//      QGL::NoDeprecatedFunctions |
-//      // Disable unused features
-//      QGL::NoDepthBuffer |
-//      QGL::NoAccumBuffer |
-//      QGL::NoStencilBuffer |
-//      QGL::NoStereoBuffers |
-//      QGL::NoOverlay |
-//      QGL::NoSampleBuffers
-//  );
-
-    m_imageWidget->makeImageView(format, m_sharedGlObjects);
-    m_histogramWidget->makeHistogramView(format, m_sharedGlObjects, m_imageWidget->imageView());
-
-    m_sharedGlObjects->init(m_imageWidget->imageView(), m_histogramWidget->histogramView());
+    m_imageWidget->makeView();
+    m_histogramWidget->makeView();
 
     m_imageWidget->imageView()->setClearColor(glm::vec4(1.0f/3.0f, 1.0f/3.0f, 1.0f/3.0f, 0.0f));
     m_histogramWidget->histogramView()->setClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+}
+
+void RisWidget::makeRenderer()
+{
+    m_rendererThread = new QThread(this);
+    m_renderer.reset( new Renderer(m_imageWidget->imageView(),
+                                   m_histogramWidget->histogramView()) );
+    m_renderer->moveToThread(m_rendererThread);
+    connect(m_rendererThread.data(), &QThread::started(), m_renderer.get(), &Renderer::threadInitSlot, Qt::QueuedConnection);
+    m_rendererThread->start();
 }
 
 ImageWidget* RisWidget::imageWidget()

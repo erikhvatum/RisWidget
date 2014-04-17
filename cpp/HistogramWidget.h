@@ -24,10 +24,9 @@
 
 #include "Common.h"
 #include "HistogramView.h"
-#include "ViewWidget.h"
 #include "ui_HistogramWidget.h"
+#include "ViewWidget.h"
 
-class ImageView;
 class RisWidget;
 
 class HistogramWidget
@@ -44,10 +43,6 @@ public:
     HistogramView* histogramView();
 
 protected:
-    QWidget* m_histogramViewHolder;
-    HistogramView* m_histogramView;
-
-    void makeHistogramView(const QSurfaceFormat& format, const SharedGlObjectsPtr& sharedGlObjects, ImageView* imageView);
-    View* instantiateView(const QSurfaceFormat& format);
+    virtual View* instantiateView();
 };
 

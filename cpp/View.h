@@ -25,44 +25,36 @@
 #include "Common.h"
 #include "SharedGlObjects.h"
 
+class Renderer;
+
 class View
   : public QWindow
 {
     Q_OBJECT;
 
 public:
-    View(const QSurfaceFormat& format,
-         const SharedGlObjectsPtr& sharedGlObjects_,
-         View* sharedContextView);
+    explicit View(QWindow* parent);
     virtual ~View();
 
     QOpenGLContext* context();
     void makeCurrent();
+    void swapBuffers();
     const SharedGlObjectsPtr& sharedGlObjects();
     QOpenGLFunctions_4_3_Core* glfs();
     void setClearColor(const glm::vec4& color);
+    glm::vec4 clearColor() const;
 
-    // Call this thread-safe function to refresh view contents.  The refresh is queued and happens after the thread
-    // associated with the view wakes up.  Multiple calls to update made while the view is busy coalesce into a single
-    // refresh.
+    // Call this thread-safe function to refresh view contents.  The refresh is queued and happens when the Renderer
+    // thread gets around to it.  Multiple calls to update made for a single view while the Renderer is busy coalesce
+    // into a single refresh.  If this View is not attached to a Renderer, update() is a no-op.
     void update();
 
 protected:
-    QOpenGLContext* m_context;
-    SharedGlObjectsPtr m_sharedGlObjects;
-    QOpenGLFunctions_4_3_Core* m_glfs{nullptr};
-    std::atomic_bool m_deferredUpdatePending{false};
+    QPointer<QOpenGLContext> m_context;
+    QPointer<Renderer> m_renderer;
+    QMutex* m_clearColorLock;
     glm::vec4 m_clearColor{0.0f, 0.0f, 0.0f, 0.0f};
 
     virtual void resizeEvent(QResizeEvent* event);
     virtual void exposeEvent(QExposeEvent* event);
-    virtual void render() = 0;
-
-signals:
-    void deferredUpdate();
-
-protected slots:
-    // Does render pre, calls render(), does render post. Thus, inheriting classes do not need to make GL
-    // context current or call swap buffers in their render() implementations.
-    void onDeferredUpdate();
 };

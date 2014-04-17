@@ -21,46 +21,23 @@
 // SOFTWARE.
 
 #include "Common.h"
+#include "Renderer.h"
 #include "View.h"
 
-View::View(const QSurfaceFormat& format,
-           const SharedGlObjectsPtr& sharedGlObjects_,
-           View* sharedContextView)
-  : m_context(new QOpenGLContext(this)),
-    m_sharedGlObjects(sharedGlObjects_)
+View::View(QWindow* parent)
+  : QWindow(parent),
+    m_clearColorLock(new QMutex)
 {
     setSurfaceType(QWindow::OpenGLSurface);
-    setFormat(format);
+    setFormat(Renderer::sm_format);
     create();
-
-    m_context->setFormat(format);
-
-    if(sharedContextView != nullptr)
-    {
-        m_context->setShareContext(sharedContextView->m_context);
-    }
-    if(!m_context->create())
-    {
-        throw RisWidgetException("View::View(..): Failed to create OpenGL context.");
-    }
-
-    makeCurrent();
-
-    m_glfs = m_context->versionFunctions<QOpenGLFunctions_4_3_Core>();
-    if(m_glfs == nullptr)
-    {
-        throw RisWidgetException("View::View(..): Failed to retrieve OpenGL functions.");
-    }
-    if(!m_glfs->initializeOpenGLFunctions())
-    {
-        throw RisWidgetException("View::View(..): Failed to initialize OpenGL functions.");
-    }
 
     connect(this, SIGNAL(deferredUpdate()), this, SLOT(onDeferredUpdate()), Qt::QueuedConnection);
 }
 
 View::~View()
 {
+    delete m_clearColorLock;
 }
 
 QOpenGLContext* View::context()
@@ -76,6 +53,11 @@ void View::makeCurrent()
     }
 }
 
+void View::swapBuffers()
+{
+    m_context->swapBuffers(this);
+}
+
 const SharedGlObjectsPtr& View::sharedGlObjects()
 {
     return m_sharedGlObjects;
@@ -88,14 +70,22 @@ QOpenGLFunctions_4_3_Core* View::glfs()
 
 void View::setClearColor(const glm::vec4& color)
 {
+    QMutexLocker clearColorLocker(m_clearColorLock);
     m_clearColor = color;
     update();
+}
+
+glm::vec4 View::clearColor() const
+{
+    QMutexLocker clearColorLocker(const_cast<QMutex*>(m_clearColorLock));
+    glm::vec4 ret{m_clearColor};
+    return ret;
 }
 
 void View::exposeEvent(QExposeEvent* event)
 {
     QWindow::exposeEvent(event);
-    if(isExposed())
+    if(isExposed() && isVisible())
     {
         update();
     }
@@ -103,30 +93,17 @@ void View::exposeEvent(QExposeEvent* event)
 
 void View::resizeEvent(QResizeEvent* event)
 {
-    QWindow::resizeEvent(event);
-    makeCurrent();
-    m_glfs->glViewport(0, 0, event->size().width(), event->size().height());
-    update();
+    if(isVisible() && isExposed())
+    {
+        update();
+    }
 }
 
 void View::update()
 {
-    if(!m_deferredUpdatePending.load())
+    if(m_renderer)
     {
-        m_deferredUpdatePending.store(true);
-        emit deferredUpdate();
+        m_renderer->updateView(this);
     }
 }
 
-void View::onDeferredUpdate()
-{
-    if(m_deferredUpdatePending.exchange(false))
-    {
-        makeCurrent();
-        m_glfs->glClearColor(m_clearColor.r, m_clearColor.g, m_clearColor.b, m_clearColor.a);
-        m_glfs->glClearDepth(1.0);
-        m_glfs->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        render();
-        m_context->swapBuffers(this);
-    }
-}

@@ -50,10 +50,10 @@ protected:
     std::shared_ptr<Renderer> m_renderer;
     QPointer<QThread> m_rendererThread;
 
+    void makeViews();
     void makeRenderer();
     void destroyRenderer();
 
-    void setupImageAndHistogramWidgets();
     void updateImageData(const std::uint16_t* imageData, const QSize& imageSize, const bool& filterTexture);
     // Executes histogramCalc and histogramConsolidate
     void updateHistogramData();

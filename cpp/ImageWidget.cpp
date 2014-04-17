@@ -42,20 +42,10 @@ ImageWidget::~ImageWidget()
 
 ImageView* ImageWidget::imageView()
 {
-    return m_imageView;
+    return dynamic_cast<ImageView*>(m_view.data());
 }
 
-void ImageWidget::makeImageView(const QSurfaceFormat& format, const SharedGlObjectsPtr& sharedGlObjects)
+View* ImageWidget::instantiateView()
 {
-    if(m_imageViewHolder != nullptr || m_imageView != nullptr)
-    {
-        throw RisWidgetException("ImageWidget::makeImageView(..): m_imageViewHolder != nullptr || m_imageView != nullptr.  "
-                                 "ImageWidget::makeImageView(..) must not be called more than once per "
-                                 "ImageWidget instance.");
-    }
-    m_imageView = new ImageView(format, sharedGlObjects);
-    m_imageViewHolder = QWidget::createWindowContainer(m_imageView, this);
-    layout()->addWidget(m_imageViewHolder);
-    m_imageViewHolder->show();
-    m_imageView->show();
+    return new ImageView(this);
 }

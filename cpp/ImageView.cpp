@@ -22,11 +22,10 @@
 
 #include "Common.h"
 #include "ImageView.h"
+#include "Renderer.h"
 
-ImageView::ImageView(const QSurfaceFormat& format,
-                     const SharedGlObjectsPtr& sharedGlObjects_,
-                     View* shareWidget)
-  : View(format, sharedGlObjects_, shareWidget)
+ImageView::ImageView(QWindow* parent)
+  : View(parent)
 {
 }
 

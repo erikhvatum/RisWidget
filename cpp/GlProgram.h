@@ -24,13 +24,10 @@
 
 #include "Common.h"
 
-class View;
-
 class GlProgram
 {
 public:
     explicit GlProgram(const std::string& name_);
-    virtual ~GlProgram();
     // The destructor calls glDeleteProgram, so a copy constructor would have to do a deep copy or keep a reference
     // count for m_id.  Both are problematic in terms of unintended side effects, and copying a fully linked shader
     // program is not something routinely required, so copying is forbidden in order that any attempt to do so,
@@ -40,19 +37,16 @@ public:
 
     const GLuint& id() const;
     operator GLuint () const;
-    View* view();
-    void setView(View* view);
     const std::string& name() const;
 
-    void build();
-    void del();
+    void build(QOpenGLFunctions_4_3_Core* glfs);
+    virtual void del();
 
 protected:
-    GLuint m_id{std::numeric_limits<GLuint>::max()};
-    View* m_view;
+    GLuint m_id;
     std::string m_name;
     // A copy of m_view->m_glfs
-    QOpenGLFunctions_4_3_Core* m_glfs{nullptr};
+    QOpenGLFunctions_4_3_Core* m_glfs;
 
     virtual void getSources(std::vector<QString>& sourceFileNames) = 0;
     // GlProgram provides a no-op implementation rather than making this pure virtual as a convenience for derived
@@ -72,13 +66,13 @@ class HistoCalcProg
 public:
     explicit HistoCalcProg(const std::string& name_);
 
-    GLint binCountLoc{std::numeric_limits<GLint>::min()};
-    GLint invocationRegionSizeLoc{std::numeric_limits<GLint>::min()};
-    const GLint imageLoc{0};
-    const GLint blocksLoc{1};
-    const GLuint wgCountPerAxis{8};
+    GLint binCountLoc;
+    GLint invocationRegionSizeLoc;
+    const GLint imageLoc;
+    const GLint blocksLoc;
+    const GLuint wgCountPerAxis;
     // This value must match local_size_x and local_size_y in histogramCalc.glslc
-    const GLuint liCountPerAxis{4};
+    const GLuint liCountPerAxis;
 
 protected:
     virtual void getSources(std::vector<QString>& sourceFileNames);
@@ -91,16 +85,15 @@ class HistoConsolidateProg
 public:
     explicit HistoConsolidateProg(const std::string& name_);
 
-    GLint binCountLoc{std::numeric_limits<GLint>::min()};
-    GLint invocationBinCountLoc{std::numeric_limits<GLint>::min()};
-    const GLint blocksLoc{0};
-    const GLint histogramLoc{1};
-    const GLint extremaLoc{0};
+    GLint binCountLoc;
+    GLint invocationBinCountLoc;
+    const GLint blocksLoc;
+    const GLint histogramLoc;
+    const GLint extremaLoc;
     // This value must match local_size_x in histogramConsolidate.glslc
-    const GLuint liCount{16};
-    GLuint extremaBuff{std::numeric_limits<GLuint>::max()};
-    std::uint32_t extrema[2]{std::numeric_limits<std::uint32_t>::max(),
-                             std::numeric_limits<std::uint32_t>::min()};
+    const GLuint liCount;
+    GLuint extremaBuff;
+    std::uint32_t extrema[2];
 
 protected:
     virtual void getSources(std::vector<QString> &sourceFileNames);
@@ -113,21 +106,21 @@ class ImageDrawProg
 public:
     explicit ImageDrawProg(const std::string& name_);
 
-    GLint panelColorerLoc{std::numeric_limits<GLint>::min()};
-    GLuint imagePanelGammaTransformColorerIdx{std::numeric_limits<GLuint>::max()};
-    GLuint imagePanelPassthroughColorerIdx{std::numeric_limits<GLuint>::max()};
+    GLint panelColorerLoc;
+    GLuint imagePanelGammaTransformColorerIdx;
+    GLuint imagePanelPassthroughColorerIdx;
 
-    bool gtpEnabled{false};
-    GLint gtpMinLoc{std::numeric_limits<GLint>::min()};
-    GLint gtpMaxLoc{std::numeric_limits<GLint>::min()};
-    GLint gtpGammaLoc{std::numeric_limits<GLint>::min()};
-    GLint projectionModelViewMatrixLoc{std::numeric_limits<GLint>::min()};
+    bool gtpEnabled;
+    GLint gtpMinLoc;
+    GLint gtpMaxLoc;
+    GLint gtpGammaLoc;
+    GLint projectionModelViewMatrixLoc;
 
-    GLuint quadVaoBuff{std::numeric_limits<GLuint>::max()};
-    GLuint quadVao{std::numeric_limits<GLuint>::max()};
+    GLuint quadVaoBuff;
+    GLuint quadVao;
 
-    GLint vertPosLoc{std::numeric_limits<GLint>::min()};
-    GLint texCoordLoc{std::numeric_limits<GLint>::min()};
+    GLint vertPosLoc;
+    GLint texCoordLoc;
 
 protected:
     virtual void getSources(std::vector<QString> &sourceFileNames);
@@ -140,15 +133,15 @@ class HistoDrawProg
 public:
     explicit HistoDrawProg(const std::string& name_);
 
-    GLint projectionModelViewMatrixLoc{std::numeric_limits<GLint>::min()};
-    GLint binCountLoc{std::numeric_limits<GLint>::min()};
-    GLint binScaleLoc{std::numeric_limits<GLint>::min()};
-    GLint histogramLoc{std::numeric_limits<GLint>::min()};
+    GLint projectionModelViewMatrixLoc;
+    GLint binCountLoc;
+    GLint binScaleLoc;
+    GLint histogramLoc;
 
-    GLuint pointVaoBuff{std::numeric_limits<GLuint>::max()};
-    GLuint pointVao{std::numeric_limits<GLuint>::max()};
+    GLuint pointVaoBuff;
+    GLuint pointVao;
 
-    GLint binIndexLoc{std::numeric_limits<GLint>::min()};
+    GLint binIndexLoc;
 
 protected:
     virtual void getSources(std::vector<QString> &sourceFileNames);

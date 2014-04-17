@@ -25,22 +25,14 @@
 #include "View.h"
 
 GlProgram::GlProgram(const std::string& name_)
-  : m_view(nullptr),
-    m_name(name_)
+  : m_id(std::numeric_limits<GLuint>::max()),
+    m_name(name_),
+    m_glfs(nullptr)
 {
     if(m_name.empty())
     {
         m_name = "(unnamed)";
     }
-}
-
-GlProgram::~GlProgram()
-{
-    /*if(m_view != nullptr && m_view->context()->isValid())
-    {
-        m_view->makeCurrent();
-        del();
-    }*/
 }
 
 const GLuint& GlProgram::id() const
@@ -53,29 +45,19 @@ GlProgram::operator GLuint () const
     return m_id;
 }
 
-View* GlProgram::view()
-{
-    return m_view;
-}
-
-void GlProgram::setView(View* view)
-{
-    m_view = view;
-    m_glfs = m_view->glfs();
-}
-
 const std::string& GlProgram::name() const
 {
     return m_name;
 }
 
-void GlProgram::build()
+void GlProgram::build(QOpenGLFunctions_4_3_Core* glfs)
 {
     del();
 
     std::vector<QString> sourceFileNames;
     getSources(sourceFileNames);
     GLenum type;
+    m_glfs = glfs;
     m_id = m_glfs->glCreateProgram();
     std::list<GLuint> shaders;
 
@@ -243,6 +225,7 @@ void GlProgram::del()
     {
         m_glfs->glDeleteProgram(m_id);
         m_id = std::numeric_limits<GLuint>::max();
+        m_glfs = nullptr;
     }
 }
 
@@ -290,7 +273,13 @@ GLint GlProgram::getAttrLoc(const char* attrName)
 }
 
 HistoCalcProg::HistoCalcProg(const std::string& name_)
-  : GlProgram(name_)
+  : GlProgram(name_),
+    binCountLoc(std::numeric_limits<GLint>::min()),
+    invocationRegionSizeLoc(std::numeric_limits<GLint>::min()),
+    imageLoc(0),
+    blocksLoc(1),
+    wgCountPerAxis(8),
+    liCountPerAxis(4)
 {
 }
 
@@ -308,7 +297,16 @@ void HistoCalcProg::postBuild()
 }
 
 HistoConsolidateProg::HistoConsolidateProg(const std::string& name_)
-  : GlProgram(name_)
+  : GlProgram(name_),
+    binCountLoc(std::numeric_limits<GLint>::min()),
+    invocationBinCountLoc(std::numeric_limits<GLint>::min()),
+    blocksLoc(0),
+    histogramLoc(1),
+    extremaLoc(0),
+    liCount(16),
+    extremaBuff(std::numeric_limits<GLuint>::max()),
+    extrema{std::numeric_limits<std::uint32_t>::max(),
+            std::numeric_limits<std::uint32_t>::min()}
 {
 }
 
@@ -329,7 +327,19 @@ void HistoConsolidateProg::postBuild()
 }
 
 ImageDrawProg::ImageDrawProg(const std::string& name_)
-  : GlProgram(name_)
+  : GlProgram(name_),
+    panelColorerLoc(std::numeric_limits<GLint>::min()),
+    imagePanelGammaTransformColorerIdx(std::numeric_limits<GLuint>::max()),
+    imagePanelPassthroughColorerIdx(std::numeric_limits<GLuint>::max()),
+    gtpEnabled(false),
+    gtpMinLoc(std::numeric_limits<GLint>::min()),
+    gtpMaxLoc(std::numeric_limits<GLint>::min()),
+    gtpGammaLoc(std::numeric_limits<GLint>::min()),
+    projectionModelViewMatrixLoc(std::numeric_limits<GLint>::min()),
+    quadVaoBuff(std::numeric_limits<GLuint>::max()),
+    quadVao(std::numeric_limits<GLuint>::max()),
+    vertPosLoc(std::numeric_limits<GLint>::min()),
+    texCoordLoc(std::numeric_limits<GLint>::min())
 {
 }
 
@@ -381,7 +391,14 @@ void ImageDrawProg::postBuild()
 }
 
 HistoDrawProg::HistoDrawProg(const std::string& name_)
-  : GlProgram(name_)
+  : GlProgram(name_),
+    projectionModelViewMatrixLoc(std::numeric_limits<GLint>::min()),
+    binCountLoc(std::numeric_limits<GLint>::min()),
+    binScaleLoc(std::numeric_limits<GLint>::min()),
+    histogramLoc(std::numeric_limits<GLint>::min()),
+    pointVaoBuff(std::numeric_limits<GLuint>::max()),
+    pointVao(std::numeric_limits<GLuint>::max()),
+    binIndexLoc(std::numeric_limits<GLint>::min())
 {
 }
 

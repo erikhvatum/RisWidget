@@ -20,24 +20,39 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
-
 #include "Common.h"
-#include "View.h"
+#include "Renderer.h"
+#include "ViewWidget.h"
 
-class Renderer;
-
-class ImageView
-  : public View
+ViewWidget::ViewWidget(QWidget* parent)
+  : QWidget(parent)
 {
-    Q_OBJECT;
-    friend class Renderer;
+}
 
-public:
-    explicit ImageView(QWindow* parent);
-    virtual ~ImageView();
+ViewWidget::~ViewWidget()
+{
+}
 
-protected:
-    virtual void render();
-};
+View* ViewWidget::view()
+{
+    return m_view;
+}
 
+void ViewWidget::makeView()
+{
+    if(m_view || m_viewHolderWidget)
+    {
+        throw RisWidgetException("ViewWidget::makeView(): View already created.  makeView() must not be "
+                                 "called more than once per ViewWidget instance.");
+    }
+    if(layout() == nullptr)
+    {
+        QHBoxLayout* layout_(new QHBoxLayout);
+        setLayout(layout_);
+    }
+    m_view = instantiateView();
+    m_viewHolder = QWidget::createWindowContainer(m_view, this);
+    layout()->addWidget(m_viewHolder);
+    m_viewHolder->show();
+    m_view->show();
+}

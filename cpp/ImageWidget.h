@@ -25,11 +25,12 @@
 #include "Common.h"
 #include "ImageView.h"
 #include "ui_ImageWidget.h"
+#include "ViewWidget.h"
 
 class RisWidget;
 
 class ImageWidget
-  : public QWidget,
+  : public ViewWidget,
     protected Ui::ImageWidget
 {
     Q_OBJECT;
@@ -42,8 +43,5 @@ public:
     ImageView* imageView();
 
 protected:
-    QWidget* m_imageViewHolder;
-    ImageView* m_imageView;
-
-    void makeImageView(const QSurfaceFormat& format, const SharedGlObjectsPtr& sharedGlObjects);
+    virtual View* instantiateView();
 };

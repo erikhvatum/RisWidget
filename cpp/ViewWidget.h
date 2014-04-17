@@ -26,18 +26,27 @@
 #include "View.h"
 
 class Renderer;
+class RisWidget;
 
-class ImageView
-  : public View
+class ViewWidget
+  : public QWidget
 {
     Q_OBJECT;
+    friend class RisWidget;
     friend class Renderer;
 
 public:
-    explicit ImageView(QWindow* parent);
-    virtual ~ImageView();
+    explicit ViewWidget(QWidget* parent = nullptr);
+    virtual ~ViewWidget();
+
+    View* view();
 
 protected:
-    virtual void render();
+    QPointer<QWidget> m_viewHolderWidget;
+    QPointer<View> m_view;
+
+    void makeView();
+    // Helper for makeView
+    virtual View* instantiateView() = 0;
 };
 

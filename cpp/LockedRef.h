@@ -23,21 +23,54 @@
 #pragma once
 
 #include "Common.h"
-#include "View.h"
 
-class Renderer;
-
-class ImageView
-  : public View
+template<typename RefT, typename MutexT = QMutex>
+class LockedRef
 {
-    Q_OBJECT;
-    friend class Renderer;
-
 public:
-    explicit ImageView(QWindow* parent);
-    virtual ~ImageView();
+    LockedRef(RefT& ref, MutexT& lock);
+    ~LockedRef();
+    LockedRef(const LockedRef&) = delete;
+    LockedRef& operator = (const LockedRef&) = delete;
+
+    bool operator == (const LockedRef& rhs) const;
+    bool operator != (const LockedRef& rhs) const;
+    RefT& ref() const;
 
 protected:
-    virtual void render();
+    RefT& m_ref;
+    MutexT& m_lock;
 };
+
+template<typename RefT, typename MutexT>
+LockedRef<RefT, MutexT>::LockedRef(RefT& ref, MutexT& lock)
+  : m_ref(ref),
+    m_lock(lock)
+{
+    m_lock.lock();
+}
+
+template<typename RefT, typename MutexT>
+LockedRef<RefT, MutexT>::~LockedRef()
+{
+    m_lock.unlock()
+}
+
+template<typename RefT, typename MutexT>
+bool LockedRef<RefT, MutexT>::operator == (const LockedRef<RefT, MutexT>& rhs) const
+{
+    return m_ref == rhs.m_ref;
+}
+
+template<typename RefT, typename MutexT>
+bool LockedRef<RefT, MutexT>::operator != (const LockedRef<RefT, MutexT>& rhs) const
+{
+    return m_ref != rhs.m_ref;
+}
+
+template<typename RefT, typename MutexT>
+RefT& LockedRef<RefT, MutexT>::ref() const
+{
+    return m_ref;
+}
 

@@ -31,6 +31,7 @@
 #pragma GCC diagnostic pop
 
 #include <atomic>
+#include <cmath>
 #include <iostream>
 #include <limits>
 #include <list>
@@ -53,7 +54,7 @@
 #include <string>
 #include <vector>
 
-
+#include "LockedRef.h"
 #include "RisWidgetException.h"
 
 #endif

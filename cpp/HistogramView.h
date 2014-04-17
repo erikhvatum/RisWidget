@@ -25,15 +25,16 @@
 #include "Common.h"
 #include "View.h"
 
+class Renderer;
+
 class HistogramView
   : public View
 {
     Q_OBJECT;
+    friend class Renderer;
 
 public:
-    HistogramView(const QSurfaceFormat& format,
-                  const SharedGlObjectsPtr& sharedGlObjects_,
-                  View* shareWidget = nullptr);
+    HistogramView(QWindow* parent);
     virtual ~HistogramView();
 
 protected:

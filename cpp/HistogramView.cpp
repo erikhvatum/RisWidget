@@ -22,11 +22,10 @@
 
 #include "Common.h"
 #include "HistogramView.h"
+#include "Renderer.h"
 
-HistogramView::HistogramView(const QSurfaceFormat& format,
-                             const SharedGlObjectsPtr& sharedGlObjects_,
-                             View* shareWidget)
-  : View(format, sharedGlObjects_, shareWidget)
+HistogramView::HistogramView(QWindow* parent)
+  : View(parent)
 {
 }
 

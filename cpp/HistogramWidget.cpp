@@ -43,7 +43,7 @@ HistogramWidget::~HistogramWidget()
 
 HistogramView* HistogramWidget::histogramView()
 {
-    return m_histogramView;
+    return dynamic_cast<HistogramView*>(m_view.data());
 }
 
 
@@ -61,7 +61,7 @@ void HistogramWidget::makeHistogramView(const QSurfaceFormat& format, const Shar
     m_histogramView->show();
 }
 
-View* HistogramWidget::instantiateView(const QSurfaceFormat& format)
+View* HistogramWidget::instantiateView()
 {
-    return new HistogramView(format);
+    return new HistogramView(this);
 }
