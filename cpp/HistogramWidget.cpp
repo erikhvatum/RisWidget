@@ -60,3 +60,8 @@ void HistogramWidget::makeHistogramView(const QSurfaceFormat& format, const Shar
     layout()->addWidget(m_histogramViewHolder);
     m_histogramView->show();
 }
+
+View* HistogramWidget::instantiateView(const QSurfaceFormat& format)
+{
+    return new HistogramView(format);
+}

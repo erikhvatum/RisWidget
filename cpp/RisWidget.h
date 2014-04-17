@@ -25,7 +25,7 @@
 #include "Common.h"
 #include "HistogramWidget.h"
 #include "ImageWidget.h"
-#include "SharedGlObjects.h"
+#include "Renderer.h"
 #include "ui_RisWidget.h"
 
 class RisWidget
@@ -47,7 +47,11 @@ public:
     void showImage(PyObject* image, bool filterTexture=true);
 
 protected:
-    SharedGlObjectsPtr m_sharedGlObjects;
+    std::shared_ptr<Renderer> m_renderer;
+    QPointer<QThread> m_rendererThread;
+
+    void makeRenderer();
+    void destroyRenderer();
 
     void setupImageAndHistogramWidgets();
     void updateImageData(const std::uint16_t* imageData, const QSize& imageSize, const bool& filterTexture);

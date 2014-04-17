@@ -31,6 +31,10 @@ class HistogramView;
 typedef std::vector<uint16_t> ImageData;
 typedef std::shared_ptr<ImageData> ImageDataPtr;
 
+// In terms of the first example in the "detailed description" section of "http://qt-project.org/doc/qt-5/qthread.html",
+// this class would be termed Worker, and the RisWidget class would be Controller.
+//
+// TODO: renderer makes view's QOpenGLContext
 class Renderer
   : public QObject
 {

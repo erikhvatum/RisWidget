@@ -170,6 +170,14 @@ void RisWidget::loadImageData(const std::uint16_t* imageData, const QSize& image
     glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
 
+void RisWidget::makeRenderer()
+{
+}
+
+void RisWidget::destroyRenderer()
+{
+}
+
 #ifdef STAND_ALONE_EXECUTABLE
 #include <QApplication>
 

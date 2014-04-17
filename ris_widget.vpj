@@ -240,6 +240,8 @@
 			<F N="cpp/RisWidgetException.h"/>
 			<F N="cpp/View.cpp"/>
 			<F N="cpp/View.h"/>
+			<F N="cpp/ViewWidget.cpp"/>
+			<F N="cpp/ViewWidget.h"/>
 		</Folder>
 		<Folder
 			Name="sip generated files"

@@ -24,13 +24,14 @@
 
 #include "Common.h"
 #include "HistogramView.h"
+#include "ViewWidget.h"
 #include "ui_HistogramWidget.h"
 
 class ImageView;
 class RisWidget;
 
 class HistogramWidget
-  : public QWidget,
+  : public ViewWidget,
     protected Ui::HistogramWidget
 {
     Q_OBJECT;
@@ -47,5 +48,6 @@ protected:
     HistogramView* m_histogramView;
 
     void makeHistogramView(const QSurfaceFormat& format, const SharedGlObjectsPtr& sharedGlObjects, ImageView* imageView);
+    View* instantiateView(const QSurfaceFormat& format);
 };
 
