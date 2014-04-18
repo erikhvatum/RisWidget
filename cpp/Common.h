@@ -28,10 +28,15 @@
 #define GLM_FORCE_CXX11
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #pragma GCC diagnostic pop
 
 #include <atomic>
 #include <cmath>
+// Need cstring include for memcpy(..).  Note: this is the C++ version of string.h; it has nothing to do with
+// Microsoft's CString.
+#include <cstring>
 #include <iostream>
 #include <limits>
 #include <list>
@@ -40,6 +45,9 @@
 #include <QFile>
 #include <QHBoxLayout>
 #include <QMainWindow>
+#include <QMutex>
+#include <QMutexLocker>
+#define GL_GLEXT_PROTOTYPES
 #include <QOpenGLFunctions_4_3_Core>
 // Note: QPointers act as weak references to QObject derived class instances.  See here:
 // http://qt-project.org/doc/qt-5/qpointer.html
@@ -50,6 +58,7 @@
 #include <QString>
 #include <QSurface>
 #include <QThread>
+#include <QVector>
 #include <QWindow>
 #include <string>
 #include <vector>

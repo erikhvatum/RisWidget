@@ -25,17 +25,21 @@
 #include "Common.h"
 #include "GlProgram.h"
 
+class View;
 class ImageView;
 class HistogramView;
 
-typedef std::vector<uint16_t> ImageData;
-typedef std::shared_ptr<ImageData> ImageDataPtr;
+// Note that QVector<> does implicit sharing with reference counting and copy-on-write:
+// http://qt-project.org/doc/qt-5/qvector.html#QVector-4
+typedef QVector<GLushort> ImageData;
 
 // In terms of the first example in the "detailed description" section of "http://qt-project.org/doc/qt-5/qthread.html",
 // this class would be termed Worker, and the RisWidget class would be Controller.
 class Renderer
   : public QObject
 {
+    Q_OBJECT;
+
 public:
     static void staticInit();
     static const QSurfaceFormat sm_format;
@@ -49,9 +53,9 @@ public:
     // in View.h for more details.
     void updateView(View* view);
 
-    // Supply nullptr for imageDataPtr with any imageSize and filter arguments to display nothing, removing current
-    // image if there is one
-    void showImage(const ImageDataPtr& imageDataPtr, const QSize& imageSize, const bool& filter);
+    // Supply an empty ImageData QVector for imageData with any imageSize and filter arguments to display nothing,
+    // removing current image if there is one
+    void showImage(const ImageData& imageData, const QSize& imageSize, const bool& filter);
 
     void setHistogramBinCount(const GLuint& histogramBinCount);
 
@@ -77,7 +81,7 @@ private:
     HistoDrawProg m_histoDrawProg;
 
     // Raw image data
-    ImageDataPtr m_imageDataPtr;
+    ImageData m_imageData;
     // Image texture
     GLuint m_image;
     void delImage();
@@ -104,8 +108,11 @@ private:
     void execImageDraw();
     void execHistoDraw();
 
+    // Helper for execImageDraw() and execHistoDraw()
+    void updateGlViewportSize(View* view, QSize& size);
+
 signals:
-    void _newImage(ImageDataPtr imageDataPtr, QSize imageSize, bool filter);
+    void _newImage(ImageData imageData, QSize imageSize, bool filter);
     void _updateView(View* view);
     void _setHistogramBinCount(GLuint histogramBinCount);
 
@@ -113,7 +120,7 @@ public slots:
     void threadInitSlot();
 
 private slots:
-    void newImageSlot(ImageDataPtr imageDataPtr, QSize imageSize, bool filter);
+    void newImageSlot(ImageData imageData, QSize imageSize, bool filter);
     void updateViewSlot(View* view);
     void setHistogramBinCountSlot(GLuint histogramBinCount);
 };

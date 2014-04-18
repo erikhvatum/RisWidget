@@ -26,18 +26,20 @@
 
 View::View(QWindow* parent)
   : QWindow(parent),
-    m_clearColorLock(new QMutex)
+    m_clearColorLock(new QMutex),
+    m_sizeLock(new QMutex),
+    m_size(-1, -1),
+    m_glSize(-1, -1)
 {
     setSurfaceType(QWindow::OpenGLSurface);
     setFormat(Renderer::sm_format);
     create();
-
-    connect(this, SIGNAL(deferredUpdate()), this, SLOT(onDeferredUpdate()), Qt::QueuedConnection);
 }
 
 View::~View()
 {
     delete m_clearColorLock;
+    delete m_sizeLock;
 }
 
 QOpenGLContext* View::context()
@@ -58,16 +60,6 @@ void View::swapBuffers()
     m_context->swapBuffers(this);
 }
 
-const SharedGlObjectsPtr& View::sharedGlObjects()
-{
-    return m_sharedGlObjects;
-}
-
-QOpenGLFunctions_4_3_Core* View::glfs()
-{
-    return m_glfs;
-}
-
 void View::setClearColor(const glm::vec4& color)
 {
     QMutexLocker clearColorLocker(m_clearColorLock);
@@ -84,17 +76,22 @@ glm::vec4 View::clearColor() const
 
 void View::exposeEvent(QExposeEvent* event)
 {
-    QWindow::exposeEvent(event);
     if(isExposed() && isVisible())
     {
+        event->accept();
         update();
     }
 }
 
 void View::resizeEvent(QResizeEvent* event)
 {
+    {
+        QMutexLocker locker(m_sizeLock);
+        m_size = event->size();
+    }
     if(isVisible() && isExposed())
     {
+        event->accept();
         update();
     }
 }

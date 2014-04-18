@@ -51,8 +51,8 @@ void ViewWidget::makeView()
         setLayout(layout_);
     }
     m_view = instantiateView();
-    m_viewHolder = QWidget::createWindowContainer(m_view, this);
-    layout()->addWidget(m_viewHolder);
-    m_viewHolder->show();
+    m_viewHolderWidget = QWidget::createWindowContainer(m_view, this);
+    layout()->addWidget(m_viewHolderWidget);
+    m_viewHolderWidget->show();
     m_view->show();
 }

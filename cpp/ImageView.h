@@ -25,8 +25,6 @@
 #include "Common.h"
 #include "View.h"
 
-class Renderer;
-
 class ImageView
   : public View
 {

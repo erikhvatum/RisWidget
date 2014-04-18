@@ -25,16 +25,9 @@
 #include "ImageView.h"
 
 HistogramWidget::HistogramWidget(QWidget* parent)
-  : QWidget(parent),
-    m_histogramViewHolder(nullptr),
-    m_histogramView(nullptr)
+  : ViewWidget(parent)
 {
     setupUi(this);
-    if(layout() == nullptr)
-    {
-        QHBoxLayout* layout_(new QHBoxLayout);
-        setLayout(layout_);
-    }
 }
 
 HistogramWidget::~HistogramWidget()
@@ -46,22 +39,8 @@ HistogramView* HistogramWidget::histogramView()
     return dynamic_cast<HistogramView*>(m_view.data());
 }
 
-
-void HistogramWidget::makeHistogramView(const QSurfaceFormat& format, const SharedGlObjectsPtr& sharedGlObjects, ImageView* imageView)
-{
-    if(m_histogramViewHolder != nullptr || m_histogramView != nullptr)
-    {
-        throw RisWidgetException("HistogramWidget::makeHistogramView(..): m_histogramViewHolder != nullptr || m_histogramView != nullptr.  "
-                                 "HistogramWidget::makeHistogramView(..) must not be called more than once per "
-                                 "HistogramWidget instance.");
-    }
-    m_histogramView = new HistogramView(format, sharedGlObjects, imageView);
-    m_histogramViewHolder = QWidget::createWindowContainer(m_histogramView, this);
-    layout()->addWidget(m_histogramViewHolder);
-    m_histogramView->show();
-}
-
 View* HistogramWidget::instantiateView()
 {
-    return new HistogramView(this);
+    return new HistogramView(windowHandle());
 }
+

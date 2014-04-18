@@ -23,7 +23,6 @@
 #pragma once
 
 #include "Common.h"
-#include "SharedGlObjects.h"
 
 class Renderer;
 
@@ -31,6 +30,7 @@ class View
   : public QWindow
 {
     Q_OBJECT;
+    friend class Renderer;
 
 public:
     explicit View(QWindow* parent);
@@ -39,8 +39,6 @@ public:
     QOpenGLContext* context();
     void makeCurrent();
     void swapBuffers();
-    const SharedGlObjectsPtr& sharedGlObjects();
-    QOpenGLFunctions_4_3_Core* glfs();
     void setClearColor(const glm::vec4& color);
     glm::vec4 clearColor() const;
 
@@ -52,8 +50,12 @@ public:
 protected:
     QPointer<QOpenGLContext> m_context;
     QPointer<Renderer> m_renderer;
+
     QMutex* m_clearColorLock;
     glm::vec4 m_clearColor{0.0f, 0.0f, 0.0f, 0.0f};
+
+    QMutex* m_sizeLock;
+    QSize m_size, m_glSize;
 
     virtual void resizeEvent(QResizeEvent* event);
     virtual void exposeEvent(QExposeEvent* event);

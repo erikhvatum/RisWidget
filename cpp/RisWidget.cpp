@@ -38,8 +38,7 @@ static void* do_import_array()
 RisWidget::RisWidget(QString windowTitle_,
                      QWidget* parent,
                      Qt::WindowFlags flags)
-  : QMainWindow(parent, flags),
-    m_sharedGlObjects(new SharedGlObjects)
+  : QMainWindow(parent, flags)
 {
     static bool oneTimeInitDone{false};
     if(!oneTimeInitDone)
@@ -75,7 +74,7 @@ void RisWidget::makeRenderer()
     m_renderer.reset( new Renderer(m_imageWidget->imageView(),
                                    m_histogramWidget->histogramView()) );
     m_renderer->moveToThread(m_rendererThread);
-    connect(m_rendererThread.data(), &QThread::started(), m_renderer.get(), &Renderer::threadInitSlot, Qt::QueuedConnection);
+    connect(m_rendererThread.data(), &QThread::started, m_renderer.get(), &Renderer::threadInitSlot, Qt::QueuedConnection);
     m_rendererThread->start();
 }
 
@@ -89,80 +88,32 @@ HistogramWidget* RisWidget::histogramWidget()
     return m_histogramWidget;
 }
 
-void RisWidget::showImage(const std::uint16_t* imageData, const QSize& imageSize, bool filterTexture)
+void RisWidget::showImage(const GLushort* imageDataRaw, const QSize& imageSize, bool filterTexture)
 {
-    m_imageWidget->imageView()->makeCurrent();
-    loadImageData(imageData, imageSize, filterTexture);
-    update();
+    std::size_t byteCount = sizeof(GLushort) *
+                            static_cast<std::size_t>(imageSize.width()) *
+                            static_cast<std::size_t>(imageSize.height());
+    ImageData imageData(byteCount);
+    memcpy(reinterpret_cast<void*>(imageData.data()),
+           reinterpret_cast<const void*>(imageDataRaw),
+           byteCount);
+    m_renderer->showImage(imageData, imageSize, filterTexture);
 }
 
 void RisWidget::showImage(PyObject* image, bool filterTexture)
 {
-    PyObject* imageao = PyArray_FromAny(image, PyArray_DescrFromType(NPY_USHORT), 2, 2, NPY_ARRAY_CARRAY_RO, nullptr);
+    PyArrayObject* imageao = reinterpret_cast<PyArrayObject*>(PyArray_FromAny(image, PyArray_DescrFromType(NPY_USHORT),
+                                                                              2, 2, NPY_ARRAY_CARRAY_RO, nullptr));
     if(imageao == nullptr)
     {
         throw RisWidgetException("RisWidget::showImage(PyObject* image): image argument must be an "
                                  "array-like object convertable to a 2d uint16 numpy array.");
     }
     npy_intp* shape = PyArray_DIMS(imageao);
-    showImage(reinterpret_cast<const std::uint16_t*>(PyArray_DATA(imageao)), QSize(shape[1], shape[0]));
+    showImage(reinterpret_cast<const GLushort*>(PyArray_DATA(imageao)), QSize(shape[1], shape[0]), filterTexture);
     Py_DECREF(imageao);
 }
 
-void RisWidget::loadImageData(const std::uint16_t* imageData, const QSize& imageSize, const bool& filterTexture)
-{
-    if(imageSize.width() <= 0 || imageSize.height() <= 0)
-    {
-        throw RisWidgetException("RisWidget::showImage(const std::uint16_t* imageData, const QSize& imageSize): "
-                                 "At least one dimension of imageSize is less than or equal to zero.");
-    }
-    m_sharedGlObjects->imageAspectRatio = static_cast<float>(imageSize.width()) / imageSize.height();
-    bool reallocate = m_sharedGlObjects->imageSize != imageSize;
-    m_sharedGlObjects->imageSize = imageSize;
-
-    m_sharedGlObjects->histogramIsStale = true;
-    m_sharedGlObjects->histogramDataStructuresAreStale = reallocate;
-
-    QOpenGLFunctions_4_3_Core* glfs = m_imageWidget->imageView()->glfs();
-
-    if(reallocate && m_sharedGlObjects->image != std::numeric_limits<GLuint>::max())
-    {
-        glfs->glDeleteTextures(1, m_sharedGlObjects->image);
-        m_sharedGlObjects->image = std::numeric_limits<GLuint>::max();
-    }
-
-    if(m_sharedGlObjects->image == std::numeric_limits<GLuint>::max())
-    {
-        glfs->glGenTextures(1, &m_sharedGlObjects->image);
-        glfs->glBindTexture(GL_TEXTURE_2D, m_sharedGlObjects->image)
-        glfs->glTexStorage2D(GL_TEXTURE_2D, 1, GL_R16UI, imageSize.width(), imageSize.height());
-    }
-    else
-    {
-        glfs->glBindTexture(GL_TEXTURE_2D, m_sharedGlObjects->image)
-    }
-
-    glfs->glTexImage2D(GL_TEXTURE_2D,
-                       0,
-                       GL_R16UI,
-                       imageSize.width(), imageSize.height(),
-                       0,
-                       GL_RED_INTEGER, GL_UNSIGNED_SHORT,
-                       reinterpret_cast<GLvoid*>(imageData));
-    GLenum filterType = filterTexture ? GL_LINEAR : GL_NEAREST;
-    glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filterType);
-    glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filterType);
-    glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-}
-
-void RisWidget::makeRenderer()
-{
-}
-
-void RisWidget::destroyRenderer()
-{
-}
 
 #ifdef STAND_ALONE_EXECUTABLE
 #include <QApplication>

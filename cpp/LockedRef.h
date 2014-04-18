@@ -23,7 +23,7 @@
 #pragma once
 
 #include "Common.h"
-
+/*
 template<typename RefT, typename MutexT = QMutex>
 class LockedRef
 {
@@ -72,5 +72,5 @@ template<typename RefT, typename MutexT>
 RefT& LockedRef<RefT, MutexT>::ref() const
 {
     return m_ref;
-}
+}*/
 

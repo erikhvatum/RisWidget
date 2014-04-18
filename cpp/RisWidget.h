@@ -43,7 +43,7 @@ public:
     ImageWidget* imageWidget();
     HistogramWidget* histogramWidget();
 
-    void showImage(const std::uint16_t* imageData, const QSize& imageSize, bool filterTexture=true);
+    void showImage(const GLushort* imageDataRaw, const QSize& imageSize, bool filterTexture=true);
     void showImage(PyObject* image, bool filterTexture=true);
 
 protected:
@@ -53,8 +53,4 @@ protected:
     void makeViews();
     void makeRenderer();
     void destroyRenderer();
-
-    void updateImageData(const std::uint16_t* imageData, const QSize& imageSize, const bool& filterTexture);
-    // Executes histogramCalc and histogramConsolidate
-    void updateHistogramData();
 };

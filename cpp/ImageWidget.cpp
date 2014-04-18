@@ -24,16 +24,9 @@
 #include "ImageWidget.h"
 
 ImageWidget::ImageWidget(QWidget* parent)
-  : QWidget(parent),
-    m_imageViewHolder(nullptr),
-    m_imageView(nullptr)
+  : ViewWidget(parent)
 {
     setupUi(this);
-    if(layout() == nullptr)
-    {
-        QHBoxLayout* layout_(new QHBoxLayout);
-        setLayout(layout_);
-    }
 }
 
 ImageWidget::~ImageWidget()
@@ -47,5 +40,5 @@ ImageView* ImageWidget::imageView()
 
 View* ImageWidget::instantiateView()
 {
-    return new ImageView(this);
+    return new ImageView(windowHandle());
 }

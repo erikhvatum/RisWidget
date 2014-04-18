@@ -26,17 +26,20 @@
 #include "Renderer.h"
 
 bool Renderer::sm_staticInited = false;
-QSurfaceFormat Renderer::m_format{/*QSurfaceFormat::DebugContext*/};
+const QSurfaceFormat Renderer::sm_format{QSurfaceFormat::DebugContext};
 
 void Renderer::staticInit()
 {
     if(!sm_staticInited)
     {
+        QSurfaceFormat& format = const_cast<QSurfaceFormat&>(sm_format);
         // Our weakest target platform is Macmini6,1, having Intel HD 4000 graphics, supporting up to OpenGL 4.1 on OS X.
-        sm_format.setVersion(4, 3);
-        sm_format.setProfile(QSurfaceFormat::CoreProfile);
-        sm_format.setSwapBehavior(QSurfaceFormat::TripleBuffer);
-        sm_format.setRenderableType(QSurfaceFormat::OpenGL);
+        format.setRenderableType(QSurfaceFormat::OpenGL);
+        format.setVersion(4, 3);
+        format.setProfile(QSurfaceFormat::CoreProfile);
+        format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
+        format.setStereo(false);
+//      format.setSwapBehavior(QSurfaceFormat::TripleBuffer);
 //      QGLFormat format
 //      (
 //          // Want hardware rendering (should be enabled by default, but this can't hurt)
@@ -74,8 +77,7 @@ Renderer::Renderer(ImageView* imageView, HistogramView* histogramView)
     m_histogramBinCount(2048),
     m_histogramBlocks(std::numeric_limits<GLuint>::max()),
     m_histogram(std::numeric_limits<GLuint>::max()),
-    m_histogramData(histogramBinCount, 0),
-    m_histogramPmv(1.0f),
+    m_histogramData(m_histogramBinCount, 0)
 {
     connect(this, &Renderer::_updateView, this, &Renderer::updateViewSlot, Qt::QueuedConnection);
     connect(this, &Renderer::_newImage, this, &Renderer::newImageSlot, Qt::QueuedConnection);
@@ -106,18 +108,19 @@ void Renderer::updateView(View* view)
     QMutexLocker locker(m_lock);
     if(!*updatePending && view->m_context)
     {
+        *updatePending = true;
         emit _updateView(view);
     }
 }
 
-void Renderer::showImage(const ImageDataPtr& imageDataPtr, const QSize& imageSize, const bool& filter)
+void Renderer::showImage(const ImageData& imageData, const QSize& imageSize, const bool& filter)
 {
-    if(imageDataPtr && (imageSize.width() <= 0 || imageSize.height() <= 0))
+    if(!imageData.empty() && (imageSize.width() <= 0 || imageSize.height() <= 0))
     {
-        throw RisWidgetException("Renderer::showImage(const ImageDataPtr& imageDataPtr, const QSize& imageSize, const bool& filter): "
-                                 "imageDataPtr is not null, but at least one dimension of imageSize is less than or equal to zero.");
+        throw RisWidgetException("Renderer::showImage(const ImageData& imageData, const QSize& imageSize, const bool& filter): "
+                                 "imageData is not empty, but at least one dimension of imageSize is less than or equal to zero.");
     }
-    emit _newImage(imageDataPtr, imageSize, filter);
+    emit _newImage(imageData, imageSize, filter);
 }
 
 void Renderer::setHistogramBinCount(const GLuint& histogramBinCount)
@@ -129,7 +132,7 @@ void Renderer::delImage()
 {
     if(m_image != std::numeric_limits<GLuint>::max())
     {
-        m_imageDataPtr.reset();
+        m_imageData.clear();
         m_glfs->glDeleteTextures(1, &m_image);
         m_image = std::numeric_limits<GLuint>::max();
         m_imageSize.setWidth(0);
@@ -197,6 +200,7 @@ void Renderer::makeGlfs()
     // either view's function bundle exclusively regardless of which view is being manipulated.  We don't need to call
     // through a view's own function bundle when drawing to it.  (However, the specific view's context _does_ need to be
     // current in order to draw to its frame buffer.)
+    m_imageView->makeCurrent();
     m_glfs = m_imageView->m_context->versionFunctions<QOpenGLFunctions_4_3_Core>();
     if(m_glfs == nullptr)
     {
@@ -336,9 +340,55 @@ void Renderer::execHistoConsolidate()
                                reinterpret_cast<GLvoid*>(m_histoConsolidateProg.extrema));
 }
 
+void Renderer::updateGlViewportSize(View* view, QSize& size)
+{
+    QMutexLocker sizeLocker(view->m_sizeLock);
+    if(view->m_size != view->m_glSize)
+    {
+        m_glfs->glViewport(0, 0, view->m_size.width(), view->m_size.height());
+        view->m_glSize = view->m_size;
+    }
+    size = view->m_size;
+}
+
 void Renderer::execImageDraw()
 {
     m_imageView->makeCurrent();
+    m_glfs->glUseProgram(m_imageDrawProg);
+
+    QSize viewSize;
+    updateGlViewportSize(m_imageView, viewSize);
+
+    glm::vec4 clearColor{m_imageView->clearColor()};
+    m_glfs->glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
+    m_glfs->glClearDepth(1.0f);
+    m_glfs->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    if(!m_imageData.empty())
+    {
+        // Image aspect ratio is always maintained.  The image is centered along whichever axis does not fit.
+        float viewAspectRatio = static_cast<float>(viewSize.width()) / viewSize.height();
+        float correctionFactor = m_imageAspectRatio / viewAspectRatio;
+        glm::mat4 pmv(1.0f);
+        if(correctionFactor <= 1)
+        {
+            pmv = glm::scale(pmv, glm::vec3(correctionFactor, 1.0f, 1.0f));
+        }
+        else
+        {
+            pmv = glm::scale(pmv, glm::vec3(1.0f, 1.0f / correctionFactor, 1.0f));
+        }
+        m_glfs->glUniformMatrix4fv(m_imageDrawProg.projectionModelViewMatrixLoc,
+                                   1, GL_FALSE, glm::value_ptr(pmv));
+
+        m_glfs->glBindVertexArray(m_imageDrawProg.quadVao);
+        GLuint sub = m_imageDrawProg.gtpEnabled ? 
+            m_imageDrawProg.imagePanelGammaTransformColorerIdx : m_imageDrawProg.imagePanelPassthroughColorerIdx;
+        m_glfs->glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 1, &sub);
+        m_glfs->glBindTexture(GL_TEXTURE_2D, m_image);
+
+        m_glfs->glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+    }
 
     m_imageView->swapBuffers();
 }
@@ -346,6 +396,58 @@ void Renderer::execImageDraw()
 void Renderer::execHistoDraw()
 {
     m_histogramView->makeCurrent();
+    m_glfs->glUseProgram(m_histoDrawProg);
+
+    QSize viewSize;
+    updateGlViewportSize(m_histogramView, viewSize);
+
+    glm::vec4 clearColor{m_histogramView->clearColor()};
+    m_glfs->glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
+    m_glfs->glClearDepth(1.0f);
+    m_glfs->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    if(!m_imageData.empty())
+    {
+        m_glfs->glUniform1ui(m_histoDrawProg.binCountLoc, m_histogramBinCount);
+        m_glfs->glUniform1f(m_histoDrawProg.binScaleLoc, m_histoConsolidateProg.extrema[1]);
+        glm::mat4 pmv(1.0f);
+        m_glfs->glUniformMatrix4fv(m_histoDrawProg.projectionModelViewMatrixLoc, 1, GL_FALSE, glm::value_ptr(pmv));
+
+        if(m_histoDrawProg.pointVao == std::numeric_limits<GLuint>::max())
+        {
+            m_glfs->glGenVertexArrays(1, &m_histoDrawProg.pointVao);
+            m_glfs->glBindVertexArray(m_histoDrawProg.pointVao);
+
+            m_glfs->glGenBuffers(1, &m_histoDrawProg.pointVaoBuff);
+            m_glfs->glBindBuffer(GL_ARRAY_BUFFER, m_histoDrawProg.pointVaoBuff);
+            {
+                std::vector<float> points;
+                points.reserve(m_histogramBinCount);
+                std::uint32_t i = 0;
+                for(std::vector<float>::iterator point{points.begin()}; point != points.end(); ++point, ++i)
+                {
+                    *point = i;
+                }
+                m_glfs->glBufferData(GL_ARRAY_BUFFER, m_histogramBinCount,
+                                     reinterpret_cast<const GLvoid*>(points.data()),
+                                     GL_STATIC_DRAW);
+            }
+
+            m_glfs->glEnableVertexAttribArray(m_histoDrawProg.binIndexLoc);
+            m_glfs->glVertexAttribPointer(m_histoDrawProg.binIndexLoc, 1, GL_FLOAT, GL_FALSE, 0, nullptr);
+        }
+        else
+        {
+            m_glfs->glBindVertexArray(m_histoDrawProg.pointVao);
+        }
+
+        m_glfs->glBindTexture(GL_TEXTURE_1D, 0);
+        m_glfs->glBindImageTexture(m_histoDrawProg.histogramLoc, m_histogram, 0, true, 0, GL_READ_ONLY, GL_R32UI);
+
+        m_glfs->glDrawArrays(GL_LINE_STRIP, 0, m_histogramBinCount);
+        m_glfs->glPointSize(4);
+        m_glfs->glDrawArrays(GL_POINTS, 0, m_histogramBinCount);
+    }
 
     m_histogramView->swapBuffers();
 }
@@ -374,7 +476,7 @@ void Renderer::updateViewSlot(View* view)
         if(m_imageViewUpdatePending)
         {
             m_imageViewUpdatePending = false;
-            drawImageView();
+            execImageDraw();
         }
     }
     else if(view == m_histogramView)
@@ -382,25 +484,25 @@ void Renderer::updateViewSlot(View* view)
         if(m_histogramViewUpdatePending)
         {
             m_histogramViewUpdatePending = false;
-            drawHistogramView();
+            execHistoDraw();
         }
     }
 }
 
-void Renderer::newImageSlot(ImageDataPtr imageDataPtr, QSize imageSize, bool filter)
+void Renderer::newImageSlot(ImageData imageData, QSize imageSize, bool filter)
 {
     QMutexLocker locker(m_lock);
     m_imageView->makeCurrent();
 
-    if(m_imageDataPtr && (!imageDataPtr || m_imageSize != imageSize))
+    if(!m_imageData.empty() && (imageData.empty() || m_imageSize != imageSize))
     {
         delImage();
         delHistogramBlocks();
     }
 
-    if(imageDataPtr)
+    if(!m_imageData.empty())
     {
-        m_imageDataPtr = imageDataPtr;
+        m_imageData = imageData;
         m_imageSize = imageSize;
         m_imageAspectRatio = static_cast<float>(m_imageSize.width()) / m_imageSize.height();
 
@@ -421,7 +523,7 @@ void Renderer::newImageSlot(ImageDataPtr imageDataPtr, QSize imageSize, bool fil
         m_glfs->glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
                                 m_imageSize.width(), m_imageSize.height(),
                                 GL_RED_INTEGER, GL_UNSIGNED_SHORT,
-                                reinterpret_cast<GLvoid*>(m_imageDataPtr->data()));
+                                reinterpret_cast<GLvoid*>(m_imageData.data()));
         GLenum filterType = filter ? GL_LINEAR : GL_NEAREST;
         m_glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filterType);
         m_glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filterType);
@@ -445,7 +547,7 @@ void Renderer::setHistogramBinCountSlot(GLuint histogramBinCount)
         delHistogram();
         m_histogramBinCount = histogramBinCount;
 
-        if(m_imageDataPtr)
+        if(!m_imageData.empty())
         {
             execHistoCalc();
             execHistoConsolidate();
