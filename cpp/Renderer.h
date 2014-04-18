@@ -32,6 +32,7 @@ class HistogramView;
 // Note that QVector<> does implicit sharing with reference counting and copy-on-write:
 // http://qt-project.org/doc/qt-5/qvector.html#QVector-4
 typedef QVector<GLushort> ImageData;
+typedef std::vector<GLuint> HistogramData;
 
 // In terms of the first example in the "detailed description" section of "http://qt-project.org/doc/qt-5/qthread.html",
 // this class would be termed Worker, and the RisWidget class would be Controller.
@@ -52,12 +53,11 @@ public:
     // Queue a refresh of view (no-op if a refresh of view is already pending).  Refer to View::update()'s declaration
     // in View.h for more details.
     void updateView(View* view);
-
     // Supply an empty ImageData QVector for imageData with any imageSize and filter arguments to display nothing,
     // removing current image if there is one
     void showImage(const ImageData& imageData, const QSize& imageSize, const bool& filter);
-
     void setHistogramBinCount(const GLuint& histogramBinCount);
+    std::shared_ptr<LockedRef<const HistogramData>> getHistogram();
 
 private:
     static bool sm_staticInited;
@@ -90,14 +90,12 @@ private:
     // Aspect ratio of image texture
     float m_imageAspectRatio;
 
-    bool m_histogramDataStructuresAreStale;
     GLuint m_histogramBinCount;
     GLuint m_histogramBlocks;
     void delHistogramBlocks();
-    bool m_histogramDataIsStale;
     GLuint m_histogram;
     void delHistogram();
-    std::vector<GLuint> m_histogramData;
+    HistogramData m_histogramData;
 
     void makeContexts();
     void makeGlfs();

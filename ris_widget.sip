@@ -62,6 +62,11 @@ public:
     Note that this function holds the GIL as it creates an intermediate numpy array, although 
     the intermediate may be a zero copy view of the image argument.
 %End
+
+    PyObject* getHistogram() /HoldGIL/;
+%Docstring
+    Returns a copy of the currently displayed image's histogram data as a numpy array.
+%End
 };
 
 

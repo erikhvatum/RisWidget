@@ -45,6 +45,7 @@ public:
 
     void showImage(const GLushort* imageDataRaw, const QSize& imageSize, bool filterTexture=true);
     void showImage(PyObject* image, bool filterTexture=true);
+    PyObject* getHistogram();
 
 protected:
     std::shared_ptr<Renderer> m_renderer;

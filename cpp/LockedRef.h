@@ -23,12 +23,19 @@
 #pragma once
 
 #include "Common.h"
-/*
+
 template<typename RefT, typename MutexT = QMutex>
 class LockedRef
 {
 public:
-    LockedRef(RefT& ref, MutexT& lock);
+    enum LockDispositionAtConstruction
+    {
+        PreLocked,
+        GetLock
+    };
+
+    LockedRef(RefT& ref, MutexT& lock,
+              const LockDispositionAtConstruction& lockDispositionAtConstruction = GetLock);
     ~LockedRef();
     LockedRef(const LockedRef&) = delete;
     LockedRef& operator = (const LockedRef&) = delete;
@@ -43,17 +50,21 @@ protected:
 };
 
 template<typename RefT, typename MutexT>
-LockedRef<RefT, MutexT>::LockedRef(RefT& ref, MutexT& lock)
+LockedRef<RefT, MutexT>::LockedRef(RefT& ref, MutexT& lock,
+                                   const LockDispositionAtConstruction& lockDispositionAtConstruction)
   : m_ref(ref),
     m_lock(lock)
 {
-    m_lock.lock();
+    if(lockDispositionAtConstruction == GetLock)
+    {
+        m_lock.lock();
+    }
 }
 
 template<typename RefT, typename MutexT>
 LockedRef<RefT, MutexT>::~LockedRef()
 {
-    m_lock.unlock()
+    m_lock.unlock();
 }
 
 template<typename RefT, typename MutexT>
@@ -72,5 +83,5 @@ template<typename RefT, typename MutexT>
 RefT& LockedRef<RefT, MutexT>::ref() const
 {
     return m_ref;
-}*/
+}
 

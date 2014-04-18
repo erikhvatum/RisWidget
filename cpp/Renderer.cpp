@@ -128,6 +128,12 @@ void Renderer::setHistogramBinCount(const GLuint& histogramBinCount)
     emit _setHistogramBinCount(histogramBinCount);
 }
 
+std::shared_ptr<LockedRef<const HistogramData>> Renderer::getHistogram()
+{
+    return std::shared_ptr<LockedRef<const HistogramData>>{
+        new LockedRef<const HistogramData>(m_histogramData, *m_lock)};
+}
+
 void Renderer::delImage()
 {
     if(m_image != std::numeric_limits<GLuint>::max())
@@ -388,6 +394,7 @@ void Renderer::execImageDraw()
         m_glfs->glBindTexture(GL_TEXTURE_2D, m_image);
 
         m_glfs->glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+        std::cerr << "m_glfs->glDrawArrays(GL_TRIANGLE_FAN, 0, 4);" << std::endl;
     }
 
     m_imageView->swapBuffers();
@@ -500,7 +507,7 @@ void Renderer::newImageSlot(ImageData imageData, QSize imageSize, bool filter)
         delHistogramBlocks();
     }
 
-    if(!m_imageData.empty())
+    if(!imageData.empty())
     {
         m_imageData = imageData;
         m_imageSize = imageSize;

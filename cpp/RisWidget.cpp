@@ -114,6 +114,24 @@ void RisWidget::showImage(PyObject* image, bool filterTexture)
     Py_DECREF(imageao);
 }
 
+PyObject* RisWidget::getHistogram()
+{
+    auto histogramData = m_renderer->getHistogram();
+    PyObject* ret = Py_None;
+    npy_intp size = histogramData->ref().size();
+    if(size != 0)
+    {
+        ret = PyArray_EMPTY(1, &size, NPY_UINT32, 0);
+        PyArrayObject* retao = reinterpret_cast<PyArrayObject*>(ret);
+        memcpy(PyArray_DATA(retao),
+               reinterpret_cast<const void*>(histogramData->ref().data()),
+               sizeof(GLuint) * histogramData->ref().size());
+    }
+
+    Py_INCREF(ret);
+    return ret;
+}
+
 
 #ifdef STAND_ALONE_EXECUTABLE
 #include <QApplication>
