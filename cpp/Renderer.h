@@ -74,6 +74,9 @@ private:
     // the Renderer thread without requiring functions outside of the RenderThread class to execute on the Renderer
     // thread, only Renderer methods have cause to use m_glfs.
     QOpenGLFunctions_4_3_Core* m_glfs;
+#ifdef ENABLE_GL_DEBUG_LOGGING
+    QOpenGLDebugLogger* m_glDebugLogger;
+#endif
 
     HistoCalcProg m_histoCalcProg;
     HistoConsolidateProg m_histoConsolidateProg;
@@ -121,5 +124,8 @@ private slots:
     void newImageSlot(ImageData imageData, QSize imageSize, bool filter);
     void updateViewSlot(View* view);
     void setHistogramBinCountSlot(GLuint histogramBinCount);
+#ifdef ENABLE_GL_DEBUG_LOGGING
+    void glDebugMessageLogged(const QOpenGLDebugMessage& debugMessage);
+#endif
 };
 

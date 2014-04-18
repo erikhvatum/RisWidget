@@ -47,6 +47,9 @@
 #include <QMainWindow>
 #include <QMutex>
 #include <QMutexLocker>
+#ifdef ENABLE_GL_DEBUG_LOGGING
+ #include <QOpenGLDebugLogger>
+#endif
 #define GL_GLEXT_PROTOTYPES
 #include <QOpenGLFunctions_4_3_Core>
 // Note: QPointers act as weak references to QObject derived class instances.  See here:

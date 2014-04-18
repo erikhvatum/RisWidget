@@ -26,7 +26,12 @@
 #include "Renderer.h"
 
 bool Renderer::sm_staticInited = false;
+
+#ifdef ENABLE_GL_DEBUG_LOGGING
 const QSurfaceFormat Renderer::sm_format{QSurfaceFormat::DebugContext};
+#else
+const QSurfaceFormat Renderer::sm_format;
+#endif
 
 void Renderer::staticInit()
 {
@@ -68,6 +73,10 @@ Renderer::Renderer(ImageView* imageView, HistogramView* histogramView)
     m_imageViewUpdatePending(false),
     m_histogramView(histogramView),
     m_histogramViewUpdatePending(false),
+    m_glfs(nullptr),
+#ifdef ENABLE_GL_DEBUG_LOGGING
+    m_glDebugLogger(nullptr),
+#endif
     m_histoCalcProg("histoCalcProg"),
     m_histoConsolidateProg("histoConsolidateProg"),
     m_imageDrawProg("imageDrawProg"),
@@ -192,7 +201,25 @@ void Renderer::makeContexts()
     {
         throw RisWidgetException("Renderer::makeContexts(): Failed to create OpenGL context for histogramView.");
     }
+#ifdef ENABLE_GL_DEBUG_LOGGING
+    m_histogramView->makeCurrent();
+    m_glDebugLogger = new QOpenGLDebugLogger(this);
+    if(!m_glDebugLogger->initialize())
+    {
+        throw RisWidgetException("Renderer::makeContexts(): Failed to initialize OpenGL logger.");
+    }
+    connect(m_glDebugLogger, &QOpenGLDebugLogger::messageLogged, this, &Renderer::glDebugMessageLogged);
+    m_glDebugLogger->startLogging(QOpenGLDebugLogger::SynchronousLogging);
+    m_glDebugLogger->enableMessages();
+#endif
 }
+
+#ifdef ENABLE_GL_DEBUG_LOGGING
+void Renderer::glDebugMessageLogged(const QOpenGLDebugMessage& debugMessage)
+{
+    std::cerr << "GL: " << debugMessage.message().toStdString() << std::endl;
+}
+#endif
 
 void Renderer::makeGlfs()
 {
@@ -429,19 +456,21 @@ void Renderer::execHistoDraw()
             m_glfs->glBindBuffer(GL_ARRAY_BUFFER, m_histoDrawProg.pointVaoBuff);
             {
                 std::vector<float> points;
-                points.reserve(m_histogramBinCount);
-                std::uint32_t i = 0;
-                for(std::vector<float>::iterator point{points.begin()}; point != points.end(); ++point, ++i)
+                points.resize(m_histogramBinCount, 0);
+                GLuint i = 0;
+                for(std::vector<float>::iterator point(points.begin()); point != points.end(); ++point, ++i)
                 {
                     *point = i;
                 }
-                m_glfs->glBufferData(GL_ARRAY_BUFFER, m_histogramBinCount,
+                m_glfs->glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * m_histogramBinCount,
                                      reinterpret_cast<const GLvoid*>(points.data()),
                                      GL_STATIC_DRAW);
             }
 
             m_glfs->glEnableVertexAttribArray(m_histoDrawProg.binIndexLoc);
             m_glfs->glVertexAttribPointer(m_histoDrawProg.binIndexLoc, 1, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+            m_glfs->glBindBuffer(GL_ARRAY_BUFFER, 0);
         }
         else
         {
