@@ -56,6 +56,7 @@ protected:
     QPointer<QThread> m_rendererThread;
     PyObject* m_mainModule;
     PyObject* m_numpy;
+    PyObject* m_numpyLoad;
 
     void makeViews();
     void makeRenderer();

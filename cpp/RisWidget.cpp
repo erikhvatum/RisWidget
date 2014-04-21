@@ -38,7 +38,10 @@ static void* do_import_array()
 RisWidget::RisWidget(QString windowTitle_,
                      QWidget* parent,
                      Qt::WindowFlags flags)
-  : QMainWindow(parent, flags)
+  : QMainWindow(parent, flags),
+    m_mainModule(nullptr),
+    m_numpy(nullptr),
+    m_numpyLoad(nullptr)
 {
     static bool oneTimeInitDone{false};
     if(!oneTimeInitDone)
@@ -56,6 +59,7 @@ RisWidget::RisWidget(QString windowTitle_,
 
 #ifdef STAND_ALONE_EXECUTABLE
     setAttribute(Qt::WA_DeleteOnClose, true);
+    QApplication::setQuitOnLastWindowClosed(true);
 #endif
 }
 
@@ -63,10 +67,10 @@ RisWidget::RisWidget(PyObject* mainModule, PyObject* numpy,
                      QString windowTitle_,
                      QWidget* parent,
                      Qt::WindowFlags flags)
-  : RisWidget(windowTitle_, parent, flags),
-    m_mainModule(mainModule),
-    m_numpy(numpy)
+  : RisWidget(windowTitle_, parent, flags)
 {
+    m_mainModule = mainModule;
+    m_numpy = numpy;
 }
 
 RisWidget::~RisWidget()
@@ -151,11 +155,41 @@ void RisWidget::loadFile()
     QString fnqstr(QFileDialog::getOpenFileName(this, "Open Image or Numpy Array File", QString(), "Numpy Array Files (*.npy)"));
     if(!fnqstr.isNull())
     {
-        // Todo: use the direct interface returning a pyobject to evaluate the lazily retrieved (todo) PyObject* functor
-        // numpy.load(..) with a char * as the filename argument to the functor
-
-//      std::string cmd("___);
-//      if(PyRun_SimpleString("
+        // Note: PyModule_GetDict(..) and PyDict_GetItemString(..) return borrowed references
+        if(m_numpyLoad == nullptr)
+        {
+            PyObject* numpyModDict = PyModule_GetDict(m_numpy);
+            if(numpyModDict == nullptr)
+            {
+                throw RisWidgetException("RisWidget::loadFile(): Failed to get numpy module attribute dict.");
+            }
+            m_numpyLoad = PyDict_GetItemString(numpyModDict, "load");
+            if(m_numpyLoad == nullptr || !PyCallable_Check(m_numpyLoad))
+            {
+                throw RisWidgetException("RisWidget::loadFile(): Failed to resolve Python function numpy.load(..).");
+            }
+        }
+        std::string fnstdstr{fnqstr.toStdString()};
+        auto deleter = [](PyObject* del){Py_XDECREF(del);};
+        typedef std::unique_ptr<PyObject, decltype(deleter)> QObjectUP;
+        QObjectUP fnpystr(PyUnicode_FromString(fnstdstr.c_str()), deleter);
+        QObjectUP args(PyTuple_New(1), deleter);
+        PyTuple_SetItem(args.get(), 0, fnpystr.get());
+        QObjectUP ret(PyObject_CallObject(m_numpyLoad, args.get()), deleter);
+        if(PyErr_Occurred())
+        {
+#ifdef STAND_ALONE_EXECUTABLE
+            PyErr_Print();
+            PyErr_Clear();
+#endif
+        }
+        else
+        {
+            if(ret)
+            {
+                showImage(ret.get());
+            }
+        }
     }
 }
 
@@ -169,8 +203,8 @@ void RisWidget::closeEvent(QCloseEvent* event)
         m_rendererThread->quit();
         m_rendererThread->wait();
     }
-    QApplication::quit();
 }
+
 #include <QApplication>
 
 int main(int argc, char** argv)
@@ -184,18 +218,15 @@ int main(int argc, char** argv)
         ret = -1;
         std::cerr << "int main(int argc, char** argv): PyImport_AddModule(\"__main__\") failed." << std::endl;
     }
-    // NB: PyImportModule, like many (all?) of the Python C API functions outputting a PyObject* returns a "borrowed
-    // reference" that must be claimed before the next turn of the interpreter (which isn't a problem, seeing as how
-    // your C/C++ code is holding the GIL...
+    // Note: PyImport_ImportModule(..) returns a new reference 
     PyObject* numpy = PyImport_ImportModule("numpy");
-    Py_INCREF(numpy);
     QApplication app(argc, argv);
     RisWidget* risWidget{new RisWidget(mainModule, numpy)};
     risWidget->show();
     ret = app.exec();
     Py_DECREF(numpy);
     Py_Finalize();
-    return app.exec();
+    return ret;
 }
 
 #endif

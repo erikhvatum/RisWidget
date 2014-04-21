@@ -9,8 +9,9 @@
 		Type="gnuc"
 		DebugCallbackName="gdb"
 		Version="1"
-		OutputFile="%bdris_widget"
-		CompilerConfigName="Latest Version">
+		OutputFile="/home/ehvatum/zplrepo/ris_widget/cpp/RisWidget"
+		CompilerConfigName="Latest Version"
+		Defines="">
 		<Menu>
 			<Target
 				Name="Compile"
@@ -21,7 +22,7 @@
 				OutputExts="*.o"
 				SaveOption="SaveCurrent"
 				RunFromDir="%rw">
-				<Exec CmdLine='g++ -c %xup  %defd -g -o "%bd%n%oe" %i "%f"'/>
+				<Exec CmdLine='g++ -c %xup %defd -g -o "%bd%n%oe" %i %f'/>
 			</Target>
 			<Target
 				Name="Link"
@@ -32,7 +33,7 @@
 				Deletable="0"
 				SaveOption="SaveCurrent"
 				RunFromDir="%rw">
-				<Exec CmdLine='g++ %xup -g -o "%o" %f %libs'/>
+				<Exec CmdLine='g++ %xup -g -o "%o" %objs'/>
 			</Target>
 			<Target
 				Name="Build"
@@ -56,7 +57,6 @@
 				Name="Debug"
 				MenuCaption="&amp;Debug"
 				Dialog="_gnuc_options_form Run/Debug"
-				BuildFirst="1"
 				CaptureOutputWith="ProcessBuffer"
 				Deletable="0"
 				SaveOption="SaveNone"
@@ -96,14 +96,17 @@
 				Name="LinkerOutputType"
 				Value="Executable"/>
 		</List>
+		<Includes/>
+		<Libs PreObjects="0"/>
 	</Config>
 	<Config
 		Name="Release"
 		Type="gnuc"
 		DebugCallbackName="gdb"
 		Version="1"
-		OutputFile="%bdris_widget"
-		CompilerConfigName="Latest Version">
+		OutputFile="/home/ehvatum/zplrepo/ris_widget/cpp/RisWidget"
+		CompilerConfigName="Latest Version"
+		Defines="">
 		<Menu>
 			<Target
 				Name="Compile"
@@ -114,7 +117,7 @@
 				OutputExts="*.o"
 				SaveOption="SaveCurrent"
 				RunFromDir="%rw">
-				<Exec CmdLine='g++ -c %xup %defd -o "%bd%n%oe" %i "%f"'/>
+				<Exec CmdLine='g++ -c %xup %defd -o "%bd%n%oe" %i %f'/>
 			</Target>
 			<Target
 				Name="Link"
@@ -125,7 +128,7 @@
 				Deletable="0"
 				SaveOption="SaveCurrent"
 				RunFromDir="%rw">
-				<Exec CmdLine='g++ %xup -o "%o" %f %libs'/>
+				<Exec CmdLine='g++ %xup -o "%o" %objs'/>
 			</Target>
 			<Target
 				Name="Build"
@@ -149,7 +152,6 @@
 				Name="Debug"
 				MenuCaption="&amp;Debug"
 				Dialog="_gnuc_options_form Run/Debug"
-				BuildFirst="1"
 				CaptureOutputWith="ProcessBuffer"
 				Deletable="0"
 				SaveOption="SaveNone"
@@ -189,6 +191,8 @@
 				Name="LinkerOutputType"
 				Value="Executable"/>
 		</List>
+		<Includes/>
+		<Libs PreObjects="0"/>
 	</Config>
 	<Files>
 		<Folder
@@ -239,6 +243,7 @@
 			<F N="cpp/RisWidget.ui"/>
 			<F N="cpp/RisWidgetException.cpp"/>
 			<F N="cpp/RisWidgetException.h"/>
+			<F N="cpp/RisWidget_standalone.pro"/>
 			<F N="cpp/View.cpp"/>
 			<F N="cpp/View.h"/>
 			<F N="cpp/ViewWidget.cpp"/>
