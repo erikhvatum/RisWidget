@@ -39,7 +39,6 @@ RisWidget::RisWidget(QString windowTitle_,
                      QWidget* parent,
                      Qt::WindowFlags flags)
   : QMainWindow(parent, flags),
-    m_mainModule(nullptr),
     m_numpy(nullptr),
     m_numpyLoad(nullptr)
 {
@@ -57,29 +56,32 @@ RisWidget::RisWidget(QString windowTitle_,
     makeViews();
     makeRenderer();
 
+    // Note: PyImport_ImportModule(..) returns a new reference
+    m_numpy = PyImport_ImportModule("numpy");
+    if(m_numpy == nullptr)
+    {
+        throw RisWidgetException("RisWidget constructor: Failed to import numpy Python module.");
+    }
+
 #ifdef STAND_ALONE_EXECUTABLE
     setAttribute(Qt::WA_DeleteOnClose, true);
     QApplication::setQuitOnLastWindowClosed(true);
+#else
+    Py_Initialize();
+    PyEval_InitThreads();
 #endif
-}
-
-RisWidget::RisWidget(PyObject* mainModule, PyObject* numpy,
-                     QString windowTitle_,
-                     QWidget* parent,
-                     Qt::WindowFlags flags)
-  : RisWidget(windowTitle_, parent, flags)
-{
-    m_mainModule = mainModule;
-    m_numpy = numpy;
 }
 
 RisWidget::~RisWidget()
 {
+    Py_XDECREF(m_numpyLoad);
+    Py_XDECREF(m_numpy);
 }
 
 void RisWidget::makeViews()
 {
     m_imageWidget->makeView();
+    connect(m_imageWidget->imageView(), &ImageView::mouseMoveEventSignal, this, &RisWidget::mouseMoveEventInImageView);
     m_histogramWidget->makeView();
 
     m_imageWidget->imageView()->setClearColor(glm::vec4(1.0f/3.0f, 1.0f/3.0f, 1.0f/3.0f, 0.0f));
@@ -155,27 +157,21 @@ void RisWidget::loadFile()
     QString fnqstr(QFileDialog::getOpenFileName(this, "Open Image or Numpy Array File", QString(), "Numpy Array Files (*.npy)"));
     if(!fnqstr.isNull())
     {
-        // Note: PyModule_GetDict(..) and PyDict_GetItemString(..) return borrowed references
         if(m_numpyLoad == nullptr)
         {
-            PyObject* numpyModDict = PyModule_GetDict(m_numpy);
-            if(numpyModDict == nullptr)
-            {
-                throw RisWidgetException("RisWidget::loadFile(): Failed to get numpy module attribute dict.");
-            }
-            m_numpyLoad = PyDict_GetItemString(numpyModDict, "load");
+            m_numpyLoad = PyObject_GetAttrString(m_numpy, "load");
             if(m_numpyLoad == nullptr || !PyCallable_Check(m_numpyLoad))
             {
                 throw RisWidgetException("RisWidget::loadFile(): Failed to resolve Python function numpy.load(..).");
             }
         }
         std::string fnstdstr{fnqstr.toStdString()};
-        auto deleter = [](PyObject* del){Py_XDECREF(del);};
-        typedef std::unique_ptr<PyObject, decltype(deleter)> QObjectUP;
-        QObjectUP fnpystr(PyUnicode_FromString(fnstdstr.c_str()), deleter);
-        QObjectUP args(PyTuple_New(1), deleter);
-        PyTuple_SetItem(args.get(), 0, fnpystr.get());
-        QObjectUP ret(PyObject_CallObject(m_numpyLoad, args.get()), deleter);
+        PyObject* fnpystr = PyUnicode_FromString(fnstdstr.c_str());
+        PyObject* args = PyTuple_New(1);
+        // Note: args steals a reference to fnpystr, so we are no longer responsibile for decreffing fnpystr
+        PyTuple_SetItem(args, 0, fnpystr);
+        PyObject* ret = PyObject_CallObject(m_numpyLoad, args);
+        Py_DECREF(args);
         if(PyErr_Occurred())
         {
 #ifdef STAND_ALONE_EXECUTABLE
@@ -187,10 +183,16 @@ void RisWidget::loadFile()
         {
             if(ret)
             {
-                showImage(ret.get());
+                showImage(ret);
+                Py_DECREF(ret);
             }
         }
     }
+}
+
+void RisWidget::mouseMoveEventInImageView(QMouseEvent* event)
+{
+    statusBar()->showMessage(QString("%1, %2").arg(event->x()).arg(event->y()));
 }
 
 #ifdef STAND_ALONE_EXECUTABLE
@@ -210,6 +212,9 @@ void RisWidget::closeEvent(QCloseEvent* event)
 int main(int argc, char** argv)
 {
     int ret{0};
+    QString argv0(argv[0]);
+    std::wstring argv0std(argv0.toStdWString());
+    Py_SetProgramName(const_cast<wchar_t*>(argv0std.c_str()));
     Py_Initialize();
     PyEval_InitThreads();
     PyObject* mainModule = PyImport_AddModule("__main__");
@@ -218,13 +223,13 @@ int main(int argc, char** argv)
         ret = -1;
         std::cerr << "int main(int argc, char** argv): PyImport_AddModule(\"__main__\") failed." << std::endl;
     }
-    // Note: PyImport_ImportModule(..) returns a new reference 
-    PyObject* numpy = PyImport_ImportModule("numpy");
-    QApplication app(argc, argv);
-    RisWidget* risWidget{new RisWidget(mainModule, numpy)};
-    risWidget->show();
-    ret = app.exec();
-    Py_DECREF(numpy);
+    else
+    {
+        QApplication app(argc, argv);
+        RisWidget* risWidget{new RisWidget};
+        risWidget->show();
+        ret = app.exec();
+    }
     Py_Finalize();
     return ret;
 }

@@ -34,8 +34,5 @@ class ImageView
 public:
     explicit ImageView(QWindow* parent);
     virtual ~ImageView();
-
-protected:
-    virtual void render();
 };
 

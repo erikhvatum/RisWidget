@@ -33,6 +33,3 @@ ImageView::~ImageView()
 {
 }
 
-void ImageView::render()
-{
-}

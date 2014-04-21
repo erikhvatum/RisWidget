@@ -67,6 +67,12 @@ public:
 %Docstring
     Returns a copy of the currently displayed image's histogram data as a numpy array.
 %End
+
+public slots:
+    void loadFile() /HoldGIL/;
+%Docstring
+    Presents Open File dialog.  Supports images as well as numpy data files.
+%End
 };
 
 

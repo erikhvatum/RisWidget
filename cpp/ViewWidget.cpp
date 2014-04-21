@@ -38,6 +38,11 @@ View* ViewWidget::view()
     return m_view;
 }
 
+QWidget* ViewWidget::viewHolderWidget()
+{
+    return m_viewHolderWidget;
+}
+
 void ViewWidget::makeView()
 {
     if(m_view || m_viewHolderWidget)
@@ -51,7 +56,7 @@ void ViewWidget::makeView()
         setLayout(layout_);
     }
     m_view = instantiateView();
-    m_viewHolderWidget = QWidget::createWindowContainer(m_view, this);
+    m_viewHolderWidget = QWidget::createWindowContainer(m_view, this, Qt::Widget);
     layout()->addWidget(m_viewHolderWidget);
     m_viewHolderWidget->show();
     m_view->show();

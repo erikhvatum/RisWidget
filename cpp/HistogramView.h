@@ -36,5 +36,4 @@ public:
     virtual ~HistogramView();
 
 protected:
-    virtual void render();
 };

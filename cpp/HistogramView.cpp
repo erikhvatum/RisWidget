@@ -33,6 +33,3 @@ HistogramView::~HistogramView()
 {
 }
 
-void HistogramView::render()
-{
-}

@@ -47,6 +47,9 @@ public:
     // into a single refresh.  If this View is not attached to a Renderer, update() is a no-op.
     void update();
 
+signals:
+    void mouseMoveEventSignal(QMouseEvent* ev);
+
 protected:
     QPointer<QOpenGLContext> m_context;
     QPointer<Renderer> m_renderer;
@@ -59,4 +62,5 @@ protected:
 
     virtual void resizeEvent(QResizeEvent* event);
     virtual void exposeEvent(QExposeEvent* event);
+    virtual void mouseMoveEvent(QMouseEvent* event);
 };

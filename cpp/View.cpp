@@ -96,6 +96,11 @@ void View::resizeEvent(QResizeEvent* event)
     }
 }
 
+void View::mouseMoveEvent(QMouseEvent* event)
+{
+    mouseMoveEventSignal(event);
+}
+
 void View::update()
 {
     if(m_renderer)

@@ -40,6 +40,7 @@ public:
     virtual ~ViewWidget();
 
     View* view();
+    QWidget* viewHolderWidget();
 
 protected:
     QPointer<QWidget> m_viewHolderWidget;
