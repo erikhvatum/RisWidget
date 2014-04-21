@@ -6,12 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
-    <height>600</height>
+    <width>1015</width>
+    <height>801</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
+  </property>
+  <property name="documentMode">
+   <bool>false</bool>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -25,14 +28,16 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>800</width>
-     <height>22</height>
+     <width>1015</width>
+     <height>26</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
     <property name="title">
      <string>File</string>
     </property>
+    <addaction name="actionLoadFile"/>
+    <addaction name="separator"/>
     <addaction name="actionClose"/>
    </widget>
    <addaction name="menuFile"/>
@@ -41,7 +46,7 @@
   <widget class="QDockWidget" name="dockWidget">
    <property name="minimumSize">
     <size>
-     <width>58</width>
+     <width>69</width>
      <height>70</height>
     </size>
    </property>
@@ -50,6 +55,9 @@
    </property>
    <property name="allowedAreas">
     <set>Qt::BottomDockWidgetArea|Qt::TopDockWidgetArea</set>
+   </property>
+   <property name="windowTitle">
+    <string>Histogram</string>
    </property>
    <attribute name="dockWidgetArea">
     <number>8</number>
@@ -62,6 +70,17 @@
    </property>
    <property name="toolTip">
     <string>Close</string>
+   </property>
+  </action>
+  <action name="actionLoadFile">
+   <property name="text">
+    <string>Load From File...</string>
+   </property>
+   <property name="toolTip">
+    <string>Open an image or numpy array</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
    </property>
   </action>
  </widget>
@@ -97,5 +116,24 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>actionLoadFile</sender>
+   <signal>triggered()</signal>
+   <receiver>RisWidget</receiver>
+   <slot>loadFile()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>507</x>
+     <y>400</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
+ <slots>
+  <slot>loadFile()</slot>
+ </slots>
 </ui>

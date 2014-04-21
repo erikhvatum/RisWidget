@@ -38,6 +38,10 @@ public:
     explicit RisWidget(QString windowTitle_ = "RisWidget",
                        QWidget* parent = nullptr,
                        Qt::WindowFlags flags = 0);
+    RisWidget(PyObject* mainModule, PyObject* numpy,
+              QString windowTitle_ = "RisWidget",
+              QWidget* parent = nullptr,
+              Qt::WindowFlags flags = 0);
     virtual ~RisWidget();
 
     ImageWidget* imageWidget();
@@ -50,8 +54,18 @@ public:
 protected:
     std::shared_ptr<Renderer> m_renderer;
     QPointer<QThread> m_rendererThread;
+    PyObject* m_mainModule;
+    PyObject* m_numpy;
 
     void makeViews();
     void makeRenderer();
     void destroyRenderer();
+
+#ifdef STAND_ALONE_EXECUTABLE
+    void closeEvent(QCloseEvent* event);
+#endif
+
+public slots:
+    // Presents Open File dialog.  Supports images as well as numpy data files.
+    void loadFile();
 };

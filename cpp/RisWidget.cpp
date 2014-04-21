@@ -53,6 +53,20 @@ RisWidget::RisWidget(QString windowTitle_,
     Renderer::staticInit();
     makeViews();
     makeRenderer();
+
+#ifdef STAND_ALONE_EXECUTABLE
+    setAttribute(Qt::WA_DeleteOnClose, true);
+#endif
+}
+
+RisWidget::RisWidget(PyObject* mainModule, PyObject* numpy,
+                     QString windowTitle_,
+                     QWidget* parent,
+                     Qt::WindowFlags flags)
+  : RisWidget(windowTitle_, parent, flags),
+    m_mainModule(mainModule),
+    m_numpy(numpy)
+{
 }
 
 RisWidget::~RisWidget()
@@ -132,15 +146,55 @@ PyObject* RisWidget::getHistogram()
     return ret;
 }
 
+void RisWidget::loadFile()
+{
+    QString fnqstr(QFileDialog::getOpenFileName(this, "Open Image or Numpy Array File", QString(), "Numpy Array Files (*.npy)"));
+    if(!fnqstr.isNull())
+    {
+        // Todo: use the direct interface returning a pyobject to evaluate the lazily retrieved (todo) PyObject* functor
+        // numpy.load(..) with a char * as the filename argument to the functor
+
+//      std::string cmd("___);
+//      if(PyRun_SimpleString("
+    }
+}
 
 #ifdef STAND_ALONE_EXECUTABLE
+
+void RisWidget::closeEvent(QCloseEvent* event)
+{
+    event->accept();
+    if(m_rendererThread)
+    {
+        m_rendererThread->quit();
+        m_rendererThread->wait();
+    }
+    QApplication::quit();
+}
 #include <QApplication>
 
 int main(int argc, char** argv)
 {
+    int ret{0};
+    Py_Initialize();
+    PyEval_InitThreads();
+    PyObject* mainModule = PyImport_AddModule("__main__");
+    if(mainModule == nullptr)
+    {
+        ret = -1;
+        std::cerr << "int main(int argc, char** argv): PyImport_AddModule(\"__main__\") failed." << std::endl;
+    }
+    // NB: PyImportModule, like many (all?) of the Python C API functions outputting a PyObject* returns a "borrowed
+    // reference" that must be claimed before the next turn of the interpreter (which isn't a problem, seeing as how
+    // your C/C++ code is holding the GIL...
+    PyObject* numpy = PyImport_ImportModule("numpy");
+    Py_INCREF(numpy);
     QApplication app(argc, argv);
-    RisWidget risWidget;
-    risWidget.show();
+    RisWidget* risWidget{new RisWidget(mainModule, numpy)};
+    risWidget->show();
+    ret = app.exec();
+    Py_DECREF(numpy);
+    Py_Finalize();
     return app.exec();
 }
 

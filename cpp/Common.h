@@ -41,8 +41,15 @@
 #include <limits>
 #include <list>
 #include <memory>
-#include <Python.h>
+#ifdef _DEBUG
+ #undef _DEBUG
+ #include <Python.h>
+ #define _DEBUG
+#else
+ #include <Python.h>
+#endif
 #include <QFile>
+#include <QFileDialog>
 #include <QHBoxLayout>
 #include <QMainWindow>
 #include <QMutex>
@@ -66,6 +73,7 @@
 #include <string>
 #include <vector>
 
+#include "GilScopedRelease.h"
 #include "LockedRef.h"
 #include "RisWidgetException.h"
 

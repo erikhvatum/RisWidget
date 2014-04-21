@@ -71,8 +71,7 @@ private:
     bool m_histogramViewUpdatePending;
 
     // There is good reason not to provide an accessor for this variable: in order that all OpenGL calls originate from
-    // the Renderer thread without requiring functions outside of the RenderThread class to execute on the Renderer
-    // thread, only Renderer methods have cause to use m_glfs.
+    // the Renderer, only Renderer and GlProgram methods have cause to use m_glfs.
     QOpenGLFunctions_4_3_Core* m_glfs;
 #ifdef ENABLE_GL_DEBUG_LOGGING
     QOpenGLDebugLogger* m_glDebugLogger;
@@ -112,6 +111,7 @@ private:
     // Helper for execImageDraw() and execHistoDraw()
     void updateGlViewportSize(View* view, QSize& size);
 
+    // Leading _ indicates that a signal is private and is used internally for cross thread procedure calls
 signals:
     void _newImage(ImageData imageData, QSize imageSize, bool filter);
     void _updateView(View* view);
