@@ -421,7 +421,6 @@ void Renderer::execImageDraw()
         m_glfs->glBindTexture(GL_TEXTURE_2D, m_image);
 
         m_glfs->glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-        std::cerr << "m_glfs->glDrawArrays(GL_TRIANGLE_FAN, 0, 4);" << std::endl;
     }
 
     m_imageView->swapBuffers();

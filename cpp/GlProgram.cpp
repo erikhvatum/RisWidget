@@ -395,7 +395,7 @@ HistoDrawProg::HistoDrawProg(const std::string& name_)
     projectionModelViewMatrixLoc(std::numeric_limits<GLint>::min()),
     binCountLoc(std::numeric_limits<GLint>::min()),
     binScaleLoc(std::numeric_limits<GLint>::min()),
-    histogramLoc(std::numeric_limits<GLint>::min()),
+    histogramLoc(0),
     pointVaoBuff(std::numeric_limits<GLuint>::max()),
     pointVao(std::numeric_limits<GLuint>::max()),
     binIndexLoc(std::numeric_limits<GLint>::min())
@@ -412,6 +412,7 @@ void HistoDrawProg::postBuild()
 {
     binCountLoc = getUniLoc("binCount");
     binScaleLoc = getUniLoc("binScale");
+    projectionModelViewMatrixLoc = getUniLoc("projectionModelViewMatrix");
 
     binIndexLoc = getAttrLoc("binIndex");
 }

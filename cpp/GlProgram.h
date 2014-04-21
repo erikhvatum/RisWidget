@@ -136,7 +136,7 @@ public:
     GLint projectionModelViewMatrixLoc;
     GLint binCountLoc;
     GLint binScaleLoc;
-    GLint histogramLoc;
+    const GLint histogramLoc;
 
     GLuint pointVaoBuff;
     GLuint pointVao;
