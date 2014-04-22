@@ -62,6 +62,7 @@
 #include <QHBoxLayout>
 #include <QLineEdit>
 #include <QMainWindow>
+#include <QMessageBox>
 #include <QMutex>
 #include <QMutexLocker>
 #ifdef ENABLE_GL_DEBUG_LOGGING
@@ -82,6 +83,7 @@
 #include <QVector>
 #include <QWindow>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "GilScopedRelease.h"

@@ -74,6 +74,14 @@ glm::vec4 View::clearColor() const
     return ret;
 }
 
+void View::update()
+{
+    if(m_renderer)
+    {
+        m_renderer->updateView(this);
+    }
+}
+
 void View::exposeEvent(QExposeEvent* event)
 {
     if(isExposed() && isVisible())
@@ -101,11 +109,7 @@ void View::mouseMoveEvent(QMouseEvent* event)
     mouseMoveEventSignal(event);
 }
 
-void View::update()
+void View::mousePressEvent(QMouseEvent* event)
 {
-    if(m_renderer)
-    {
-        m_renderer->updateView(this);
-    }
+    mousePressEventSignal(event);
 }
-

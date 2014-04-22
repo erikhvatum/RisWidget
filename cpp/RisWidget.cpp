@@ -26,9 +26,6 @@
 namespace py = boost::python;
 namespace np = boost::numpy;
 
-const std::vector<GLfloat> RisWidget::sm_zoomPresets{2.0f, 1.0f, 0.75f, 0.25f, 0.10f};
-const GLfloat RisWidget::sm_zoomMinMax[2] = {0.01f, 1000.0f};
-
 RisWidget::RisWidget(QString windowTitle_,
                      QWidget* parent,
                      Qt::WindowFlags flags)
@@ -96,7 +93,7 @@ void RisWidget::makeToolBars()
     m_zoomCombo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
     for(const GLfloat& z : sm_zoomPresets)
     {
-        m_zoomCombo->addItem(formatZoom(z * 100) + '%');
+        m_zoomCombo->addItem(formatZoom(z * 100.0f) + '%');
     }
     m_zoomCombo->setCurrentIndex(1);
     m_zoomComboValidator = new QDoubleValidator(sm_zoomMinMax[0], sm_zoomMinMax[1], 4, m_zoomCombo);
@@ -225,7 +222,6 @@ void RisWidget::loadFile()
             }
         }
         std::string fnstdstr{fnqstr.toStdString()};
-        std::cerr << "about to numpy load" << std::endl << std::flush;
         try
         {
             py::object ret{m_numpyLoad(fnstdstr.c_str())}; 
@@ -245,10 +241,63 @@ void RisWidget::mouseMoveEventInImageView(QMouseEvent* event)
 
 void RisWidget::zoomComboCustomValueEntered()
 {
+    QString text(m_zoomCombo->lineEdit()->text());
+    QString scaleText(text.left(text.indexOf("%")));
+
+    bool valid(true);
+    int zero(0);
+    switch(m_zoomComboValidator->validate(scaleText, zero))
+    {
+    case QValidator::Intermediate:
+    case QValidator::Invalid:
+        QMessageBox::information(this, "RisWidget", QString("Please enter a number between %1 and %2.").arg(formatZoom(sm_zoomMinMax[0])).arg(formatZoom(sm_zoomMinMax[1])));
+        m_zoomCombo->setFocus();
+        m_zoomCombo->lineEdit()->selectAll();
+        valid = false;
+        break;
+    }
+
+    if(valid)
+    {
+        bool converted;
+        double scalePercent(scaleText.toDouble(&converted));
+        if(!converted)
+        {
+            throw RisWidgetException(std::string("RisWidget::zoomComboCustomValueEntered(): scaleText.toDouble(..) failed for \"") +
+                                     scaleText.toStdString() + "\".");
+        }
+        setCustomZoom(scalePercent * .01);
+    }
 }
 
 void RisWidget::zoomComboChanged(int index)
 {
+    setZoomIndex(index);
+}
+
+void RisWidget::zoomChanged(int zoomIndex, GLfloat customZoom)
+{
+    if(zoomIndex != -1 && customZoom != 0)
+    {
+        throw RisWidgetException("RisWidget::zoomChanged(..): Both zoomIndex and customZoom specified.");
+    }
+    if(zoomIndex == -1 && customZoom == 0)
+    {
+        throw RisWidgetException("RisWidget::zoomChanged(..): Neither zoomIndex nor customZoom specified.");
+    }
+
+    if(zoomIndex != -1)
+    {
+        if(zoomIndex < 0 || zoomIndex >= m_zoomCombo->count())
+        {
+            throw RisWidgetException("RisWidget::zoomChanged(..): Invalid value for zoomIndex.");
+        }
+        m_zoomCombo->setCurrentIndex(zoomIndex);
+    }
+    else
+    {
+        m_zoomCombo->lineEdit()->setText(formatZoom(customZoom * 100.0f) + '%');
+    }
 }
 
 #ifdef STAND_ALONE_EXECUTABLE

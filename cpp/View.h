@@ -48,7 +48,8 @@ public:
     void update();
 
 signals:
-    void mouseMoveEventSignal(QMouseEvent* ev);
+    void mouseMoveEventSignal(QMouseEvent* event);
+    void mousePressEventSignal(QMouseEvent* event);
 
 protected:
     QPointer<QOpenGLContext> m_context;
@@ -63,4 +64,5 @@ protected:
     virtual void resizeEvent(QResizeEvent* event);
     virtual void exposeEvent(QExposeEvent* event);
     virtual void mouseMoveEvent(QMouseEvent* event);
+    virtual void mousePressEvent(QMouseEvent* event);
 };

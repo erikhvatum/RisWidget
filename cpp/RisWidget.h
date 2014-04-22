@@ -35,12 +35,6 @@ class RisWidget
     Q_OBJECT;
 
 public:
-    enum class ViewMode
-    {
-        Pan,
-        Zoom
-    };
-
     explicit RisWidget(QString windowTitle_ = "RisWidget",
                        QWidget* parent = nullptr,
                        Qt::WindowFlags flags = 0);
@@ -63,8 +57,6 @@ protected:
     QPointer<QToolBar> m_viewToolBar;
     QPointer<QComboBox> m_zoomCombo;
     QPointer<QDoubleValidator> m_zoomComboValidator;
-    static const std::vector<GLfloat> sm_zoomPresets;
-    static const GLfloat sm_zoomMinMax[2];
     ViewMode m_viewMode;
 
     std::shared_ptr<Renderer> m_renderer;
@@ -85,9 +77,12 @@ protected:
 public slots:
     // Presents Open File dialog.  Supports images as well as numpy data files.
     void loadFile();
+    void setZoomIndex(int index);
+    void setCustomZoom(GLfloat customZoom);
 
 protected slots:
     void mouseMoveEventInImageView(QMouseEvent* event);
     void zoomComboCustomValueEntered();
     void zoomComboChanged(int index);
+    void zoomChanged(int zoomIndex, GLfloat customZoom);
 };

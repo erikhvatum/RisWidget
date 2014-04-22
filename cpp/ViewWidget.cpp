@@ -38,14 +38,14 @@ View* ViewWidget::view()
     return m_view;
 }
 
-QWidget* ViewWidget::viewHolderWidget()
+QWidget* ViewWidget::viewContainerWidget()
 {
-    return m_viewHolderWidget;
+    return m_viewContainerWidget;
 }
 
 void ViewWidget::makeView()
 {
-    if(m_view || m_viewHolderWidget)
+    if(m_view || m_viewContainerWidget)
     {
         throw RisWidgetException("ViewWidget::makeView(): View already created.  makeView() must not be "
                                  "called more than once per ViewWidget instance.");
@@ -56,8 +56,8 @@ void ViewWidget::makeView()
         setLayout(layout_);
     }
     m_view = instantiateView();
-    m_viewHolderWidget = QWidget::createWindowContainer(m_view, this, Qt::Widget);
-    layout()->addWidget(m_viewHolderWidget);
-    m_viewHolderWidget->show();
+    m_viewContainerWidget = QWidget::createWindowContainer(m_view, this, Qt::Widget);
+    layout()->addWidget(m_viewContainerWidget);
+    m_viewContainerWidget->show();
     m_view->show();
 }

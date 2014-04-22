@@ -29,6 +29,8 @@
 
 class RisWidget;
 
+// Click-zooming jumps between preset values until the preset value range is exceeded; thereafter, each click scales
+// by sm_zoomClickScaleFactor.
 class ImageWidget
   : public ViewWidget,
     protected Ui::ImageWidget
@@ -37,11 +39,44 @@ class ImageWidget
     friend class RisWidget;
 
 public:
+    enum class InteractionMode
+    {
+        Invalid,
+        Pointer,
+        Pan,
+        Zoom
+    };
+    static const std::vector<GLfloat> sm_zoomPresets;
+    static const std::pair<GLfloat, GLfloat> sm_zoomMinMax;
+	static const GLfloat sm_zoomClickScaleFactor;
+
     explicit ImageWidget(QWidget* parent = nullptr);
     virtual ~ImageWidget();
 
     ImageView* imageView();
 
+    InterationMode interactionMode() const;
+    void setInteractionMode(InteractionMode interactionMode);
+
+    // Returns the zoom level where, for example, 1.0=100% and 2.0=200%.  Returns 0 if the view is zoomed to one of the
+    // preset zoom levels.
+	GLfloat customZoom() const;
+	// Returns the current preset zoom level index, or -1 if the view is zoomed to a custom level
+	int zoomIndex() const;
+	void setCustomZoom(GLfloat customZoom);
+	void setZoomIndex(int zoomIndex);
+
+signals:
+    void interactionModeChanged(InteractionMode interactionMode, InteractionMode previousInteractionMode);
+
 protected:
+    InteractionMode m_interactionMode;
+    int m_zoomIndex;
+    GLfloat m_customZoom;
+
+    virtual void makeView();
     virtual View* instantiateView();
+
+protected slots:
+    void mousePressEventInView(QMouseEvent* event);
 };

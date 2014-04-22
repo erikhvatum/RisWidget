@@ -40,13 +40,13 @@ public:
     virtual ~ViewWidget();
 
     View* view();
-    QWidget* viewHolderWidget();
+    QWidget* viewContainerWidget();
 
 protected:
-    QPointer<QWidget> m_viewHolderWidget;
+    QPointer<QWidget> m_viewContainerWidget;
     QPointer<View> m_view;
 
-    void makeView();
+    virtual void makeView();
     // Helper for makeView
     virtual View* instantiateView() = 0;
 };
