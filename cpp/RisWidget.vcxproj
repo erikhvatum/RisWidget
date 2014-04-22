@@ -229,7 +229,7 @@
       <ExceptionHandling>Sync</ExceptionHandling>
       <ForcedIncludeFiles>Common.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <ObjectFileName>$(IntDir)</ObjectFileName>
-      <Optimization>MaxSpeed</Optimization>
+      <Optimization>MaxSpeedHighLevel</Optimization>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>Common.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)\RisWidget.pch</PrecompiledHeaderOutputFile>
@@ -244,6 +244,11 @@
       <ProgramDataBaseFileName>$(IntDir)vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
       <Cpp0xSupport>true</Cpp0xSupport>
       <DisableSpecificWarnings>161</DisableSpecificWarnings>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <EnableExpandedLineNumberInfo>false</EnableExpandedLineNumberInfo>
+      <InterproceduralOptimization>MultiFile</InterproceduralOptimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
     </ClCompile>
     <Link>
       <IgnoreImportLibrary>true</IgnoreImportLibrary>

@@ -184,9 +184,9 @@ void RisWidget::loadFile()
             if(ret)
             {
                 showImage(ret);
-                Py_DECREF(ret);
             }
         }
+        Py_XDECREF(ret);
     }
 }
 
