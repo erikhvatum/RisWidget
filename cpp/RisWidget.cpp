@@ -23,43 +23,40 @@
 #include "Common.h"
 #include "RisWidget.h"
 
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
-#define PY_ARRAY_UNIQUE_SYMBOL RisWidget_ARRAY_API
-#include <numpy/arrayobject.h>
+namespace py = boost::python;
+namespace np = boost::numpy;
 
-static void* do_import_array()
-{
-    // import_array() is actually a macro that returns NULL if it fails, so it has to be wrapped in order to be called
-    // from a constructor which necessarily does not return anything
-    import_array();
-    return reinterpret_cast<void*>(1);
-}
+const std::vector<GLfloat> RisWidget::sm_zoomPresets{2.0f, 1.0f, 0.75f, 0.25f, 0.10f};
+const GLfloat RisWidget::sm_zoomMinMax[2] = {0.01f, 1000.0f};
 
 RisWidget::RisWidget(QString windowTitle_,
                      QWidget* parent,
                      Qt::WindowFlags flags)
-  : QMainWindow(parent, flags),
-    m_numpy(nullptr),
-    m_numpyLoad(nullptr)
+  : QMainWindow(parent, flags)
 {
     static bool oneTimeInitDone{false};
     if(!oneTimeInitDone)
     {
         Q_INIT_RESOURCE(RisWidget);
-        do_import_array();
+        np::initialize();
         oneTimeInitDone = true;
     }
 
     setWindowTitle(windowTitle_);
     setupUi(this);
     Renderer::staticInit();
+    setupActions();
+    makeToolBars();
     makeViews();
     makeRenderer();
 
-    // Note: PyImport_ImportModule(..) returns a new reference
-    m_numpy = PyImport_ImportModule("numpy");
-    if(m_numpy == nullptr)
+    try
     {
+        m_numpy = py::import("numpy");
+    }
+    catch(py::error_already_set const&)
+    {
+        PyErr_Print();
         throw RisWidgetException("RisWidget constructor: Failed to import numpy Python module.");
     }
 
@@ -74,8 +71,40 @@ RisWidget::RisWidget(QString windowTitle_,
 
 RisWidget::~RisWidget()
 {
-    Py_XDECREF(m_numpyLoad);
-    Py_XDECREF(m_numpy);
+}
+
+void RisWidget::setupActions()
+{
+    m_modeGroup = new QActionGroup(this);
+    m_modeGroup->addAction(m_actionPanMode);
+    m_modeGroup->addAction(m_actionZoomMode);
+
+    connect(m_actionPanMode,  &QAction::triggered, [&](){setViewMode(ViewMode::Pan );});
+    connect(m_actionZoomMode, &QAction::triggered, [&](){setViewMode(ViewMode::Zoom);});
+
+    m_actionPanMode->setChecked(true);
+}
+
+void RisWidget::makeToolBars()
+{
+    m_viewToolBar = addToolBar("View");
+    m_zoomCombo = new QComboBox(this);
+    m_viewToolBar->addWidget(m_zoomCombo);
+    m_zoomCombo->setEditable(true);
+    m_zoomCombo->setInsertPolicy(QComboBox::NoInsert);
+    m_zoomCombo->setDuplicatesEnabled(true);
+    m_zoomCombo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    for(const GLfloat& z : sm_zoomPresets)
+    {
+        m_zoomCombo->addItem(formatZoom(z * 100) + '%');
+    }
+    m_zoomCombo->setCurrentIndex(1);
+    m_zoomComboValidator = new QDoubleValidator(sm_zoomMinMax[0], sm_zoomMinMax[1], 4, m_zoomCombo);
+    connect(m_zoomCombo, SIGNAL(activated(int)), this, SLOT(zoomComboChanged(int)));
+    connect(m_zoomCombo->lineEdit(), SIGNAL(returnPressed()), this, SLOT(zoomComboCustomValueEntered()));
+    m_viewToolBar->addSeparator();
+    m_viewToolBar->addAction(m_actionPanMode);
+    m_viewToolBar->addAction(m_actionZoomMode);
 }
 
 void RisWidget::makeViews()
@@ -122,34 +151,64 @@ void RisWidget::showImage(const GLushort* imageDataRaw, const QSize& imageSize, 
 
 void RisWidget::showImage(PyObject* image, bool filterTexture)
 {
-    PyArrayObject* imageao = reinterpret_cast<PyArrayObject*>(PyArray_FromAny(image, PyArray_DescrFromType(NPY_USHORT),
-                                                                              2, 2, NPY_ARRAY_CARRAY_RO, nullptr));
-    if(imageao == nullptr)
+    py::object imagepy{py::handle<>(py::borrowed(image))};
+    np::ndarray imagenp{np::from_object(imagepy, np::dtype::get_builtin<GLushort>(), 2, 2, np::ndarray::CARRAY_RO)};
+    if(imagenp.is_none())
     {
         throw RisWidgetException("RisWidget::showImage(PyObject* image): image argument must be an "
                                  "array-like object convertable to a 2d uint16 numpy array.");
     }
-    npy_intp* shape = PyArray_DIMS(imageao);
-    showImage(reinterpret_cast<const GLushort*>(PyArray_DATA(imageao)), QSize(shape[1], shape[0]), filterTexture);
-    Py_DECREF(imageao);
+    const Py_intptr_t* shape = imagenp.get_shape();
+    showImage(reinterpret_cast<const GLushort*>(imagenp.get_data()), QSize(shape[1], shape[0]), filterTexture);
 }
 
 PyObject* RisWidget::getHistogram()
 {
     auto histogramData = m_renderer->getHistogram();
-    PyObject* ret = Py_None;
-    npy_intp size = histogramData->ref().size();
+    std::unique_ptr<np::ndarray> ret;
+
+    Py_intptr_t size = histogramData->ref().size();
     if(size != 0)
     {
-        ret = PyArray_EMPTY(1, &size, NPY_UINT32, 0);
-        PyArrayObject* retao = reinterpret_cast<PyArrayObject*>(ret);
-        memcpy(PyArray_DATA(retao),
+        ret.reset(new np::ndarray(np::empty(1, &size, np::dtype::get_builtin<GLuint>())));
+        memcpy(reinterpret_cast<void*>(ret->get_data()),
                reinterpret_cast<const void*>(histogramData->ref().data()),
                sizeof(GLuint) * histogramData->ref().size());
     }
 
-    Py_INCREF(ret);
-    return ret;
+    // boost::python is not managing the copy of the pointer we are returning; we must incref so that it is not garbage
+    // collected when ret goes out of scope and its destructor decrefs its internal copy of the pointer.
+    Py_INCREF(ret->ptr());
+    return ret->ptr();
+}
+
+RisWidget::ViewMode RisWidget::viewMode() const
+{
+    return m_viewMode;
+}
+
+void RisWidget::setViewMode(RisWidget::ViewMode viewMode)
+{
+    m_viewMode = viewMode;
+    statusBar()->showMessage(viewMode == ViewMode::Pan ? "pan" : "zoom");
+}
+
+QString RisWidget::formatZoom(const GLfloat& z)
+{
+    QString ret;
+    if(z == floor(z))
+    {
+        ret = QString::number(z, 'f', 0);
+    }
+    else
+    {
+        ret = QString::number(z, 'f', 2);
+        if(ret.endsWith('0'))
+        {
+            ret.chop(1);
+        }
+    }
+    return std::move(ret);
 }
 
 void RisWidget::loadFile()
@@ -157,42 +216,39 @@ void RisWidget::loadFile()
     QString fnqstr(QFileDialog::getOpenFileName(this, "Open Image or Numpy Array File", QString(), "Numpy Array Files (*.npy)"));
     if(!fnqstr.isNull())
     {
-        if(m_numpyLoad == nullptr)
+        if(m_numpyLoad.is_none())
         {
-            m_numpyLoad = PyObject_GetAttrString(m_numpy, "load");
-            if(m_numpyLoad == nullptr || !PyCallable_Check(m_numpyLoad))
+            m_numpyLoad = m_numpy.attr("load");
+            if(m_numpyLoad.is_none())
             {
                 throw RisWidgetException("RisWidget::loadFile(): Failed to resolve Python function numpy.load(..).");
             }
         }
         std::string fnstdstr{fnqstr.toStdString()};
-        PyObject* fnpystr = PyUnicode_FromString(fnstdstr.c_str());
-        PyObject* args = PyTuple_New(1);
-        // Note: args steals a reference to fnpystr, so we are no longer responsibile for decreffing fnpystr
-        PyTuple_SetItem(args, 0, fnpystr);
-        PyObject* ret = PyObject_CallObject(m_numpyLoad, args);
-        Py_DECREF(args);
-        if(PyErr_Occurred())
+        std::cerr << "about to numpy load" << std::endl << std::flush;
+        try
         {
-#ifdef STAND_ALONE_EXECUTABLE
+            py::object ret{m_numpyLoad(fnstdstr.c_str())}; 
+            showImage(ret.ptr());
+        }
+        catch(py::error_already_set const&)
+        {
             PyErr_Print();
-            PyErr_Clear();
-#endif
         }
-        else
-        {
-            if(ret)
-            {
-                showImage(ret);
-            }
-        }
-        Py_XDECREF(ret);
     }
 }
 
 void RisWidget::mouseMoveEventInImageView(QMouseEvent* event)
 {
     statusBar()->showMessage(QString("%1, %2").arg(event->x()).arg(event->y()));
+}
+
+void RisWidget::zoomComboCustomValueEntered()
+{
+}
+
+void RisWidget::zoomComboChanged(int index)
+{
 }
 
 #ifdef STAND_ALONE_EXECUTABLE

@@ -33,6 +33,13 @@
 #pragma GCC diagnostic pop
 
 #include <atomic>
+#include <boost/numpy.hpp>
+#include <boost/python.hpp>
+#include <boost/python/class.hpp>
+#include <boost/python/import.hpp>
+#include <boost/python/suite/indexing/vector_indexing_suite.hpp>
+#include <boost/python/module.hpp>
+#include <boost/python/manage_new_object.hpp>
 #include <cmath>
 // Need cstring include for memcpy(..).  Note: this is the C++ version of string.h; it has nothing to do with
 // Microsoft's CString.
@@ -48,9 +55,12 @@
 #else
  #include <Python.h>
 #endif
+#include <QComboBox>
+#include <QDoubleValidator>
 #include <QFile>
 #include <QFileDialog>
 #include <QHBoxLayout>
+#include <QLineEdit>
 #include <QMainWindow>
 #include <QMutex>
 #include <QMutexLocker>
@@ -68,6 +78,7 @@
 #include <QString>
 #include <QSurface>
 #include <QThread>
+#include <QToolBar>
 #include <QVector>
 #include <QWindow>
 #include <string>

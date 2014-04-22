@@ -29,16 +29,16 @@
      <x>0</x>
      <y>0</y>
      <width>1015</width>
-     <height>26</height>
+     <height>19</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
     <property name="title">
      <string>File</string>
     </property>
-    <addaction name="actionLoadFile"/>
+    <addaction name="m_actionLoadFile"/>
     <addaction name="separator"/>
-    <addaction name="actionClose"/>
+    <addaction name="m_actionClose"/>
    </widget>
    <addaction name="menuFile"/>
   </widget>
@@ -64,7 +64,7 @@
    </attribute>
    <widget class="HistogramWidget" name="m_histogramWidget"/>
   </widget>
-  <action name="actionClose">
+  <action name="m_actionClose">
    <property name="text">
     <string>Close</string>
    </property>
@@ -72,7 +72,7 @@
     <string>Close</string>
    </property>
   </action>
-  <action name="actionLoadFile">
+  <action name="m_actionLoadFile">
    <property name="text">
     <string>Load From File...</string>
    </property>
@@ -81,6 +81,22 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+O</string>
+   </property>
+  </action>
+  <action name="m_actionZoomMode">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Zoom</string>
+   </property>
+  </action>
+  <action name="m_actionPanMode">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Pan</string>
    </property>
   </action>
  </widget>
@@ -101,7 +117,7 @@
  <resources/>
  <connections>
   <connection>
-   <sender>actionClose</sender>
+   <sender>m_actionClose</sender>
    <signal>triggered()</signal>
    <receiver>RisWidget</receiver>
    <slot>close()</slot>
@@ -117,7 +133,7 @@
    </hints>
   </connection>
   <connection>
-   <sender>actionLoadFile</sender>
+   <sender>m_actionLoadFile</sender>
    <signal>triggered()</signal>
    <receiver>RisWidget</receiver>
    <slot>loadFile()</slot>

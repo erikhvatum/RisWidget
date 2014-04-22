@@ -35,6 +35,12 @@ class RisWidget
     Q_OBJECT;
 
 public:
+    enum class ViewMode
+    {
+        Pan,
+        Zoom
+    };
+
     explicit RisWidget(QString windowTitle_ = "RisWidget",
                        QWidget* parent = nullptr,
                        Qt::WindowFlags flags = 0);
@@ -47,12 +53,27 @@ public:
     void showImage(PyObject* image, bool filterTexture=true);
     PyObject* getHistogram();
 
+    ViewMode viewMode() const;
+    void setViewMode(ViewMode viewMode);
+
+    static QString formatZoom(const GLfloat& z);
+
 protected:
+    QPointer<QActionGroup> m_modeGroup;
+    QPointer<QToolBar> m_viewToolBar;
+    QPointer<QComboBox> m_zoomCombo;
+    QPointer<QDoubleValidator> m_zoomComboValidator;
+    static const std::vector<GLfloat> sm_zoomPresets;
+    static const GLfloat sm_zoomMinMax[2];
+    ViewMode m_viewMode;
+
     std::shared_ptr<Renderer> m_renderer;
     QPointer<QThread> m_rendererThread;
-    PyObject* m_numpy;
-    PyObject* m_numpyLoad;
+    boost::python::object m_numpy;
+    boost::python::object m_numpyLoad;
 
+    void setupActions();
+    void makeToolBars();
     void makeViews();
     void makeRenderer();
     void destroyRenderer();
@@ -67,4 +88,6 @@ public slots:
 
 protected slots:
     void mouseMoveEventInImageView(QMouseEvent* event);
+    void zoomComboCustomValueEntered();
+    void zoomComboChanged(int index);
 };

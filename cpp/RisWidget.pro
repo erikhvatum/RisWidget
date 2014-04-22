@@ -26,7 +26,8 @@ QT += core gui widgets opengl
 CONFIG += static c++11 precompile_header exceptions rtti stl thread
 CONFIG -= app_bundle
 TARGET = RisWidget
-INCLUDEPATH += /usr/local/glm /usr/include/python3.3 /usr/lib64/python3.3/site-packages/numpy/core/include
+INCLUDEPATH += /usr/local/include /usr/local/glm /usr/include/python3.3 /usr/lib64/python3.3/site-packages/numpy/core/include
+CFLAGS += -fPIC
 #DEFINES += ENABLE_GL_DEBUG_LOGGING
 
 RESOURCES = RisWidget.qrc
