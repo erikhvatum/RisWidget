@@ -37,6 +37,7 @@
      <string>File</string>
     </property>
     <addaction name="m_actionLoadFile"/>
+    <addaction name="m_actionShowCheckerboard"/>
     <addaction name="separator"/>
     <addaction name="m_actionClose"/>
    </widget>
@@ -99,6 +100,11 @@
     <string>Pan</string>
    </property>
   </action>
+  <action name="m_actionShowCheckerboard">
+   <property name="text">
+    <string>Display Checkerboard...</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -148,8 +154,25 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>m_actionShowCheckerboard</sender>
+   <signal>triggered()</signal>
+   <receiver>RisWidget</receiver>
+   <slot>showCheckerPatternSlot()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>507</x>
+     <y>400</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>loadFile()</slot>
+  <slot>showCheckerPatternSlot()</slot>
  </slots>
 </ui>

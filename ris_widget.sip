@@ -52,15 +52,23 @@ public:
     ImageWidget* imageWidget();
     HistogramWidget* histogramWidget();
 
+    void showCheckerPattern(std::uint16_t width) /ReleaseGIL/;
+%Docstring
+    RisWidget.showCheckerPattern(width): Display a width X width checkerboard pattern in which each checkerboard square
+    is a single pixel.  For the special case in which width is:
+    0: a one pixel black image is shown.
+    1: a one pixel white image is shown.
+%End
+
     void showImage(PyObject* image) /HoldGIL/;
 %Docstring
-    RisWidget.showImage(image): Display the contents of image, which must be array-like
-    and convertable to a 2d numpy array of type uint16.  If image is already a 2d, contiguous,
-    C-layout, aligned numpy array, a conversion/copy step is skipped and image's data is
-    loaded directly into an OpenGL texture.
+    RisWidget.showImage(image): Display the contents of image, which must be None or array-like and convertable to a 2d
+    numpy array of type uint16.  If image is already a 2d, contiguous, C-layout, aligned numpy array, a conversion/copy
+    step is skipped and image's data is loaded directly into an OpenGL texture.  If image is None, the current image
+    display, if any, is cleared.
 
-    Note that this function holds the GIL as it creates an intermediate numpy array, although 
-    the intermediate may be a zero copy view of the image argument.
+    Note that this function holds the GIL as it creates an intermediate numpy array, although the intermediate may be a
+    zero copy view of the image argument.
 %End
 
     PyObject* getHistogram() /HoldGIL/;

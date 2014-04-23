@@ -206,9 +206,13 @@
 				<F N="cpp/moc_ImageView.cpp"/>
 				<F N="cpp/moc_ImageWidget.cpp"/>
 				<F N="cpp/moc_RisWidget.cpp"/>
+				<F N="cpp/moc_ShowCheckerDialog.cpp"/>
+				<F N="cpp/moc_ViewWidget.cpp"/>
+				<F N="cpp/qrc_RisWidget.cpp"/>
 				<F N="cpp/ui_HistogramWidget.h"/>
 				<F N="cpp/ui_ImageWidget.h"/>
 				<F N="cpp/ui_RisWidget.h"/>
+				<F N="cpp/ui_ShowCheckerDialog.h"/>
 			</Folder>
 			<Folder
 				Name="shaders"
@@ -244,6 +248,9 @@
 			<F N="cpp/RisWidgetException.cpp"/>
 			<F N="cpp/RisWidgetException.h"/>
 			<F N="cpp/RisWidget_standalone.pro"/>
+			<F N="cpp/ShowCheckerDialog.cpp"/>
+			<F N="cpp/ShowCheckerDialog.h"/>
+			<F N="cpp/ShowCheckerDialog.ui"/>
 			<F N="cpp/View.cpp"/>
 			<F N="cpp/View.h"/>
 			<F N="cpp/ViewWidget.cpp"/>

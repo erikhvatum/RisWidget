@@ -43,6 +43,7 @@ public:
     ImageWidget* imageWidget();
     HistogramWidget* histogramWidget();
 
+    void showCheckerPattern(std::uint16_t width);
     void showImage(const GLushort* imageDataRaw, const QSize& imageSize, bool filterTexture=true);
     void showImage(PyObject* image, bool filterTexture=true);
     PyObject* getHistogram();
@@ -79,4 +80,5 @@ protected slots:
     void imageViewZoomComboChanged(int index);
     void imageViewZoomChanged(int zoomIndex, GLfloat customZoom);
     void mouseMoveEventInImageView(QMouseEvent* event);
+    void showCheckerPatternSlot();
 };

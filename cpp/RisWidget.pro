@@ -44,12 +44,14 @@ HEADERS += Common.h \
            Renderer.h \
            RisWidget.h \
            RisWidgetException.h \
+           ShowCheckerDialog.h \
            View.h \
            ViewWidget.h
 
 FORMS +=   RisWidget.ui \
            HistogramWidget.ui \
-           ImageWidget.ui
+           ImageWidget.ui \
+           ShowCheckerDialog.ui
 
 SOURCES += RisWidget.cpp \
            GlProgram.cpp \
@@ -59,5 +61,6 @@ SOURCES += RisWidget.cpp \
            ImageView.cpp \
            Renderer.cpp \
            RisWidgetException.cpp \
+           ShowCheckerDialog.cpp \
            View.cpp \
            ViewWidget.cpp

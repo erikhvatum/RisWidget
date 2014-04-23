@@ -22,6 +22,7 @@
 
 #include "Common.h"
 #include "RisWidget.h"
+#include "ShowCheckerDialog.h"
 
 namespace py = boost::python;
 namespace np = boost::numpy;
@@ -64,6 +65,8 @@ RisWidget::RisWidget(QString windowTitle_,
     Py_Initialize();
     PyEval_InitThreads();
 #endif
+
+    showCheckerPattern(40);
 }
 
 RisWidget::~RisWidget()
@@ -135,6 +138,50 @@ HistogramWidget* RisWidget::histogramWidget()
     return m_histogramWidget;
 }
 
+void RisWidget::showCheckerPatternSlot()
+{
+    ShowCheckerDialog showCheckerDialog(this);
+    if(showCheckerDialog.exec() == QDialog::Accepted)
+    {
+        showCheckerPattern(showCheckerDialog.checkerboardWidth());
+    }
+}
+
+void RisWidget::showCheckerPattern(std::uint16_t width)
+{
+    ImageData imageData;
+    QSize imageSize;
+    if(width <= 1)
+    {
+        imageSize.setWidth(1);
+        imageSize.setHeight(1);
+        imageData.push_back(width == 0 ? 0x0000 : 0xffff);
+    }
+    else
+    {
+        imageSize.setWidth(width);
+        imageSize.setHeight(width);
+        std::size_t pixelCount = width;
+        pixelCount *= width;
+        imageData.resize(pixelCount);
+
+        std::size_t i = 0;
+        bool a = true;
+        float f = 65535.0f / (pixelCount - 1);
+        GLushort *p = imageData.data();
+        for(std::uint16_t r(0), c; r < width; ++r)
+        {
+            for(c = 0; c < width; ++c, ++p, ++i)
+            {
+                *p = a ? static_cast<GLushort>(std::nearbyint(f * i)) : 0x0000;
+                a = !a;
+            }
+            a = !a;
+        }
+    }
+    m_renderer->showImage(imageData, imageSize, false);
+}
+
 void RisWidget::showImage(const GLushort* imageDataRaw, const QSize& imageSize, bool filterTexture)
 {
     std::size_t byteCount = sizeof(GLushort) *
@@ -150,14 +197,21 @@ void RisWidget::showImage(const GLushort* imageDataRaw, const QSize& imageSize, 
 void RisWidget::showImage(PyObject* image, bool filterTexture)
 {
     py::object imagepy{py::handle<>(py::borrowed(image))};
-    np::ndarray imagenp{np::from_object(imagepy, np::dtype::get_builtin<GLushort>(), 2, 2, np::ndarray::CARRAY_RO)};
-    if(imagenp.is_none())
+    if(imagepy.is_none())
     {
-        throw RisWidgetException("RisWidget::showImage(PyObject* image): image argument must be an "
-                                 "array-like object convertable to a 2d uint16 numpy array.");
+        m_renderer->showImage(ImageData(), QSize(), false);
     }
-    const Py_intptr_t* shape = imagenp.get_shape();
-    showImage(reinterpret_cast<const GLushort*>(imagenp.get_data()), QSize(shape[1], shape[0]), filterTexture);
+    else
+    {
+        np::ndarray imagenp{np::from_object(imagepy, np::dtype::get_builtin<GLushort>(), 2, 2, np::ndarray::CARRAY_RO)};
+        if(imagenp.is_none())
+        {
+            throw RisWidgetException("RisWidget::showImage(PyObject* image): image argument must be an "
+                                     "array-like object convertable to a 2d uint16 numpy array.");
+        }
+        const Py_intptr_t* shape = imagenp.get_shape();
+        showImage(reinterpret_cast<const GLushort*>(imagenp.get_data()), QSize(shape[1], shape[0]), filterTexture);
+    }
 }
 
 PyObject* RisWidget::getHistogram()
