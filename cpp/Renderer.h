@@ -27,7 +27,9 @@
 
 class View;
 class ImageView;
+class ImageWidget;
 class HistogramView;
+class HistogramWidget;
 
 // Note that QVector<> does implicit sharing with reference counting and copy-on-write:
 // http://qt-project.org/doc/qt-5/qvector.html#QVector-4
@@ -45,7 +47,7 @@ public:
     static void staticInit();
     static const QSurfaceFormat sm_format;
 
-    Renderer(ImageView* imageView, HistogramView* histogramView);
+    Renderer(ImageWidget* imageWidget, HistogramWidget* histogramWidget);
     ~Renderer();
     Renderer(const Renderer&) = delete;
     Renderer& operator = (const Renderer&) = delete;
@@ -65,8 +67,10 @@ private:
 
     QMutex* m_lock;
 
+    QPointer<ImageWidget> m_imageWidget;
     QPointer<ImageView> m_imageView;
     bool m_imageViewUpdatePending;
+    QPointer<HistogramWidget> m_histogramWidget;
     QPointer<HistogramView> m_histogramView;
     bool m_histogramViewUpdatePending;
 

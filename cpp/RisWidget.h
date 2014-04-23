@@ -47,22 +47,18 @@ public:
     void showImage(PyObject* image, bool filterTexture=true);
     PyObject* getHistogram();
 
-    ViewMode viewMode() const;
-    void setViewMode(ViewMode viewMode);
-
-    static QString formatZoom(const GLfloat& z);
-
 protected:
-    QPointer<QActionGroup> m_modeGroup;
-    QPointer<QToolBar> m_viewToolBar;
-    QPointer<QComboBox> m_zoomCombo;
-    QPointer<QDoubleValidator> m_zoomComboValidator;
-    ViewMode m_viewMode;
+    QPointer<QActionGroup> m_imageViewInteractionModeGroup;
+    QPointer<QToolBar> m_imageViewToolBar;
+    QPointer<QComboBox> m_imageViewZoomCombo;
+    QPointer<QDoubleValidator> m_imageViewZoomComboValidator;
 
     std::shared_ptr<Renderer> m_renderer;
     QPointer<QThread> m_rendererThread;
     boost::python::object m_numpy;
     boost::python::object m_numpyLoad;
+
+    static QString formatZoom(const GLfloat& z);
 
     void setupActions();
     void makeToolBars();
@@ -77,12 +73,10 @@ protected:
 public slots:
     // Presents Open File dialog.  Supports images as well as numpy data files.
     void loadFile();
-    void setZoomIndex(int index);
-    void setCustomZoom(GLfloat customZoom);
 
 protected slots:
+    void imageViewZoomComboCustomValueEntered();
+    void imageViewZoomComboChanged(int index);
+    void imageViewZoomChanged(int zoomIndex, GLfloat customZoom);
     void mouseMoveEventInImageView(QMouseEvent* event);
-    void zoomComboCustomValueEntered();
-    void zoomComboChanged(int index);
-    void zoomChanged(int zoomIndex, GLfloat customZoom);
 };

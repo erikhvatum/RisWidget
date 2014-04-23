@@ -22,7 +22,9 @@
 
 #include "Common.h"
 #include "HistogramView.h"
+#include "HistogramWidget.h"
 #include "ImageView.h"
+#include "ImageWidget.h"
 #include "Renderer.h"
 
 bool Renderer::sm_staticInited = false;
@@ -66,12 +68,14 @@ void Renderer::staticInit()
     }
 }
 
-Renderer::Renderer(ImageView* imageView, HistogramView* histogramView)
+Renderer::Renderer(ImageWidget* imageWidget, HistogramWidget* histogramWidget)
   : m_threadInited(false),
     m_lock(new QMutex(QMutex::Recursive)),
-    m_imageView(imageView),
+    m_imageWidget(imageWidget),
+    m_imageView(m_imageWidget->imageView()),
     m_imageViewUpdatePending(false),
-    m_histogramView(histogramView),
+    m_histogramWidget(histogramWidget),
+    m_histogramView(m_histogramWidget->histogramView()),
     m_histogramViewUpdatePending(false),
     m_glfs(nullptr),
 #ifdef ENABLE_GL_DEBUG_LOGGING
@@ -386,6 +390,9 @@ void Renderer::updateGlViewportSize(View* view, QSize& size)
 
 void Renderer::execImageDraw()
 {
+    auto ddd = m_imageWidget->zoom();
+    std::cerr << ddd.first << " : " << ddd.second << std::endl;
+
     m_imageView->makeCurrent();
     m_glfs->glUseProgram(m_imageDrawProg);
 

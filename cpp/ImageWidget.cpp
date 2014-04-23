@@ -29,13 +29,17 @@ const GLfloat ImageWidget::sm_zoomClickScaleFactor = 0.25f;
 
 ImageWidget::ImageWidget(QWidget* parent)
   : ViewWidget(parent),
-    m_interactionMode(InteractionMode::Invalid)
+    m_interactionMode(InteractionMode::Invalid),
+    m_zoomLock(new QMutex(QMutex::Recursive)),
+    m_zoomIndex(1),
+    m_customZoom(0.0f)
 {
     setupUi(this);
 }
 
 ImageWidget::~ImageWidget()
 {
+    delete m_zoomLock;
 }
 
 ImageView* ImageWidget::imageView()
@@ -46,7 +50,7 @@ ImageView* ImageWidget::imageView()
 void ImageWidget::makeView()
 {
     ViewWidget::makeView();
-    connect(m_view, &View::mousePressEventSignal, this, &ImageWidget::mousePressEventInView);
+    connect(m_view, SIGNAL(mousePressEventSignal(QMouseEvent*)), this, SLOT(mousePressEventInView(QMouseEvent*)));
 }
 
 View* ImageWidget::instantiateView()
@@ -54,7 +58,7 @@ View* ImageWidget::instantiateView()
     return new ImageView(windowHandle());
 }
 
-InterationMode ImageWidget::interactionMode() const
+ImageWidget::InteractionMode ImageWidget::interactionMode() const
 {
     return m_interactionMode;
 }
@@ -88,25 +92,37 @@ void ImageWidget::setInteractionMode(InteractionMode interactionMode)
 
 GLfloat ImageWidget::customZoom() const
 {
+    QMutexLocker zoomLocker(const_cast<QMutex*>(m_zoomLock));
     return m_customZoom;
 }
 
 int ImageWidget::zoomIndex() const
 {
+    QMutexLocker zoomLocker(const_cast<QMutex*>(m_zoomLock));
     return m_zoomIndex;
+}
+
+std::pair<int, GLfloat> ImageWidget::zoom() const
+{
+    QMutexLocker zoomLocker(const_cast<QMutex*>(m_zoomLock));
+    return std::make_pair(m_zoomIndex, m_customZoom);
 }
 
 void ImageWidget::setCustomZoom(GLfloat customZoom)
 {
+    QMutexLocker zoomLocker(m_zoomLock);
 	m_customZoom = customZoom;
 	m_zoomIndex = -1;
+    zoomChanged(m_zoomIndex, m_customZoom);
 	m_view->update();
 }
 
 void ImageWidget::setZoomIndex(int zoomIndex)
 {
+    QMutexLocker zoomLocker(m_zoomLock);
 	m_zoomIndex = zoomIndex;
 	m_customZoom = 0.0f;
+    zoomChanged(m_zoomIndex, m_customZoom);
 	m_view->update();
 }
 

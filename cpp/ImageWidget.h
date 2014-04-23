@@ -55,7 +55,7 @@ public:
 
     ImageView* imageView();
 
-    InterationMode interactionMode() const;
+    InteractionMode interactionMode() const;
     void setInteractionMode(InteractionMode interactionMode);
 
     // Returns the zoom level where, for example, 1.0=100% and 2.0=200%.  Returns 0 if the view is zoomed to one of the
@@ -63,19 +63,25 @@ public:
 	GLfloat customZoom() const;
 	// Returns the current preset zoom level index, or -1 if the view is zoomed to a custom level
 	int zoomIndex() const;
+    // Aggregate of the customZoom() and zoomIndex(); useful in that it allows both values to be read with a single
+    // m_zoomLock lock/unlock
+    std::pair<int, GLfloat> zoom() const;
 	void setCustomZoom(GLfloat customZoom);
 	void setZoomIndex(int zoomIndex);
 
 signals:
     void interactionModeChanged(InteractionMode interactionMode, InteractionMode previousInteractionMode);
+    void zoomChanged(int zoomIndex, GLfloat customZoom);
 
 protected:
     InteractionMode m_interactionMode;
+    // The Renderer thread queries zoom parameters and the GUI thread sets them
+    QMutex* m_zoomLock;
     int m_zoomIndex;
     GLfloat m_customZoom;
 
-    virtual void makeView();
-    virtual View* instantiateView();
+    virtual void makeView() override;
+    virtual View* instantiateView() override;
 
 protected slots:
     void mousePressEventInView(QMouseEvent* event);

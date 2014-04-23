@@ -72,36 +72,38 @@ RisWidget::~RisWidget()
 
 void RisWidget::setupActions()
 {
-    m_modeGroup = new QActionGroup(this);
-    m_modeGroup->addAction(m_actionPanMode);
-    m_modeGroup->addAction(m_actionZoomMode);
+    m_imageViewInteractionModeGroup = new QActionGroup(this);
+    m_imageViewInteractionModeGroup->addAction(m_actionImageViewPanInteractionMode);
+    m_imageViewInteractionModeGroup->addAction(m_actionImageViewZoomInteractionMode);
 
-    connect(m_actionPanMode,  &QAction::triggered, [&](){setViewMode(ViewMode::Pan );});
-    connect(m_actionZoomMode, &QAction::triggered, [&](){setViewMode(ViewMode::Zoom);});
-
-    m_actionPanMode->setChecked(true);
+    connect(m_actionImageViewPanInteractionMode , &QAction::triggered,
+            [&](){m_imageWidget->setInteractionMode(ImageWidget::InteractionMode::Pan );});
+    connect(m_actionImageViewZoomInteractionMode, &QAction::triggered,
+            [&](){m_imageWidget->setInteractionMode(ImageWidget::InteractionMode::Zoom);});
 }
 
 void RisWidget::makeToolBars()
 {
-    m_viewToolBar = addToolBar("View");
-    m_zoomCombo = new QComboBox(this);
-    m_viewToolBar->addWidget(m_zoomCombo);
-    m_zoomCombo->setEditable(true);
-    m_zoomCombo->setInsertPolicy(QComboBox::NoInsert);
-    m_zoomCombo->setDuplicatesEnabled(true);
-    m_zoomCombo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
-    for(const GLfloat& z : sm_zoomPresets)
+    m_imageViewToolBar = addToolBar("View");
+    m_imageViewZoomCombo = new QComboBox(this);
+    m_imageViewToolBar->addWidget(m_imageViewZoomCombo);
+    m_imageViewZoomCombo->setEditable(true);
+    m_imageViewZoomCombo->setInsertPolicy(QComboBox::NoInsert);
+    m_imageViewZoomCombo->setDuplicatesEnabled(true);
+    m_imageViewZoomCombo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    for(const GLfloat& z : ImageWidget::sm_zoomPresets)
     {
-        m_zoomCombo->addItem(formatZoom(z * 100.0f) + '%');
+        m_imageViewZoomCombo->addItem(formatZoom(z * 100.0f) + '%');
     }
-    m_zoomCombo->setCurrentIndex(1);
-    m_zoomComboValidator = new QDoubleValidator(sm_zoomMinMax[0], sm_zoomMinMax[1], 4, m_zoomCombo);
-    connect(m_zoomCombo, SIGNAL(activated(int)), this, SLOT(zoomComboChanged(int)));
-    connect(m_zoomCombo->lineEdit(), SIGNAL(returnPressed()), this, SLOT(zoomComboCustomValueEntered()));
-    m_viewToolBar->addSeparator();
-    m_viewToolBar->addAction(m_actionPanMode);
-    m_viewToolBar->addAction(m_actionZoomMode);
+    m_imageViewZoomCombo->setCurrentIndex(1);
+    m_imageViewZoomComboValidator = new QDoubleValidator(m_imageWidget->sm_zoomMinMax.first, m_imageWidget->sm_zoomMinMax.second, 4, m_imageViewZoomCombo);
+    m_imageViewZoomComboValidator->setNotation(QDoubleValidator::StandardNotation);
+    connect(m_imageViewZoomCombo, SIGNAL(activated(int)), this, SLOT(imageViewZoomComboChanged(int)));
+    connect(m_imageViewZoomCombo->lineEdit(), SIGNAL(returnPressed()), this, SLOT(imageViewZoomComboCustomValueEntered()));
+    connect(m_imageWidget, &ImageWidget::zoomChanged, this, &RisWidget::imageViewZoomChanged);
+    m_imageViewToolBar->addSeparator();
+    m_imageViewToolBar->addAction(m_actionImageViewPanInteractionMode);
+    m_imageViewToolBar->addAction(m_actionImageViewZoomInteractionMode);
 }
 
 void RisWidget::makeViews()
@@ -117,8 +119,7 @@ void RisWidget::makeViews()
 void RisWidget::makeRenderer()
 {
     m_rendererThread = new QThread(this);
-    m_renderer.reset( new Renderer(m_imageWidget->imageView(),
-                                   m_histogramWidget->histogramView()) );
+    m_renderer.reset(new Renderer(m_imageWidget, m_histogramWidget));
     m_renderer->moveToThread(m_rendererThread);
     connect(m_rendererThread.data(), &QThread::started, m_renderer.get(), &Renderer::threadInitSlot, Qt::QueuedConnection);
     m_rendererThread->start();
@@ -179,17 +180,6 @@ PyObject* RisWidget::getHistogram()
     return ret->ptr();
 }
 
-RisWidget::ViewMode RisWidget::viewMode() const
-{
-    return m_viewMode;
-}
-
-void RisWidget::setViewMode(RisWidget::ViewMode viewMode)
-{
-    m_viewMode = viewMode;
-    statusBar()->showMessage(viewMode == ViewMode::Pan ? "pan" : "zoom");
-}
-
 QString RisWidget::formatZoom(const GLfloat& z)
 {
     QString ret;
@@ -239,20 +229,24 @@ void RisWidget::mouseMoveEventInImageView(QMouseEvent* event)
     statusBar()->showMessage(QString("%1, %2").arg(event->x()).arg(event->y()));
 }
 
-void RisWidget::zoomComboCustomValueEntered()
+void RisWidget::imageViewZoomComboCustomValueEntered()
 {
-    QString text(m_zoomCombo->lineEdit()->text());
+    QString text(m_imageViewZoomCombo->lineEdit()->text());
     QString scaleText(text.left(text.indexOf("%")));
 
-    bool valid(true);
+    bool valid;
     int zero(0);
-    switch(m_zoomComboValidator->validate(scaleText, zero))
+    switch(m_imageViewZoomComboValidator->validate(scaleText, zero))
     {
+    case QValidator::Acceptable:
+        valid = true;
+        break;
     case QValidator::Intermediate:
     case QValidator::Invalid:
-        QMessageBox::information(this, "RisWidget", QString("Please enter a number between %1 and %2.").arg(formatZoom(sm_zoomMinMax[0])).arg(formatZoom(sm_zoomMinMax[1])));
-        m_zoomCombo->setFocus();
-        m_zoomCombo->lineEdit()->selectAll();
+    default:
+        QMessageBox::information(this, "RisWidget", QString("Please enter a number between %1 and %2.").arg(formatZoom(ImageWidget::sm_zoomMinMax.first)).arg(formatZoom(ImageWidget::sm_zoomMinMax.second)));
+        m_imageViewZoomCombo->setFocus();
+        m_imageViewZoomCombo->lineEdit()->selectAll();
         valid = false;
         break;
     }
@@ -263,40 +257,40 @@ void RisWidget::zoomComboCustomValueEntered()
         double scalePercent(scaleText.toDouble(&converted));
         if(!converted)
         {
-            throw RisWidgetException(std::string("RisWidget::zoomComboCustomValueEntered(): scaleText.toDouble(..) failed for \"") +
+            throw RisWidgetException(std::string("RisWidget::imageViewZoomComboCustomValueEntered(): scaleText.toDouble(..) failed for \"") +
                                      scaleText.toStdString() + "\".");
         }
-        setCustomZoom(scalePercent * .01);
+        m_imageWidget->setCustomZoom(scalePercent * .01);
     }
 }
 
-void RisWidget::zoomComboChanged(int index)
+void RisWidget::imageViewZoomComboChanged(int index)
 {
-    setZoomIndex(index);
+    m_imageWidget->setZoomIndex(index);
 }
 
-void RisWidget::zoomChanged(int zoomIndex, GLfloat customZoom)
+void RisWidget::imageViewZoomChanged(int zoomIndex, GLfloat customZoom)
 {
     if(zoomIndex != -1 && customZoom != 0)
     {
-        throw RisWidgetException("RisWidget::zoomChanged(..): Both zoomIndex and customZoom specified.");
+        throw RisWidgetException("RisWidget::imageViewZoomChanged(..): Both zoomIndex and customZoom specified.");
     }
     if(zoomIndex == -1 && customZoom == 0)
     {
-        throw RisWidgetException("RisWidget::zoomChanged(..): Neither zoomIndex nor customZoom specified.");
+        throw RisWidgetException("RisWidget::imageViewZoomChanged(..): Neither zoomIndex nor customZoom specified.");
     }
 
     if(zoomIndex != -1)
     {
-        if(zoomIndex < 0 || zoomIndex >= m_zoomCombo->count())
+        if(zoomIndex < 0 || zoomIndex >= m_imageViewZoomCombo->count())
         {
-            throw RisWidgetException("RisWidget::zoomChanged(..): Invalid value for zoomIndex.");
+            throw RisWidgetException("RisWidget::imageViewZoomChanged(..): Invalid value for zoomIndex.");
         }
-        m_zoomCombo->setCurrentIndex(zoomIndex);
+        m_imageViewZoomCombo->setCurrentIndex(zoomIndex);
     }
     else
     {
-        m_zoomCombo->lineEdit()->setText(formatZoom(customZoom * 100.0f) + '%');
+        m_imageViewZoomCombo->lineEdit()->setText(formatZoom(customZoom * 100.0f) + '%');
     }
 }
 

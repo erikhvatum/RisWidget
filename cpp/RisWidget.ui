@@ -83,7 +83,7 @@
     <string>Ctrl+O</string>
    </property>
   </action>
-  <action name="m_actionZoomMode">
+  <action name="m_actionImageViewZoomInteractionMode">
    <property name="checkable">
     <bool>true</bool>
    </property>
@@ -91,7 +91,7 @@
     <string>Zoom</string>
    </property>
   </action>
-  <action name="m_actionPanMode">
+  <action name="m_actionImageViewPanInteractionMode">
    <property name="checkable">
     <bool>true</bool>
    </property>

@@ -61,8 +61,8 @@ protected:
     QMutex* m_sizeLock;
     QSize m_size, m_glSize;
 
-    virtual void resizeEvent(QResizeEvent* event);
-    virtual void exposeEvent(QExposeEvent* event);
-    virtual void mouseMoveEvent(QMouseEvent* event);
-    virtual void mousePressEvent(QMouseEvent* event);
+    virtual void resizeEvent(QResizeEvent* event) override;
+    virtual void exposeEvent(QExposeEvent* event) override;
+    virtual void mouseMoveEvent(QMouseEvent* event) override;
+    virtual void mousePressEvent(QMouseEvent* event) override;
 };
