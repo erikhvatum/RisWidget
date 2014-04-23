@@ -237,6 +237,8 @@
 			<F N="cpp/ImageWidget.cpp"/>
 			<F N="cpp/ImageWidget.h"/>
 			<F N="cpp/ImageWidget.ui"/>
+			<F N="cpp/ImageWidgetViewScroller.cpp"/>
+			<F N="cpp/ImageWidgetViewScroller.h"/>
 			<F N="cpp/LockedRef.h"/>
 			<F N="cpp/Renderer.cpp"/>
 			<F N="cpp/Renderer.h"/>

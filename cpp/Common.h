@@ -75,6 +75,7 @@
 #include <QPointer>
 #include <QResizeEvent>
 #include <QScreen>
+#include <QScrollBar>
 #include <QSharedPointer>
 #include <QString>
 #include <QSurface>

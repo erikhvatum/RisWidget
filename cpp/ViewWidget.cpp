@@ -25,12 +25,16 @@
 #include "ViewWidget.h"
 
 ViewWidget::ViewWidget(QWidget* parent)
-  : QWidget(parent)
+  : QWidget(parent),
+    m_lock(new QMutex(QMutex::Recursive)),
+    m_viewSize(-1, -1),
+    m_viewGlSize(-2, -2)
 {
 }
 
 ViewWidget::~ViewWidget()
 {
+    delete m_lock;
 }
 
 View* ViewWidget::view()
@@ -43,21 +47,46 @@ QWidget* ViewWidget::viewContainerWidget()
     return m_viewContainerWidget;
 }
 
-void ViewWidget::makeView()
+void View::setClearColor(const glm::vec4& color)
 {
+    QMutexLocker locker(m_lock);
+    m_clearColor = color;
+    update();
+}
+
+glm::vec4 View::clearColor() const
+{
+    QMutexLocker locker(m_lock);
+    glm::vec4 ret{m_clearColor};
+    return ret;
+}
+
+void ViewWidget::makeView(bool doAddWidget)
+{
+    QMutexLocker locker(m_lock);
     if(m_view || m_viewContainerWidget)
     {
         throw RisWidgetException("ViewWidget::makeView(): View already created.  makeView() must not be "
                                  "called more than once per ViewWidget instance.");
     }
-    if(layout() == nullptr)
+    if(doAddWidget && layout() == nullptr)
     {
         QHBoxLayout* layout_(new QHBoxLayout);
         setLayout(layout_);
     }
     m_view = instantiateView();
+    connect(m_view.data(), &View::resizeEventSignal, this, &ViewWidget::resizeEventInView);
     m_viewContainerWidget = QWidget::createWindowContainer(m_view, this, Qt::Widget);
-    layout()->addWidget(m_viewContainerWidget);
-    m_viewContainerWidget->show();
-    m_view->show();
+    if(doAddWidget)
+    {
+        layout()->addWidget(m_viewContainerWidget);
+        m_viewContainerWidget->show();
+        m_view->show();
+    }
+}
+
+void ViewWidget::resizeEventInView(QResizeEvent* ev)
+{
+    QMutexLocker locker(m_lock);
+    m_viewSize = ev.size();
 }

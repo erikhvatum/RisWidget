@@ -39,6 +39,7 @@ HEADERS += Common.h \
            HistogramWidget.h \
            HistogramView.h \
            ImageWidget.h \
+           ImageWidgetViewScroller.h \
            ImageView.h \
            LockedRef.h \
            Renderer.h \
@@ -58,6 +59,7 @@ SOURCES += RisWidget.cpp \
            HistogramWidget.cpp \
            HistogramView.cpp \
            ImageWidget.cpp \
+           ImageWidgetViewScroller.cpp \
            ImageView.cpp \
            Renderer.cpp \
            RisWidgetException.cpp \

@@ -29,8 +29,7 @@ const GLfloat ImageWidget::sm_zoomClickScaleFactor = 0.25f;
 
 ImageWidget::ImageWidget(QWidget* parent)
   : ViewWidget(parent),
-    m_interactionMode(InteractionMode::Invalid),
-    m_zoomLock(new QMutex(QMutex::Recursive)),
+    m_interactionMode(InteractionMode::Pointer),
     m_zoomIndex(1),
     m_customZoom(0.0f)
 {
@@ -39,7 +38,6 @@ ImageWidget::ImageWidget(QWidget* parent)
 
 ImageWidget::~ImageWidget()
 {
-    delete m_zoomLock;
 }
 
 ImageView* ImageWidget::imageView()
@@ -47,10 +45,20 @@ ImageView* ImageWidget::imageView()
     return dynamic_cast<ImageView*>(m_view.data());
 }
 
-void ImageWidget::makeView()
+void ImageWidget::makeView(bool)
 {
-    ViewWidget::makeView();
-    connect(m_view, SIGNAL(mousePressEventSignal(QMouseEvent*)), this, SLOT(mousePressEventInView(QMouseEvent*)));
+    QMutexLocker locker(m_lock);
+    ViewWidget::makeView(false);
+    m_scroller->setViewport(m_viewContainerWidget);
+    m_viewContainerWidget->show();
+    m_view->show();
+    m_scroller->horizontalScrollBar()->setRange(0, 1000);
+    m_scroller->verticalScrollBar()->setRange(0, 1000);
+
+    connect(m_scroller, &ImageWidgetViewScroller::scrollContentsBySignal, this, &ImageWidget::scrollViewContentsBy);
+//  connect(m_view, SIGNAL(mousePressEventSignal(QMouseEvent*)), this, SLOT(mousePressEventInView(QMouseEvent*)));
+    connect(m_view.data(), &View::mouseMoveEventSignal, this, &ImageWidget::mouseMoveEventInView);
+    connect(m_view.data(), &View::mouseEnterExitSignal, this, &ImageWidget::mouseEnterExitView);
 }
 
 View* ImageWidget::instantiateView()
@@ -65,11 +73,6 @@ ImageWidget::InteractionMode ImageWidget::interactionMode() const
 
 void ImageWidget::setInteractionMode(InteractionMode interactionMode)
 {
-    if(interactionMode == InteractionMode::Invalid)
-    {
-        throw RisWidgetException("ImageWidget::setInteractionMode(InteractionMode interactionMode): "
-                                 "Called with InteractionMode::Invalid for interactionMode argument.");
-    }
     if(m_interactionMode != interactionMode)
     {
         InteractionMode oldMode{m_interactionMode};
@@ -92,41 +95,62 @@ void ImageWidget::setInteractionMode(InteractionMode interactionMode)
 
 GLfloat ImageWidget::customZoom() const
 {
-    QMutexLocker zoomLocker(const_cast<QMutex*>(m_zoomLock));
+    QMutexLocker locker(const_cast<QMutex*>(m_lock));
     return m_customZoom;
 }
 
 int ImageWidget::zoomIndex() const
 {
-    QMutexLocker zoomLocker(const_cast<QMutex*>(m_zoomLock));
+    QMutexLocker locker(const_cast<QMutex*>(m_lock));
     return m_zoomIndex;
-}
-
-std::pair<int, GLfloat> ImageWidget::zoom() const
-{
-    QMutexLocker zoomLocker(const_cast<QMutex*>(m_zoomLock));
-    return std::make_pair(m_zoomIndex, m_customZoom);
 }
 
 void ImageWidget::setCustomZoom(GLfloat customZoom)
 {
-    QMutexLocker zoomLocker(m_zoomLock);
-	m_customZoom = customZoom;
-	m_zoomIndex = -1;
+    {
+        QMutexLocker locker(m_lock);
+        m_customZoom = customZoom;
+        m_zoomIndex = -1;
+    }
     zoomChanged(m_zoomIndex, m_customZoom);
 	m_view->update();
 }
 
 void ImageWidget::setZoomIndex(int zoomIndex)
 {
-    QMutexLocker zoomLocker(m_zoomLock);
-	m_zoomIndex = zoomIndex;
-	m_customZoom = 0.0f;
+    {
+        QMutexLocker locker(m_lock);
+        m_zoomIndex = zoomIndex;
+        m_customZoom = 0.0f;
+    }
     zoomChanged(m_zoomIndex, m_customZoom);
 	m_view->update();
+}
+
+void ImageWidget::scrollViewContentsBy(int /*dx*/, int /*dy*/)
+{
+    QMutexLocker locker(m_lock);
+    m_pan.setX(horizontalScrollBar()->value());
+    m_pan.setY(verticalScrollBar()->value());
+    m_view->update();
 }
 
 void ImageWidget::mousePressEventInView(QMouseEvent* event)
 {
     event->accept();
 }
+
+void ImageWidget::mouseMoveEventInView(QMouseEvent* event)
+{
+    event->accept();
+    pointerMovedToDifferentPixel(true, QPoint(event->x(), event->y()), 65535);
+}
+
+void ImageWidget::mouseEnterExitView(bool entered)
+{
+    if(!entered)
+    {
+        pointerMovedToDifferentPixel(false, QPoint(), 0);
+    }
+}
+

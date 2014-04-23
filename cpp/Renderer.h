@@ -115,7 +115,7 @@ private:
     // Helper for execImageDraw() and execHistoDraw()
     void updateGlViewportSize(View* view, QSize& size);
 
-    // Leading _ indicates that a signal is private and is used internally for cross thread procedure calls
+    // Leading _ indicates that a signal is private and is used internally for cross-thread procedure calls
 signals:
     void _newImage(ImageData imageData, QSize imageSize, bool filter);
     void _updateView(View* view);

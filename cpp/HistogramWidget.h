@@ -27,6 +27,7 @@
 #include "ui_HistogramWidget.h"
 #include "ViewWidget.h"
 
+class Renderer;
 class RisWidget;
 
 class HistogramWidget
@@ -34,6 +35,7 @@ class HistogramWidget
     protected Ui::HistogramWidget
 {
     Q_OBJECT;
+    friend class Renderer;
     friend class RisWidget;
 
 public:

@@ -39,8 +39,6 @@ public:
     QOpenGLContext* context();
     void makeCurrent();
     void swapBuffers();
-    void setClearColor(const glm::vec4& color);
-    glm::vec4 clearColor() const;
 
     // Call this thread-safe function to refresh view contents.  The refresh is queued and happens when the Renderer
     // thread gets around to it.  Multiple calls to update made for a single view while the Renderer is busy coalesce
@@ -48,21 +46,18 @@ public:
     void update();
 
 signals:
-    void mouseMoveEventSignal(QMouseEvent* event);
-    void mousePressEventSignal(QMouseEvent* event);
+    void resizeEventSignal(QResizeEvent* ev);
+    void mouseMoveEventSignal(QMouseEvent* ev);
+    void mousePressEventSignal(QMouseEvent* ev);
+    void mouseEnterExitSignal(bool entered);
 
 protected:
     QPointer<QOpenGLContext> m_context;
     QPointer<Renderer> m_renderer;
 
-    QMutex* m_clearColorLock;
-    glm::vec4 m_clearColor{0.0f, 0.0f, 0.0f, 0.0f};
-
-    QMutex* m_sizeLock;
-    QSize m_size, m_glSize;
-
-    virtual void resizeEvent(QResizeEvent* event) override;
-    virtual void exposeEvent(QExposeEvent* event) override;
-    virtual void mouseMoveEvent(QMouseEvent* event) override;
-    virtual void mousePressEvent(QMouseEvent* event) override;
+    virtual bool event(QEvent* ev) override;
+    virtual void resizeEvent(QResizeEvent* ev) override;
+    virtual void exposeEvent(QExposeEvent* ev) override;
+    virtual void mouseMoveEvent(QMouseEvent* ev) override;
+    virtual void mousePressEvent(QMouseEvent* ev) override;
 };

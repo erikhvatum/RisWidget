@@ -20,46 +20,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
-
 #include "Common.h"
-#include "View.h"
+#include "ImageWidgetViewScroller.h"
 
-class Renderer;
-class RisWidget;
-
-class ViewWidget
-  : public QWidget
+ImageWidgetViewScroller::ImageWidgetViewScroller(QWidget* parent)
+  : QAbstractScrollArea(parent)
 {
-    Q_OBJECT;
-    friend class RisWidget;
-    friend class Renderer;
+}
 
-public:
-    explicit ViewWidget(QWidget* parent = nullptr);
-    virtual ~ViewWidget();
-
-    View* view();
-    QWidget* viewContainerWidget();
-
-    void setClearColor(const glm::vec4& clearColor);
-    glm::vec4 clearColor() const;
-
-protected:
-    QMutex* m_lock;
-    QPointer<QWidget> m_viewContainerWidget;
-    QPointer<View> m_view;
-
-    glm::vec4 m_clearColor{0.0f, 0.0f, 0.0f, 0.0f};
-
-    QSize m_viewSize;
-    QSize m_viewGlSize;
-
-    virtual void makeView(bool doAddWidget = true);
-    // Helper for makeView
-    virtual View* instantiateView() = 0;
-
-protected slots:
-    virtual void resizeEventInView(QResizeEvent* ev);
-};
-
+void ImageWidgetViewScroller::scrollContentsBy(int dx, int dy)
+{
+    scrollContentsBySignal(dx, dy);
+}

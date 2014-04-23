@@ -76,13 +76,16 @@ RisWidget::~RisWidget()
 void RisWidget::setupActions()
 {
     m_imageViewInteractionModeGroup = new QActionGroup(this);
+    m_imageViewInteractionModeGroup->addAction(m_actionImageViewPointerInteractionMode);
     m_imageViewInteractionModeGroup->addAction(m_actionImageViewPanInteractionMode);
     m_imageViewInteractionModeGroup->addAction(m_actionImageViewZoomInteractionMode);
 
-    connect(m_actionImageViewPanInteractionMode , &QAction::triggered,
-            [&](){m_imageWidget->setInteractionMode(ImageWidget::InteractionMode::Pan );});
+    connect(m_actionImageViewPanInteractionMode, &QAction::triggered,
+            [&](){m_imageWidget->setInteractionMode(ImageWidget::InteractionMode::Pan);});
     connect(m_actionImageViewZoomInteractionMode, &QAction::triggered,
             [&](){m_imageWidget->setInteractionMode(ImageWidget::InteractionMode::Zoom);});
+    connect(m_actionImageViewPointerInteractionMode, &QAction::triggered,
+            [&](){m_imageWidget->setInteractionMode(ImageWidget::InteractionMode::Pointer);});
 }
 
 void RisWidget::makeToolBars()
@@ -105,6 +108,7 @@ void RisWidget::makeToolBars()
     connect(m_imageViewZoomCombo->lineEdit(), SIGNAL(returnPressed()), this, SLOT(imageViewZoomComboCustomValueEntered()));
     connect(m_imageWidget, &ImageWidget::zoomChanged, this, &RisWidget::imageViewZoomChanged);
     m_imageViewToolBar->addSeparator();
+    m_imageViewToolBar->addAction(m_actionImageViewPointerInteractionMode);
     m_imageViewToolBar->addAction(m_actionImageViewPanInteractionMode);
     m_imageViewToolBar->addAction(m_actionImageViewZoomInteractionMode);
 }
@@ -112,11 +116,12 @@ void RisWidget::makeToolBars()
 void RisWidget::makeViews()
 {
     m_imageWidget->makeView();
-    connect(m_imageWidget->imageView(), &ImageView::mouseMoveEventSignal, this, &RisWidget::mouseMoveEventInImageView);
     m_histogramWidget->makeView();
 
     m_imageWidget->imageView()->setClearColor(glm::vec4(1.0f/3.0f, 1.0f/3.0f, 1.0f/3.0f, 0.0f));
     m_histogramWidget->histogramView()->setClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+
+    connect(m_imageWidget, &ImageWidget::pointerMovedToDifferentPixel, this, &RisWidget::imageViewPointerMovedToDifferentPixel);
 }
 
 void RisWidget::makeRenderer()
@@ -278,9 +283,16 @@ void RisWidget::loadFile()
     }
 }
 
-void RisWidget::mouseMoveEventInImageView(QMouseEvent* event)
+void RisWidget::imageViewPointerMovedToDifferentPixel(bool isOnPixel, QPoint pixelCoord, GLushort pixelValue)
 {
-    statusBar()->showMessage(QString("%1, %2").arg(event->x()).arg(event->y()));
+    if(isOnPixel)
+    {
+        statusBar()->showMessage(QString("%1, %2: %3").arg(pixelCoord.x()).arg(pixelCoord.y()).arg(pixelValue));
+    }
+    else
+    {
+        statusBar()->clearMessage();
+    }
 }
 
 void RisWidget::imageViewZoomComboCustomValueEntered()

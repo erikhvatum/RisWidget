@@ -25,11 +25,7 @@
 #include "View.h"
 
 View::View(QWindow* parent)
-  : QWindow(parent),
-    m_clearColorLock(new QMutex),
-    m_sizeLock(new QMutex),
-    m_size(-1, -1),
-    m_glSize(-1, -1)
+  : QWindow(parent)
 {
     setSurfaceType(QWindow::OpenGLSurface);
     setFormat(Renderer::sm_format);
@@ -38,8 +34,6 @@ View::View(QWindow* parent)
 
 View::~View()
 {
-    delete m_clearColorLock;
-    delete m_sizeLock;
 }
 
 QOpenGLContext* View::context()
@@ -60,20 +54,6 @@ void View::swapBuffers()
     m_context->swapBuffers(this);
 }
 
-void View::setClearColor(const glm::vec4& color)
-{
-    QMutexLocker clearColorLocker(m_clearColorLock);
-    m_clearColor = color;
-    update();
-}
-
-glm::vec4 View::clearColor() const
-{
-    QMutexLocker clearColorLocker(const_cast<QMutex*>(m_clearColorLock));
-    glm::vec4 ret{m_clearColor};
-    return ret;
-}
-
 void View::update()
 {
     if(m_renderer)
@@ -82,34 +62,44 @@ void View::update()
     }
 }
 
-void View::exposeEvent(QExposeEvent* event)
+bool View::event(QEvent* ev)
+{
+    if(ev->type() == QEvent::Enter)
+    {
+        mouseEnterExitSignal(true);
+    }
+    else if(ev->type() == QEvent::Leave)
+    {
+        mouseEnterExitSignal(false);
+    }
+    return QWindow::event(ev);
+}
+
+void View::exposeEvent(QExposeEvent* ev)
 {
     if(isExposed() && isVisible())
     {
-        event->accept();
+        ev->accept();
         update();
     }
 }
 
-void View::resizeEvent(QResizeEvent* event)
+void View::resizeEvent(QResizeEvent* ev)
 {
-    {
-        QMutexLocker locker(m_sizeLock);
-        m_size = event->size();
-    }
+    resizeEventSignal(ev);
     if(isVisible() && isExposed())
     {
-        event->accept();
+        ev->accept();
         update();
     }
 }
 
-void View::mouseMoveEvent(QMouseEvent* event)
+void View::mouseMoveEvent(QMouseEvent* ev)
 {
-    mouseMoveEventSignal(event);
+    mouseMoveEventSignal(ev);
 }
 
-void View::mousePressEvent(QMouseEvent* event)
+void View::mousePressEvent(QMouseEvent* ev)
 {
-    mousePressEventSignal(event);
+    mousePressEventSignal(ev);
 }

@@ -27,6 +27,7 @@
 #include "ui_ImageWidget.h"
 #include "ViewWidget.h"
 
+class Renderer;
 class RisWidget;
 
 // Click-zooming jumps between preset values until the preset value range is exceeded; thereafter, each click scales
@@ -36,12 +37,12 @@ class ImageWidget
     protected Ui::ImageWidget
 {
     Q_OBJECT;
+    friend class Renderer;
     friend class RisWidget;
 
 public:
     enum class InteractionMode
     {
-        Invalid,
         Pointer,
         Pan,
         Zoom
@@ -63,26 +64,26 @@ public:
 	GLfloat customZoom() const;
 	// Returns the current preset zoom level index, or -1 if the view is zoomed to a custom level
 	int zoomIndex() const;
-    // Aggregate of the customZoom() and zoomIndex(); useful in that it allows both values to be read with a single
-    // m_zoomLock lock/unlock
-    std::pair<int, GLfloat> zoom() const;
 	void setCustomZoom(GLfloat customZoom);
 	void setZoomIndex(int zoomIndex);
 
 signals:
     void interactionModeChanged(InteractionMode interactionMode, InteractionMode previousInteractionMode);
+    void pointerMovedToDifferentPixel(bool isOnPixel, QPoint pixelCoord, GLushort pixelValue);
     void zoomChanged(int zoomIndex, GLfloat customZoom);
 
 protected:
     InteractionMode m_interactionMode;
-    // The Renderer thread queries zoom parameters and the GUI thread sets them
-    QMutex* m_zoomLock;
     int m_zoomIndex;
     GLfloat m_customZoom;
+    QPoint m_pan;
 
-    virtual void makeView() override;
+    virtual void makeView(bool) override;
     virtual View* instantiateView() override;
 
 protected slots:
+    void scrollViewContentsBy(int dx, int dy);
     void mousePressEventInView(QMouseEvent* event);
+    void mouseMoveEventInView(QMouseEvent* event);
+    void mouseEnterExitView(bool entered);
 };

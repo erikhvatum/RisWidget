@@ -105,6 +105,17 @@
     <string>Display Checkerboard...</string>
    </property>
   </action>
+  <action name="m_actionImageViewPointerInteractionMode">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Pointer</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>

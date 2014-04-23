@@ -390,9 +390,6 @@ void Renderer::updateGlViewportSize(View* view, QSize& size)
 
 void Renderer::execImageDraw()
 {
-    auto ddd = m_imageWidget->zoom();
-    std::cerr << ddd.first << " : " << ddd.second << std::endl;
-
     m_imageView->makeCurrent();
     m_glfs->glUseProgram(m_imageDrawProg);
 
@@ -406,6 +403,7 @@ void Renderer::execImageDraw()
 
     if(!m_imageData.empty())
     {
+        std::pair<int, GLfloat> zoom(m_imageWidget->zoom());
         // Image aspect ratio is always maintained.  The image is centered along whichever axis does not fit.
         float viewAspectRatio = static_cast<float>(viewSize.width()) / viewSize.height();
         float correctionFactor = m_imageAspectRatio / viewAspectRatio;

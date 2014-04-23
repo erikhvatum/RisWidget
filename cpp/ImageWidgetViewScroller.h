@@ -23,43 +23,18 @@
 #pragma once
 
 #include "Common.h"
-#include "View.h"
 
-class Renderer;
-class RisWidget;
-
-class ViewWidget
-  : public QWidget
+class ImageWidgetViewScroller
+  : public QAbstractScrollArea
 {
     Q_OBJECT;
-    friend class RisWidget;
-    friend class Renderer;
 
 public:
-    explicit ViewWidget(QWidget* parent = nullptr);
-    virtual ~ViewWidget();
+    explicit ImageWidgetViewScroller(QWidget* parent = nullptr);
 
-    View* view();
-    QWidget* viewContainerWidget();
-
-    void setClearColor(const glm::vec4& clearColor);
-    glm::vec4 clearColor() const;
+signals:
+    void scrollContentsBySignal(int dx, int dy);
 
 protected:
-    QMutex* m_lock;
-    QPointer<QWidget> m_viewContainerWidget;
-    QPointer<View> m_view;
-
-    glm::vec4 m_clearColor{0.0f, 0.0f, 0.0f, 0.0f};
-
-    QSize m_viewSize;
-    QSize m_viewGlSize;
-
-    virtual void makeView(bool doAddWidget = true);
-    // Helper for makeView
-    virtual View* instantiateView() = 0;
-
-protected slots:
-    virtual void resizeEventInView(QResizeEvent* ev);
+    virtual void scrollContentsBy(int dx, int dy) override;
 };
-

@@ -79,6 +79,6 @@ protected slots:
     void imageViewZoomComboCustomValueEntered();
     void imageViewZoomComboChanged(int index);
     void imageViewZoomChanged(int zoomIndex, GLfloat customZoom);
-    void mouseMoveEventInImageView(QMouseEvent* event);
     void showCheckerPatternSlot();
+    void imageViewPointerMovedToDifferentPixel(bool isOnPixel, QPoint pixelCoord, GLushort pixelValue);
 };
