@@ -27,6 +27,7 @@
 ViewWidget::ViewWidget(QWidget* parent)
   : QWidget(parent),
     m_lock(new QMutex(QMutex::Recursive)),
+    m_clearColor(0.0f, 0.0f, 0.0f, 0.0f),
     m_viewSize(-1, -1),
     m_viewGlSize(-2, -2)
 {
@@ -47,18 +48,25 @@ QWidget* ViewWidget::viewContainerWidget()
     return m_viewContainerWidget;
 }
 
-void View::setClearColor(const glm::vec4& color)
+void ViewWidget::setClearColor(glm::vec4&& color)
+{
+    QMutexLocker locker(m_lock);
+    m_clearColor = std::move(color);
+    update();
+}
+
+void ViewWidget::setClearColor(const glm::vec4& color)
 {
     QMutexLocker locker(m_lock);
     m_clearColor = color;
     update();
 }
 
-glm::vec4 View::clearColor() const
+glm::vec4 ViewWidget::clearColor() const
 {
     QMutexLocker locker(m_lock);
-    glm::vec4 ret{m_clearColor};
-    return ret;
+    glm::vec4 ret(m_clearColor);
+    return std::move(ret);
 }
 
 void ViewWidget::makeView(bool doAddWidget)
@@ -82,11 +90,12 @@ void ViewWidget::makeView(bool doAddWidget)
         layout()->addWidget(m_viewContainerWidget);
         m_viewContainerWidget->show();
         m_view->show();
+//      m_view->setParent(m_viewContainerWidget->windowHandle());
     }
 }
 
 void ViewWidget::resizeEventInView(QResizeEvent* ev)
 {
     QMutexLocker locker(m_lock);
-    m_viewSize = ev.size();
+    m_viewSize = ev->size();
 }

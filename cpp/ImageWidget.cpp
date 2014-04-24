@@ -45,7 +45,7 @@ ImageView* ImageWidget::imageView()
     return dynamic_cast<ImageView*>(m_view.data());
 }
 
-void ImageWidget::makeView(bool)
+void ImageWidget::makeView(bool /*doAddWidget*/)
 {
     QMutexLocker locker(m_lock);
     ViewWidget::makeView(false);
@@ -130,8 +130,8 @@ void ImageWidget::setZoomIndex(int zoomIndex)
 void ImageWidget::scrollViewContentsBy(int /*dx*/, int /*dy*/)
 {
     QMutexLocker locker(m_lock);
-    m_pan.setX(horizontalScrollBar()->value());
-    m_pan.setY(verticalScrollBar()->value());
+    m_pan.setX(m_scroller->horizontalScrollBar()->value());
+    m_pan.setY(m_scroller->verticalScrollBar()->value());
     m_view->update();
 }
 

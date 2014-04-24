@@ -118,8 +118,8 @@ void RisWidget::makeViews()
     m_imageWidget->makeView();
     m_histogramWidget->makeView();
 
-    m_imageWidget->imageView()->setClearColor(glm::vec4(1.0f/3.0f, 1.0f/3.0f, 1.0f/3.0f, 0.0f));
-    m_histogramWidget->histogramView()->setClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+    m_imageWidget->setClearColor(glm::vec4(1.0f/3.0f, 1.0f/3.0f, 1.0f/3.0f, 0.0f));
+    m_histogramWidget->setClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
 
     connect(m_imageWidget, &ImageWidget::pointerMovedToDifferentPixel, this, &RisWidget::imageViewPointerMovedToDifferentPixel);
 }

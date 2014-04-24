@@ -42,7 +42,8 @@ public:
     View* view();
     QWidget* viewContainerWidget();
 
-    void setClearColor(const glm::vec4& clearColor);
+    void setClearColor(glm::vec4&& color);
+    void setClearColor(const glm::vec4& color);
     glm::vec4 clearColor() const;
 
 protected:
@@ -50,7 +51,7 @@ protected:
     QPointer<QWidget> m_viewContainerWidget;
     QPointer<View> m_view;
 
-    glm::vec4 m_clearColor{0.0f, 0.0f, 0.0f, 0.0f};
+    glm::vec4 m_clearColor;
 
     QSize m_viewSize;
     QSize m_viewGlSize;

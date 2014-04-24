@@ -78,7 +78,7 @@ protected:
     GLfloat m_customZoom;
     QPoint m_pan;
 
-    virtual void makeView(bool) override;
+    virtual void makeView(bool doAddWidget = true) override;
     virtual View* instantiateView() override;
 
 protected slots:

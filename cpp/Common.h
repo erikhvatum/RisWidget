@@ -55,6 +55,7 @@
 #else
  #include <Python.h>
 #endif
+#include <QAbstractScrollArea>
 #include <QComboBox>
 #include <QDoubleValidator>
 #include <QFile>

@@ -377,15 +377,13 @@ void Renderer::execHistoConsolidate()
                                reinterpret_cast<GLvoid*>(m_histoConsolidateProg.extrema));
 }
 
-void Renderer::updateGlViewportSize(View* view, QSize& size)
+void Renderer::updateGlViewportSize(ViewWidget* viewWidget)
 {
-    QMutexLocker sizeLocker(view->m_sizeLock);
-    if(view->m_size != view->m_glSize)
+    if(viewWidget->m_viewSize != viewWidget->m_viewGlSize)
     {
-        m_glfs->glViewport(0, 0, view->m_size.width(), view->m_size.height());
-        view->m_glSize = view->m_size;
+        m_glfs->glViewport(0, 0, viewWidget->m_viewSize.width(), viewWidget->m_viewSize.height());
+        viewWidget->m_viewGlSize = viewWidget->m_viewSize;
     }
-    size = view->m_size;
 }
 
 void Renderer::execImageDraw()
@@ -393,19 +391,22 @@ void Renderer::execImageDraw()
     m_imageView->makeCurrent();
     m_glfs->glUseProgram(m_imageDrawProg);
 
-    QSize viewSize;
-    updateGlViewportSize(m_imageView, viewSize);
+    QMutexLocker widgetLocker(m_imageWidget->m_lock);
+    updateGlViewportSize(m_imageWidget);
 
-    glm::vec4 clearColor{m_imageView->clearColor()};
-    m_glfs->glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
+    m_glfs->glClearColor(m_imageWidget->m_clearColor.r,
+                         m_imageWidget->m_clearColor.g,
+                         m_imageWidget->m_clearColor.b,
+                         m_imageWidget->m_clearColor.a);
     m_glfs->glClearDepth(1.0f);
     m_glfs->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     if(!m_imageData.empty())
     {
-        std::pair<int, GLfloat> zoom(m_imageWidget->zoom());
+//      std::pair<int, GLfloat> zoom(m_imageWidget->zoom());
+        widgetLocker.unlock();
         // Image aspect ratio is always maintained.  The image is centered along whichever axis does not fit.
-        float viewAspectRatio = static_cast<float>(viewSize.width()) / viewSize.height();
+        float viewAspectRatio = static_cast<float>(m_imageWidget->m_viewSize.width()) / m_imageWidget->m_viewSize.height();
         float correctionFactor = m_imageAspectRatio / viewAspectRatio;
         glm::mat4 pmv(1.0f);
         if(correctionFactor <= 1)
@@ -436,11 +437,14 @@ void Renderer::execHistoDraw()
     m_histogramView->makeCurrent();
     m_glfs->glUseProgram(m_histoDrawProg);
 
-    QSize viewSize;
-    updateGlViewportSize(m_histogramView, viewSize);
+    QMutexLocker widgetLocker(m_histogramWidget->m_lock);
+    updateGlViewportSize(m_histogramWidget);
 
-    glm::vec4 clearColor{m_histogramView->clearColor()};
-    m_glfs->glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
+    m_glfs->glClearColor(m_histogramWidget->m_clearColor.r,
+                         m_histogramWidget->m_clearColor.g,
+                         m_histogramWidget->m_clearColor.b,
+                         m_histogramWidget->m_clearColor.a);
+    widgetLocker.unlock();
     m_glfs->glClearDepth(1.0f);
     m_glfs->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 

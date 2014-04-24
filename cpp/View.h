@@ -44,6 +44,8 @@ public:
     // thread gets around to it.  Multiple calls to update made for a single view while the Renderer is busy coalesce
     // into a single refresh.  If this View is not attached to a Renderer, update() is a no-op.
     void update();
+    // Thread safe
+    bool visibleAndExposed() const;
 
 signals:
     void resizeEventSignal(QResizeEvent* ev);
@@ -54,6 +56,7 @@ signals:
 protected:
     QPointer<QOpenGLContext> m_context;
     QPointer<Renderer> m_renderer;
+    std::atomic_bool m_visibleAndExposed;
 
     virtual bool event(QEvent* ev) override;
     virtual void resizeEvent(QResizeEvent* ev) override;

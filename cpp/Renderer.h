@@ -26,6 +26,7 @@
 #include "GlProgram.h"
 
 class View;
+class ViewWidget;
 class ImageView;
 class ImageWidget;
 class HistogramView;
@@ -113,7 +114,7 @@ private:
     void execHistoDraw();
 
     // Helper for execImageDraw() and execHistoDraw()
-    void updateGlViewportSize(View* view, QSize& size);
+    void updateGlViewportSize(ViewWidget* viewWidget);
 
     // Leading _ indicates that a signal is private and is used internally for cross-thread procedure calls
 signals:

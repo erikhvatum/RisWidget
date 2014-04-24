@@ -25,7 +25,8 @@
 #include "View.h"
 
 View::View(QWindow* parent)
-  : QWindow(parent)
+  : QWindow(parent),
+    m_visibleAndExposed(false)
 {
     setSurfaceType(QWindow::OpenGLSurface);
     setFormat(Renderer::sm_format);
@@ -51,15 +52,39 @@ void View::makeCurrent()
 
 void View::swapBuffers()
 {
-    m_context->swapBuffers(this);
+    if(m_visibleAndExposed.load())
+    {
+        m_context->swapBuffers(this);
+    }
+    else
+    {
+        std::cerr << "View::swapBuffers(): swapBuffers(..) call skipped." << std::endl;
+    }
 }
 
 void View::update()
 {
-    if(m_renderer)
+    if(m_renderer && m_visibleAndExposed.load())
     {
+        // Note the m_visibleAndExposed.load() condition.  It never makes sense to queue a render if the user can not
+        // see the render result.  A render result can only be needed because of a change to the widget state that
+        // entails an event, and when that event is processed, widget visibility is checked and an update is issued at
+        // that time if the widget is visible.  So, there is not even a reason to put render requests in a queue for
+        // lazy execution: when a render is needed, a request is submitted automatically.  What use would another
+        // request be? To render the same thing twice at the same instant?
+        // 
+        // Additionally, swapBuffers(..), called by Renderer upon completion of drawing to display the new rendering,
+        // checks m_visibleAndExposed before actually doing a render.  Thus, if a View becomes hidden before Renderer
+        // gets around to rendering it, the update is skipped.  However, the next time the View becomes visible, a new
+        // update is queued, so there is no opportunity for a View to be both visible and without being refreshed or at
+        // least having a refresh pending.
         m_renderer->updateView(this);
     }
+}
+
+bool View::visibleAndExposed() const
+{
+    return m_visibleAndExposed.load();
 }
 
 bool View::event(QEvent* ev)
@@ -77,20 +102,30 @@ bool View::event(QEvent* ev)
 
 void View::exposeEvent(QExposeEvent* ev)
 {
+    ev->accept();
     if(isExposed() && isVisible())
     {
-        ev->accept();
+        m_visibleAndExposed.store(true);
         update();
+    }
+    else
+    {
+        m_visibleAndExposed.store(false);
     }
 }
 
 void View::resizeEvent(QResizeEvent* ev)
 {
+    ev->accept();
     resizeEventSignal(ev);
     if(isVisible() && isExposed())
     {
-        ev->accept();
+        m_visibleAndExposed.store(true);
         update();
+    }
+    else
+    {
+        m_visibleAndExposed.store(false);
     }
 }
 
