@@ -77,9 +77,11 @@ protected:
     int m_zoomIndex;
     GLfloat m_customZoom;
     QPoint m_pan;
+    QSize m_imageSize;
 
     virtual void makeView(bool doAddWidget = true) override;
     virtual View* instantiateView() override;
+    void updateImageSize(const QSize& imageSize);
 
 protected slots:
     void scrollViewContentsBy(int dx, int dy);

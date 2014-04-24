@@ -52,8 +52,6 @@ void ImageWidget::makeView(bool /*doAddWidget*/)
     m_scroller->setViewport(m_viewContainerWidget);
     m_viewContainerWidget->show();
     m_view->show();
-    m_scroller->horizontalScrollBar()->setRange(0, 1000);
-    m_scroller->verticalScrollBar()->setRange(0, 1000);
 
     connect(m_scroller, &ImageWidgetViewScroller::scrollContentsBySignal, this, &ImageWidget::scrollViewContentsBy);
 //  connect(m_view, SIGNAL(mousePressEventSignal(QMouseEvent*)), this, SLOT(mousePressEventInView(QMouseEvent*)));
@@ -125,6 +123,23 @@ void ImageWidget::setZoomIndex(int zoomIndex)
     }
     zoomChanged(m_zoomIndex, m_customZoom);
 	m_view->update();
+}
+
+void ImageWidget::updateImageSize(const QSize& imageSize)
+{
+    QMutexLocker locker(m_lock);
+    m_imageSize = imageSize;
+    GLfloat z = m_zoomIndex == -1 ? m_customZoom : sm_zoomPresets[m_zoomIndex];
+
+    auto doAxis = [&](GLfloat i, GLfloat w, QScrollBar& s)
+    {
+        i *= z;
+        s.setRange(0, i > w ? static_cast<int>(i - w) : 0);
+        s.setPageStep(w);
+    };
+
+    doAxis(m_imageSize.width(), m_viewSize.width(), *m_scroller->horizontalScrollBar());
+    doAxis(m_imageSize.height(), m_viewSize.height(), *m_scroller->verticalScrollBar());
 }
 
 void ImageWidget::scrollViewContentsBy(int /*dx*/, int /*dy*/)

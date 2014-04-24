@@ -197,6 +197,7 @@ void RisWidget::showImage(const GLushort* imageDataRaw, const QSize& imageSize, 
            reinterpret_cast<const void*>(imageDataRaw),
            byteCount);
     m_renderer->showImage(imageData, imageSize, filterTexture);
+    m_imageWidget->updateImageSize(imageSize);
 }
 
 void RisWidget::showImage(PyObject* image, bool filterTexture)
