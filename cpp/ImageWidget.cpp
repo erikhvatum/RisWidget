@@ -54,6 +54,7 @@ void ImageWidget::makeView(bool /*doAddWidget*/)
     m_view->show();
 
     connect(m_scroller, &ImageWidgetViewScroller::scrollContentsBySignal, this, &ImageWidget::scrollViewContentsBy);
+    connect(m_view.data(), &View::wheelEventSignal, this, &ImageWidget::wheelEventInView);
 //  connect(m_view, SIGNAL(mousePressEventSignal(QMouseEvent*)), this, SLOT(mousePressEventInView(QMouseEvent*)));
     connect(m_view.data(), &View::mouseMoveEventSignal, this, &ImageWidget::mouseMoveEventInView);
     connect(m_view.data(), &View::mouseEnterExitSignal, this, &ImageWidget::mouseEnterExitView);
@@ -173,7 +174,8 @@ void ImageWidget::mouseEnterExitView(bool entered)
 
 void ImageWidget::wheelEventInView(QWheelEvent* ev)
 {
-    QPoint scrollBy(ev->pixelDelta().isNull() ? ev->angleDelta() / 8 : ev->pixelDelta());
-    m_scroller->scroll(scrollBy.x(), scrollBy.y());
+    QPoint scrollBy(ev->pixelDelta().isNull() ? ev->angleDelta() / 32 : ev->pixelDelta());
+    m_scroller->horizontalScrollBar()->setValue(m_scroller->horizontalScrollBar()->value() - scrollBy.x());
+    m_scroller->verticalScrollBar()->setValue(m_scroller->verticalScrollBar()->value() - scrollBy.y());
     ev->accept();
 }

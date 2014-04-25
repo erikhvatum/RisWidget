@@ -58,7 +58,7 @@ void View::swapBuffers()
     }
     else
     {
-        std::cerr << "View::swapBuffers(): swapBuffers(..) call skipped." << std::endl;
+//      std::cerr << "View::swapBuffers(): swapBuffers(..) call skipped." << std::endl;
     }
 }
 
