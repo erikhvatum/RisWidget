@@ -107,6 +107,7 @@ void RisWidget::makeToolBars()
     connect(m_imageViewZoomCombo, SIGNAL(activated(int)), this, SLOT(imageViewZoomComboChanged(int)));
     connect(m_imageViewZoomCombo->lineEdit(), SIGNAL(returnPressed()), this, SLOT(imageViewZoomComboCustomValueEntered()));
     connect(m_imageWidget, &ImageWidget::zoomChanged, this, &RisWidget::imageViewZoomChanged);
+    m_imageViewToolBar->addAction(m_actionImageViewZoomToFit);
     m_imageViewToolBar->addSeparator();
     m_imageViewToolBar->addAction(m_actionImageViewPointerInteractionMode);
     m_imageViewToolBar->addAction(m_actionImageViewPanInteractionMode);
@@ -360,6 +361,12 @@ void RisWidget::imageViewZoomChanged(int zoomIndex, GLfloat customZoom)
     {
         m_imageViewZoomCombo->lineEdit()->setText(formatZoom(customZoom * 100.0f) + '%');
     }
+}
+
+void RisWidget::imageViewZoomToFitToggled(bool zoomToFit)
+{
+    m_imageViewZoomCombo->setEnabled(!zoomToFit);
+    m_imageWidget->setZoomToFit(zoomToFit);
 }
 
 #ifdef STAND_ALONE_EXECUTABLE

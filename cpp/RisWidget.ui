@@ -116,6 +116,14 @@
     <string>Pointer</string>
    </property>
   </action>
+  <action name="m_actionImageViewZoomToFit">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Zoom to Fit</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -181,9 +189,26 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>m_actionImageViewZoomToFit</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>RisWidget</receiver>
+   <slot>imageViewZoomToFitToggled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>507</x>
+     <y>400</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>loadFile()</slot>
   <slot>showCheckerPatternSlot()</slot>
+  <slot>imageViewZoomToFitToggled(bool)</slot>
  </slots>
 </ui>

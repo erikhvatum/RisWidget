@@ -66,6 +66,8 @@ public:
 	int zoomIndex() const;
 	void setCustomZoom(GLfloat customZoom);
 	void setZoomIndex(int zoomIndex);
+    bool zoomToFit() const;
+    void setZoomToFit(bool zoomToFit);
 
 signals:
     void interactionModeChanged(InteractionMode interactionMode, InteractionMode previousInteractionMode);
@@ -76,6 +78,7 @@ protected:
     InteractionMode m_interactionMode;
     int m_zoomIndex;
     GLfloat m_customZoom;
+    bool m_zoomToFit;
     QPoint m_pan;
     QSize m_imageSize;
 

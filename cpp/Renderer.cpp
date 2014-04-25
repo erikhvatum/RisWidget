@@ -403,39 +403,46 @@ void Renderer::execImageDraw()
 
     if(!m_imageData.empty())
     {
-        GLfloat zoomFactor = m_imageWidget->m_zoomIndex == -1 ? 
-            m_imageWidget->m_customZoom : m_imageWidget->sm_zoomPresets[m_imageWidget->m_zoomIndex];
-        glm::vec2 viewSize(m_imageWidget->m_viewSize.width(), m_imageWidget->m_viewSize.height());
-        glm::vec2 pan(m_imageWidget->m_pan.x(), m_imageWidget->m_pan.y());
-        widgetLocker.unlock();
-
-        GLfloat viewAspectRatio = viewSize.x / viewSize.y;
-        GLfloat correctionFactor = m_imageAspectRatio / viewAspectRatio;
-        GLfloat sizeRatio = static_cast<GLfloat>(m_imageSize.height()) / viewSize.y;
-        sizeRatio *= zoomFactor;
         glm::mat4 pmv(1.0f);
-        // Scale to same aspect ratio
-        pmv = glm::scale(pmv, glm::vec3(correctionFactor, 1.0f, 1.0f));
-        // Pan
-        glm::vec2 pans((pan / viewSize) * 2.0f);
-        pmv = glm::translate(pmv, glm::vec3(-pans.x, pans.y, 0.0f));
-        // Zoom
-        pmv = glm::scale(pmv, glm::vec3(sizeRatio, sizeRatio, 1.0f));
 
-        /*
-        // Image aspect ratio is always maintained.  The image is centered along whichever axis does not fit.
-        float viewAspectRatio = static_cast<float>(viewSize.width()) / viewSize.height();
-        float correctionFactor = m_imageAspectRatio / viewAspectRatio;
-        glm::mat4 pmv(1.0f);
-        if(correctionFactor <= 1)
+        if(m_imageWidget->m_zoomToFit)
         {
-            pmv = glm::scale(pmv, glm::vec3(correctionFactor, 1.0f, 1.0f));
+            // Image aspect ratio is always maintained.  The image is centered along whichever axis does not fit.
+            float viewAspectRatio = static_cast<float>(m_imageWidget->m_viewSize.width()) / m_imageWidget->m_viewSize.height();
+            widgetLocker.unlock();
+            float correctionFactor = m_imageAspectRatio / viewAspectRatio;
+            if(correctionFactor <= 1)
+            {
+                pmv = glm::scale(pmv, glm::vec3(correctionFactor, 1.0f, 1.0f));
+            }
+            else
+            {
+                pmv = glm::scale(pmv, glm::vec3(1.0f, 1.0f / correctionFactor, 1.0f));
+            }
         }
         else
         {
-            pmv = glm::scale(pmv, glm::vec3(1.0f, 1.0f / correctionFactor, 1.0f));
+            // Image aspect ratio is always maintained; the image is centered, panned, and scaled as directed by the
+            // user
+            GLfloat zoomFactor = m_imageWidget->m_zoomIndex == -1 ? 
+                m_imageWidget->m_customZoom : m_imageWidget->sm_zoomPresets[m_imageWidget->m_zoomIndex];
+            glm::vec2 viewSize(m_imageWidget->m_viewSize.width(), m_imageWidget->m_viewSize.height());
+            glm::vec2 pan(m_imageWidget->m_pan.x(), m_imageWidget->m_pan.y());
+            widgetLocker.unlock();
+
+            GLfloat viewAspectRatio = viewSize.x / viewSize.y;
+            GLfloat correctionFactor = m_imageAspectRatio / viewAspectRatio;
+            GLfloat sizeRatio = static_cast<GLfloat>(m_imageSize.height()) / viewSize.y;
+            sizeRatio *= zoomFactor;
+            // Scale to same aspect ratio
+            pmv = glm::scale(pmv, glm::vec3(correctionFactor, 1.0f, 1.0f));
+            // Pan
+            glm::vec2 pans((pan / viewSize) * 2.0f);
+            pmv = glm::translate(pmv, glm::vec3(-pans.x, pans.y, 0.0f));
+            // Zoom
+            pmv = glm::scale(pmv, glm::vec3(sizeRatio, sizeRatio, 1.0f));
         }
-        */
+        
         m_glfs->glUniformMatrix4fv(m_imageDrawProg.projectionModelViewMatrixLoc,
                                    1, GL_FALSE, glm::value_ptr(pmv));
 

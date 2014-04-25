@@ -31,7 +31,8 @@ ImageWidget::ImageWidget(QWidget* parent)
   : ViewWidget(parent),
     m_interactionMode(InteractionMode::Pointer),
     m_zoomIndex(1),
-    m_customZoom(0.0f)
+    m_customZoom(0.0f),
+    m_zoomToFit(false)
 {
     setupUi(this);
 }
@@ -110,6 +111,7 @@ void ImageWidget::setCustomZoom(GLfloat customZoom)
         QMutexLocker locker(m_lock);
         m_customZoom = customZoom;
         m_zoomIndex = -1;
+        updateScrollerRanges();
     }
     zoomChanged(m_zoomIndex, m_customZoom);
 	m_view->update();
@@ -121,9 +123,26 @@ void ImageWidget::setZoomIndex(int zoomIndex)
         QMutexLocker locker(m_lock);
         m_zoomIndex = zoomIndex;
         m_customZoom = 0.0f;
+        updateScrollerRanges();
     }
     zoomChanged(m_zoomIndex, m_customZoom);
 	m_view->update();
+}
+
+bool ImageWidget::zoomToFit() const
+{
+    QMutexLocker locker(const_cast<QMutex*>(m_lock));
+    return m_zoomToFit;
+}
+
+void ImageWidget::setZoomToFit(bool zoomToFit)
+{
+    {
+        QMutexLocker locker(m_lock);
+        m_zoomToFit = zoomToFit;
+        updateScrollerRanges();
+    }
+    m_view->update();
 }
 
 void ImageWidget::updateImageSize(const QSize& imageSize)
@@ -142,26 +161,34 @@ void ImageWidget::resizeEventInView(QResizeEvent* ev)
 
 void ImageWidget::updateScrollerRanges()
 {
-    GLfloat z = m_zoomIndex == -1 ? m_customZoom : sm_zoomPresets[m_zoomIndex];
-
-    auto doAxis = [&](GLfloat i, GLfloat w, QScrollBar& s)
+    if(m_zoomToFit)
     {
-        i *= z;
-        GLfloat r = std::ceil(i - w);
-        if(r <= 0.0f)
-        {
-            r = 0.0f;
-        }
-        else
-        {
-            r /= 2.0f;
-        }
-        s.setRange(-r, r);
-        s.setPageStep(w);
-    };
+        m_scroller->horizontalScrollBar()->setRange(0, 0);
+        m_scroller->verticalScrollBar()->setRange(0, 0);
+    }
+    else
+    {
+        GLfloat z = m_zoomIndex == -1 ? m_customZoom : sm_zoomPresets[m_zoomIndex];
 
-    doAxis(m_imageSize.width(), m_viewSize.width(), *m_scroller->horizontalScrollBar());
-    doAxis(m_imageSize.height(), m_viewSize.height(), *m_scroller->verticalScrollBar());
+        auto doAxis = [&](GLfloat i, GLfloat w, QScrollBar& s)
+        {
+            i *= z;
+            GLfloat r = std::ceil(i - w);
+            if(r <= 0.0f)
+            {
+                r = 0.0f;
+            }
+            else
+            {
+                r /= 2.0f;
+            }
+            s.setRange(-r, r);
+            s.setPageStep(w);
+        };
+
+        doAxis(m_imageSize.width(), m_viewSize.width(), *m_scroller->horizontalScrollBar());
+        doAxis(m_imageSize.height(), m_viewSize.height(), *m_scroller->verticalScrollBar());
+    }
 }
 
 void ImageWidget::scrollViewContentsBy(int /*dx*/, int /*dy*/)
@@ -195,6 +222,8 @@ void ImageWidget::mouseEnterExitView(bool entered)
 
 void ImageWidget::wheelEventInView(QWheelEvent* ev)
 {
+    // The number 32 seems good here.  At least, I like it.  Har har.  Ok, 32 is the magic number that makes mouse wheel
+    // movement in the view scroll by the same amount as mouse wheel movement on a scrollbar.
     QPoint scrollBy(ev->pixelDelta().isNull() ? ev->angleDelta() / 32 : ev->pixelDelta());
     m_scroller->horizontalScrollBar()->setValue(m_scroller->horizontalScrollBar()->value() - scrollBy.x());
     m_scroller->verticalScrollBar()->setValue(m_scroller->verticalScrollBar()->value() - scrollBy.y());
