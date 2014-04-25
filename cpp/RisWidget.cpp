@@ -185,6 +185,7 @@ void RisWidget::showCheckerPattern(std::uint16_t width)
         }
     }
     m_renderer->showImage(imageData, imageSize, false);
+    m_imageWidget->updateImageSize(imageSize);
 }
 
 void RisWidget::showImage(const GLushort* imageDataRaw, const QSize& imageSize, bool filterTexture)
