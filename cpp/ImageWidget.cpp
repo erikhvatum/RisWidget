@@ -145,10 +145,11 @@ void ImageWidget::setZoomToFit(bool zoomToFit)
     m_view->update();
 }
 
-void ImageWidget::updateImageSize(const QSize& imageSize)
+void ImageWidget::updateImageSizeAndData(const QSize& imageSize, ImageData& imageData)
 {
     QMutexLocker locker(m_lock);
     m_imageSize = imageSize;
+    m_imageData = imageData;
     updateScrollerRanges();
 }
 
@@ -201,15 +202,63 @@ void ImageWidget::scrollViewContentsBy(int /*dx*/, int /*dy*/)
     m_view->update();
 }
 
-void ImageWidget::mousePressEventInView(QMouseEvent* event)
+void ImageWidget::mousePressEventInView(QMouseEvent* ev)
 {
-    event->accept();
+    ev->accept();
 }
 
-void ImageWidget::mouseMoveEventInView(QMouseEvent* event)
+void ImageWidget::mouseMoveEventInView(QMouseEvent* ev)
 {
-    event->accept();
-    pointerMovedToDifferentPixel(true, QPoint(event->x(), event->y()), 65535);
+    ev->accept();
+    Renderer* renderer = m_view->renderer();
+
+    if(renderer == nullptr || m_imageData.isEmpty())
+    {
+        pointerMovedToDifferentPixel(false, QPoint(), 0);
+    }
+    else
+    {
+        glm::vec2 ipc(ev->x(), ev->y());
+        glm::vec2 viewSize(m_viewSize.width(), m_viewSize.height());
+        glm::vec2 imageSize(m_imageSize.width(), m_imageSize.height());
+        GLfloat zoom;
+        if(m_zoomToFit)
+        {
+            GLfloat viewAspectRatio = viewSize.x / viewSize.y;
+            GLfloat imageAspectRatio = imageSize.x / imageSize.y;
+            if(imageAspectRatio >= viewAspectRatio)
+            {
+                // Image is constrained horizontally and centered vertically
+                zoom = imageSize.x / viewSize.x;
+                ipc.y += (imageSize.y / zoom - viewSize.y) / 2.0f;
+                ipc *= zoom;
+            }
+            else
+            {
+                // Image is constrained veritcally and centered horizontally
+                zoom = imageSize.y / viewSize.y;
+                ipc.x += (imageSize.x / zoom - viewSize.x) / 2.0f;
+                ipc *= zoom;
+            }
+        }
+        else
+        {
+
+        }
+        ipc = glm::floor(ipc);
+        bool isOnPixel = 
+            ipc.x >= 0 && ipc.x < m_imageSize.width() &&
+            ipc.y >= 0 && ipc.y < m_imageSize.height();
+        GLushort pixelValue = 0;
+        if(isOnPixel)
+        {
+            // Our texture coordinates are set up so that we can feed OpenGL a C-order texture without it being
+            // transposed.  This makes indexing back into the texture's data from Qt GUI coordinates a little strange.
+            pixelValue = m_imageData[static_cast<std::ptrdiff_t>(imageSize.y - ipc.y - 1.0f) * m_imageSize.width() +
+                                     static_cast<std::ptrdiff_t>(imageSize.x - ipc.x - 1.0f)];
+        }
+        pointerMovedToDifferentPixel(isOnPixel, QPoint(static_cast<int>(ipc.x), static_cast<int>(ipc.y)), pixelValue);
+    }
 }
 
 void ImageWidget::mouseEnterExitView(bool entered)

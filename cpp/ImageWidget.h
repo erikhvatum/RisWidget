@@ -24,10 +24,10 @@
 
 #include "Common.h"
 #include "ImageView.h"
+#include "Renderer.h"
 #include "ui_ImageWidget.h"
 #include "ViewWidget.h"
 
-class Renderer;
 class RisWidget;
 
 // Click-zooming jumps between preset values until the preset value range is exceeded; thereafter, each click scales
@@ -81,17 +81,18 @@ protected:
     bool m_zoomToFit;
     QPoint m_pan;
     QSize m_imageSize;
+    ImageData m_imageData;
 
     virtual void makeView(bool doAddWidget = true) override;
     virtual View* instantiateView() override;
-    void updateImageSize(const QSize& imageSize);
+    void updateImageSizeAndData(const QSize& imageSize, ImageData& imageData);
     virtual void resizeEventInView(QResizeEvent* ev) override;
     void updateScrollerRanges();
 
 protected slots:
     void scrollViewContentsBy(int dx, int dy);
-    void mousePressEventInView(QMouseEvent* event);
-    void mouseMoveEventInView(QMouseEvent* event);
+    void mousePressEventInView(QMouseEvent* ev);
+    void mouseMoveEventInView(QMouseEvent* ev);
     void mouseEnterExitView(bool entered);
-    void wheelEventInView(QWheelEvent* event);
+    void wheelEventInView(QWheelEvent* ev);
 };

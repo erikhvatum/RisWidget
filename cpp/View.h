@@ -37,6 +37,7 @@ public:
     virtual ~View();
 
     QOpenGLContext* context();
+    Renderer* renderer();
     void makeCurrent();
     void swapBuffers();
 

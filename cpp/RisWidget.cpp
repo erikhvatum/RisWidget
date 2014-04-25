@@ -186,7 +186,7 @@ void RisWidget::showCheckerPattern(std::uint16_t width)
         }
     }
     m_renderer->showImage(imageData, imageSize, false);
-    m_imageWidget->updateImageSize(imageSize);
+    m_imageWidget->updateImageSizeAndData(imageSize, imageData);
 }
 
 void RisWidget::showImage(const GLushort* imageDataRaw, const QSize& imageSize, bool filterTexture)
@@ -199,7 +199,7 @@ void RisWidget::showImage(const GLushort* imageDataRaw, const QSize& imageSize, 
            reinterpret_cast<const void*>(imageDataRaw),
            byteCount);
     m_renderer->showImage(imageData, imageSize, filterTexture);
-    m_imageWidget->updateImageSize(imageSize);
+    m_imageWidget->updateImageSizeAndData(imageSize, imageData);
 }
 
 void RisWidget::showImage(PyObject* image, bool filterTexture)

@@ -38,7 +38,8 @@ typedef QVector<GLushort> ImageData;
 typedef std::vector<GLuint> HistogramData;
 
 // In terms of the first example in the "detailed description" section of "http://qt-project.org/doc/qt-5/qthread.html",
-// this class would be termed Worker, and the RisWidget class would be Controller.
+// this class would be termed Worker, and the RisWidget class would be Controller.  All public functions are meant to be
+// called from the GUI thread.
 class Renderer
   : public QObject
 {

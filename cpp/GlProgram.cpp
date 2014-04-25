@@ -374,6 +374,10 @@ void ImageDrawProg::postBuild()
         1.0f, 0.0f,
         1.0f, 1.0f,
         0.0f, 1.0f
+//      1.0f, 1.0f,
+//      0.0f, 1.0f,
+//      0.0f, 0.0f,
+//      1.0f, 0.0f
     };
 
     m_glfs->glUseProgram(m_id);

@@ -42,6 +42,11 @@ QOpenGLContext* View::context()
     return m_context;
 }
 
+Renderer* View::renderer()
+{
+    return m_renderer.data();
+}
+
 void View::makeCurrent()
 {
     if(!m_context->makeCurrent(this))

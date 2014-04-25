@@ -379,7 +379,9 @@ void Renderer::execHistoConsolidate()
 
 void Renderer::updateGlViewportSize(ViewWidget* viewWidget)
 {
-    if(viewWidget->m_viewSize != viewWidget->m_viewGlSize)
+    if ( viewWidget->m_viewSize != viewWidget->m_viewGlSize
+      && viewWidget->m_viewSize.width() > 0
+      && viewWidget->m_viewSize.height() > 0 )
     {
         m_glfs->glViewport(0, 0, viewWidget->m_viewSize.width(), viewWidget->m_viewSize.height());
         viewWidget->m_viewGlSize = viewWidget->m_viewSize;
