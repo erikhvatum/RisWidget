@@ -138,3 +138,8 @@ void View::mousePressEvent(QMouseEvent* ev)
 {
     mousePressEventSignal(ev);
 }
+
+void View::wheelEvent(QWheelEvent* ev)
+{
+    wheelEventSignal(ev);
+}

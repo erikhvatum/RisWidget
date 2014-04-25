@@ -88,4 +88,5 @@ protected slots:
     void mousePressEventInView(QMouseEvent* event);
     void mouseMoveEventInView(QMouseEvent* event);
     void mouseEnterExitView(bool entered);
+    void wheelEventInView(QWheelEvent* event);
 };

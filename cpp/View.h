@@ -52,6 +52,7 @@ signals:
     void mouseMoveEventSignal(QMouseEvent* ev);
     void mousePressEventSignal(QMouseEvent* ev);
     void mouseEnterExitSignal(bool entered);
+    void wheelEventSignal(QWheelEvent* ev);
 
 protected:
     QPointer<QOpenGLContext> m_context;
@@ -63,4 +64,5 @@ protected:
     virtual void exposeEvent(QExposeEvent* ev) override;
     virtual void mouseMoveEvent(QMouseEvent* ev) override;
     virtual void mousePressEvent(QMouseEvent* ev) override;
+    virtual void wheelEvent(QWheelEvent* ev) override;
 };

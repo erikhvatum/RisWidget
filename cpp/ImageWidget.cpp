@@ -144,9 +144,11 @@ void ImageWidget::updateImageSize(const QSize& imageSize)
 
 void ImageWidget::scrollViewContentsBy(int /*dx*/, int /*dy*/)
 {
-    QMutexLocker locker(m_lock);
-    m_pan.setX(m_scroller->horizontalScrollBar()->value());
-    m_pan.setY(m_scroller->verticalScrollBar()->value());
+    {
+        QMutexLocker locker(m_lock);
+        m_pan.setX(m_scroller->horizontalScrollBar()->value());
+        m_pan.setY(m_scroller->verticalScrollBar()->value());
+    }
     m_view->update();
 }
 
@@ -169,3 +171,9 @@ void ImageWidget::mouseEnterExitView(bool entered)
     }
 }
 
+void ImageWidget::wheelEventInView(QWheelEvent* ev)
+{
+    QPoint scrollBy(ev->pixelDelta().isNull() ? ev->angleDelta() / 8 : ev->pixelDelta());
+    m_scroller->scroll(scrollBy.x(), scrollBy.y());
+    ev->accept();
+}
