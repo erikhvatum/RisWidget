@@ -130,12 +130,33 @@ void ImageWidget::updateImageSize(const QSize& imageSize)
 {
     QMutexLocker locker(m_lock);
     m_imageSize = imageSize;
+    updateScrollerRanges();
+}
+
+void ImageWidget::resizeEventInView(QResizeEvent* ev)
+{
+    QMutexLocker locker(m_lock);
+    ViewWidget::resizeEventInView(ev);
+    updateScrollerRanges();
+}
+
+void ImageWidget::updateScrollerRanges()
+{
     GLfloat z = m_zoomIndex == -1 ? m_customZoom : sm_zoomPresets[m_zoomIndex];
 
     auto doAxis = [&](GLfloat i, GLfloat w, QScrollBar& s)
     {
         i *= z;
-        s.setRange(0, i > w ? static_cast<int>(i - w) : 0);
+        GLfloat r = std::ceil(i - w);
+        if(r <= 0.0f)
+        {
+            r = 0.0f;
+        }
+        else
+        {
+            r /= 2.0f;
+        }
+        s.setRange(-r, r);
         s.setPageStep(w);
     };
 

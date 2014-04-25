@@ -417,8 +417,8 @@ void Renderer::execImageDraw()
         // Scale to same aspect ratio
         pmv = glm::scale(pmv, glm::vec3(correctionFactor, 1.0f, 1.0f));
         // Pan
-        glm::vec2 pans((pan / viewSize) * 2.0f - 1.0f);
-        pmv = glm::translate(pmv, glm::vec3(pans.x, pans.y, 0.0f));
+        glm::vec2 pans((pan / viewSize) * 2.0f);
+        pmv = glm::translate(pmv, glm::vec3(-pans.x, pans.y, 0.0f));
         // Zoom
         pmv = glm::scale(pmv, glm::vec3(sizeRatio, sizeRatio, 1.0f));
 

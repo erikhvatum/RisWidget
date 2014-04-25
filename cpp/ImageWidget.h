@@ -82,6 +82,8 @@ protected:
     virtual void makeView(bool doAddWidget = true) override;
     virtual View* instantiateView() override;
     void updateImageSize(const QSize& imageSize);
+    virtual void resizeEventInView(QResizeEvent* ev) override;
+    void updateScrollerRanges();
 
 protected slots:
     void scrollViewContentsBy(int dx, int dy);
