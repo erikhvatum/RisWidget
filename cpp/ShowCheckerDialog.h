@@ -35,9 +35,11 @@ class ShowCheckerDialog
 public:
     explicit ShowCheckerDialog(QWidget* parent = nullptr, Qt::WindowFlags flags = 0);
     std::uint16_t checkerboardWidth() const;
+    bool filter() const;
     virtual void done(int r) override;
 
 private:
     std::uint16_t m_checkerboardWidth;
+    bool m_filter;
 };
 

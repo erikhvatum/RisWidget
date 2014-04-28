@@ -24,13 +24,14 @@
 #include "ImageWidget.h"
 
 const std::vector<GLfloat> ImageWidget::sm_zoomPresets{10.0f, 5.0f, 2.0f, 1.5f, 1.0f, 0.75f, 0.5f, 0.25f, 0.10f};
+const std::uint8_t ImageWidget::sm_defaultZoomPreset{4};
 const std::pair<GLfloat, GLfloat> ImageWidget::sm_zoomMinMax{0.01f, 10000.0f};
 const GLfloat ImageWidget::sm_zoomClickScaleFactor = 0.25f;
 
 ImageWidget::ImageWidget(QWidget* parent)
   : ViewWidget(parent),
     m_interactionMode(InteractionMode::Pointer),
-    m_zoomIndex(1),
+    m_zoomIndex(sm_defaultZoomPreset),
     m_customZoom(0.0f),
     m_zoomToFit(false)
 {

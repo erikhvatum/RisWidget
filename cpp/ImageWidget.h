@@ -48,6 +48,7 @@ public:
         Zoom
     };
     static const std::vector<GLfloat> sm_zoomPresets;
+    static const std::uint8_t sm_defaultZoomPreset;
     static const std::pair<GLfloat, GLfloat> sm_zoomMinMax;
 	static const GLfloat sm_zoomClickScaleFactor;
 

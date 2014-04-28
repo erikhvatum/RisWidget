@@ -66,7 +66,11 @@ RisWidget::RisWidget(QString windowTitle_,
     PyEval_InitThreads();
 #endif
 
-    showCheckerPattern(40);
+    /*QTimer* doShowCheckerPattern = new QTimer;
+    connect(doShowCheckerPattern, &QTimer::timeout, [&](){showCheckerPattern(40); doShowCheckerPattern->deleteLater();});
+    doShowCheckerPattern->setSingleShot(true);
+    doShowCheckerPattern->start(100);*/
+    //showCheckerPattern(40);
 }
 
 RisWidget::~RisWidget()
@@ -101,7 +105,7 @@ void RisWidget::makeToolBars()
     {
         m_imageViewZoomCombo->addItem(formatZoom(z * 100.0f) + '%');
     }
-    m_imageViewZoomCombo->setCurrentIndex(1);
+    m_imageViewZoomCombo->setCurrentIndex(ImageWidget::sm_defaultZoomPreset);
     m_imageViewZoomComboValidator = new QDoubleValidator(m_imageWidget->sm_zoomMinMax.first, m_imageWidget->sm_zoomMinMax.second, 4, m_imageViewZoomCombo);
     m_imageViewZoomComboValidator->setNotation(QDoubleValidator::StandardNotation);
     connect(m_imageViewZoomCombo, SIGNAL(activated(int)), this, SLOT(imageViewZoomComboChanged(int)));
@@ -149,11 +153,11 @@ void RisWidget::showCheckerPatternSlot()
     ShowCheckerDialog showCheckerDialog(this);
     if(showCheckerDialog.exec() == QDialog::Accepted)
     {
-        showCheckerPattern(showCheckerDialog.checkerboardWidth());
+        showCheckerPattern(showCheckerDialog.checkerboardWidth(), showCheckerDialog.filter());
     }
 }
 
-void RisWidget::showCheckerPattern(std::uint16_t width)
+void RisWidget::showCheckerPattern(std::uint16_t width, bool filterTexture)
 {
     ImageData imageData;
     QSize imageSize;
@@ -185,7 +189,7 @@ void RisWidget::showCheckerPattern(std::uint16_t width)
             a = !a;
         }
     }
-    m_renderer->showImage(imageData, imageSize, false);
+    m_renderer->showImage(imageData, imageSize, filterTexture);
     m_imageWidget->updateImageSizeAndData(imageSize, imageData);
 }
 

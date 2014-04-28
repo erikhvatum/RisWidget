@@ -35,8 +35,14 @@ std::uint16_t ShowCheckerDialog::checkerboardWidth() const
     return m_checkerboardWidth;
 }
 
+bool ShowCheckerDialog::filter() const
+{
+    return m_filter;
+}
+
 void ShowCheckerDialog::done(int r)
 {
     m_checkerboardWidth = static_cast<std::uint16_t>(m_squaresSpinBox->value());
+    m_filter = m_filteringCheckbox->isChecked();
     QDialog::done(r);
 }

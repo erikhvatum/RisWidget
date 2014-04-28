@@ -81,6 +81,7 @@
 #include <QString>
 #include <QSurface>
 #include <QThread>
+#include <QTimer>
 #include <QToolBar>
 #include <QVector>
 #include <QWindow>
