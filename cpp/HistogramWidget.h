@@ -45,6 +45,7 @@ public:
     HistogramView* histogramView();
 
 protected:
+    virtual void makeView(bool doAddWidget = true) override;
     virtual View* instantiateView();
 };
 

@@ -157,10 +157,14 @@ void RisWidget::showCheckerPatternSlot()
     }
 }
 
-void RisWidget::showCheckerPattern(std::uint16_t width, bool filterTexture)
+void RisWidget::showCheckerPattern(int width, bool filterTexture)
 {
     ImageData imageData;
     QSize imageSize;
+    if(width < 0)
+    {
+        throw RisWidgetException("RisWidget::showCheckerPattern(int width, bool filterTexture): Negative value supplied for width.");
+    }
     if(width <= 1)
     {
         imageSize.setWidth(1);
@@ -171,7 +175,7 @@ void RisWidget::showCheckerPattern(std::uint16_t width, bool filterTexture)
     {
         imageSize.setWidth(width);
         imageSize.setHeight(width);
-        std::size_t pixelCount = width;
+        std::size_t pixelCount = static_cast<std::size_t>(width);
         pixelCount *= width;
         imageData.resize(pixelCount);
 
@@ -191,6 +195,11 @@ void RisWidget::showCheckerPattern(std::uint16_t width, bool filterTexture)
     }
     m_renderer->showImage(imageData, imageSize, filterTexture);
     m_imageWidget->updateImageSizeAndData(imageSize, imageData);
+}
+
+void RisWidget::risImageAcquired(PyObject* stream, PyObject* image)
+{
+    showImage(image);
 }
 
 void RisWidget::showImage(const GLushort* imageDataRaw, const QSize& imageSize, bool filterTexture)

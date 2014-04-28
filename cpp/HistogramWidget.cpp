@@ -39,6 +39,15 @@ HistogramView* HistogramWidget::histogramView()
     return dynamic_cast<HistogramView*>(m_view.data());
 }
 
+void HistogramWidget::makeView(bool /*doAddWidget*/)
+{
+    QMutexLocker locker(m_lock);
+    ViewWidget::makeView(false);
+    m_midHorizontalLayout->addWidget(m_viewContainerWidget);
+    m_viewContainerWidget->show();
+    m_view->show();
+}
+
 View* HistogramWidget::instantiateView()
 {
     return new HistogramView(windowHandle());

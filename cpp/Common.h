@@ -41,6 +41,7 @@
 #include <boost/python/module.hpp>
 #include <boost/python/manage_new_object.hpp>
 #include <cmath>
+#include <cstdint>
 // Need cstring include for memcpy(..).  Note: this is the C++ version of string.h; it has nothing to do with
 // Microsoft's CString.
 #include <cstring>

@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-%Module ris_widget
+%Module _ris_widget
 
 %Import QtCore/QtCoremod.sip
 %Import QtGui/QtGuimod.sip
@@ -52,13 +52,15 @@ public:
     ImageWidget* imageWidget();
     HistogramWidget* histogramWidget();
 
-    void showCheckerPattern(std::uint16_t width) /ReleaseGIL/;
+    void showCheckerPattern(int width) /ReleaseGIL/;
 %Docstring
     RisWidget.showCheckerPattern(width): Display a width X width checkerboard pattern in which each checkerboard square
     is a single pixel.  For the special case in which width is:
     0: a one pixel black image is shown.
     1: a one pixel white image is shown.
 %End
+
+    void risImageAcquired(PyObject* stream, PyObject* image) /HoldGIL/;
 
     void showImage(PyObject* image) /HoldGIL/;
 %Docstring

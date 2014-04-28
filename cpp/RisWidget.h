@@ -43,7 +43,8 @@ public:
     ImageWidget* imageWidget();
     HistogramWidget* histogramWidget();
 
-    void showCheckerPattern(std::uint16_t width, bool filterTexture=false);
+    void showCheckerPattern(int width, bool filterTexture=false);
+    void risImageAcquired(PyObject* stream, PyObject* image);
     void showImage(const GLushort* imageDataRaw, const QSize& imageSize, bool filterTexture=true);
     void showImage(PyObject* image, bool filterTexture=true);
     PyObject* getHistogram();
