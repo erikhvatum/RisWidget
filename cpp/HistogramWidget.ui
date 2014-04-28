@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1004</width>
-    <height>704</height>
+    <width>1033</width>
+    <height>275</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,15 +19,8 @@
      <item>
       <layout class="QHBoxLayout" name="m_topHorizontalLayout">
        <property name="sizeConstraint">
-        <enum>QLayout::SetFixedSize</enum>
+        <enum>QLayout::SetDefaultConstraint</enum>
        </property>
-       <item>
-        <widget class="QSlider" name="m_gtpMaxSlider">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-        </widget>
-       </item>
        <item>
         <widget class="QLineEdit" name="m_gtpMaxEdit">
          <property name="sizePolicy">
@@ -35,6 +28,9 @@
            <horstretch>0</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
+         </property>
+         <property name="inputMask">
+          <string>00000</string>
          </property>
          <property name="text">
           <string>65535</string>
@@ -47,6 +43,19 @@
          </property>
         </widget>
        </item>
+       <item>
+        <widget class="QSlider" name="m_gtpMaxSlider">
+         <property name="maximum">
+          <number>65535</number>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="invertedAppearance">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
       </layout>
      </item>
      <item>
@@ -55,21 +64,33 @@
      <item>
       <layout class="QHBoxLayout" name="m_botHorizontalLayout">
        <property name="sizeConstraint">
-        <enum>QLayout::SetFixedSize</enum>
+        <enum>QLayout::SetDefaultConstraint</enum>
        </property>
        <item>
         <widget class="QLineEdit" name="m_gtpMinEdit">
          <property name="sizePolicy">
-          <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
            <horstretch>0</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
          </property>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="inputMask">
+          <string>00000</string>
+         </property>
          <property name="text">
-          <string>65535</string>
+          <string>0</string>
          </property>
          <property name="maxLength">
           <number>5</number>
+         </property>
+         <property name="clearButtonEnabled">
+          <bool>false</bool>
          </property>
         </widget>
        </item>
@@ -154,7 +175,122 @@
     </layout>
    </item>
   </layout>
+  <zorder>m_gtpMinEdit</zorder>
+  <zorder></zorder>
+  <zorder></zorder>
  </widget>
+ <tabstops>
+  <tabstop>m_gtpMaxSlider</tabstop>
+  <tabstop>m_gtpMinSlider</tabstop>
+  <tabstop>m_gtpMinEdit</tabstop>
+  <tabstop>m_gtpGammaEdit</tabstop>
+  <tabstop>m_gtpGammaSlider</tabstop>
+ </tabstops>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>m_gtpGammaSlider</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>HistogramWidget</receiver>
+   <slot>gtpGammaSliderValueChanged(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>969</x>
+     <y>123</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>516</x>
+     <y>137</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>m_gtpMaxSlider</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>HistogramWidget</receiver>
+   <slot>gtpMaxSliderValueChanged(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>401</x>
+     <y>50</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>516</x>
+     <y>137</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>m_gtpMinSlider</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>HistogramWidget</receiver>
+   <slot>gtpMinSliderValueChanged(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>515</x>
+     <y>224</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>516</x>
+     <y>137</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>m_gtpGammaEdit</sender>
+   <signal>editingFinished()</signal>
+   <receiver>HistogramWidget</receiver>
+   <slot>gtpGammaEditChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>968</x>
+     <y>253</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>516</x>
+     <y>137</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>m_gtpMaxEdit</sender>
+   <signal>editingFinished()</signal>
+   <receiver>HistogramWidget</receiver>
+   <slot>gtpMaxEditChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>851</x>
+     <y>49</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>516</x>
+     <y>137</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>m_gtpMinEdit</sender>
+   <signal>editingFinished()</signal>
+   <receiver>HistogramWidget</receiver>
+   <slot>gtpMinEditChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>64</x>
+     <y>223</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>516</x>
+     <y>137</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+ <slots>
+  <slot>gtpGammaSliderValueChanged(int)</slot>
+  <slot>gtpMaxSliderValueChanged(int)</slot>
+  <slot>gtpMinSliderValueChanged(int)</slot>
+  <slot>gtpGammaEditChanged()</slot>
+  <slot>gtpMaxEditChanged()</slot>
+  <slot>gtpMinEditChanged()</slot>
+ </slots>
 </ui>

@@ -111,6 +111,9 @@ public:
     GLuint imagePanelPassthroughColorerIdx;
 
     bool gtpEnabled;
+    GLushort gtpMin;
+    GLushort gtpMax;
+    GLfloat gtpGamma;
     GLint gtpMinLoc;
     GLint gtpMaxLoc;
     GLint gtpGammaLoc;

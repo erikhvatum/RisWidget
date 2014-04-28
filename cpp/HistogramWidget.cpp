@@ -25,7 +25,11 @@
 #include "ImageView.h"
 
 HistogramWidget::HistogramWidget(QWidget* parent)
-  : ViewWidget(parent)
+  : ViewWidget(parent),
+    m_gtpEnabled(true),
+    m_gtpMin(0),
+    m_gtpMax(65535),
+    m_gtpGamma(1.0f)
 {
     setupUi(this);
 }
@@ -43,6 +47,7 @@ void HistogramWidget::makeView(bool /*doAddWidget*/)
 {
     QMutexLocker locker(m_lock);
     ViewWidget::makeView(false);
+    m_viewContainerWidget->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
     m_midHorizontalLayout->addWidget(m_viewContainerWidget);
     m_viewContainerWidget->show();
     m_view->show();
@@ -53,3 +58,61 @@ View* HistogramWidget::instantiateView()
     return new HistogramView(windowHandle());
 }
 
+void HistogramWidget::gtpGammaSliderValueChanged(int value)
+{
+}
+
+void HistogramWidget::gtpMaxSliderValueChanged(int value)
+{
+    value = 65535 - value;
+    {
+        QMutexLocker locker(m_lock);
+        m_gtpMax = static_cast<GLushort>(value);
+    }
+    m_gtpMaxEdit->setText(QString::number(value));
+    if(value < m_gtpMinSlider->value())
+    {
+        m_gtpMinSlider->setValue(value);
+    }
+    m_view->update();
+    gtpChanged();
+}
+
+void HistogramWidget::gtpMinSliderValueChanged(int value)
+{
+    {
+        QMutexLocker locker(m_lock);
+        m_gtpMin = static_cast<GLushort>(value);
+    }
+    m_gtpMinEdit->setText(QString::number(value));
+    if(value > 65535 - m_gtpMaxSlider->value())
+    {
+        m_gtpMaxSlider->setValue(65535 - value);
+    }
+    m_view->update();
+    gtpChanged();
+}
+
+void HistogramWidget::gtpGammaEditChanged()
+{
+}
+
+void HistogramWidget::gtpMaxEditChanged()
+{
+    bool ok{false};
+    int value = 65535 - m_gtpMaxEdit->text().toInt(&ok);
+    if(ok)
+    {
+        m_gtpMaxSlider->setValue(value);
+    }
+}
+
+void HistogramWidget::gtpMinEditChanged()
+{
+    bool ok{false};
+    int value = m_gtpMinEdit->text().toInt(&ok);
+    if(ok)
+    {
+        m_gtpMinSlider->setValue(value);
+    }
+}

@@ -332,6 +332,8 @@ ImageDrawProg::ImageDrawProg(const std::string& name_)
     imagePanelGammaTransformColorerIdx(std::numeric_limits<GLuint>::max()),
     imagePanelPassthroughColorerIdx(std::numeric_limits<GLuint>::max()),
     gtpEnabled(true),
+    gtpMin(0),
+    gtpMax(65535),
     gtpMinLoc(std::numeric_limits<GLint>::min()),
     gtpMaxLoc(std::numeric_limits<GLint>::min()),
     gtpGammaLoc(std::numeric_limits<GLint>::min()),

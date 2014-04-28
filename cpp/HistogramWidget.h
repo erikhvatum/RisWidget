@@ -44,8 +44,26 @@ public:
 
     HistogramView* histogramView();
 
+signals:
+    // Gamma transformation parameters changing invalidates the image view, but the widgets that manipulate these
+    // parameters belong to HistogramWidget.  Rather than making HistgoramWidget aware of ImageWidget's view, we instead
+    // emit this signal to be received by the main window which will, in turn, cause the image view to be updated.
+    void gtpChanged();
+
 protected:
+    bool m_gtpEnabled;
+    GLushort m_gtpMin, m_gtpMax;
+    GLfloat m_gtpGamma;
+
     virtual void makeView(bool doAddWidget = true) override;
     virtual View* instantiateView();
+
+protected slots:
+    void gtpGammaSliderValueChanged(int value);
+    void gtpMaxSliderValueChanged(int value);
+    void gtpMinSliderValueChanged(int value);
+    void gtpGammaEditChanged();
+    void gtpMaxEditChanged();
+    void gtpMinEditChanged();
 };
 

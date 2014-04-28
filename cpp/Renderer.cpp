@@ -448,10 +448,33 @@ void Renderer::execImageDraw()
         m_glfs->glUniformMatrix4fv(m_imageDrawProg.projectionModelViewMatrixLoc,
                                    1, GL_FALSE, glm::value_ptr(pmv));
 
-        m_glfs->glBindVertexArray(m_imageDrawProg.quadVao);
-        GLuint sub = m_imageDrawProg.gtpEnabled ? 
-            m_imageDrawProg.imagePanelGammaTransformColorerIdx : m_imageDrawProg.imagePanelPassthroughColorerIdx;
+        QMutexLocker histogramWidgetLocker(m_histogramWidget->m_lock);
+        bool gtpEnabled{m_histogramWidget->m_gtpEnabled};
+        GLushort gtpMin{m_histogramWidget->m_gtpMin};
+        GLushort gtpMax{m_histogramWidget->m_gtpMax};
+        GLfloat gtpGamma{m_histogramWidget->m_gtpGamma};
+        histogramWidgetLocker.unlock();
+
+        GLuint sub = gtpEnabled ? m_imageDrawProg.imagePanelGammaTransformColorerIdx : m_imageDrawProg.imagePanelPassthroughColorerIdx;
         m_glfs->glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 1, &sub);
+        m_imageDrawProg.gtpEnabled = gtpEnabled;
+        if(gtpMin != m_imageDrawProg.gtpMin)
+        {
+            m_glfs->glUniform1f(m_imageDrawProg.gtpMinLoc, static_cast<GLfloat>(gtpMin));
+            m_imageDrawProg.gtpMin = gtpMin;
+        }
+        if(gtpMax != m_imageDrawProg.gtpMax)
+        {
+            m_glfs->glUniform1f(m_imageDrawProg.gtpMaxLoc, static_cast<GLfloat>(gtpMax));
+            m_imageDrawProg.gtpMax = gtpMax;
+        }
+        if(gtpGamma != m_imageDrawProg.gtpGamma)
+        {
+            m_glfs->glUniform1f(m_imageDrawProg.gtpGammaLoc, gtpGamma);
+            m_imageDrawProg.gtpGamma = gtpGamma;
+        }
+
+        m_glfs->glBindVertexArray(m_imageDrawProg.quadVao);
         m_glfs->glBindTexture(GL_TEXTURE_2D, m_image);
 
         m_glfs->glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
