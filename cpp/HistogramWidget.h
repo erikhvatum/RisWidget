@@ -51,19 +51,29 @@ signals:
     void gtpChanged();
 
 protected:
+    bool m_imageLoaded;
     bool m_gtpEnabled;
+    bool m_gtpAutoMinMaxEnabled;
     GLushort m_gtpMin, m_gtpMax;
     GLfloat m_gtpGamma;
+    // Cached data from Renderer
+    std::pair<GLushort, GLushort> m_imageExtrema;
+    bool m_imageExtremaValid;
 
     virtual void makeView(bool doAddWidget = true) override;
     virtual View* instantiateView();
+    void updateEnablement();
+    void updateImageLoaded(const bool& imageLoaded);
 
 protected slots:
+    void gtpEnabledToggled(bool enabled);
+    void gtpAutoMinMaxToggled(bool enabled);
     void gtpGammaSliderValueChanged(int value);
     void gtpMaxSliderValueChanged(int value);
     void gtpMinSliderValueChanged(int value);
     void gtpGammaEditChanged();
     void gtpMaxEditChanged();
     void gtpMinEditChanged();
+    void newImageExtremaFoundByRenderer(GLuint minIntensity, GLuint maxIntensity);
 };
 

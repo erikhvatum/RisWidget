@@ -97,6 +97,14 @@ private:
     QSize m_imageSize;
     // Aspect ratio of image texture
     float m_imageAspectRatio;
+    // When a new image is received, an m_imageExtremaFuture is kicked off.  Later on, when the image extrema (the min
+    // and max pixel intensities) are required, they are retrieved into m_imageExtrema from the future in a call that
+    // will block until extrema calculation is complete (returning immediately if it already is).  Because
+    // m_imageExtremaFuture takes a copy-on-modify reference to m_imageData's data, it is safe for multiple
+    // m_imageExtremaFutures to be evaluating simultaneously, although not particularly useful.  The data blobs each
+    // instance uses will only be released when that instance terminates.
+    std::future<std::pair<GLushort, GLushort>> m_imageExtremaFuture;
+    std::pair<GLushort, GLushort> m_imageExtrema;
 
     GLuint m_histogramBinCount;
     GLuint m_histogramBlocks;
@@ -116,12 +124,17 @@ private:
 
     // Helper for execImageDraw() and execHistoDraw()
     void updateGlViewportSize(ViewWidget* viewWidget);
+    // The function executed in yet another thread by m_imageExtremaFuture
+    static std::pair<GLushort, GLushort> findImageExtrema(ImageData imageData);
 
     // Leading _ indicates that a signal is private and is used internally for cross-thread procedure calls
 signals:
     void _newImage(ImageData imageData, QSize imageSize, bool filter);
     void _updateView(View* view);
     void _setHistogramBinCount(GLuint histogramBinCount);
+    // Used to notify HistogramWidget so that it can update its min/max sliders and editbox values when in auto min/max
+    // mode
+    void newImageExtrema(GLushort minIntensity, GLushort maxIntensity);
 
 public slots:
     void threadInitSlot();

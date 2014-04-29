@@ -137,6 +137,7 @@ void RisWidget::makeRenderer()
     m_renderer->moveToThread(m_rendererThread);
     connect(m_rendererThread.data(), &QThread::started, m_renderer.get(), &Renderer::threadInitSlot, Qt::QueuedConnection);
     m_rendererThread->start();
+    connect(m_renderer.get(), &Renderer::newImageExtrema, m_histogramWidget, &HistogramWidget::newImageExtremaFoundByRenderer, Qt::QueuedConnection);
 }
 
 ImageWidget* RisWidget::imageWidget()
@@ -194,11 +195,12 @@ void RisWidget::showCheckerPattern(int width, bool filterTexture)
             a = !a;
         }
     }
+    m_histogramWidget->updateImageLoaded(true);
     m_renderer->showImage(imageData, imageSize, filterTexture);
     m_imageWidget->updateImageSizeAndData(imageSize, imageData);
 }
 
-void RisWidget::risImageAcquired(PyObject* stream, PyObject* image)
+void RisWidget::risImageAcquired(PyObject* /*stream*/, PyObject* image)
 {
     showImage(image);
 }
@@ -214,6 +216,7 @@ void RisWidget::showImage(const GLushort* imageDataRaw, const QSize& imageSize, 
            byteCount);
     m_renderer->showImage(imageData, imageSize, filterTexture);
     m_imageWidget->updateImageSizeAndData(imageSize, imageData);
+    m_histogramWidget->updateImageLoaded(true);
 }
 
 void RisWidget::showImage(PyObject* image, bool filterTexture)
@@ -222,6 +225,8 @@ void RisWidget::showImage(PyObject* image, bool filterTexture)
     if(imagepy.is_none())
     {
         m_renderer->showImage(ImageData(), QSize(), false);
+        m_imageWidget->updateImageSizeAndData(QSize(), ImageData());
+        m_histogramWidget->updateImageLoaded(false);
     }
     else
     {

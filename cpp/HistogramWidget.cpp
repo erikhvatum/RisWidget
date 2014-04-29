@@ -26,10 +26,13 @@
 
 HistogramWidget::HistogramWidget(QWidget* parent)
   : ViewWidget(parent),
+    m_imageLoaded(false),
     m_gtpEnabled(true),
+    m_gtpAutoMinMaxEnabled(false),
     m_gtpMin(0),
     m_gtpMax(65535),
-    m_gtpGamma(1.0f)
+    m_gtpGamma(1.0f),
+    m_imageExtremaValid(false)
 {
     setupUi(this);
 }
@@ -48,7 +51,7 @@ void HistogramWidget::makeView(bool /*doAddWidget*/)
     QMutexLocker locker(m_lock);
     ViewWidget::makeView(false);
     m_viewContainerWidget->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
-    m_midHorizontalLayout->addWidget(m_viewContainerWidget);
+    m_bottomLeftVerticalLayout->insertWidget(1, m_viewContainerWidget);
     m_viewContainerWidget->show();
     m_view->show();
 }
@@ -58,39 +61,115 @@ View* HistogramWidget::instantiateView()
     return new HistogramView(windowHandle());
 }
 
+void HistogramWidget::updateImageLoaded(const bool& imageLoaded)
+{
+    m_imageLoaded = imageLoaded;
+    m_imageExtremaValid = false;
+    updateEnablement();
+}
+
+void HistogramWidget::updateEnablement()
+{
+    if(m_imageLoaded && m_gtpEnabled)
+    {
+        m_gtpEnableCheckBox->setEnabled(true);
+        m_gtpAutoMinMaxCheckBox->setEnabled(true);
+        m_gtpGammaSlider->setEnabled(true);
+        m_gtpGammaEditLabel->setEnabled(true);
+        m_gtpGammaEdit->setEnabled(true);
+        m_gtpMaxSlider->setEnabled(!m_gtpAutoMinMaxEnabled);
+        m_gtpMaxEditLabel->setEnabled(true);
+        m_gtpMaxEdit->setEnabled(true);
+        m_gtpMaxEdit->setReadOnly(m_gtpAutoMinMaxEnabled);
+        m_gtpMinSlider->setEnabled(!m_gtpAutoMinMaxEnabled);
+        m_gtpMinEditLabel->setEnabled(true);
+        m_gtpMinEdit->setEnabled(true);
+        m_gtpMinEdit->setReadOnly(m_gtpAutoMinMaxEnabled);
+    }
+    else
+    {
+        if(!m_imageLoaded)
+        {
+            m_gtpEnableCheckBox->setEnabled(false);
+        }
+        m_gtpAutoMinMaxCheckBox->setEnabled(false);
+        m_gtpGammaSlider->setEnabled(false);
+        m_gtpGammaEditLabel->setEnabled(false);
+        m_gtpGammaEdit->setEnabled(false);
+        m_gtpMaxSlider->setEnabled(false);
+        m_gtpMaxEditLabel->setEnabled(false);
+        m_gtpMaxEdit->setEnabled(false);
+        m_gtpMinSlider->setEnabled(false);
+        m_gtpMinEditLabel->setEnabled(false);
+        m_gtpMinEdit->setEnabled(false);
+    }
+}
+
+void HistogramWidget::gtpEnabledToggled(bool enabled)
+{
+    {
+        QMutexLocker locker(m_lock);
+        m_gtpEnabled = enabled;
+    }
+    gtpChanged();
+    updateEnablement();
+}
+
+void HistogramWidget::gtpAutoMinMaxToggled(bool enabled)
+{
+    {
+        QMutexLocker locker(m_lock);
+        m_gtpAutoMinMaxEnabled = enabled;
+    }
+    if(m_gtpAutoMinMaxEnabled)
+    {
+        m_gtpMinSlider->setValue(65535 - m_imageExtrema.first);
+        m_gtpMaxSlider->setValue(m_imageExtrema.second);
+    }
+    gtpChanged();
+    updateEnablement();
+}
+
 void HistogramWidget::gtpGammaSliderValueChanged(int value)
 {
 }
 
 void HistogramWidget::gtpMaxSliderValueChanged(int value)
 {
-    value = 65535 - value;
     {
         QMutexLocker locker(m_lock);
         m_gtpMax = static_cast<GLushort>(value);
     }
     m_gtpMaxEdit->setText(QString::number(value));
-    if(value < m_gtpMinSlider->value())
+    // If auto min/max is enabled, then the slider can only have moved because the renderer informed us of new extrema.
+    // As such, the renderer does not need to be informed that the slider moved in this case.  The same is true in
+    // gtpMinSliderValueChanged(..) below.
+    if(!m_gtpAutoMinMaxEnabled)
     {
-        m_gtpMinSlider->setValue(value);
+        if(value < 65535 - m_gtpMinSlider->value())
+        {
+            m_gtpMinSlider->setValue(65535 - value);
+        }
+        gtpChanged();
     }
-    m_view->update();
-    gtpChanged();
 }
 
 void HistogramWidget::gtpMinSliderValueChanged(int value)
 {
+    value = 65535 - value;
     {
         QMutexLocker locker(m_lock);
         m_gtpMin = static_cast<GLushort>(value);
     }
     m_gtpMinEdit->setText(QString::number(value));
-    if(value > 65535 - m_gtpMaxSlider->value())
+    if(!m_gtpAutoMinMaxEnabled)
     {
-        m_gtpMaxSlider->setValue(65535 - value);
+        if(value > m_gtpMaxSlider->value())
+        {
+            m_gtpMaxSlider->setValue(value);
+        }
+        gtpChanged();
     }
-    m_view->update();
-    gtpChanged();
 }
 
 void HistogramWidget::gtpGammaEditChanged()
@@ -116,3 +195,16 @@ void HistogramWidget::gtpMinEditChanged()
         m_gtpMinSlider->setValue(value);
     }
 }
+
+void HistogramWidget::newImageExtremaFoundByRenderer(GLuint minIntensity, GLuint maxIntensity)
+{
+    m_imageExtrema.first = minIntensity;
+    m_imageExtrema.second = maxIntensity;
+    m_imageExtremaValid = true;
+    if(m_gtpAutoMinMaxEnabled)
+    {
+        m_gtpMinSlider->setValue(65535 - m_imageExtrema.first);
+        m_gtpMaxSlider->setValue(m_imageExtrema.second);
+    }
+}
+

@@ -146,7 +146,7 @@ void ImageWidget::setZoomToFit(bool zoomToFit)
     m_view->update();
 }
 
-void ImageWidget::updateImageSizeAndData(const QSize& imageSize, ImageData& imageData)
+void ImageWidget::updateImageSizeAndData(const QSize& imageSize, const ImageData& imageData)
 {
     {
         QMutexLocker locker(m_lock);

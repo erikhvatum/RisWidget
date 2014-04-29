@@ -46,6 +46,7 @@
 // Microsoft's CString.
 #include <cstring>
 #include <iostream>
+#include <future>
 #include <limits>
 #include <list>
 #include <memory>

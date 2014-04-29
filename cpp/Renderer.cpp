@@ -128,10 +128,25 @@ void Renderer::updateView(View* view)
 
 void Renderer::showImage(const ImageData& imageData, const QSize& imageSize, const bool& filter)
 {
-    if(!imageData.empty() && (imageSize.width() <= 0 || imageSize.height() <= 0))
+    if(!imageData.empty())
     {
-        throw RisWidgetException("Renderer::showImage(const ImageData& imageData, const QSize& imageSize, const bool& filter): "
-                                 "imageData is not empty, but at least one dimension of imageSize is less than or equal to zero.");
+        if(imageSize.width() <= 0 || imageSize.height() <= 0)
+        {
+            throw RisWidgetException("Renderer::showImage(const ImageData& imageData, const QSize& imageSize, const bool& filter): "
+                                     "imageData is not empty, but at least one dimension of imageSize is less than or equal to zero.");
+        }
+        {
+            QMutexLocker lock(m_lock);
+            m_imageExtremaFuture = std::async(&Renderer::findImageExtrema, imageData);
+        }
+    }
+    else
+    {
+        // It is important to cancel any currently processing or outstanding extrema futures when reverting to
+        // displaying no image: if not canceled, it would be possible to show an image, revert to no image, then show an
+        // image, and have this third action result in a stale future from the first being used.
+        QMutexLocker lock(m_lock);
+        m_imageExtremaFuture = std::future<std::pair<GLushort, GLushort>>();
     }
     emit _newImage(imageData, imageSize, filter);
 }
@@ -388,6 +403,34 @@ void Renderer::updateGlViewportSize(ViewWidget* viewWidget)
     }
 }
 
+std::pair<GLushort, GLushort> Renderer::findImageExtrema(ImageData imageData)
+{
+    std::pair<GLushort, GLushort> ret{65535, 0};
+    if(imageData.size() == 1)
+    {
+        ret.first = ret.second = imageData[0];
+    }
+    else
+    {
+        for(GLushort p : imageData)
+        {
+            // Only an image with one pixel must ever have the same pixel be the min and max, which is handled in the if
+            // clause above.  An image with two pixels of the same value will fall through to the else below and set the
+            // max as well.  Therefore, the special case check for image size of one above lets us use the if/else-if
+            // optimization here.
+            if(p < ret.first)
+            {
+                ret.first = p;
+            }
+            else if(p > ret.second)
+            {
+                ret.second = p;
+            }
+        }
+    }
+    return ret;
+}
+
 void Renderer::execImageDraw()
 {
     m_imageView->makeCurrent();
@@ -450,10 +493,26 @@ void Renderer::execImageDraw()
 
         QMutexLocker histogramWidgetLocker(m_histogramWidget->m_lock);
         bool gtpEnabled{m_histogramWidget->m_gtpEnabled};
+        bool gtpAutoMinMaxEnabled{m_histogramWidget->m_gtpAutoMinMaxEnabled};
         GLushort gtpMin{m_histogramWidget->m_gtpMin};
         GLushort gtpMax{m_histogramWidget->m_gtpMax};
         GLfloat gtpGamma{m_histogramWidget->m_gtpGamma};
         histogramWidgetLocker.unlock();
+
+        if(gtpAutoMinMaxEnabled)
+        {
+            if(m_imageExtremaFuture.valid())
+            {
+                // This is the first time we've needed image extrema data since the program was started or a new image
+                // was loaded, so we have to retrieve the results from our async worker future object from the year
+                // 3021. More or less, get stuff from the ~~~future~~~ (x-files theme song plays during this operation
+                // and can not be switched off by anything because it's already happened and free will is an illusion).
+                m_imageExtrema = m_imageExtremaFuture.get();
+                newImageExtrema(m_imageExtrema.first, m_imageExtrema.second);
+            }
+            gtpMin = m_imageExtrema.first;
+            gtpMax = m_imageExtrema.second;
+        }
 
         GLuint sub = gtpEnabled ? m_imageDrawProg.imagePanelGammaTransformColorerIdx : m_imageDrawProg.imagePanelPassthroughColorerIdx;
         m_glfs->glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 1, &sub);
