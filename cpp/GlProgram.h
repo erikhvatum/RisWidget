@@ -108,7 +108,9 @@ public:
 
     GLint panelColorerLoc;
     GLuint imagePanelGammaTransformColorerIdx;
+    GLuint imagePanelGammaTransformColorerHighlightIdx;
     GLuint imagePanelPassthroughColorerIdx;
+    GLuint imagePanelPassthroughColorerHighlightIdx;
 
     bool gtpEnabled;
     GLushort gtpMin;
@@ -124,6 +126,11 @@ public:
 
     GLint vertPosLoc;
     GLint texCoordLoc;
+
+    GLint highlightCoordsLoc;
+    GLuint highlightCoordsBuff;
+    glm::vec2 wantedHighlightCoord;
+    glm::vec2 actualHighlightCoord;
 
 protected:
     virtual void getSources(std::vector<QString> &sourceFileNames);

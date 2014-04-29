@@ -330,7 +330,9 @@ ImageDrawProg::ImageDrawProg(const std::string& name_)
   : GlProgram(name_),
     panelColorerLoc(std::numeric_limits<GLint>::min()),
     imagePanelGammaTransformColorerIdx(std::numeric_limits<GLuint>::max()),
+    imagePanelGammaTransformColorerHighlightIdx(std::numeric_limits<GLuint>::max()),
     imagePanelPassthroughColorerIdx(std::numeric_limits<GLuint>::max()),
+    imagePanelPassthroughColorerHighlightIdx(std::numeric_limits<GLuint>::max()),
     gtpEnabled(true),
     gtpMin(0),
     gtpMax(65535),
@@ -341,7 +343,9 @@ ImageDrawProg::ImageDrawProg(const std::string& name_)
     quadVaoBuff(std::numeric_limits<GLuint>::max()),
     quadVao(std::numeric_limits<GLuint>::max()),
     vertPosLoc(std::numeric_limits<GLint>::min()),
-    texCoordLoc(std::numeric_limits<GLint>::min())
+    texCoordLoc(std::numeric_limits<GLint>::min()),
+    highlightCoordsLoc(0),
+    highlightCoordsBuff(std::numeric_limits<GLuint>::max())
 {
 }
 
@@ -355,7 +359,9 @@ void ImageDrawProg::postBuild()
 {
     panelColorerLoc = getSubUniLoc(GL_FRAGMENT_SHADER, "panelColorer");
     imagePanelGammaTransformColorerIdx = getSubIdx(GL_FRAGMENT_SHADER, "imagePanelGammaTransformColorer");
+    imagePanelGammaTransformColorerHighlightIdx = getSubIdx(GL_FRAGMENT_SHADER, "imagePanelGammaTransformColorerHighlight");
     imagePanelPassthroughColorerIdx = getSubIdx(GL_FRAGMENT_SHADER, "imagePanelPassthroughColorer");
+    imagePanelPassthroughColorerHighlightIdx = getSubIdx(GL_FRAGMENT_SHADER, "imagePanelPassthroughColorerHighlight");
 
     gtpMinLoc = getUniLoc("gtp.minVal");
     gtpMaxLoc = getUniLoc("gtp.maxVal");
@@ -394,6 +400,10 @@ void ImageDrawProg::postBuild()
 
     m_glfs->glEnableVertexAttribArray(texCoordLoc);
     m_glfs->glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT, false, 0, reinterpret_cast<void*>(2 * 4 * 4));
+
+    m_glfs->glGenBuffers(1, &highlightCoordsBuff);
+    m_glfs->glBindBuffer(GL_SHADER_STORAGE_BUFFER, highlightCoordsBuff);
+    m_glfs->glBufferData(GL_SHADER_STORAGE_BUFFER, 2 * 2 * 4, nullptr, GL_DYNAMIC_COPY);
 }
 
 HistoDrawProg::HistoDrawProg(const std::string& name_)
