@@ -394,6 +394,8 @@ void Renderer::execHistoConsolidate()
 
 void Renderer::updateGlViewportSize(ViewWidget* viewWidget)
 {
+    // In order for 1:1 zoom to map exactly from image pixels to screen pixels, (0, 0) in OpenGL coordinates must fall
+    // as close to the middle of a screen pixel as possible.
     if ( viewWidget->m_viewSize != viewWidget->m_viewGlSize
       && viewWidget->m_viewSize.width() > 0
       && viewWidget->m_viewSize.height() > 0 )

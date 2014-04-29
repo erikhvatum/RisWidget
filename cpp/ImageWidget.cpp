@@ -112,8 +112,8 @@ void ImageWidget::setCustomZoom(GLfloat customZoom)
         QMutexLocker locker(m_lock);
         m_customZoom = customZoom;
         m_zoomIndex = -1;
-        updateScrollerRanges();
     }
+    updateScrollerRanges();
     zoomChanged(m_zoomIndex, m_customZoom);
 	m_view->update();
 }
@@ -124,8 +124,8 @@ void ImageWidget::setZoomIndex(int zoomIndex)
         QMutexLocker locker(m_lock);
         m_zoomIndex = zoomIndex;
         m_customZoom = 0.0f;
-        updateScrollerRanges();
     }
+    updateScrollerRanges();
     zoomChanged(m_zoomIndex, m_customZoom);
 	m_view->update();
 }
@@ -141,8 +141,8 @@ void ImageWidget::setZoomToFit(bool zoomToFit)
     {
         QMutexLocker locker(m_lock);
         m_zoomToFit = zoomToFit;
-        updateScrollerRanges();
     }
+    updateScrollerRanges();
     m_view->update();
 }
 

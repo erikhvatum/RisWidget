@@ -179,7 +179,7 @@ void HistogramWidget::gtpGammaEditChanged()
 void HistogramWidget::gtpMaxEditChanged()
 {
     bool ok{false};
-    int value = 65535 - m_gtpMaxEdit->text().toInt(&ok);
+    int value = m_gtpMaxEdit->text().toInt(&ok);
     if(ok)
     {
         m_gtpMaxSlider->setValue(value);
@@ -189,7 +189,7 @@ void HistogramWidget::gtpMaxEditChanged()
 void HistogramWidget::gtpMinEditChanged()
 {
     bool ok{false};
-    int value = m_gtpMinEdit->text().toInt(&ok);
+    int value = 65535 - m_gtpMinEdit->text().toInt(&ok);
     if(ok)
     {
         m_gtpMinSlider->setValue(value);
@@ -201,7 +201,7 @@ void HistogramWidget::newImageExtremaFoundByRenderer(GLuint minIntensity, GLuint
     m_imageExtrema.first = minIntensity;
     m_imageExtrema.second = maxIntensity;
     m_imageExtremaValid = true;
-    if(m_gtpAutoMinMaxEnabled)
+    if(m_gtpEnabled && m_gtpAutoMinMaxEnabled)
     {
         m_gtpMinSlider->setValue(65535 - m_imageExtrema.first);
         m_gtpMaxSlider->setValue(m_imageExtrema.second);
