@@ -46,11 +46,10 @@ layout (location = 0) out vec4 fsColor;
 bool highlight()
 {
     bool ret = false;
-//  if(floor(gl_FragCoord.xy) == wantedHighlightCoord)
-    if(distance(gl_FragCoord.xy, wantedHighlightCoord) < 4)
+    if(distance(vsTexCoord, wantedHighlightCoord) < 0.005f)
     {
         ret = true;
-        actualHighlightCoord = gl_FragCoord.xy;
+        actualHighlightCoord = vsTexCoord;
         fsColor = vec4(0, 1, 0, 1);
     }
     return ret;

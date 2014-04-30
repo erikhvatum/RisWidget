@@ -283,11 +283,13 @@ void ImageWidget::mouseMoveEventInView(QMouseEvent* ev)
         }
         else
         {
+            double viewAspectRatio = viewSize.x / viewSize.y;
+            double imageAspectRatio = imageSize.x / imageSize.y;
             zoom = m_zoomIndex == -1 ? m_customZoom : sm_zoomPresets[m_zoomIndex];
             // Image is centered vertically and horizontally...
             ipc += (imageSize * zoom - viewSize) / 2.0;
             // ...and is offset by panning
-            ipc += glm::dvec2(m_pan.x(), m_pan.y());
+            ipc += glm::dvec2(m_pan.x()*(imageAspectRatio/viewAspectRatio), m_pan.y());
             ipc /= zoom;
         }
         ipc = glm::floor(ipc);

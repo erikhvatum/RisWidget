@@ -521,6 +521,8 @@ void Renderer::execImageDraw()
         if(highlightPointer && pointerIsOnImagePixel)
         {
             glm::vec2 wantedHighlightCoord(pointerImagePixelCoord.x(), pointerImagePixelCoord.y());
+            wantedHighlightCoord /= glm::vec2(m_imageSize.width(), m_imageSize.height());
+            wantedHighlightCoord = -wantedHighlightCoord + 1.0f;
             if(wantedHighlightCoord != m_imageDrawProg.wantedHighlightCoord)
             {
                 m_glfs->glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_imageDrawProg.highlightCoordsBuff);
