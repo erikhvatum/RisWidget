@@ -78,6 +78,33 @@ public:
     Returns a copy of the currently displayed image's histogram data as a numpy array.
 %End
 
+    void setGtpEnabled(bool gtpEnabled);
+%Docstring
+    Note: call this method only from the thread with which its bound instance is associated.
+%End
+    void setGtpAutoMinMax(bool gtpAutoMinMax);
+%Docstring
+    Note: call this method only from the thread with which its bound instance is associated.
+%End
+    void setGtpMin(GLushort gtpMin);
+%Docstring
+    Note: call this method only from the thread with which its bound instance is associated.
+%End
+    void setGtpMax(GLushort gtpMax);
+%Docstring
+    Note: call this method only from the thread with which its bound instance is associated.
+%End
+    void setGtpGamma(GLfloat gtpGamma);
+%Docstring
+    Note: call this method only from the thread with which its bound instance is associated.
+%End
+
+    bool getGtpEnabled() const;
+    bool getGtpAutoMinMax() const;
+    GLushort getGtpMin() const;
+    GLushort getGtpMax() const;
+    GLfloat getGtpGamma() const;
+
 public slots:
     void loadFile() /HoldGIL/;
 %Docstring

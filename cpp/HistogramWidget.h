@@ -44,6 +44,18 @@ public:
 
     HistogramView* histogramView();
 
+    void setGtpEnabled(bool gtpEnabled);
+    void setGtpAutoMinMax(bool gtpAutoMinMax);
+    void setGtpMin(GLushort gtpMin);
+    void setGtpMax(GLushort gtpMax);
+    void setGtpGamma(GLfloat gtpGamma);
+
+    bool getGtpEnabled() const;
+    bool getGtpAutoMinMax() const;
+    GLushort getGtpMin() const;
+    GLushort getGtpMax() const;
+    GLfloat getGtpGamma() const;
+
 signals:
     // Gamma transformation parameters changing invalidates the image view, but the widgets that manipulate these
     // parameters belong to HistogramWidget.  Rather than making HistgoramWidget aware of ImageWidget's view, we instead

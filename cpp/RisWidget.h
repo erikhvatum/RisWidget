@@ -28,6 +28,9 @@
 #include "Renderer.h"
 #include "ui_RisWidget.h"
 
+// Unless otherwise noted, all non-inherited RisWidget public functions are meant to be called strictly from the thread
+// with which that RisWidget instance is associated (ie, "the GUI thread", or alternately: the thread to which the
+// RisWidget instance was most recently moveToThread(..)ed, or if none, the thread on which it was instantiated).
 class RisWidget
   : public QMainWindow,
     protected Ui::RisWidget
@@ -48,6 +51,20 @@ public:
     void showImage(const GLushort* imageDataRaw, const QSize& imageSize, bool filterTexture=true);
     void showImage(PyObject* image, bool filterTexture=true);
     PyObject* getHistogram();
+
+    // setGtp* calls must originate from the thread owning the associated instance
+    void setGtpEnabled(bool gtpEnabled);
+    void setGtpAutoMinMax(bool gtpAutoMinMax);
+    void setGtpMin(GLushort gtpMin);
+    void setGtpMax(GLushort gtpMax);
+    void setGtpGamma(GLfloat gtpGamma);
+
+    // getGtp* calls are thread safe
+    bool getGtpEnabled() const;
+    bool getGtpAutoMinMax() const;
+    GLushort getGtpMin() const;
+    GLushort getGtpMax() const;
+    GLfloat getGtpGamma() const;
 
 protected:
     QPointer<QActionGroup> m_imageViewInteractionModeGroup;

@@ -14,6 +14,8 @@ Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
 		Debug|x64 = Debug|x64
+		release standalone|Win32 = release standalone|Win32
+		release standalone|x64 = release standalone|x64
 		Release|Win32 = Release|Win32
 		Release|x64 = Release|x64
 	EndGlobalSection
@@ -22,6 +24,10 @@ Global
 		{6552578A-1EAB-418E-A66E-4AB466C1716B}.Debug|Win32.Build.0 = Debug|Win32
 		{6552578A-1EAB-418E-A66E-4AB466C1716B}.Debug|x64.ActiveCfg = Debug|x64
 		{6552578A-1EAB-418E-A66E-4AB466C1716B}.Debug|x64.Build.0 = Debug|x64
+		{6552578A-1EAB-418E-A66E-4AB466C1716B}.release standalone|Win32.ActiveCfg = release standalone|Win32
+		{6552578A-1EAB-418E-A66E-4AB466C1716B}.release standalone|Win32.Build.0 = release standalone|Win32
+		{6552578A-1EAB-418E-A66E-4AB466C1716B}.release standalone|x64.ActiveCfg = release standalone|x64
+		{6552578A-1EAB-418E-A66E-4AB466C1716B}.release standalone|x64.Build.0 = release standalone|x64
 		{6552578A-1EAB-418E-A66E-4AB466C1716B}.Release|Win32.ActiveCfg = Release|Win32
 		{6552578A-1EAB-418E-A66E-4AB466C1716B}.Release|Win32.Build.0 = Release|Win32
 		{6552578A-1EAB-418E-A66E-4AB466C1716B}.Release|x64.ActiveCfg = Release|x64
@@ -30,6 +36,10 @@ Global
 		{B12702AD-ABFB-343A-A199-8E24837244A3}.Debug|Win32.Build.0 = Debug|Win32
 		{B12702AD-ABFB-343A-A199-8E24837244A3}.Debug|x64.ActiveCfg = Debug|x64
 		{B12702AD-ABFB-343A-A199-8E24837244A3}.Debug|x64.Build.0 = Debug|x64
+		{B12702AD-ABFB-343A-A199-8E24837244A3}.release standalone|Win32.ActiveCfg = release standalone|Win32
+		{B12702AD-ABFB-343A-A199-8E24837244A3}.release standalone|Win32.Build.0 = release standalone|Win32
+		{B12702AD-ABFB-343A-A199-8E24837244A3}.release standalone|x64.ActiveCfg = release standalone|x64
+		{B12702AD-ABFB-343A-A199-8E24837244A3}.release standalone|x64.Build.0 = release standalone|x64
 		{B12702AD-ABFB-343A-A199-8E24837244A3}.Release|Win32.ActiveCfg = Release|Win32
 		{B12702AD-ABFB-343A-A199-8E24837244A3}.Release|Win32.Build.0 = Release|Win32
 		{B12702AD-ABFB-343A-A199-8E24837244A3}.Release|x64.ActiveCfg = Release|x64

@@ -261,6 +261,56 @@ PyObject* RisWidget::getHistogram()
     return ret->ptr();
 }
 
+void RisWidget::setGtpEnabled(bool gtpEnabled)
+{
+    m_histogramWidget->setGtpEnabled(gtpEnabled);
+}
+
+void RisWidget::setGtpAutoMinMax(bool gtpAutoMinMax)
+{
+    m_histogramWidget->setGtpAutoMinMax(gtpAutoMinMax);
+}
+
+void RisWidget::setGtpMin(GLushort gtpMin)
+{
+    m_histogramWidget->setGtpMin(gtpMin);
+}
+
+void RisWidget::setGtpMax(GLushort gtpMax)
+{
+    m_histogramWidget->setGtpMax(gtpMax);
+}
+
+void RisWidget::setGtpGamma(GLfloat gtpGamma)
+{
+    m_histogramWidget->setGtpGamma(gtpGamma);
+}
+
+bool RisWidget::getGtpEnabled() const
+{
+    return m_histogramWidget->getGtpEnabled();
+}
+
+bool RisWidget::getGtpAutoMinMax() const
+{
+    return m_histogramWidget->getGtpAutoMinMax();
+}
+
+GLushort RisWidget::getGtpMin() const
+{
+    return m_histogramWidget->getGtpMin();
+}
+
+GLushort RisWidget::getGtpMax() const
+{
+    return m_histogramWidget->getGtpMax();
+}
+
+GLfloat RisWidget::getGtpGamma() const
+{
+    return m_histogramWidget->getGtpGamma();
+}
+
 QString RisWidget::formatZoom(const GLfloat& z)
 {
     QString ret;

@@ -46,6 +46,64 @@ HistogramView* HistogramWidget::histogramView()
     return dynamic_cast<HistogramView*>(m_view.data());
 }
 
+void HistogramWidget::setGtpEnabled(bool gtpEnabled)
+{
+    // A little indirect, but using the gui infrastructure as our gtp parameter modification clearing house is
+    // convenient with the caveat that gtp parameter calls must originate from the thread owning this HistogramWidget
+    // instance.  Renderer of course runs on a different thread and needs these values, but it only reads them
+    m_gtpEnableCheckBox->setChecked(gtpEnabled);
+}
+
+void HistogramWidget::setGtpAutoMinMax(bool gtpAutoMinMax)
+{
+    m_gtpAutoMinMaxCheckBox->setChecked(gtpAutoMinMax);
+}
+
+void HistogramWidget::setGtpMin(GLushort gtpMin)
+{
+    m_gtpMinSlider->setValue(65535 - gtpMin);
+}
+
+void HistogramWidget::setGtpMax(GLushort gtpMax)
+{
+    m_gtpMaxSlider->setValue(gtpMax);
+}
+
+void HistogramWidget::setGtpGamma(GLfloat gtpGamma)
+{
+    m_gtpGammaSlider->setValue(gtpGamma);
+}
+
+bool HistogramWidget::getGtpEnabled() const
+{
+    QMutexLocker locker(m_lock);
+    return m_gtpEnabled;
+}
+
+bool HistogramWidget::getGtpAutoMinMax() const
+{
+    QMutexLocker locker(m_lock);
+    return m_gtpAutoMinMaxEnabled;
+}
+
+GLushort HistogramWidget::getGtpMin() const
+{
+    QMutexLocker locker(m_lock);
+    return m_gtpMin;
+}
+
+GLushort HistogramWidget::getGtpMax() const
+{
+    QMutexLocker locker(m_lock);
+    return m_gtpMax;
+}
+
+GLfloat HistogramWidget::getGtpGamma() const
+{
+    QMutexLocker locker(m_lock);
+    return m_gtpGamma;
+}
+
 void HistogramWidget::makeView(bool /*doAddWidget*/)
 {
     QMutexLocker locker(m_lock);
