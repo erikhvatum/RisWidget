@@ -124,6 +124,20 @@
     <string>Zoom to Fit</string>
    </property>
   </action>
+  <action name="m_actionHighlightImagePixelUnderMouse">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Highlight Image Pixel Under Mouse</string>
+   </property>
+   <property name="toolTip">
+    <string>Useful for debugging screen -&gt; GL -&gt; image coordinate transformation</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -205,10 +219,27 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>m_actionHighlightImagePixelUnderMouse</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>RisWidget</receiver>
+   <slot>highlightImagePixelUnderMouseToggled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>507</x>
+     <y>400</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>loadFile()</slot>
   <slot>showCheckerPatternSlot()</slot>
   <slot>imageViewZoomToFitToggled(bool)</slot>
+  <slot>highlightImagePixelUnderMouseToggled(bool)</slot>
  </slots>
 </ui>

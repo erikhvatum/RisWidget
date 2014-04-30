@@ -33,7 +33,9 @@ ImageWidget::ImageWidget(QWidget* parent)
     m_interactionMode(InteractionMode::Pointer),
     m_zoomIndex(sm_defaultZoomPreset),
     m_customZoom(0.0f),
-    m_zoomToFit(false)
+    m_zoomToFit(false),
+    m_highlightPointer(false),
+    m_pointerIsOnImagePixel(false)
 {
     setupUi(this);
 }
@@ -146,6 +148,21 @@ void ImageWidget::setZoomToFit(bool zoomToFit)
     m_view->update();
 }
 
+bool ImageWidget::highlightPointer() const
+{
+    QMutexLocker locker(const_cast<QMutex*>(m_lock));
+    return m_highlightPointer;
+}
+
+void ImageWidget::setHighlightPointer(bool highlightPointer)
+{
+    {
+        QMutexLocker locker(m_lock);
+        m_highlightPointer = highlightPointer;
+    }
+    m_view->update();
+}
+
 void ImageWidget::updateImageSizeAndData(const QSize& imageSize, const ImageData& imageData)
 {
     {
@@ -195,6 +212,20 @@ void ImageWidget::updateScrollerRanges()
     }
 }
 
+void ImageWidget::emitPointerMovedToDifferentPixel(const bool& isOnPixel, const QPoint& pixelCoord, const GLushort& pixelValue)
+{
+    {
+        QMutexLocker locker(m_lock);
+        m_pointerIsOnImagePixel = isOnPixel;
+        m_pointerImagePixelCoord = pixelCoord;
+    }
+    if(m_highlightPointer)
+    {
+        m_view->update();
+    }
+    pointerMovedToDifferentPixel(isOnPixel, pixelCoord, pixelValue);
+}
+
 void ImageWidget::scrollViewContentsBy(int /*dx*/, int /*dy*/)
 {
     {
@@ -217,7 +248,7 @@ void ImageWidget::mouseMoveEventInView(QMouseEvent* ev)
 
     if(renderer == nullptr || m_imageData.isEmpty())
     {
-        pointerMovedToDifferentPixel(false, QPoint(), 0);
+        emitPointerMovedToDifferentPixel(false, QPoint(), 0);
     }
     else
     {
@@ -271,7 +302,7 @@ void ImageWidget::mouseMoveEventInView(QMouseEvent* ev)
             pixelValue = m_imageData[static_cast<std::ptrdiff_t>(imageSize.y - ipc.y - 1.0) * m_imageSize.width() +
                                      static_cast<std::ptrdiff_t>(imageSize.x - ipc.x - 1.0)];
         }
-        pointerMovedToDifferentPixel(isOnPixel, QPoint(static_cast<int>(ipc.x), static_cast<int>(ipc.y)), pixelValue);
+        emitPointerMovedToDifferentPixel(isOnPixel, QPoint(static_cast<int>(ipc.x), static_cast<int>(ipc.y)), pixelValue);
     }
 }
 
@@ -279,7 +310,7 @@ void ImageWidget::mouseEnterExitView(bool entered)
 {
     if(!entered)
     {
-        pointerMovedToDifferentPixel(false, QPoint(), 0);
+        emitPointerMovedToDifferentPixel(false, QPoint(), 0);
     }
 }
 

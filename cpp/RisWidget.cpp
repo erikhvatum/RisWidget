@@ -116,6 +116,8 @@ void RisWidget::makeToolBars()
     m_imageViewToolBar->addAction(m_actionImageViewPointerInteractionMode);
     m_imageViewToolBar->addAction(m_actionImageViewPanInteractionMode);
     m_imageViewToolBar->addAction(m_actionImageViewZoomInteractionMode);
+    m_imageViewToolBar->addSeparator();
+    m_imageViewToolBar->addAction(m_actionHighlightImagePixelUnderMouse);
 }
 
 void RisWidget::makeViews()
@@ -436,6 +438,11 @@ void RisWidget::imageViewZoomToFitToggled(bool zoomToFit)
 {
     m_imageViewZoomCombo->setEnabled(!zoomToFit);
     m_imageWidget->setZoomToFit(zoomToFit);
+}
+
+void RisWidget::highlightImagePixelUnderMouseToggled(bool highlight)
+{
+    m_imageWidget->setHighlightPointer(highlight);
 }
 
 #ifdef STAND_ALONE_EXECUTABLE

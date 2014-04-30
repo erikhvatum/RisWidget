@@ -69,6 +69,8 @@ public:
 	void setZoomIndex(int zoomIndex);
     bool zoomToFit() const;
     void setZoomToFit(bool zoomToFit);
+    bool highlightPointer() const;
+    void setHighlightPointer(bool highlightPointer);
 
 signals:
     void interactionModeChanged(InteractionMode interactionMode, InteractionMode previousInteractionMode);
@@ -83,12 +85,16 @@ protected:
     QPoint m_pan;
     QSize m_imageSize;
     ImageData m_imageData;
+    bool m_highlightPointer;
+    bool m_pointerIsOnImagePixel;
+    QPoint m_pointerImagePixelCoord;
 
     virtual void makeView(bool doAddWidget = true) override;
     virtual View* instantiateView() override;
     void updateImageSizeAndData(const QSize& imageSize, const ImageData& imageData);
     virtual void resizeEventInView(QResizeEvent* ev) override;
     void updateScrollerRanges();
+    void emitPointerMovedToDifferentPixel(const bool& isOnPixel, const QPoint& pixelCoord, const GLushort& pixelValue);
 
 protected slots:
     void scrollViewContentsBy(int dx, int dy);

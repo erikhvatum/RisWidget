@@ -37,10 +37,24 @@ layout (std430, binding = 0) coherent buffer HighlightCoords {
     vec2 actualHighlightCoord;
 };
 
+layout (origin_upper_left, pixel_center_integer) in vec4 gl_FragCoord;
 // From vertex shader
 in vec2 vsTexCoord;
 
 layout (location = 0) out vec4 fsColor;
+
+bool highlight()
+{
+    bool ret = false;
+//  if(floor(gl_FragCoord.xy) == wantedHighlightCoord)
+    if(distance(gl_FragCoord.xy, wantedHighlightCoord) < 4)
+    {
+        ret = true;
+        actualHighlightCoord = gl_FragCoord.xy;
+        fsColor = vec4(0, 1, 0, 1);
+    }
+    return ret;
+}
 
 subroutine void PanelColorer();
 
@@ -64,19 +78,22 @@ subroutine (PanelColorer) void imagePanelGammaTransformColorer()
 
 subroutine (PanelColorer) void imagePanelGammaTransformColorerHighlight()
 {
-    float intensity = texture(tex, vsTexCoord).r;
-    if(intensity <= gtp.minVal)
+    if(!highlight())
     {
-        fsColor = vec4(0, 0, 1, 1);
-    }
-    else if(intensity >= gtp.maxVal)
-    {
-        fsColor = vec4(1, 0, 0, 1);
-    }
-    else
-    {
-        float scaled = pow(clamp((intensity - gtp.minVal) / (gtp.maxVal - gtp.minVal), 0.0, 1.0), gtp.gammaVal);
-        fsColor = vec4(scaled, scaled, scaled, 1.0);
+        float intensity = texture(tex, vsTexCoord).r;
+        if(intensity <= gtp.minVal)
+        {
+            fsColor = vec4(0, 0, 1, 1);
+        }
+        else if(intensity >= gtp.maxVal)
+        {
+            fsColor = vec4(1, 0, 0, 1);
+        }
+        else
+        {
+            float scaled = pow(clamp((intensity - gtp.minVal) / (gtp.maxVal - gtp.minVal), 0.0, 1.0), gtp.gammaVal);
+            fsColor = vec4(scaled, scaled, scaled, 1.0);
+        }
     }
 }
 
@@ -87,7 +104,10 @@ subroutine (PanelColorer) void imagePanelPassthroughColorer()
 
 subroutine (PanelColorer) void imagePanelPassthroughColorerHighlight()
 {
-    fsColor = vec4(vec3(texture(tex, vsTexCoord).rrr) / 65535.0, 1);
+    if(!highlight())
+    {
+        fsColor = vec4(vec3(texture(tex, vsTexCoord).rrr) / 65535.0, 1);
+    }
 }
 
 subroutine uniform PanelColorer panelColorer;

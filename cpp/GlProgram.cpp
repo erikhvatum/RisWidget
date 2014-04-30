@@ -345,7 +345,9 @@ ImageDrawProg::ImageDrawProg(const std::string& name_)
     vertPosLoc(std::numeric_limits<GLint>::min()),
     texCoordLoc(std::numeric_limits<GLint>::min()),
     highlightCoordsLoc(0),
-    highlightCoordsBuff(std::numeric_limits<GLuint>::max())
+    highlightCoordsBuff(std::numeric_limits<GLuint>::max()),
+    wantedHighlightCoord(std::numeric_limits<GLfloat>::lowest(), std::numeric_limits<GLfloat>::lowest()),
+    actualHighlightCoord(std::numeric_limits<GLfloat>::lowest(), std::numeric_limits<GLfloat>::lowest())
 {
 }
 

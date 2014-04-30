@@ -451,6 +451,9 @@ void Renderer::execImageDraw()
     if(!m_imageData.empty())
     {
         glm::mat4 pmv(1.0f);
+        bool highlightPointer{m_imageWidget->m_highlightPointer};
+        bool pointerIsOnImagePixel{m_imageWidget->m_pointerIsOnImagePixel};
+        QPoint pointerImagePixelCoord(m_imageWidget->m_pointerImagePixelCoord);
 
         if(m_imageWidget->m_zoomToFit)
         {
@@ -506,9 +509,7 @@ void Renderer::execImageDraw()
             if(m_imageExtremaFuture.valid())
             {
                 // This is the first time we've needed image extrema data since the program was started or a new image
-                // was loaded, so we have to retrieve the results from our async worker future object from the year
-                // 3021. More or less, get stuff from the ~~~future~~~ (x-files theme song plays during this operation
-                // and can not be switched off by anything because it's already happened and free will is an illusion).
+                // was loaded, so we have to retrieve the results from our async worker future object.
                 m_imageExtrema = m_imageExtremaFuture.get();
                 newImageExtrema(m_imageExtrema.first, m_imageExtrema.second);
             }
@@ -516,7 +517,39 @@ void Renderer::execImageDraw()
             gtpMax = m_imageExtrema.second;
         }
 
-        GLuint sub = gtpEnabled ? m_imageDrawProg.imagePanelGammaTransformColorerIdx : m_imageDrawProg.imagePanelPassthroughColorerIdx;
+        GLuint sub;
+        if(highlightPointer && pointerIsOnImagePixel)
+        {
+            glm::vec2 wantedHighlightCoord(pointerImagePixelCoord.x(), pointerImagePixelCoord.y());
+            if(wantedHighlightCoord != m_imageDrawProg.wantedHighlightCoord)
+            {
+                m_glfs->glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_imageDrawProg.highlightCoordsBuff);
+                m_glfs->glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 2 * 4, glm::value_ptr(wantedHighlightCoord));
+                m_imageDrawProg.wantedHighlightCoord = wantedHighlightCoord;
+            }
+            m_glfs->glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+            m_glfs->glBindBufferBase(GL_SHADER_STORAGE_BUFFER, m_imageDrawProg.highlightCoordsLoc, m_imageDrawProg.highlightCoordsBuff);
+
+            if(gtpEnabled)
+            {
+                sub = m_imageDrawProg.imagePanelGammaTransformColorerHighlightIdx;
+            }
+            else
+            {
+                sub = m_imageDrawProg.imagePanelPassthroughColorerHighlightIdx;
+            }
+        }
+        else
+        {
+            if(gtpEnabled)
+            {
+                sub = m_imageDrawProg.imagePanelGammaTransformColorerIdx;
+            }
+            else
+            {
+                sub = m_imageDrawProg.imagePanelPassthroughColorerIdx;
+            }
+        }
         m_glfs->glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 1, &sub);
         m_imageDrawProg.gtpEnabled = gtpEnabled;
         if(gtpMin != m_imageDrawProg.gtpMin)
@@ -539,6 +572,14 @@ void Renderer::execImageDraw()
         m_glfs->glBindTexture(GL_TEXTURE_2D, m_image);
 
         m_glfs->glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+        if(highlightPointer && pointerIsOnImagePixel)
+        {
+            m_glfs->glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
+            m_glfs->glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_imageDrawProg.highlightCoordsBuff);
+            m_glfs->glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 2 * 4, 2 * 4,
+                                       glm::value_ptr(m_imageDrawProg.actualHighlightCoord));
+        }
     }
 
     m_imageView->swapBuffers();
