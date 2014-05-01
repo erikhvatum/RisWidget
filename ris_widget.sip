@@ -52,6 +52,8 @@ public:
     ImageWidget* imageWidget();
     HistogramWidget* histogramWidget();
 
+    QAction* getStoreImageAction() const;
+
     void showCheckerPattern(int width) /ReleaseGIL/;
 %Docstring
     RisWidget.showCheckerPattern(width): Display a width X width checkerboard pattern in which each checkerboard square
@@ -72,6 +74,8 @@ public:
     Note that this function holds the GIL as it creates an intermediate numpy array, although the intermediate may be a
     zero copy view of the image argument.
 %End
+
+    PyObject* getCurrentImage() /HoldGIL/;
 
     PyObject* getHistogram() /HoldGIL/;
 %Docstring

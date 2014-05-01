@@ -61,6 +61,7 @@ public:
     // removing current image if there is one
     void showImage(const ImageData& imageData, const QSize& imageSize, const bool& filter);
     void setHistogramBinCount(const GLuint& histogramBinCount);
+    void getImageDataAndSize(ImageData& imageData, QSize& imageSize) const;
     std::shared_ptr<LockedRef<const HistogramData>> getHistogram();
 
 private:

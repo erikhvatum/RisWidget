@@ -46,10 +46,13 @@ public:
     ImageWidget* imageWidget();
     HistogramWidget* histogramWidget();
 
+    QAction* getStoreImageAction() const;
+
     void showCheckerPattern(int width, bool filterTexture=false);
     void risImageAcquired(PyObject* stream, PyObject* image);
     void showImage(const GLushort* imageDataRaw, const QSize& imageSize, bool filterTexture=true);
     void showImage(PyObject* image, bool filterTexture=true);
+    PyObject* getCurrentImage();
     PyObject* getHistogram();
 
     // setGtp* calls must originate from the thread owning the associated instance

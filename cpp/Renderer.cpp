@@ -156,6 +156,13 @@ void Renderer::setHistogramBinCount(const GLuint& histogramBinCount)
     emit _setHistogramBinCount(histogramBinCount);
 }
 
+void Renderer::getImageDataAndSize(ImageData& imageData, QSize& imageSize) const
+{
+    QMutexLocker locker(const_cast<QMutex*>(m_lock));
+    imageData = m_imageData;
+    imageSize = m_imageSize;
+}
+
 std::shared_ptr<LockedRef<const HistogramData>> Renderer::getHistogram()
 {
     return std::shared_ptr<LockedRef<const HistogramData>>{

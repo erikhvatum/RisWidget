@@ -118,6 +118,8 @@ void RisWidget::makeToolBars()
     m_imageViewToolBar->addAction(m_actionImageViewZoomInteractionMode);
     m_imageViewToolBar->addSeparator();
     m_imageViewToolBar->addAction(m_actionHighlightImagePixelUnderMouse);
+    m_imageViewToolBar->addSeparator();
+    m_imageViewToolBar->addAction(m_actionStoreImage);
 }
 
 void RisWidget::makeViews()
@@ -150,6 +152,11 @@ ImageWidget* RisWidget::imageWidget()
 HistogramWidget* RisWidget::histogramWidget()
 {
     return m_histogramWidget;
+}
+
+QAction* RisWidget::getStoreImageAction() const
+{
+    return m_actionStoreImage;
 }
 
 void RisWidget::showCheckerPatternSlot()
@@ -241,6 +248,37 @@ void RisWidget::showImage(PyObject* image, bool filterTexture)
         const Py_intptr_t* shape = imagenp.get_shape();
         showImage(reinterpret_cast<const GLushort*>(imagenp.get_data()), QSize(shape[1], shape[0]), filterTexture);
     }
+}
+
+PyObject* RisWidget::getCurrentImage()
+{
+    ImageData imageData;
+    QSize imageSize;
+    m_renderer->getImageDataAndSize(imageData, imageSize);
+    std::unique_ptr<np::ndarray> ret;
+
+    if(!imageData.isEmpty())
+    {
+        Py_intptr_t imageSizePy = imageData.size();
+        ret.reset(new np::ndarray(np::empty(1, &imageSizePy, np::dtype::get_builtin<GLushort>())));
+//      std::cerr << "alloc\n";
+        std::copy(imageData.begin(), imageData.end(), reinterpret_cast<GLushort*>(ret->get_data()));
+//      memcpy(reinterpret_cast<void*>(ret->get_data()),
+//             reinterpret_cast<const void*>(imageData.data()),
+//             100/*sizeof(GLushort) * imageData.size()*/);
+//      std::cerr << "copy\n" << ret->get_nd() << "\t" << *ret->get_shape() << "\t" << imageSize.width() << "\t" << imageSize.height() << "\n";
+        /*try
+        {
+            ret->reshape(py::make_tuple(imageSize.height(), imageSize.width())); 
+        }
+        catch(py::error_already_set const&)
+        {
+            PyErr_Print();
+        }
+        std::cerr << "rehape\n";*/
+    }
+    Py_INCREF(ret->ptr());
+    return ret->ptr();
 }
 
 PyObject* RisWidget::getHistogram()

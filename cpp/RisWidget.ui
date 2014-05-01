@@ -138,6 +138,11 @@
     <string>Useful for debugging screen -&gt; GL -&gt; image coordinate transformation</string>
    </property>
   </action>
+  <action name="m_actionStoreImage">
+   <property name="text">
+    <string>store</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
