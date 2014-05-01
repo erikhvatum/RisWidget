@@ -489,13 +489,18 @@ void Renderer::execImageDraw()
 
             GLfloat viewAspectRatio = viewSize.x / viewSize.y;
             GLfloat correctionFactor = m_imageAspectRatio / viewAspectRatio;
-            GLfloat sizeRatio = static_cast<GLfloat>(m_imageSize.height()) / viewSize.y;
+            GLfloat sizeRatio(m_imageSize.height());
+            sizeRatio /= viewSize.y;
             sizeRatio *= zoomFactor;
             // Scale to same aspect ratio
             pmv = glm::scale(pmv, glm::vec3(correctionFactor, 1.0f, 1.0f));
-            // Pan
+            // Pan.  We've scaled to y along x, so a pan along x in image coordinates relative to y is doubly relative
+            // or straight through, depending on your perspective.  Sliders slide in y-up coordinates, whereas graphics
+            // stuff addresses pixels y-down: thus the omission of a - before pans.y in the translate call.  If you want
+            // pan offset to be in the "natural" direction like the OS-X trackpad default designed to confuse old
+            // people, the x and y term signs must be swapped.
             glm::vec2 pans((pan / viewSize) * 2.0f);
-            pmv = glm::translate(pmv, glm::vec3(-pans.x, pans.y, 0.0f));
+            pmv = glm::translate(pmv, glm::vec3(-(pans.x * (1.0f / correctionFactor)), pans.y, 0.0f));
             // Zoom
             pmv = glm::scale(pmv, glm::vec3(sizeRatio, sizeRatio, 1.0f));
         }
