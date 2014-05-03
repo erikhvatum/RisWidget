@@ -249,6 +249,7 @@
 			<F N="cpp/RisWidget.ui"/>
 			<F N="cpp/RisWidgetException.cpp"/>
 			<F N="cpp/RisWidgetException.h"/>
+			<F N="cpp/RisWidget_debug.pro"/>
 			<F N="cpp/RisWidget_standalone.pro"/>
 			<F N="cpp/ShowCheckerDialog.cpp"/>
 			<F N="cpp/ShowCheckerDialog.h"/>
@@ -290,8 +291,10 @@
 			<F N="original/ris_widget/shader_program.py"/>
 			<F N="original/ris_widget/size.py"/>
 		</Folder>
-		<F N="dead_simple_build.bash"/>
 		<F N="Makefile"/>
+		<F N="dead_simple_build.bash"/>
+		<F N="dead_simple_build.bat"/>
+		<F N="dead_simple_build_debug.bash"/>
 		<F N="ris_widget.sip"/>
 	</Files>
 </Project>
