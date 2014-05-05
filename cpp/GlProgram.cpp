@@ -336,6 +336,7 @@ ImageDrawProg::ImageDrawProg(const std::string& name_)
     gtpEnabled(true),
     gtpMin(0),
     gtpMax(65535),
+    gtpGamma(1.0f),
     gtpMinLoc(std::numeric_limits<GLint>::min()),
     gtpMaxLoc(std::numeric_limits<GLint>::min()),
     gtpGammaLoc(std::numeric_limits<GLint>::min()),
@@ -413,6 +414,8 @@ HistoDrawProg::HistoDrawProg(const std::string& name_)
     projectionModelViewMatrixLoc(std::numeric_limits<GLint>::min()),
     binCountLoc(std::numeric_limits<GLint>::min()),
     binScaleLoc(std::numeric_limits<GLint>::min()),
+    gammaGamma(1.0f),
+    gammaGammaLoc(std::numeric_limits<GLint>::min()),
     histogramLoc(0),
     pointVaoBuff(std::numeric_limits<GLuint>::max()),
     pointVao(std::numeric_limits<GLuint>::max()),
@@ -431,6 +434,7 @@ void HistoDrawProg::postBuild()
     binCountLoc = getUniLoc("binCount");
     binScaleLoc = getUniLoc("binScale");
     projectionModelViewMatrixLoc = getUniLoc("projectionModelViewMatrix");
+    gammaGammaLoc = getUniLoc("gammaGammaVal");
 
     binIndexLoc = getAttrLoc("binIndex");
 }

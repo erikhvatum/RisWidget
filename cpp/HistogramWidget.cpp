@@ -24,6 +24,10 @@
 #include "HistogramWidget.h"
 #include "ImageView.h"
 
+const int HistogramWidget::sm_gammasSliderRawMax = 1000000000;
+const double HistogramWidget::sm_gammasSliderMax = 10.0;
+const double HistogramWidget::sm_gammasSliderFactor = static_cast<double>(sm_gammasSliderRawMax) / sm_gammasSliderMax;
+
 HistogramWidget::HistogramWidget(QWidget* parent)
   : ViewWidget(parent),
     m_imageLoaded(false),
@@ -32,9 +36,21 @@ HistogramWidget::HistogramWidget(QWidget* parent)
     m_gtpMin(0),
     m_gtpMax(65535),
     m_gtpGamma(1.0f),
+    m_gtpGammaGamma(1.0f),
+    m_gammasValidator(new QDoubleValidator(0.0, sm_gammasSliderMax, 0, this)),
     m_imageExtremaValid(false)
 {
     setupUi(this);
+    m_gtpGammaEdit->setValidator(m_gammasValidator);
+    m_gtpGammaGammaEdit->setValidator(m_gammasValidator);
+    connect(m_gtpGammaSlider, &QSlider::valueChanged,
+            [&](int value){gammasSliderValueChanged(value, m_gtpGammaSlider, m_gtpGammaEdit);});
+    connect(m_gtpGammaGammaSlider, &QSlider::valueChanged,
+            [&](int value){gammasSliderValueChanged(value, m_gtpGammaGammaSlider, m_gtpGammaGammaEdit);});
+    connect(m_gtpGammaEdit, &QLineEdit::editingFinished,
+            [&](){gammasEditChanged(m_gtpGammaEdit, m_gtpGammaSlider);});
+    connect(m_gtpGammaGammaEdit, &QLineEdit::editingFinished,
+            [&](){gammasEditChanged(m_gtpGammaGammaEdit, m_gtpGammaGammaSlider);});
 }
 
 HistogramWidget::~HistogramWidget()
@@ -71,7 +87,32 @@ void HistogramWidget::setGtpMax(GLushort gtpMax)
 
 void HistogramWidget::setGtpGamma(GLfloat gtpGamma)
 {
-    m_gtpGammaSlider->setValue(gtpGamma);
+    if(gtpGamma < 0 || gtpGamma > sm_gammasSliderMax)
+    {
+        std::ostringstream o;
+        o << "HistogramWidget::setGtpGamma(GLfloat gtpGamma): Value supplied for gtpGamma (";
+        o << gtpGamma << ") must be within the range [0, " << sm_gammasSliderMax << "].";
+        throw RisWidgetException(o.str());
+    }
+    else
+    {
+        m_gtpGammaSlider->setValue(static_cast<int>(sm_gammasSliderFactor * gtpGamma));
+    }
+}
+
+void HistogramWidget::setGtpGammaGamma(GLfloat gtpGammaGamma)
+{
+    if(gtpGammaGamma < 0 || gtpGammaGamma > sm_gammasSliderMax)
+    {
+        std::ostringstream o;
+        o << "HistogramWidget::setGtpGammaGamma(GLfloat gtpGammaGamma): Value supplied for gtpGammaGamma (";
+        o << gtpGammaGamma << ") must be within the range [0, " << sm_gammasSliderMax << "].";
+        throw RisWidgetException(o.str());
+    }
+    else
+    {
+        m_gtpGammaGammaSlider->setValue(static_cast<int>(sm_gammasSliderFactor * gtpGammaGamma));
+    }
 }
 
 bool HistogramWidget::getGtpEnabled() const
@@ -104,6 +145,12 @@ GLfloat HistogramWidget::getGtpGamma() const
     return m_gtpGamma;
 }
 
+GLfloat HistogramWidget::getGtpGammaGamma() const
+{
+    QMutexLocker locker(m_lock);
+    return m_gtpGammaGamma;
+}
+
 void HistogramWidget::makeView(bool /*doAddWidget*/)
 {
     QMutexLocker locker(m_lock);
@@ -130,6 +177,9 @@ void HistogramWidget::updateEnablement()
 {
     if(m_imageLoaded && m_gtpEnabled)
     {
+        m_gtpGammaGammaSlider->setEnabled(true);
+        m_gtpGammaGammaEditLabel->setEnabled(true);
+        m_gtpGammaGammaEdit->setEnabled(true);
         m_gtpEnableCheckBox->setEnabled(true);
         m_gtpAutoMinMaxCheckBox->setEnabled(true);
         m_gtpGammaSlider->setEnabled(true);
@@ -146,10 +196,10 @@ void HistogramWidget::updateEnablement()
     }
     else
     {
-        if(!m_imageLoaded)
-        {
-            m_gtpEnableCheckBox->setEnabled(false);
-        }
+        m_gtpGammaGammaSlider->setEnabled(m_imageLoaded);
+        m_gtpGammaGammaEditLabel->setEnabled(m_imageLoaded);
+        m_gtpGammaGammaEdit->setEnabled(m_imageLoaded);
+        m_gtpEnableCheckBox->setEnabled(m_imageLoaded);
         m_gtpAutoMinMaxCheckBox->setEnabled(false);
         m_gtpGammaSlider->setEnabled(false);
         m_gtpGammaEditLabel->setEnabled(false);
@@ -160,6 +210,48 @@ void HistogramWidget::updateEnablement()
         m_gtpMinSlider->setEnabled(false);
         m_gtpMinEditLabel->setEnabled(false);
         m_gtpMinEdit->setEnabled(false);
+    }
+}
+
+void HistogramWidget::gammasSliderValueChanged(int value, QSlider* slider, QLineEdit* edit)
+{
+    double valued = value;
+    valued /= sm_gammasSliderFactor;
+    {
+        QMutexLocker locker(m_lock);
+        if(slider == m_gtpGammaSlider)
+        {
+            m_gtpGamma = valued;
+        }
+        else if(slider == m_gtpGammaGammaSlider)
+        {
+            m_gtpGammaGamma = valued;
+        }
+        else
+        {
+            throw RisWidgetException("HistogramWidget::gammasSliderValueChanged(int value, QSlider* slider, QLineEdit* edit): "
+                                     "The value supplied for the slider argument does not correspond to either gamma slider.");
+        }
+        edit->setText(QString::number(valued));
+    }
+    if(slider == m_gtpGammaSlider)
+    {
+        gtpChanged();
+    }
+    else
+    {
+        // Refresh the histogram when histogram scale (ie gamma gamma) changes
+        m_view->update();
+    }
+}
+
+void HistogramWidget::gammasEditChanged(QLineEdit* edit, QSlider* slider)
+{
+    bool ok{false};
+    double valued = edit->text().toDouble(&ok);
+    if(ok)
+    {
+        slider->setValue(static_cast<int>(valued * sm_gammasSliderFactor));
     }
 }
 
@@ -186,10 +278,6 @@ void HistogramWidget::gtpAutoMinMaxToggled(bool enabled)
     }
     gtpChanged();
     updateEnablement();
-}
-
-void HistogramWidget::gtpGammaSliderValueChanged(int value)
-{
 }
 
 void HistogramWidget::gtpMaxSliderValueChanged(int value)
@@ -228,10 +316,6 @@ void HistogramWidget::gtpMinSliderValueChanged(int value)
         }
         gtpChanged();
     }
-}
-
-void HistogramWidget::gtpGammaEditChanged()
-{
 }
 
 void HistogramWidget::gtpMaxEditChanged()

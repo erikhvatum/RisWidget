@@ -34,6 +34,7 @@ RESOURCES = RisWidget.qrc
 PRECOMPILED_HEADER = Common.h
 
 HEADERS += Common.h \
+           GilStateScopeOperators.h \
            GlProgram.h \
            HistogramWidget.h \
            HistogramView.h \
@@ -54,6 +55,7 @@ FORMS +=   RisWidget.ui \
            ShowCheckerDialog.ui
 
 SOURCES += RisWidget.cpp \
+           GilStateScopeOperators.cpp \
            GlProgram.cpp \
            HistogramWidget.cpp \
            HistogramView.cpp \

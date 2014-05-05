@@ -49,12 +49,14 @@ public:
     void setGtpMin(GLushort gtpMin);
     void setGtpMax(GLushort gtpMax);
     void setGtpGamma(GLfloat gtpGamma);
+    void setGtpGammaGamma(GLfloat gtpGammaGamma);
 
     bool getGtpEnabled() const;
     bool getGtpAutoMinMax() const;
     GLushort getGtpMin() const;
     GLushort getGtpMax() const;
     GLfloat getGtpGamma() const;
+    GLfloat getGtpGammaGamma() const;
 
 signals:
     // Gamma transformation parameters changing invalidates the image view, but the widgets that manipulate these
@@ -68,6 +70,11 @@ protected:
     bool m_gtpAutoMinMaxEnabled;
     GLushort m_gtpMin, m_gtpMax;
     GLfloat m_gtpGamma;
+    GLfloat m_gtpGammaGamma;
+    static const int sm_gammasSliderRawMax;
+    static const double sm_gammasSliderMax;
+    static const double sm_gammasSliderFactor;
+    QPointer<QDoubleValidator> m_gammasValidator;
     // Cached data from Renderer
     std::pair<GLushort, GLushort> m_imageExtrema;
     bool m_imageExtremaValid;
@@ -76,14 +83,14 @@ protected:
     virtual View* instantiateView();
     void updateEnablement();
     void updateImageLoaded(const bool& imageLoaded);
+    void gammasSliderValueChanged(int value, QSlider* slider, QLineEdit* edit);
+    void gammasEditChanged(QLineEdit* edit, QSlider* slider);
 
 protected slots:
     void gtpEnabledToggled(bool enabled);
     void gtpAutoMinMaxToggled(bool enabled);
-    void gtpGammaSliderValueChanged(int value);
     void gtpMaxSliderValueChanged(int value);
     void gtpMinSliderValueChanged(int value);
-    void gtpGammaEditChanged();
     void gtpMaxEditChanged();
     void gtpMinEditChanged();
     void newImageExtremaFoundByRenderer(GLuint minIntensity, GLuint maxIntensity);

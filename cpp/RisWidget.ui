@@ -10,9 +10,6 @@
     <height>801</height>
    </rect>
   </property>
-  <property name="windowTitle">
-   <string>RisWidget Standalone</string>
-  </property>
   <property name="documentMode">
    <bool>false</bool>
   </property>
@@ -38,8 +35,9 @@
     </property>
     <addaction name="m_actionLoadFile"/>
     <addaction name="m_actionShowCheckerboard"/>
+    <addaction name="m_actionClear"/>
     <addaction name="separator"/>
-    <addaction name="m_actionClose"/>
+    <addaction name="m_actionQuit"/>
    </widget>
    <addaction name="menuFile"/>
   </widget>
@@ -65,12 +63,12 @@
    </attribute>
    <widget class="HistogramWidget" name="m_histogramWidget"/>
   </widget>
-  <action name="m_actionClose">
+  <action name="m_actionQuit">
    <property name="text">
-    <string>Close</string>
+    <string>Quit</string>
    </property>
    <property name="toolTip">
-    <string>Close</string>
+    <string>Exit</string>
    </property>
   </action>
   <action name="m_actionLoadFile">
@@ -143,6 +141,14 @@
     <string>store</string>
    </property>
   </action>
+  <action name="m_actionClear">
+   <property name="text">
+    <string>Clear</string>
+   </property>
+   <property name="toolTip">
+    <string>Clear current image and show an empty canvas</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -161,7 +167,7 @@
  <resources/>
  <connections>
   <connection>
-   <sender>m_actionClose</sender>
+   <sender>m_actionQuit</sender>
    <signal>triggered()</signal>
    <receiver>RisWidget</receiver>
    <slot>close()</slot>
@@ -240,11 +246,28 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>m_actionClear</sender>
+   <signal>triggered()</signal>
+   <receiver>RisWidget</receiver>
+   <slot>clearCanvasSlot()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>507</x>
+     <y>400</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>loadFile()</slot>
   <slot>showCheckerPatternSlot()</slot>
   <slot>imageViewZoomToFitToggled(bool)</slot>
   <slot>highlightImagePixelUnderMouseToggled(bool)</slot>
+  <slot>clearCanvasSlot()</slot>
  </slots>
 </ui>

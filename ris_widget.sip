@@ -102,17 +102,26 @@ public:
 %Docstring
     Note: call this method only from the thread with which its bound instance is associated.
 %End
+    void setGtpGammaGamma(GLfloat gtpGammaGamma);
+%Docstring
+    Note: call this method only from the thread with which its bound instance is associated.
+%End
 
     bool getGtpEnabled() const;
     bool getGtpAutoMinMax() const;
     GLushort getGtpMin() const;
     GLushort getGtpMax() const;
     GLfloat getGtpGamma() const;
+    GLfloat getGtpGammaGamma() const;
 
 public slots:
     void loadFile() /ReleaseGIL/;
 %Docstring
     Presents Open File dialog.  Supports images as well as numpy data files.
+%End
+    void clearCanvasSlot() /ReleaseGIL/;
+%Docstring
+    If an image is currently displayed, it is cleared and replaced with nothing.
 %End
 };
 

@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 #include "Common.h"
+#include "GilStateScopeOperators.h"
 #include "RisWidget.h"
 #include "ShowCheckerDialog.h"
 
@@ -216,16 +217,23 @@ void RisWidget::risImageAcquired(PyObject* /*stream*/, PyObject* image)
 
 void RisWidget::showImage(const GLushort* imageDataRaw, const QSize& imageSize, bool filterTexture)
 {
-    std::size_t byteCount = sizeof(GLushort) *
-                            static_cast<std::size_t>(imageSize.width()) *
-                            static_cast<std::size_t>(imageSize.height());
-    ImageData imageData(byteCount);
-    memcpy(reinterpret_cast<void*>(imageData.data()),
-           reinterpret_cast<const void*>(imageDataRaw),
-           byteCount);
-    m_renderer->showImage(imageData, imageSize, filterTexture);
-    m_imageWidget->updateImageSizeAndData(imageSize, imageData);
-    m_histogramWidget->updateImageLoaded(true);
+    if(imageDataRaw == nullptr)
+    {
+        clearCanvasSlot();
+    }
+    else
+    {
+        std::size_t byteCount = sizeof(GLushort) *
+                                static_cast<std::size_t>(imageSize.width()) *
+                                static_cast<std::size_t>(imageSize.height());
+        ImageData imageData(byteCount);
+        memcpy(reinterpret_cast<void*>(imageData.data()),
+               reinterpret_cast<const void*>(imageDataRaw),
+               byteCount);
+        m_renderer->showImage(imageData, imageSize, filterTexture);
+        m_imageWidget->updateImageSizeAndData(imageSize, imageData);
+        m_histogramWidget->updateImageLoaded(true);
+    }
 }
 
 void RisWidget::showImage(PyObject* image, bool filterTexture)
@@ -233,9 +241,7 @@ void RisWidget::showImage(PyObject* image, bool filterTexture)
     py::object imagepy{py::handle<>(py::borrowed(image))};
     if(imagepy.is_none())
     {
-        m_renderer->showImage(ImageData(), QSize(), false);
-        m_imageWidget->updateImageSizeAndData(QSize(), ImageData());
-        m_histogramWidget->updateImageLoaded(false);
+        showImage(nullptr, QSize(), false);
     }
     else
     {
@@ -326,6 +332,11 @@ void RisWidget::setGtpGamma(GLfloat gtpGamma)
     m_histogramWidget->setGtpGamma(gtpGamma);
 }
 
+void RisWidget::setGtpGammaGamma(GLfloat gtpGammaGamma)
+{
+    m_histogramWidget->setGtpGammaGamma(gtpGammaGamma);
+}
+
 bool RisWidget::getGtpEnabled() const
 {
     return m_histogramWidget->getGtpEnabled();
@@ -349,6 +360,11 @@ GLushort RisWidget::getGtpMax() const
 GLfloat RisWidget::getGtpGamma() const
 {
     return m_histogramWidget->getGtpGamma();
+}
+
+GLfloat RisWidget::getGtpGammaGamma() const
+{
+    return m_histogramWidget->getGtpGammaGamma();
 }
 
 QString RisWidget::formatZoom(const GLfloat& z)
@@ -386,7 +402,7 @@ void RisWidget::loadFile()
         std::string fnstdstr{fnqstr.toStdString()};
         try
         {
-            py::object ret{m_numpyLoad(fnstdstr.c_str())}; 
+            py::object ret{m_numpyLoad(fnstdstr.c_str())};
             showImage(ret.ptr());
         }
         catch(py::error_already_set const&)
@@ -394,6 +410,13 @@ void RisWidget::loadFile()
             PyErr_Print();
         }
     }
+}
+
+void RisWidget::clearCanvasSlot()
+{
+    m_renderer->showImage(ImageData(), QSize(), false);
+    m_imageWidget->updateImageSizeAndData(QSize(), ImageData());
+    m_histogramWidget->updateImageLoaded(false);
 }
 
 void RisWidget::imageViewPointerMovedToDifferentPixel(bool isOnPixel, QPoint pixelCoord, GLushort pixelValue)
@@ -515,7 +538,7 @@ int main(int argc, char** argv)
     else
     {
         QApplication app(argc, argv);
-        RisWidget* risWidget{new RisWidget};
+        RisWidget* risWidget{new RisWidget("RisWidget Standalone")};
         risWidget->show();
         ret = app.exec();
     }

@@ -61,6 +61,7 @@ public:
     void setGtpMin(GLushort gtpMin);
     void setGtpMax(GLushort gtpMax);
     void setGtpGamma(GLfloat gtpGamma);
+    void setGtpGammaGamma(GLfloat gtpGammaGamma);
 
     // getGtp* calls are thread safe
     bool getGtpEnabled() const;
@@ -68,6 +69,7 @@ public:
     GLushort getGtpMin() const;
     GLushort getGtpMax() const;
     GLfloat getGtpGamma() const;
+    GLfloat getGtpGammaGamma() const;
 
 protected:
     QPointer<QActionGroup> m_imageViewInteractionModeGroup;
@@ -95,6 +97,7 @@ protected:
 public slots:
     // Presents Open File dialog.  Supports images as well as numpy data files.
     void loadFile();
+    void clearCanvasSlot();
 
 protected slots:
     void imageViewZoomComboCustomValueEntered();

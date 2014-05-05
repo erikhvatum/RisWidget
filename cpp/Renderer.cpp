@@ -611,12 +611,18 @@ void Renderer::execHistoDraw()
                          m_histogramWidget->m_clearColor.g,
                          m_histogramWidget->m_clearColor.b,
                          m_histogramWidget->m_clearColor.a);
-    widgetLocker.unlock();
     m_glfs->glClearDepth(1.0f);
     m_glfs->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     if(!m_imageData.empty())
     {
+        GLfloat gammaGamma{m_histogramWidget->m_gtpGammaGamma};
+        widgetLocker.unlock();
+        if(gammaGamma != m_histoDrawProg.gammaGamma)
+        {
+            m_glfs->glUniform1f(m_histoDrawProg.gammaGammaLoc, gammaGamma);
+            m_histoDrawProg.gammaGamma = gammaGamma;
+        }
         m_glfs->glUniform1ui(m_histoDrawProg.binCountLoc, m_histogramBinCount);
         m_glfs->glUniform1f(m_histoDrawProg.binScaleLoc, m_histoConsolidateProg.extrema[1]);
         glm::mat4 pmv(1.0f);
