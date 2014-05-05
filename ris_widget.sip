@@ -110,7 +110,7 @@ public:
     GLfloat getGtpGamma() const;
 
 public slots:
-    void loadFile() /HoldGIL/;
+    void loadFile() /ReleaseGIL/;
 %Docstring
     Presents Open File dialog.  Supports images as well as numpy data files.
 %End

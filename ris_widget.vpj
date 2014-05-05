@@ -225,6 +225,8 @@
 				<F N="cpp/shaders/image.glslv"/>
 			</Folder>
 			<F N="cpp/Common.h"/>
+			<F N="cpp/GilStateScopeOperators.cpp"/>
+			<F N="cpp/GilStateScopeOperators.h"/>
 			<F N="cpp/GlProgram.cpp"/>
 			<F N="cpp/GlProgram.h"/>
 			<F N="cpp/HistogramView.cpp"/>
@@ -247,10 +249,10 @@
 			<F N="cpp/RisWidget.pro"/>
 			<F N="cpp/RisWidget.qrc"/>
 			<F N="cpp/RisWidget.ui"/>
-			<F N="cpp/RisWidgetException.cpp"/>
-			<F N="cpp/RisWidgetException.h"/>
 			<F N="cpp/RisWidget_debug.pro"/>
 			<F N="cpp/RisWidget_standalone.pro"/>
+			<F N="cpp/RisWidgetException.cpp"/>
+			<F N="cpp/RisWidgetException.h"/>
 			<F N="cpp/ShowCheckerDialog.cpp"/>
 			<F N="cpp/ShowCheckerDialog.h"/>
 			<F N="cpp/ShowCheckerDialog.ui"/>

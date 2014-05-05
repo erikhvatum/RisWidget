@@ -91,7 +91,7 @@
 #include <utility>
 #include <vector>
 
-#include "GilScopedRelease.h"
+#include "GilStateScopeOperators.h"
 #include "LockedRef.h"
 #include "RisWidgetException.h"
 

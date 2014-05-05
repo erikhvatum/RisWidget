@@ -374,6 +374,7 @@ void RisWidget::loadFile()
     QString fnqstr(QFileDialog::getOpenFileName(this, "Open Image or Numpy Array File", QString(), "Numpy Array Files (*.npy)"));
     if(!fnqstr.isNull())
     {
+        GilLocker();
         if(m_numpyLoad.is_none())
         {
             m_numpyLoad = m_numpy.attr("load");

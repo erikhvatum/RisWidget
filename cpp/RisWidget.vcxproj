@@ -458,7 +458,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release standalone|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="GilScopedRelease.cpp" />
+    <ClCompile Include="GilStateScopeOperators.cpp" />
     <ClCompile Include="GlProgram.cpp" />
     <ClCompile Include="HistogramView.cpp" />
     <ClCompile Include="HistogramWidget.cpp" />
@@ -713,7 +713,7 @@
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='release standalone|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='release standalone|x64'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
     </CustomBuild>
-    <ClInclude Include="GilScopedRelease.h" />
+    <ClInclude Include="GilStateScopeOperators.h" />
     <ClInclude Include="GlProgram.h" />
     <ClInclude Include="LockedRef.h" />
     <ClInclude Include="resource.h" />
