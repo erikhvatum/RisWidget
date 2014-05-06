@@ -37,6 +37,15 @@ RisWidget::RisWidget(QString windowTitle_,
     if(!oneTimeInitDone)
     {
         Q_INIT_RESOURCE(RisWidget);
+#ifndef STAND_ALONE_EXECUTABLE
+//      Py_Initialize();
+//      PyEval_InitThreads();
+        if(Py_IsInitialized() == 0)
+        {
+            std::cerr << "_andor Python module attempted to load while Python interpreter is not initialized (Py_IsInitialized() == 0).\n";
+            Py_Exit(-1);
+        }
+#endif
         np::initialize();
         oneTimeInitDone = true;
     }
@@ -52,6 +61,7 @@ RisWidget::RisWidget(QString windowTitle_,
     try
     {
         m_numpy = py::import("numpy");
+        m_numpyLoad = m_numpy.attr("load");
     }
     catch(py::error_already_set const&)
     {
@@ -62,9 +72,6 @@ RisWidget::RisWidget(QString windowTitle_,
 #ifdef STAND_ALONE_EXECUTABLE
     setAttribute(Qt::WA_DeleteOnClose, true);
     QApplication::setQuitOnLastWindowClosed(true);
-#else
-    Py_Initialize();
-    PyEval_InitThreads();
 #endif
 
     /*QTimer* doShowCheckerPattern = new QTimer;
@@ -387,6 +394,12 @@ QString RisWidget::formatZoom(const GLfloat& z)
 
 void RisWidget::loadFile()
 {
+    if(Py_IsInitialized() == 0)
+        {
+            std::cerr << "_andor Python module attempted to load while Python interpreter is not initialized (Py_IsInitialized() == 0).\n";
+            Py_Exit(-1);
+        }
+
     QString fnqstr(QFileDialog::getOpenFileName(this, "Open Image or Numpy Array File", QString(), "Numpy Array Files (*.npy)"));
     if(!fnqstr.isNull())
     {

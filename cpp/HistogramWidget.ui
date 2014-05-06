@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1340</width>
-    <height>504</height>
+    <width>1339</width>
+    <height>503</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -150,7 +150,7 @@
         </size>
        </property>
        <property name="inputMask">
-        <string>00000</string>
+        <string>00000; </string>
        </property>
        <property name="text">
         <string>0</string>
@@ -158,7 +158,7 @@
        <property name="maxLength">
         <number>5</number>
        </property>
-       <property name="clearButtonEnabled">
+       <property name="clearButtonEnabled" stdset="0">
         <bool>false</bool>
        </property>
       </widget>
@@ -204,7 +204,7 @@
         </sizepolicy>
        </property>
        <property name="inputMask">
-        <string>00000</string>
+        <string>00000; </string>
        </property>
        <property name="text">
         <string>65535</string>
