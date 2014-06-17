@@ -31,7 +31,10 @@ namespace np = boost::numpy;
 RisWidget::RisWidget(QString windowTitle_,
                      QWidget* parent,
                      Qt::WindowFlags flags)
-  : QMainWindow(parent, flags)
+  : QMainWindow(parent, flags),
+    m_showStatusBarPixelInfo(true),
+    m_showStatusBarFps(false),
+    m_previousFrameTimestampValid(false)
 {
     static bool oneTimeInitDone{false};
     if(!oneTimeInitDone)
@@ -57,6 +60,8 @@ RisWidget::RisWidget(QString windowTitle_,
     makeToolBars();
     makeViews();
     makeRenderer();
+    updateStatusBarPixelInfoPresence();
+    updateStatusBarFpsPresence();
 
     try
     {
@@ -152,6 +157,53 @@ void RisWidget::makeRenderer()
     connect(m_renderer.get(), &Renderer::newImageExtrema, m_histogramWidget, &HistogramWidget::newImageExtremaFoundByRenderer, Qt::QueuedConnection);
 }
 
+
+void RisWidget::updateStatusBarPixelInfoPresence()
+{
+    if(m_showStatusBarPixelInfo == m_statusBarPixelInfoWidget.isNull())
+    {
+        if(m_showStatusBarPixelInfo)
+        {
+            m_statusBarPixelInfoWidget = new QWidget;
+            QHBoxLayout* layout = new QHBoxLayout;
+            m_statusBarPixelInfoWidget->setLayout(layout);
+            layout->addWidget(new QLabel(tr("X: ")));
+            layout->addWidget(m_statusBarPixelInfoWidget_x = new QLabel("-"));
+            layout->addWidget(new QLabel(tr("Y: ")));
+            layout->addWidget(m_statusBarPixelInfoWidget_y = new QLabel("-"));
+            layout->addWidget(new QLabel(tr("Intensity: ")));
+            layout->addWidget(m_statusBarPixelInfoWidget_intensity = new QLabel("-"));
+            statusBar()->addPermanentWidget(m_statusBarPixelInfoWidget.data());
+        }
+        else
+        {
+            statusBar()->removeWidget(m_statusBarPixelInfoWidget.data());
+            m_statusBarFpsWidget->deleteLater();
+        }
+    }
+}
+
+void RisWidget::updateStatusBarFpsPresence()
+{
+    if(m_showStatusBarFps == m_statusBarFpsWidget.isNull())
+    {
+        if(m_showStatusBarFps)
+        {
+            m_statusBarFpsWidget = new QWidget;
+            QHBoxLayout* layout = new QHBoxLayout;
+            m_statusBarFpsWidget->setLayout(layout);
+            layout->addWidget(new QLabel(tr("FPS: ")));
+            layout->addWidget(m_statusBarFpsWidget_fps = new QLabel("-"));
+            statusBar()->addPermanentWidget(m_statusBarFpsWidget.data());
+        }
+        else
+        {
+            statusBar()->removeWidget(m_statusBarFpsWidget.data());
+            m_statusBarFpsWidget->deleteLater();
+        }
+    }
+}
+
 ImageWidget* RisWidget::imageWidget()
 {
     return m_imageWidget;
@@ -241,6 +293,15 @@ void RisWidget::showImage(const GLushort* imageDataRaw, const QSize& imageSize, 
         m_imageWidget->updateImageSizeAndData(imageSize, imageData);
         m_histogramWidget->updateImageLoaded(true);
     }
+
+    std::chrono::steady_clock::time_point currentFrameTimestamp(std::chrono::steady_clock::now());
+    if(m_showStatusBarFps && m_previousFrameTimestampValid)
+    {
+        std::chrono::duration<float> delta(std::chrono::duration_cast<std::chrono::duration<float>>(currentFrameTimestamp - m_previousFrameTimestamp));
+        m_statusBarFpsWidget_fps->setText(QString::number(1.0f / delta.count()));
+    }
+    m_previousFrameTimestamp = currentFrameTimestamp;
+    m_previousFrameTimestampValid = true;
 }
 
 void RisWidget::showImage(PyObject* image, bool filterTexture)
@@ -434,13 +495,20 @@ void RisWidget::clearCanvasSlot()
 
 void RisWidget::imageViewPointerMovedToDifferentPixel(bool isOnPixel, QPoint pixelCoord, GLushort pixelValue)
 {
-    if(isOnPixel)
+    if(m_showStatusBarPixelInfo)
     {
-        statusBar()->showMessage(QString("%1, %2: %3").arg(pixelCoord.x()).arg(pixelCoord.y()).arg(pixelValue));
-    }
-    else
-    {
-        statusBar()->clearMessage();
+        if(isOnPixel)
+        {
+            m_statusBarPixelInfoWidget_x->setText(QString::number(pixelCoord.x()));
+            m_statusBarPixelInfoWidget_y->setText(QString::number(pixelCoord.y()));
+            m_statusBarPixelInfoWidget_intensity->setText(QString::number(pixelValue));
+        }
+        else
+        {
+            m_statusBarPixelInfoWidget_x->setText("-");
+            m_statusBarPixelInfoWidget_y->setText("-");
+            m_statusBarPixelInfoWidget_intensity->setText("-");
+        }
     }
 }
 
@@ -519,6 +587,26 @@ void RisWidget::highlightImagePixelUnderMouseToggled(bool highlight)
 {
     m_imageWidget->setHighlightPointer(highlight);
 }
+
+void RisWidget::statusBarPixelInfoToggled(bool showStatusBarPixelInfo)
+{
+    if(showStatusBarPixelInfo != m_showStatusBarPixelInfo)
+    {
+        m_showStatusBarPixelInfo = showStatusBarPixelInfo;
+        updateStatusBarPixelInfoPresence();
+    }
+}
+
+void RisWidget::statusBarFpsToggled(bool showStatusBarFps)
+{
+    if(showStatusBarFps != m_showStatusBarFps)
+    {
+        m_showStatusBarFps = showStatusBarFps;
+        updateStatusBarFpsPresence();
+    }
+}
+
+
 
 #ifdef STAND_ALONE_EXECUTABLE
 

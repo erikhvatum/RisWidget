@@ -76,11 +76,22 @@ protected:
     QPointer<QToolBar> m_imageViewToolBar;
     QPointer<QComboBox> m_imageViewZoomCombo;
     QPointer<QDoubleValidator> m_imageViewZoomComboValidator;
+    QPointer<QWidget> m_statusBarPixelInfoWidget;
+    QPointer<QLabel> m_statusBarPixelInfoWidget_x;
+    QPointer<QLabel> m_statusBarPixelInfoWidget_y;
+    QPointer<QLabel> m_statusBarPixelInfoWidget_intensity;
+    QPointer<QWidget> m_statusBarFpsWidget;
+    QPointer<QLabel> m_statusBarFpsWidget_fps;
 
     std::shared_ptr<Renderer> m_renderer;
     QPointer<QThread> m_rendererThread;
     boost::python::object m_numpy;
     boost::python::object m_numpyLoad;
+
+    bool m_showStatusBarPixelInfo;
+    bool m_showStatusBarFps;
+    std::chrono::steady_clock::time_point m_previousFrameTimestamp;
+    bool m_previousFrameTimestampValid;
 
     static QString formatZoom(const GLfloat& z);
 
@@ -88,7 +99,8 @@ protected:
     void makeToolBars();
     void makeViews();
     void makeRenderer();
-    void destroyRenderer();
+    void updateStatusBarFpsPresence();
+    void updateStatusBarPixelInfoPresence();
 
 #ifdef STAND_ALONE_EXECUTABLE
     void closeEvent(QCloseEvent* event);
@@ -107,4 +119,6 @@ protected slots:
     void highlightImagePixelUnderMouseToggled(bool highlight);
     void showCheckerPatternSlot();
     void imageViewPointerMovedToDifferentPixel(bool isOnPixel, QPoint pixelCoord, GLushort pixelValue);
+    void statusBarPixelInfoToggled(bool showStatusBarPixelInfo);
+    void statusBarFpsToggled(bool showStatusBarFps);
 };

@@ -26,7 +26,7 @@
      <x>0</x>
      <y>0</y>
      <width>1015</width>
-     <height>20</height>
+     <height>19</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -39,9 +39,16 @@
     <addaction name="separator"/>
     <addaction name="m_actionQuit"/>
    </widget>
+   <widget class="QMenu" name="menuSettings">
+    <property name="title">
+     <string>Settings</string>
+    </property>
+    <addaction name="m_actionStatusBarPixelInfo"/>
+    <addaction name="m_actionStatusBarFps"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuSettings"/>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
   <widget class="QDockWidget" name="dockWidget">
    <property name="minimumSize">
     <size>
@@ -147,6 +154,31 @@
    </property>
    <property name="toolTip">
     <string>Clear current image and show an empty canvas</string>
+   </property>
+  </action>
+  <action name="m_actionStatusBarPixelInfo">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Status Bar Pixel Under Mouse Info</string>
+   </property>
+   <property name="toolTip">
+    <string>In the status bar, show the coordinate and intensity value of the pixel under the mouse.</string>
+   </property>
+  </action>
+  <action name="m_actionStatusBarFps">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Status Bar FPS</string>
+   </property>
+   <property name="toolTip">
+    <string>Show current frames per second in status bar.</string>
    </property>
   </action>
  </widget>
@@ -262,6 +294,38 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>m_actionStatusBarPixelInfo</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>RisWidget</receiver>
+   <slot>statusBarPixelInfoToggled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>507</x>
+     <y>400</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>m_actionStatusBarFps</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>RisWidget</receiver>
+   <slot>statusBarFpsToggled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>507</x>
+     <y>400</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>507</x>
+     <y>400</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>loadFile()</slot>
@@ -269,5 +333,7 @@
   <slot>imageViewZoomToFitToggled(bool)</slot>
   <slot>highlightImagePixelUnderMouseToggled(bool)</slot>
   <slot>clearCanvasSlot()</slot>
+  <slot>statusBarPixelInfoToggled(bool)</slot>
+  <slot>statusBarFpsToggled(bool)</slot>
  </slots>
 </ui>

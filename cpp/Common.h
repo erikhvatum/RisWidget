@@ -40,6 +40,7 @@
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 #include <boost/python/module.hpp>
 #include <boost/python/manage_new_object.hpp>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 // Need cstring include for memcpy(..).  Note: this is the C++ version of string.h; it has nothing to do with
@@ -80,6 +81,7 @@
 #include <QScreen>
 #include <QScrollBar>
 #include <QSharedPointer>
+#include <QStatusBar>
 #include <QString>
 #include <QSurface>
 #include <QThread>
