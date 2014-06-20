@@ -27,7 +27,7 @@ CONFIG += static c++11 precompile_header exceptions rtti stl thread
 CONFIG -= app_bundle
 TARGET = RisWidget
 INCLUDEPATH += /usr/local/include /usr/local/glm /usr/include/python3.4 /usr/lib64/python3.4/site-packages/numpy/core/include
-CFLAGS += -fPIC -march=native
+CFLAGS += -fPIC -fno-omit-frame-pointer -march=native
 #DEFINES += ENABLE_GL_DEBUG_LOGGING
 
 RESOURCES = RisWidget.qrc

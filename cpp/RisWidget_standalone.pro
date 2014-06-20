@@ -25,8 +25,8 @@ QT += core gui widgets opengl
 CONFIG += c++11 precompile_header exceptions rtti stl thread debug
 CONFIG -= app_bundle
 TARGET = RisWidget
-INCLUDEPATH += /usr/local/include /usr/local/glm /usr/include/python3.3 /usr/lib64/python3.3/site-packages/numpy/core/include
-LIBS += -lpython3.3 -lboost_python-3.3 -L/usr/local/lib -lboost_numpy
+INCLUDEPATH += /usr/local/include /usr/local/glm /usr/include/python3.4 /usr/lib64/python3.4/site-packages/numpy/core/include
+LIBS += -lpython3.4 -lboost_python-3.4 -L/usr/local/lib -lboost_numpy
 DEFINES += ENABLE_GL_DEBUG_LOGGING STAND_ALONE_EXECUTABLE
 
 RESOURCES = RisWidget.qrc
