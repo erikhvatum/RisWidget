@@ -23,7 +23,6 @@
 #pragma once
 
 #include "Common.h"
-#include "GlProgram.h"
 
 class View;
 class ViewWidget;
@@ -79,15 +78,13 @@ private:
 
     // There is good reason not to provide an accessor for this variable: in order that all OpenGL calls originate from
     // the Renderer, only Renderer and GlProgram methods have cause to use m_glfs.
-    QOpenGLFunctions_4_3_Core* m_glfs;
+    QOpenGLFunctions_3_3_Core* m_glfs;
 #ifdef ENABLE_GL_DEBUG_LOGGING
     QOpenGLDebugLogger* m_glDebugLogger;
 #endif
 
-    HistoCalcProg m_histoCalcProg;
-    HistoConsolidateProg m_histoConsolidateProg;
-    ImageDrawProg m_imageDrawProg;
-    HistoDrawProg m_histoDrawProg;
+//  ImageDrawProg m_imageDrawProg;
+//  HistoDrawProg m_histoDrawProg;
 
     // Raw image data
     ImageData m_imageData;

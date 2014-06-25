@@ -456,10 +456,10 @@ QString RisWidget::formatZoom(const GLfloat& z)
 void RisWidget::loadFile()
 {
     if(Py_IsInitialized() == 0)
-        {
-            std::cerr << "_andor Python module attempted to load while Python interpreter is not initialized (Py_IsInitialized() == 0).\n";
-            Py_Exit(-1);
-        }
+    {
+        std::cerr << "_andor Python module attempted to load while Python interpreter is not initialized (Py_IsInitialized() == 0).\n";
+        Py_Exit(-1);
+    }
 
     QString fnqstr(QFileDialog::getOpenFileName(this, "Open Image or Numpy Array File", QString(), "Numpy Array Files (*.npy)"));
     if(!fnqstr.isNull())

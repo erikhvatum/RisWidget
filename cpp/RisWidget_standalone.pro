@@ -22,11 +22,18 @@
 
 LANGUAGE = C++
 QT += core gui widgets opengl
-CONFIG += c++11 precompile_header exceptions rtti stl thread debug
+CONFIG += c++11 precompile_header exceptions rtti stl thread debug largefile
 CONFIG -= app_bundle
 TARGET = RisWidget
-INCLUDEPATH += /usr/local/include /usr/local/glm /usr/include/python3.4 /usr/lib64/python3.4/site-packages/numpy/core/include
-LIBS += -lpython3.4 -lboost_python-3.4 -L/usr/local/lib -lboost_numpy
+unix {
+    CFLAGS += -fno-omit-frame-pointer
+    INCLUDEPATH += /usr/local/include /usr/local/glm /usr/include/python3.4 /usr/lib64/python3.4/site-packages/numpy/core/include
+    LIBS += -lpython3.4 -lboost_python-3.4 -L/usr/local/lib -lboost_numpy
+} else:macx {
+    CFLAGS += -fno-omit-frame-pointer
+    INCLUDEPATH += -I/Library/Frameworks/Python.framework/Versions/3.4/include/python3.4m -I/Library/Frameworks/Python.framework/Versions/3.4/include/python3.4m
+    LIBS += -ldl -framework CoreFoundation -lpython3.4m
+}
 DEFINES += ENABLE_GL_DEBUG_LOGGING STAND_ALONE_EXECUTABLE
 
 RESOURCES = RisWidget.qrc
@@ -35,7 +42,6 @@ PRECOMPILED_HEADER = Common.h
 
 HEADERS += Common.h \
            GilStateScopeOperators.h \
-           GlProgram.h \
            HistogramWidget.h \
            HistogramView.h \
            ImageWidget.h \
@@ -56,7 +62,6 @@ FORMS +=   RisWidget.ui \
 
 SOURCES += RisWidget.cpp \
            GilStateScopeOperators.cpp \
-           GlProgram.cpp \
            HistogramWidget.cpp \
            HistogramView.cpp \
            ImageWidget.cpp \

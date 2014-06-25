@@ -40,9 +40,9 @@ void Renderer::staticInit()
     if(!sm_staticInited)
     {
         QSurfaceFormat& format = const_cast<QSurfaceFormat&>(sm_format);
-        // Our weakest target platform is Macmini6,1, having Intel HD 4000 graphics, supporting up to OpenGL 4.1 on OS X.
         format.setRenderableType(QSurfaceFormat::OpenGL);
-        format.setVersion(4, 3);
+        // OpenGL 3.3 support is pretty much ubiquitous these days
+        format.setVersion(3, 3);
         format.setProfile(QSurfaceFormat::CoreProfile);
         format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
         format.setStereo(false);
@@ -144,7 +144,8 @@ void Renderer::showImage(const ImageData& imageData, const QSize& imageSize, con
     {
         // It is important to cancel any currently processing or outstanding extrema futures when reverting to
         // displaying no image: if not canceled, it would be possible to show an image, revert to no image, then show an
-        // image, and have this third action result in a stale future from the first being used.
+        // image, and have this third action result in a stale future from the first being used.  (Replacing the
+        // m_imageExremaFuture instance with a null future instance accomplishes this.)
         QMutexLocker lock(m_lock);
         m_imageExtremaFuture = std::future<std::pair<GLushort, GLushort>>();
     }
@@ -183,27 +184,27 @@ void Renderer::delImage()
 
 void Renderer::delHistogramBlocks()
 {
-    if(m_histogramBlocks != std::numeric_limits<GLuint>::max())
-    {
-        m_glfs->glDeleteTextures(1, &m_histogramBlocks);
-        m_histogramBlocks = std::numeric_limits<GLuint>::max();
-    }
+//  if(m_histogramBlocks != std::numeric_limits<GLuint>::max())
+//  {
+//      m_glfs->glDeleteTextures(1, &m_histogramBlocks);
+//      m_histogramBlocks = std::numeric_limits<GLuint>::max();
+//  }
 }
 
 void Renderer::delHistogram()
 {
-    if(m_histogram != std::numeric_limits<GLuint>::max())
-    {
-        m_glfs->glDeleteTextures(1, &m_histogram);
-        m_histogram = std::numeric_limits<GLuint>::max();
-
-        m_histogramView->makeCurrent();
-        m_glfs->glUseProgram(m_histoDrawProg);
-        m_glfs->glDeleteVertexArrays(1, &m_histoDrawProg.pointVao);
-        m_histoDrawProg.pointVao = std::numeric_limits<GLuint>::max();
-        m_glfs->glDeleteBuffers(1, &m_histoDrawProg.pointVaoBuff);
-        m_histoDrawProg.pointVaoBuff = std::numeric_limits<GLuint>::max();
-    }
+//  if(m_histogram != std::numeric_limits<GLuint>::max())
+//  {
+//      m_glfs->glDeleteTextures(1, &m_histogram);
+//      m_histogram = std::numeric_limits<GLuint>::max();
+// 
+//      m_histogramView->makeCurrent();
+//      m_glfs->glUseProgram(m_histoDrawProg);
+//      m_glfs->glDeleteVertexArrays(1, &m_histoDrawProg.pointVao);
+//      m_histoDrawProg.pointVao = std::numeric_limits<GLuint>::max();
+//      m_glfs->glDeleteBuffers(1, &m_histoDrawProg.pointVaoBuff);
+//      m_histoDrawProg.pointVaoBuff = std::numeric_limits<GLuint>::max();
+//  }
 }
 
 void Renderer::makeContexts()
@@ -260,7 +261,7 @@ void Renderer::makeGlfs()
     // through a view's own function bundle when drawing to it.  (However, the specific view's context _does_ need to be
     // current in order to draw to its frame buffer.)
     m_imageView->makeCurrent();
-    m_glfs = m_imageView->m_context->versionFunctions<QOpenGLFunctions_4_3_Core>();
+    m_glfs = m_imageView->m_context->versionFunctions<QOpenGLFunctions_3_3_Core>();
     if(m_glfs == nullptr)
     {
         throw RisWidgetException("Renderer::makeGlfs(): Failed to retrieve OpenGL function bundle.");
@@ -274,129 +275,20 @@ void Renderer::makeGlfs()
 void Renderer::buildGlProgs()
 {
     m_histogramView->makeCurrent();
-    m_histoCalcProg.build(m_glfs);
-    m_histoConsolidateProg.build(m_glfs);
-    m_histoDrawProg.build(m_glfs);
+//  m_histoCalcProg.build(m_glfs);
+//  m_histoConsolidateProg.build(m_glfs);
+//  m_histoDrawProg.build(m_glfs);
 
     m_imageView->makeCurrent();
-    m_imageDrawProg.build(m_glfs);
+//  m_imageDrawProg.build(m_glfs);
 }
 
 void Renderer::execHistoCalc()
 {
-    m_histogramView->makeCurrent();
-    m_glfs->glUseProgram(m_histoCalcProg);
-
-    /* Set up data */
-
-    if(m_histogramBlocks == std::numeric_limits<GLuint>::max())
-    {
-        m_glfs->glGenTextures(1, &m_histogramBlocks);
-        m_glfs->glBindTexture(GL_TEXTURE_2D_ARRAY, m_histogramBlocks);
-        m_glfs->glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_R32UI,
-                               m_histoCalcProg.wgCountPerAxis,
-                               m_histoCalcProg.wgCountPerAxis,
-                               m_histogramBinCount);
-    }
-    else
-    {
-        m_glfs->glBindTexture(GL_TEXTURE_2D_ARRAY, m_histogramBlocks);
-    }
-
-    // Zero-out block histogram data... this is slow and should be improved
-    std::vector<GLuint> zerosV(m_histoCalcProg.wgCountPerAxis *
-                                   m_histoCalcProg.wgCountPerAxis *
-                                   m_histogramBinCount,
-                               0);
-    m_glfs->glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0,
-                            m_histoCalcProg.wgCountPerAxis,
-                            m_histoCalcProg.wgCountPerAxis,
-                            m_histogramBinCount,
-                            GL_RED_INTEGER, GL_UNSIGNED_INT,
-                            reinterpret_cast<const GLvoid*>(zerosV.data()));
-
-    GLint axisInvocations = m_histoCalcProg.wgCountPerAxis * m_histoCalcProg.liCountPerAxis;
-    m_glfs->glUniform2i(m_histoCalcProg.invocationRegionSizeLoc,
-                        static_cast<GLint>( ceil(static_cast<double>(m_imageSize.width())  / axisInvocations) ),
-                        static_cast<GLint>( ceil(static_cast<double>(m_imageSize.height()) / axisInvocations) ));
-    m_glfs->glUniform1f(m_histoCalcProg.binCountLoc, m_histogramBinCount);
-
-    /* Execute */
-
-    m_glfs->glBindTexture(GL_TEXTURE_2D, 0);
-    m_glfs->glBindImageTexture(m_histoCalcProg.imageLoc, m_image, 0, false, 0, GL_READ_ONLY, GL_R16UI);
-
-    m_glfs->glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
-    m_glfs->glBindImageTexture(m_histoCalcProg.blocksLoc, m_histogramBlocks, 0, true, 0, GL_WRITE_ONLY, GL_R32UI);
-
-    m_glfs->glDispatchCompute(m_histoCalcProg.wgCountPerAxis, m_histoCalcProg.wgCountPerAxis, 1);
-
-    // Wait for compute shader execution to complete
-    m_glfs->glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
 void Renderer::execHistoConsolidate()
 {
-    m_histogramView->makeCurrent();
-    m_glfs->glUseProgram(m_histoConsolidateProg);
-
-    /* Set up data */
-
-    if(m_histogram == std::numeric_limits<GLuint>::max())
-    {
-        m_glfs->glGenTextures(1, &m_histogram);
-        m_glfs->glBindTexture(GL_TEXTURE_1D, m_histogram);
-        m_glfs->glTexStorage1D(GL_TEXTURE_1D, 1, GL_R32UI, m_histogramBinCount);
-    }
-    else
-    {
-        m_glfs->glBindTexture(GL_TEXTURE_1D, m_histogram);
-    }
-
-    if(m_histogramData.size() != m_histogramBinCount)
-    {
-        m_histogramData.resize(m_histogramBinCount, 0);
-    }
-    // Zero-out histogram data... this is slow and should be improved
-    std::fill(m_histogramData.begin(), m_histogramData.end(), 0);
-    m_glfs->glTexSubImage1D(GL_TEXTURE_1D, 0, 0, m_histogramBinCount, GL_RED_INTEGER, GL_UNSIGNED_INT,
-                            reinterpret_cast<const GLvoid*>(m_histogramData.data()));
-
-    m_glfs->glUniform1ui(m_histoConsolidateProg.binCountLoc, m_histogramBinCount);
-    m_glfs->glUniform1ui(m_histoConsolidateProg.invocationBinCountLoc,
-                         static_cast<GLuint>( ceil(static_cast<double>(m_histogramBinCount) / m_histoConsolidateProg.liCount) ));
-
-    m_glfs->glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_histoConsolidateProg.extremaBuff);
-    m_histoConsolidateProg.extrema[0] = std::numeric_limits<GLuint>::max();
-    m_histoConsolidateProg.extrema[1] = std::numeric_limits<GLuint>::min();
-    m_glfs->glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(m_histoConsolidateProg.extrema),
-                            reinterpret_cast<const GLvoid*>(m_histoConsolidateProg.extrema));
-
-    /* Execute */
-
-    m_glfs->glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
-    m_glfs->glBindImageTexture(m_histoConsolidateProg.blocksLoc, m_histogramBlocks, 0, true, 0, GL_READ_ONLY, GL_R32UI);
-
-    m_glfs->glBindTexture(GL_TEXTURE_1D, 0);
-    m_glfs->glBindImageTexture(m_histoConsolidateProg.histogramLoc, m_histogram, 0, false, 0, GL_READ_WRITE, GL_R32UI);
-
-    m_glfs->glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-    m_glfs->glBindBufferBase(GL_SHADER_STORAGE_BUFFER, m_histoConsolidateProg.extremaLoc, m_histoConsolidateProg.extremaBuff);
-
-    m_glfs->glDispatchCompute(m_histoCalcProg.wgCountPerAxis, m_histoCalcProg.wgCountPerAxis, 1);
-
-    // Wait for shader execution to complete
-    m_glfs->glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_BUFFER_UPDATE_BARRIER_BIT);
-
-    /* Retrieve results */
-
-    m_glfs->glBindTexture(GL_TEXTURE_1D, m_histogram);
-    m_glfs->glGetTexImage(GL_TEXTURE_1D, 0, GL_RED_INTEGER, GL_UNSIGNED_INT,
-                          reinterpret_cast<GLvoid*>(const_cast<GLuint*>(m_histogramData.data())));
-
-    m_glfs->glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_histoConsolidateProg.extremaBuff);
-    m_glfs->glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(m_histoConsolidateProg.extrema),
-                               reinterpret_cast<GLvoid*>(m_histoConsolidateProg.extrema));
 }
 
 void Renderer::updateGlViewportSize(ViewWidget* viewWidget)
@@ -455,147 +347,6 @@ void Renderer::execImageDraw()
     m_glfs->glClearDepth(1.0f);
     m_glfs->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    if(!m_imageData.empty())
-    {
-        glm::mat4 pmv(1.0f);
-        bool highlightPointer{m_imageWidget->m_highlightPointer};
-        bool pointerIsOnImagePixel{m_imageWidget->m_pointerIsOnImagePixel};
-        QPoint pointerImagePixelCoord(m_imageWidget->m_pointerImagePixelCoord);
-
-        if(m_imageWidget->m_zoomToFit)
-        {
-            // Image aspect ratio is always maintained.  The image is centered along whichever axis does not fit.
-            float viewAspectRatio = static_cast<float>(m_imageWidget->m_viewSize.width()) / m_imageWidget->m_viewSize.height();
-            widgetLocker.unlock();
-            float correctionFactor = m_imageAspectRatio / viewAspectRatio;
-            if(correctionFactor <= 1)
-            {
-                pmv = glm::scale(pmv, glm::vec3(correctionFactor, 1.0f, 1.0f));
-            }
-            else
-            {
-                pmv = glm::scale(pmv, glm::vec3(1.0f, 1.0f / correctionFactor, 1.0f));
-            }
-        }
-        else
-        {
-            // Image aspect ratio is always maintained; the image is centered, panned, and scaled as directed by the
-            // user
-            GLfloat zoomFactor = m_imageWidget->m_zoomIndex == -1 ? 
-                m_imageWidget->m_customZoom : m_imageWidget->sm_zoomPresets[m_imageWidget->m_zoomIndex];
-            glm::vec2 viewSize(m_imageWidget->m_viewSize.width(), m_imageWidget->m_viewSize.height());
-            glm::vec2 pan(m_imageWidget->m_pan.x(), m_imageWidget->m_pan.y());
-            widgetLocker.unlock();
-
-            GLfloat viewAspectRatio = viewSize.x / viewSize.y;
-            GLfloat correctionFactor = m_imageAspectRatio / viewAspectRatio;
-            GLfloat sizeRatio(m_imageSize.height());
-            sizeRatio /= viewSize.y;
-            sizeRatio *= zoomFactor;
-            // Scale to same aspect ratio
-            pmv = glm::scale(pmv, glm::vec3(correctionFactor, 1.0f, 1.0f));
-            // Pan.  We've scaled to y along x, so a pan along x in image coordinates relative to y is doubly relative
-            // or straight through, depending on your perspective.  Sliders slide in y-up coordinates, whereas graphics
-            // stuff addresses pixels y-down: thus the omission of a - before pans.y in the translate call.  If you want
-            // pan offset to be in the "natural" direction like the OS-X trackpad default designed to confuse old
-            // people, the x and y term signs must be swapped.
-            glm::vec2 pans((pan / viewSize) * 2.0f);
-            pmv = glm::translate(pmv, glm::vec3(-(pans.x * (1.0f / correctionFactor)), pans.y, 0.0f));
-            // Zoom
-            pmv = glm::scale(pmv, glm::vec3(sizeRatio, sizeRatio, 1.0f));
-        }
-        
-        m_glfs->glUniformMatrix4fv(m_imageDrawProg.projectionModelViewMatrixLoc,
-                                   1, GL_FALSE, glm::value_ptr(pmv));
-
-        QMutexLocker histogramWidgetLocker(m_histogramWidget->m_lock);
-        bool gtpEnabled{m_histogramWidget->m_gtpEnabled};
-        bool gtpAutoMinMaxEnabled{m_histogramWidget->m_gtpAutoMinMaxEnabled};
-        GLushort gtpMin{m_histogramWidget->m_gtpMin};
-        GLushort gtpMax{m_histogramWidget->m_gtpMax};
-        GLfloat gtpGamma{m_histogramWidget->m_gtpGamma};
-        histogramWidgetLocker.unlock();
-
-        if(gtpAutoMinMaxEnabled)
-        {
-            if(m_imageExtremaFuture.valid())
-            {
-                // This is the first time we've needed image extrema data since the program was started or a new image
-                // was loaded, so we have to retrieve the results from our async worker future object.
-                m_imageExtrema = m_imageExtremaFuture.get();
-                newImageExtrema(m_imageExtrema.first, m_imageExtrema.second);
-            }
-            gtpMin = m_imageExtrema.first;
-            gtpMax = m_imageExtrema.second;
-        }
-
-        GLuint sub;
-        if(highlightPointer && pointerIsOnImagePixel)
-        {
-            glm::vec2 wantedHighlightCoord(pointerImagePixelCoord.x(), pointerImagePixelCoord.y());
-            wantedHighlightCoord /= glm::vec2(m_imageSize.width(), m_imageSize.height());
-            wantedHighlightCoord = -wantedHighlightCoord + 1.0f;
-            if(wantedHighlightCoord != m_imageDrawProg.wantedHighlightCoord)
-            {
-                m_glfs->glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_imageDrawProg.highlightCoordsBuff);
-                m_glfs->glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 2 * 4, glm::value_ptr(wantedHighlightCoord));
-                m_imageDrawProg.wantedHighlightCoord = wantedHighlightCoord;
-            }
-            m_glfs->glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-            m_glfs->glBindBufferBase(GL_SHADER_STORAGE_BUFFER, m_imageDrawProg.highlightCoordsLoc, m_imageDrawProg.highlightCoordsBuff);
-
-            if(gtpEnabled)
-            {
-                sub = m_imageDrawProg.imagePanelGammaTransformColorerHighlightIdx;
-            }
-            else
-            {
-                sub = m_imageDrawProg.imagePanelPassthroughColorerHighlightIdx;
-            }
-        }
-        else
-        {
-            if(gtpEnabled)
-            {
-                sub = m_imageDrawProg.imagePanelGammaTransformColorerIdx;
-            }
-            else
-            {
-                sub = m_imageDrawProg.imagePanelPassthroughColorerIdx;
-            }
-        }
-        m_glfs->glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 1, &sub);
-        m_imageDrawProg.gtpEnabled = gtpEnabled;
-        if(gtpMin != m_imageDrawProg.gtpMin)
-        {
-            m_glfs->glUniform1f(m_imageDrawProg.gtpMinLoc, static_cast<GLfloat>(gtpMin));
-            m_imageDrawProg.gtpMin = gtpMin;
-        }
-        if(gtpMax != m_imageDrawProg.gtpMax)
-        {
-            m_glfs->glUniform1f(m_imageDrawProg.gtpMaxLoc, static_cast<GLfloat>(gtpMax));
-            m_imageDrawProg.gtpMax = gtpMax;
-        }
-        if(gtpGamma != m_imageDrawProg.gtpGamma)
-        {
-            m_glfs->glUniform1f(m_imageDrawProg.gtpGammaLoc, gtpGamma);
-            m_imageDrawProg.gtpGamma = gtpGamma;
-        }
-
-        m_glfs->glBindVertexArray(m_imageDrawProg.quadVao);
-        m_glfs->glBindTexture(GL_TEXTURE_2D, m_image);
-
-        m_glfs->glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-
-        if(highlightPointer && pointerIsOnImagePixel)
-        {
-            m_glfs->glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
-            m_glfs->glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_imageDrawProg.highlightCoordsBuff);
-            m_glfs->glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 2 * 4, 2 * 4,
-                                       glm::value_ptr(m_imageDrawProg.actualHighlightCoord));
-        }
-    }
-
     m_imageView->swapBuffers();
 }
 
@@ -613,58 +364,6 @@ void Renderer::execHistoDraw()
                          m_histogramWidget->m_clearColor.a);
     m_glfs->glClearDepth(1.0f);
     m_glfs->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    if(!m_imageData.empty())
-    {
-        GLfloat gammaGamma{m_histogramWidget->m_gtpGammaGamma};
-        widgetLocker.unlock();
-        if(gammaGamma != m_histoDrawProg.gammaGamma)
-        {
-            m_glfs->glUniform1f(m_histoDrawProg.gammaGammaLoc, gammaGamma);
-            m_histoDrawProg.gammaGamma = gammaGamma;
-        }
-        m_glfs->glUniform1ui(m_histoDrawProg.binCountLoc, m_histogramBinCount);
-        m_glfs->glUniform1f(m_histoDrawProg.binScaleLoc, m_histoConsolidateProg.extrema[1]);
-        glm::mat4 pmv(1.0f);
-        m_glfs->glUniformMatrix4fv(m_histoDrawProg.projectionModelViewMatrixLoc, 1, GL_FALSE, glm::value_ptr(pmv));
-
-        if(m_histoDrawProg.pointVao == std::numeric_limits<GLuint>::max())
-        {
-            m_glfs->glGenVertexArrays(1, &m_histoDrawProg.pointVao);
-            m_glfs->glBindVertexArray(m_histoDrawProg.pointVao);
-
-            m_glfs->glGenBuffers(1, &m_histoDrawProg.pointVaoBuff);
-            m_glfs->glBindBuffer(GL_ARRAY_BUFFER, m_histoDrawProg.pointVaoBuff);
-            {
-                std::vector<float> points;
-                points.resize(m_histogramBinCount, 0);
-                GLuint i = 0;
-                for(std::vector<float>::iterator point(points.begin()); point != points.end(); ++point, ++i)
-                {
-                    *point = i;
-                }
-                m_glfs->glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * m_histogramBinCount,
-                                     reinterpret_cast<const GLvoid*>(points.data()),
-                                     GL_STATIC_DRAW);
-            }
-
-            m_glfs->glEnableVertexAttribArray(m_histoDrawProg.binIndexLoc);
-            m_glfs->glVertexAttribPointer(m_histoDrawProg.binIndexLoc, 1, GL_FLOAT, GL_FALSE, 0, nullptr);
-
-            m_glfs->glBindBuffer(GL_ARRAY_BUFFER, 0);
-        }
-        else
-        {
-            m_glfs->glBindVertexArray(m_histoDrawProg.pointVao);
-        }
-
-        m_glfs->glBindTexture(GL_TEXTURE_1D, 0);
-        m_glfs->glBindImageTexture(m_histoDrawProg.histogramLoc, m_histogram, 0, true, 0, GL_READ_ONLY, GL_R32UI);
-
-        m_glfs->glDrawArrays(GL_LINE_STRIP, 0, m_histogramBinCount);
-        m_glfs->glPointSize(4);
-        m_glfs->glDrawArrays(GL_POINTS, 0, m_histogramBinCount);
-    }
 
     m_histogramView->swapBuffers();
 }
@@ -719,31 +418,31 @@ void Renderer::newImageSlot(ImageData imageData, QSize imageSize, bool filter)
 
     if(!imageData.empty())
     {
-        m_imageData = imageData;
-        m_imageSize = imageSize;
-        m_imageAspectRatio = static_cast<float>(m_imageSize.width()) / m_imageSize.height();
-
-        if(m_image == std::numeric_limits<GLuint>::max())
-        {
-            m_glfs->glGenTextures(1, &m_image);
-            m_glfs->glBindTexture(GL_TEXTURE_2D, m_image);
-            m_glfs->glTexStorage2D(GL_TEXTURE_2D, 1, GL_R16UI,
-                                   m_imageSize.width(), m_imageSize.height());
-            m_glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            m_glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        }
-        else
-        {
-            m_glfs->glBindTexture(GL_TEXTURE_2D, m_image);
-        }
-
-        m_glfs->glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
-                                m_imageSize.width(), m_imageSize.height(),
-                                GL_RED_INTEGER, GL_UNSIGNED_SHORT,
-                                reinterpret_cast<GLvoid*>(m_imageData.data()));
-        GLenum filterType = filter ? GL_LINEAR : GL_NEAREST;
-        m_glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filterType);
-        m_glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filterType);
+//      m_imageData = imageData;
+//      m_imageSize = imageSize;
+//      m_imageAspectRatio = static_cast<float>(m_imageSize.width()) / m_imageSize.height();
+// 
+//      if(m_image == std::numeric_limits<GLuint>::max())
+//      {
+//          m_glfs->glGenTextures(1, &m_image);
+//          m_glfs->glBindTexture(GL_TEXTURE_2D, m_image);
+//          m_glfs->glTexStorage2D(GL_TEXTURE_2D, 1, GL_R16UI,
+//                                 m_imageSize.width(), m_imageSize.height());
+//          m_glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+//          m_glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+//      }
+//      else
+//      {
+//          m_glfs->glBindTexture(GL_TEXTURE_2D, m_image);
+//      }
+// 
+//      m_glfs->glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
+//                              m_imageSize.width(), m_imageSize.height(),
+//                              GL_RED_INTEGER, GL_UNSIGNED_SHORT,
+//                              reinterpret_cast<GLvoid*>(m_imageData.data()));
+//      GLenum filterType = filter ? GL_LINEAR : GL_NEAREST;
+//      m_glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filterType);
+//      m_glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filterType);
 
         execHistoCalc();
         execHistoConsolidate();

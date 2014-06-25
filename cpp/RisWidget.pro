@@ -27,7 +27,7 @@ CONFIG += static c++11 precompile_header exceptions rtti stl thread
 CONFIG -= app_bundle
 TARGET = RisWidget
 INCLUDEPATH += /usr/local/include /usr/local/glm /usr/include/python3.4 /usr/lib64/python3.4/site-packages/numpy/core/include
-CFLAGS += -fPIC -fno-omit-frame-pointer -march=native
+CFLAGS += -fPIC -fno-omit-frame-pointer -march=native -lboost_numpy
 #DEFINES += ENABLE_GL_DEBUG_LOGGING
 
 RESOURCES = RisWidget.qrc
@@ -36,7 +36,6 @@ PRECOMPILED_HEADER = Common.h
 
 HEADERS += Common.h \
            GilStateScopeOperators.h \
-           GlProgram.h \
            HistogramWidget.h \
            HistogramView.h \
            ImageWidget.h \
@@ -57,7 +56,6 @@ FORMS +=   RisWidget.ui \
 
 SOURCES += RisWidget.cpp \
            GilStateScopeOperators.cpp \
-           GlProgram.cpp \
            HistogramWidget.cpp \
            HistogramView.cpp \
            ImageWidget.cpp \

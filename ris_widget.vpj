@@ -227,8 +227,6 @@
 			<F N="cpp/Common.h"/>
 			<F N="cpp/GilStateScopeOperators.cpp"/>
 			<F N="cpp/GilStateScopeOperators.h"/>
-			<F N="cpp/GlProgram.cpp"/>
-			<F N="cpp/GlProgram.h"/>
 			<F N="cpp/HistogramView.cpp"/>
 			<F N="cpp/HistogramView.h"/>
 			<F N="cpp/HistogramWidget.cpp"/>

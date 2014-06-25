@@ -58,37 +58,16 @@
 #else
  #include <Python.h>
 #endif
-#include <QAbstractScrollArea>
-#include <QComboBox>
-#include <QDoubleValidator>
-#include <QFile>
-#include <QFileDialog>
-#include <QHBoxLayout>
-#include <QLineEdit>
-#include <QMainWindow>
-#include <QMessageBox>
-#include <QMutex>
-#include <QMutexLocker>
 #ifdef ENABLE_GL_DEBUG_LOGGING
  #include <QOpenGLDebugLogger>
 #endif
 #define GL_GLEXT_PROTOTYPES
-#include <QOpenGLFunctions_4_3_Core>
+#include <QOpenGLFunctions_3_3_Core>
 // Note: QPointers act as weak references to QObject derived class instances.  See here:
 // http://qt-project.org/doc/qt-5/qpointer.html
 #include <QPointer>
-#include <QResizeEvent>
-#include <QScreen>
-#include <QScrollBar>
-#include <QSharedPointer>
-#include <QStatusBar>
-#include <QString>
-#include <QSurface>
-#include <QThread>
-#include <QTimer>
-#include <QToolBar>
-#include <QVector>
-#include <QWindow>
+#include <QtCore>
+#include <QtWidgets>
 #include <string>
 #include <utility>
 #include <vector>

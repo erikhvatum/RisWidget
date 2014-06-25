@@ -4,12 +4,14 @@
 BugHunt::BugHunt(QWidget* parent)
   : QDialog(parent)
 {
+    Py_Initialize();
+    PyEval_InitThreads();
     PyGILState_STATE s = PyGILState_Ensure();
 //  main = py::object(( py::handle<>(py::borrowed(PyImport_AddModule("__main__")))));
     PyImport_AddModule("__main__");
     PyErr_Print();
-//  mainNamespace = main.attr("__dict__");
-//  main = py::import("__main__");
+    mainNamespace = main.attr("__dict__");
+    main = py::import("__main__");
 //  mainNamespace = main.attr("__dict__");
     PyGILState_Release(s);
     setLayout(new QHBoxLayout);
@@ -32,7 +34,11 @@ void BugHunt::onLeftButton()
 
 void BugHunt::onRightButton()
 {
-    py::eval("print('hello world')", mainNamespace);
+    PyGILState_STATE s = PyGILState_Ensure();
+    auto foo = PyThreadState_Get();
+    std::cerr << foo << std::endl;
+    py::eval("1+1");
+    PyGILState_Release(s);
 }
 
 void foo()
