@@ -42,7 +42,7 @@ void Renderer::staticInit()
         QSurfaceFormat& format = const_cast<QSurfaceFormat&>(sm_format);
         format.setRenderableType(QSurfaceFormat::OpenGL);
         // OpenGL 3.3 support is pretty much ubiquitous these days
-        format.setVersion(3, 3);
+        format.setVersion(4, 4);
         format.setProfile(QSurfaceFormat::CoreProfile);
         format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
         format.setStereo(false);
@@ -81,7 +81,7 @@ Renderer::Renderer(ImageWidget* imageWidget, HistogramWidget* histogramWidget)
 #ifdef ENABLE_GL_DEBUG_LOGGING
     m_glDebugLogger(nullptr),
 #endif
-    m_image(std::numeric_limits<GLuint>::max()),
+    m_image(QOpenGLTexture::TargetRectangle),
     m_imageSize(0, 0),
     m_histogramBinCount(2048),
     m_histogramBlocks(std::numeric_limits<GLuint>::max()),
@@ -168,11 +168,10 @@ std::shared_ptr<LockedRef<const HistogramData>> Renderer::getHistogram()
 
 void Renderer::delImage()
 {
-    if(m_image != std::numeric_limits<GLuint>::max())
+    if(m_image.isCreated())
     {
         m_imageData.clear();
-        m_glfs->glDeleteTextures(1, &m_image);
-        m_image = std::numeric_limits<GLuint>::max();
+        m_image.destroy();
         m_imageSize.setWidth(0);
         m_imageSize.setHeight(0);
     }
@@ -301,12 +300,16 @@ void Renderer::updateGlViewportSize(ViewWidget* viewWidget)
 {
     // In order for 1:1 zoom to map exactly from image pixels to screen pixels, (0, 0) in OpenGL coordinates must fall
     // as close to the middle of a screen pixel as possible.
-    if ( viewWidget->m_viewSize != viewWidget->m_viewGlSize
-      && viewWidget->m_viewSize.width() > 0
-      && viewWidget->m_viewSize.height() > 0 )
+    if(viewWidget->m_viewSize.width() > 0 && viewWidget->m_viewSize.height() > 0)
     {
-        m_glfs->glViewport(0, 0, viewWidget->m_viewSize.width(), viewWidget->m_viewSize.height());
-        viewWidget->m_viewGlSize = viewWidget->m_viewSize;
+        QSize wantGlSize{viewWidget->m_viewSize};
+        wantGlSize.rwidth() -= wantGlSize.width() % 2;
+        wantGlSize.rheight() -= wantGlSize.height() % 2;
+        if(wantGlSize != viewWidget->m_viewGlSize)
+        {
+            m_glfs->glViewport(0, 0, wantGlSize.width(), wantGlSize.height());
+            viewWidget->m_viewGlSize = wantGlSize;
+        }
     }
 }
 
@@ -406,6 +409,7 @@ void Renderer::execImageDraw()
         m_glfs->glUniformMatrix4fv(m_imageDrawProg->m_pmvLoc, 1, GL_FALSE, glm::value_ptr(pmv));
 
         m_imageDrawProg->m_quadVao->bind();
+        m_image.bind(0);
         m_glfs->glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
     }
 
@@ -482,28 +486,25 @@ void Renderer::newImageSlot(ImageData imageData, QSize imageSize, bool filter)
         m_imageData = imageData;
         m_imageSize = imageSize;
         m_imageAspectRatio = static_cast<float>(m_imageSize.width()) / m_imageSize.height();
-// 
-//      if(m_image == std::numeric_limits<GLuint>::max())
-//      {
-//          m_glfs->glGenTextures(1, &m_image);
-//          m_glfs->glBindTexture(GL_TEXTURE_2D, m_image);
-//          m_glfs->glTexStorage2D(GL_TEXTURE_2D, 1, GL_R16UI,
-//                                 m_imageSize.width(), m_imageSize.height());
-//          m_glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-//          m_glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-//      }
-//      else
-//      {
-//          m_glfs->glBindTexture(GL_TEXTURE_2D, m_image);
-//      }
-// 
-//      m_glfs->glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
-//                              m_imageSize.width(), m_imageSize.height(),
-//                              GL_RED_INTEGER, GL_UNSIGNED_SHORT,
-//                              reinterpret_cast<GLvoid*>(m_imageData.data()));
-//      GLenum filterType = filter ? GL_LINEAR : GL_NEAREST;
-//      m_glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filterType);
-//      m_glfs->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filterType);
+
+        if(!m_image.isCreated())
+        {
+            m_image.setFormat(QOpenGLTexture::R32F);
+            m_image.setWrapMode(QOpenGLTexture::ClampToEdge);
+            m_image.setAutoMipMapGenerationEnabled(false);
+            m_image.setSize(imageSize.width(), imageSize.height(), 1);
+            m_image.allocateStorage();
+        }
+        std::cerr << m_image.isStorageAllocated() << std::endl;
+
+        m_image.setMinMagFilters(filter ? QOpenGLTexture::Linear : QOpenGLTexture::Nearest,
+                                 QOpenGLTexture::Nearest);
+        m_image.bind();
+        m_glfs->glTexSubImage2D(GL_TEXTURE_RECTANGLE, 0, 0, 0,
+                                m_imageSize.width(), m_imageSize.height(),
+                                GL_RED, GL_UNSIGNED_SHORT,
+                                reinterpret_cast<GLvoid*>(m_imageData.data()));
+        m_image.release();
 
         execHistoCalc();
         execHistoConsolidate();

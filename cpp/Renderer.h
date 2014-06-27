@@ -91,7 +91,7 @@ private:
     // Raw image data
     ImageData m_imageData;
     // Image texture
-    GLuint m_image;
+    QOpenGLTexture m_image;
     void delImage();
     // Dimensions of image texture
     QSize m_imageSize;

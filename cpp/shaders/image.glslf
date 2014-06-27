@@ -22,13 +22,15 @@
 
 #version 330 core
 
-layout (origin_upper_left, pixel_center_integer) in vec4 gl_FragCoord;
+// layout (origin_upper_left, pixel_center_integer) in vec4 gl_FragCoord;
 // From vertex shader
 in vec2 vsTexCoord;
+uniform sampler2DRect tex;
 
 layout (location = 0) out vec4 fsColor;
 
 void main()
 {
-    fsColor = vec4(1, 0, 0, 1);
+    float v = texture(tex, vsTexCoord * textureSize(tex)).r;
+    fsColor = vec4(v, v, v, 1);
 }
