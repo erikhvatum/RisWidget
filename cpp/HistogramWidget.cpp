@@ -158,7 +158,7 @@ void HistogramWidget::makeView(bool /*doAddWidget*/)
     m_viewContainerWidget->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
     m_bottomLeftVerticalLayout->insertWidget(1, m_viewContainerWidget);
     m_viewContainerWidget->show();
-    m_view->show();
+//  showViewWhenTheTimeIsRight();
 }
 
 View* HistogramWidget::instantiateView()

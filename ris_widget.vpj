@@ -291,10 +291,11 @@
 			<F N="original/ris_widget/shader_program.py"/>
 			<F N="original/ris_widget/size.py"/>
 		</Folder>
-		<F N="Makefile"/>
+		<F N="C:/Users/wix/.ipython/profile_default/startup/50-ris_widget.ipy"/>
 		<F N="dead_simple_build.bash"/>
 		<F N="dead_simple_build.bat"/>
 		<F N="dead_simple_build_debug.bash"/>
+		<F N="Makefile"/>
 		<F N="ris_widget.sip"/>
 	</Files>
 </Project>

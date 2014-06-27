@@ -606,7 +606,15 @@ void RisWidget::statusBarFpsToggled(bool showStatusBarFps)
     }
 }
 
-
+// bool RisWidget::event(QEvent* event)
+// {
+//     bool ret{QMainWindow::event(event)};
+//     if(event->type() == QEvent::PolishRequest)
+//     {
+//         emit polishRequestReceived;
+//     }
+//     return ret;
+// }
 
 #ifdef STAND_ALONE_EXECUTABLE
 

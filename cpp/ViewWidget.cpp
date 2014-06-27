@@ -22,6 +22,7 @@
 
 #include "Common.h"
 #include "Renderer.h"
+#include "RisWidget.h"
 #include "ViewWidget.h"
 
 ViewWidget::ViewWidget(QWidget* parent)
@@ -82,6 +83,15 @@ void ViewWidget::makeView(bool doAddWidget)
         QHBoxLayout* layout_(new QHBoxLayout);
         setLayout(layout_);
     }
+    // Note: calling winId() causes an underlying QWindow to be created immediately rather than lazily, and we need the
+    // QWindow in order that the GL surface may be properly parented to us
+    winId();
+#ifdef _DEBUG
+    if(windowHandle() == nullptr)
+    {
+        throw RisWidgetException("ViewWidget::makeView(..): winId() failed to provoke instantiation of underlying QWindow.");
+    }
+#endif
     m_view = instantiateView();
     connect(m_view.data(), &View::resizeEventSignal, this, &ViewWidget::resizeEventInView);
     m_viewContainerWidget = QWidget::createWindowContainer(m_view, this, Qt::Widget);
@@ -89,8 +99,7 @@ void ViewWidget::makeView(bool doAddWidget)
     {
         layout()->addWidget(m_viewContainerWidget);
         m_viewContainerWidget->show();
-        m_view->show();
-//      m_view->setParent(m_viewContainerWidget->windowHandle());
+//      showViewWhenTheTimeIsRight();
     }
 }
 
@@ -99,3 +108,26 @@ void ViewWidget::resizeEventInView(QResizeEvent* ev)
     QMutexLocker locker(m_lock);
     m_viewSize = ev->size();
 }
+
+// void ViewWidget::showViewWhenTheTimeIsRight()
+// {
+//     RisWidget* rw{nullptr};
+//     QWidget* p{this};
+//     // Ascend widget heirarchy until we find our parent RisWidget
+//     while((p = dynamic_cast<QWidget*>(p->parent())) != nullptr && (rw = dynamic_cast<RisWidget*>(p)) == nullptr);
+//     if(rw == nullptr)
+//     {
+//         // We never found it, and we ran out of progenitors to interrogate.  Oh well, just show the GL surfaces now.
+//         // This may result in the GL surfaces floating around detached until the owning RisWidget instance (that we for
+//         // some reason couldn't find) has show() called or an equivalent action occurs.  We tried our best, but there's
+//         // no avoiding the possibility of transient floaty GL surfaces if we're in this if statement block.
+//         m_view->show();
+//     }
+//     else
+//     {
+//         // Listen for polish request received signal.  When it is emitted, show the GL surface and then, because the
+//         // floatly problem only occurs before the first becoming-visible, stop listening for subsequent polish requests
+//         QMetaObject::Connection listenConnection;
+//         listenConnection = connect(rw, &RisWidget::polishRequestReceived, [&](){m_view->show(); rw->disconnect(listenConnection);});
+//     }
+// }

@@ -105,6 +105,7 @@ protected:
 #ifdef STAND_ALONE_EXECUTABLE
     void closeEvent(QCloseEvent* event);
 #endif
+//  virtual bool event(QEvent* event);
 
 public slots:
     // Presents Open File dialog.  Supports images as well as numpy data files.
@@ -121,4 +122,8 @@ protected slots:
     void imageViewPointerMovedToDifferentPixel(bool isOnPixel, QPoint pixelCoord, GLushort pixelValue);
     void statusBarPixelInfoToggled(bool showStatusBarPixelInfo);
     void statusBarFpsToggled(bool showStatusBarFps);
+
+// signals:
+//  // Emitted when a QEvent::PolishRequest is received
+//  void polishRequestReceived();
 };

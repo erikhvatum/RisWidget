@@ -56,7 +56,7 @@ void ImageWidget::makeView(bool /*doAddWidget*/)
     ViewWidget::makeView(false);
     m_scroller->setViewport(m_viewContainerWidget);
     m_viewContainerWidget->show();
-    m_view->show();
+//  showViewWhenTheTimeIsRight();
 
     connect(m_scroller, &ImageWidgetViewScroller::scrollContentsBySignal, this, &ImageWidget::scrollViewContentsBy);
     connect(m_view.data(), &View::wheelEventSignal, this, &ImageWidget::wheelEventInView);
