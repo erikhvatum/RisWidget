@@ -227,11 +227,15 @@
 			<F N="cpp/Common.h"/>
 			<F N="cpp/GilStateScopeOperators.cpp"/>
 			<F N="cpp/GilStateScopeOperators.h"/>
+			<F N="cpp/GlslProg.cpp"/>
+			<F N="cpp/GlslProg.h"/>
 			<F N="cpp/HistogramView.cpp"/>
 			<F N="cpp/HistogramView.h"/>
 			<F N="cpp/HistogramWidget.cpp"/>
 			<F N="cpp/HistogramWidget.h"/>
 			<F N="cpp/HistogramWidget.ui"/>
+			<F N="cpp/ImageDrawProg.cpp"/>
+			<F N="cpp/ImageDrawProg.h"/>
 			<F N="cpp/ImageView.cpp"/>
 			<F N="cpp/ImageView.h"/>
 			<F N="cpp/ImageWidget.cpp"/>
