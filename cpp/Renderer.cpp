@@ -81,10 +81,6 @@ Renderer::Renderer(ImageWidget* imageWidget, HistogramWidget* histogramWidget)
 #ifdef ENABLE_GL_DEBUG_LOGGING
     m_glDebugLogger(nullptr),
 #endif
-    m_histoCalcProg("histoCalcProg"),
-    m_histoConsolidateProg("histoConsolidateProg"),
-    m_imageDrawProg("imageDrawProg"),
-    m_histoDrawProg("histoDrawProg"),
     m_image(std::numeric_limits<GLuint>::max()),
     m_imageSize(0, 0),
     m_histogramBinCount(2048),
@@ -335,7 +331,6 @@ std::pair<GLushort, GLushort> Renderer::findImageExtrema(ImageData imageData)
 void Renderer::execImageDraw()
 {
     m_imageView->makeCurrent();
-    m_glfs->glUseProgram(m_imageDrawProg);
 
     QMutexLocker widgetLocker(m_imageWidget->m_lock);
     updateGlViewportSize(m_imageWidget);
@@ -353,7 +348,6 @@ void Renderer::execImageDraw()
 void Renderer::execHistoDraw()
 {
     m_histogramView->makeCurrent();
-    m_glfs->glUseProgram(m_histoDrawProg);
 
     QMutexLocker widgetLocker(m_histogramWidget->m_lock);
     updateGlViewportSize(m_histogramWidget);

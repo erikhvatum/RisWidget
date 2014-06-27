@@ -462,7 +462,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release standalone|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="GilStateScopeOperators.cpp" />
-    <ClCompile Include="GlProgram.cpp" />
     <ClCompile Include="HistogramView.cpp" />
     <ClCompile Include="HistogramWidget.cpp" />
     <ClCompile Include="ImageView.cpp" />
@@ -717,7 +716,6 @@
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='release standalone|x64'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
     </CustomBuild>
     <ClInclude Include="GilStateScopeOperators.h" />
-    <ClInclude Include="GlProgram.h" />
     <ClInclude Include="LockedRef.h" />
     <ClInclude Include="resource.h" />
     <CustomBuild Include="ShowCheckerDialog.h">
@@ -935,7 +933,7 @@
   </ImportGroup>
   <ProjectExtensions>
     <VisualStudio>
-      <UserProperties MocDir=".\GeneratedFiles\$(ConfigurationName)" UicDir=".\GeneratedFiles" RccDir=".\GeneratedFiles" lupdateOptions="" lupdateOnBuild="0" lreleaseOptions="" Qt5Version_x0020_x64="qt5" MocOptions="" />
+      <UserProperties MocDir=".\GeneratedFiles\$(ConfigurationName)" UicDir=".\GeneratedFiles" RccDir=".\GeneratedFiles" lupdateOptions="" lupdateOnBuild="0" lreleaseOptions="" Qt5Version_x0020_x64="$(DefaultQtVersion)" MocOptions="" />
     </VisualStudio>
   </ProjectExtensions>
 </Project>

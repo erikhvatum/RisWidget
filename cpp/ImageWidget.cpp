@@ -328,8 +328,8 @@ void ImageWidget::mouseMoveEventInView(QMouseEvent* ev)
     const GLushort pixelValue = isOnPixel ?
         // Our texture coordinates are set up so that we can feed OpenGL a C-order texture without it being transposed. This
         // makes indexing back into the texture's data from Qt GUI coordinates a little strange.
-        m_imageData[static_cast<std::ptrdiff_t>(m_imageSize.height() - ev->y() - 1) * m_imageSize.width() +
-                    static_cast<std::ptrdiff_t>(m_imageSize.width() - ev->x() - 1)] : 0;
+        m_imageData[static_cast<std::ptrdiff_t>(m_imageSize.height() - pixelCoord.y() - 1) * m_imageSize.width() +
+                    static_cast<std::ptrdiff_t>(m_imageSize.width() - pixelCoord.x() - 1)] : 0;
     emitPointerMovedToDifferentPixel(isOnPixel, pixelCoord, pixelValue,
                                      true, ev->pos());
 }
