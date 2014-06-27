@@ -20,22 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#version 430 core
-
-struct GammaTransformParams
-{
-    float minVal;
-    float maxVal;
-    float gammaVal;
-};
-
-uniform GammaTransformParams gtp = GammaTransformParams(0.0, 65535.0, 1.0);
-uniform usampler2D tex;
-
-layout (std430, binding = 0) coherent buffer HighlightCoords {
-    vec2 wantedHighlightCoord;
-    vec2 actualHighlightCoord;
-};
+#version 330 core
 
 layout (origin_upper_left, pixel_center_integer) in vec4 gl_FragCoord;
 // From vertex shader
@@ -43,75 +28,7 @@ in vec2 vsTexCoord;
 
 layout (location = 0) out vec4 fsColor;
 
-bool highlight()
-{
-    bool ret = false;
-    if(distance(vsTexCoord, wantedHighlightCoord) < 0.005f)
-    {
-        ret = true;
-        actualHighlightCoord = vsTexCoord;
-        fsColor = vec4(0, 1, 0, 1);
-    }
-    return ret;
-}
-
-subroutine void PanelColorer();
-
-subroutine (PanelColorer) void imagePanelGammaTransformColorer()
-{
-    float intensity = texture(tex, vsTexCoord).r;
-    if(intensity <= gtp.minVal)
-    {
-        fsColor = vec4(0, 0, 1, 1);
-    }
-    else if(intensity >= gtp.maxVal)
-    {
-        fsColor = vec4(1, 0, 0, 1);
-    }
-    else
-    {
-        float scaled = pow(clamp((intensity - gtp.minVal) / (gtp.maxVal - gtp.minVal), 0.0, 1.0), gtp.gammaVal);
-        fsColor = vec4(scaled, scaled, scaled, 1.0);
-    }
-}
-
-subroutine (PanelColorer) void imagePanelGammaTransformColorerHighlight()
-{
-    if(!highlight())
-    {
-        float intensity = texture(tex, vsTexCoord).r;
-        if(intensity <= gtp.minVal)
-        {
-            fsColor = vec4(0, 0, 1, 1);
-        }
-        else if(intensity >= gtp.maxVal)
-        {
-            fsColor = vec4(1, 0, 0, 1);
-        }
-        else
-        {
-            float scaled = pow(clamp((intensity - gtp.minVal) / (gtp.maxVal - gtp.minVal), 0.0, 1.0), gtp.gammaVal);
-            fsColor = vec4(scaled, scaled, scaled, 1.0);
-        }
-    }
-}
-
-subroutine (PanelColorer) void imagePanelPassthroughColorer()
-{
-    fsColor = vec4(vec3(texture(tex, vsTexCoord).rrr) / 65535.0, 1);
-}
-
-subroutine (PanelColorer) void imagePanelPassthroughColorerHighlight()
-{
-    if(!highlight())
-    {
-        fsColor = vec4(vec3(texture(tex, vsTexCoord).rrr) / 65535.0, 1);
-    }
-}
-
-subroutine uniform PanelColorer panelColorer;
-
 void main()
 {
-    panelColorer();
+    fsColor = vec4(1, 0, 0, 1);
 }

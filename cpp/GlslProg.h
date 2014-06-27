@@ -20,17 +20,22 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#version 330 core
+#pragma once
 
-uniform mat4 projectionModelViewMatrix;
+#include "Common.h"
 
-layout (location = 0) in vec2 vertCoord;
-layout (location = 1) in vec2 texCoord;
-
-out vec2 vsTexCoord;
-
-void main()
+class GlslProg
+  : public QOpenGLShaderProgram
 {
-    gl_Position = projectionModelViewMatrix * vec4(vertCoord, 0.5, 1.0);
-    vsTexCoord = texCoord;
-}
+    Q_OBJECT;
+
+public:
+    explicit GlslProg(QObject *parent);
+    virtual ~GlslProg();
+
+    // Ensure that correct GL context is current and GlslProg instance is bound before calling this function
+    virtual void init(QOpenGLFunctions_3_3_Core* glfs);
+
+protected:
+    void addShader(const QString& fileName, const QOpenGLShader::ShaderType& type);
+};

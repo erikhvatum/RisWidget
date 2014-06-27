@@ -20,17 +20,4 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#version 330 core
-
-uniform mat4 projectionModelViewMatrix;
-
-layout (location = 0) in vec2 vertCoord;
-layout (location = 1) in vec2 texCoord;
-
-out vec2 vsTexCoord;
-
-void main()
-{
-    gl_Position = projectionModelViewMatrix * vec4(vertCoord, 0.5, 1.0);
-    vsTexCoord = texCoord;
-}
+#include "Common.h"

@@ -225,7 +225,7 @@ void Renderer::makeContexts()
         throw RisWidgetException("Renderer::makeContexts(): Failed to create OpenGL context for histogramView.");
     }
 #ifdef ENABLE_GL_DEBUG_LOGGING
-    m_histogramView->makeCurrent();
+    m_imageView->makeCurrent();
     m_glDebugLogger = new QOpenGLDebugLogger(this);
     if(!m_glDebugLogger->initialize())
     {
@@ -276,6 +276,16 @@ void Renderer::buildGlProgs()
 //  m_histoDrawProg.build(m_glfs);
 
     m_imageView->makeCurrent();
+    m_imageDrawProg = new ImageDrawProg(this);
+    // Note that a colon prepended to a filename opened by a Qt object refers to a path in the Qt resource bundle built
+    // into a program/library's binary
+    if(!m_imageDrawProg->link())
+    {
+        throw RisWidgetException("Renderer::buildGlProgs(): Failed to link image drawing GLSL program.");
+    }
+    m_imageDrawProg->bind();
+    m_imageDrawProg->init(m_glfs);
+
 //  m_imageDrawProg.build(m_glfs);
 }
 
@@ -331,6 +341,7 @@ std::pair<GLushort, GLushort> Renderer::findImageExtrema(ImageData imageData)
 void Renderer::execImageDraw()
 {
     m_imageView->makeCurrent();
+    m_imageDrawProg->bind();
 
     QMutexLocker widgetLocker(m_imageWidget->m_lock);
     updateGlViewportSize(m_imageWidget);
@@ -341,6 +352,62 @@ void Renderer::execImageDraw()
                          m_imageWidget->m_clearColor.a);
     m_glfs->glClearDepth(1.0f);
     m_glfs->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    if(!m_imageData.empty())
+    {
+        glm::mat4 pmv(1.0f);
+        bool highlightPointer{m_imageWidget->m_highlightPointer};
+        bool pointerIsOnImagePixel{m_imageWidget->m_pointerIsOnImagePixel};
+        QPoint pointerImagePixelCoord(m_imageWidget->m_pointerImagePixelCoord);
+
+        if(m_imageWidget->m_zoomToFit)
+        {
+            // Image aspect ratio is always maintained.  The image is centered along whichever axis does not fit.
+            float viewAspectRatio = static_cast<float>(m_imageWidget->m_viewSize.width()) / m_imageWidget->m_viewSize.height();
+            widgetLocker.unlock();
+            float correctionFactor = m_imageAspectRatio / viewAspectRatio;
+            if(correctionFactor <= 1)
+            {
+                pmv = glm::scale(pmv, glm::vec3(correctionFactor, 1.0f, 1.0f));
+            }
+            else
+            {
+                pmv = glm::scale(pmv, glm::vec3(1.0f, 1.0f / correctionFactor, 1.0f));
+            }
+        }
+        else
+        {
+            // Image aspect ratio is always maintained; the image is centered, panned, and scaled as directed by the
+            // user
+            GLfloat zoomFactor = m_imageWidget->m_zoomIndex == -1 ? 
+                m_imageWidget->m_customZoom : m_imageWidget->sm_zoomPresets[m_imageWidget->m_zoomIndex];
+            glm::vec2 viewSize(m_imageWidget->m_viewSize.width(), m_imageWidget->m_viewSize.height());
+            glm::vec2 pan(m_imageWidget->m_pan.x(), m_imageWidget->m_pan.y());
+            widgetLocker.unlock();
+
+            GLfloat viewAspectRatio = viewSize.x / viewSize.y;
+            GLfloat correctionFactor = m_imageAspectRatio / viewAspectRatio;
+            GLfloat sizeRatio(m_imageSize.height());
+            sizeRatio /= viewSize.y;
+            sizeRatio *= zoomFactor;
+            // Scale to same aspect ratio
+            pmv = glm::scale(pmv, glm::vec3(correctionFactor, 1.0f, 1.0f));
+            // Pan.  We've scaled to y along x, so a pan along x in image coordinates relative to y is doubly relative
+            // or straight through, depending on your perspective.  Sliders slide in y-up coordinates, whereas graphics
+            // stuff addresses pixels y-down: thus the omission of a - before pans.y in the translate call.  If you want
+            // pan offset to be in the "natural" direction like the OS-X trackpad default designed to confuse old
+            // people, the x and y term signs must be swapped.
+            glm::vec2 pans((pan / viewSize) * 2.0f);
+            pmv = glm::translate(pmv, glm::vec3(-(pans.x * (1.0f / correctionFactor)), pans.y, 0.0f));
+            // Zoom
+            pmv = glm::scale(pmv, glm::vec3(sizeRatio, sizeRatio, 1.0f));
+        }
+        
+        m_glfs->glUniformMatrix4fv(m_imageDrawProg->m_pmvLoc, 1, GL_FALSE, glm::value_ptr(pmv));
+
+        m_imageDrawProg->m_quadVao->bind();
+        m_glfs->glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+    }
 
     m_imageView->swapBuffers();
 }
@@ -412,9 +479,9 @@ void Renderer::newImageSlot(ImageData imageData, QSize imageSize, bool filter)
 
     if(!imageData.empty())
     {
-//      m_imageData = imageData;
-//      m_imageSize = imageSize;
-//      m_imageAspectRatio = static_cast<float>(m_imageSize.width()) / m_imageSize.height();
+        m_imageData = imageData;
+        m_imageSize = imageSize;
+        m_imageAspectRatio = static_cast<float>(m_imageSize.width()) / m_imageSize.height();
 // 
 //      if(m_image == std::numeric_limits<GLuint>::max())
 //      {

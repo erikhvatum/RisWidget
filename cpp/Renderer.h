@@ -23,6 +23,7 @@
 #pragma once
 
 #include "Common.h"
+#include "ImageDrawProg.h"
 
 class View;
 class ViewWidget;
@@ -83,6 +84,7 @@ private:
     QOpenGLDebugLogger* m_glDebugLogger;
 #endif
 
+    QPointer<ImageDrawProg> m_imageDrawProg;
 //  ImageDrawProg m_imageDrawProg;
 //  HistoDrawProg m_histoDrawProg;
 

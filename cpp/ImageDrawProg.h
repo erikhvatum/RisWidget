@@ -20,17 +20,29 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#version 330 core
+#pragma once
 
-uniform mat4 projectionModelViewMatrix;
+#include "Common.h"
+#include "GlslProg.h"
 
-layout (location = 0) in vec2 vertCoord;
-layout (location = 1) in vec2 texCoord;
-
-out vec2 vsTexCoord;
-
-void main()
+class ImageDrawProg
+  : public GlslProg
 {
-    gl_Position = projectionModelViewMatrix * vec4(vertCoord, 0.5, 1.0);
-    vsTexCoord = texCoord;
-}
+    Q_OBJECT;
+
+public:
+    enum Locations : int
+    {
+        VertCoordLoc = 0,
+        TexCoordLoc = 1
+    };
+
+    explicit ImageDrawProg(QObject* parent);
+    virtual ~ImageDrawProg();
+
+    void init(QOpenGLFunctions_3_3_Core* glfs) override;
+
+    QPointer<QOpenGLVertexArrayObject> m_quadVao;
+    QOpenGLBuffer m_quadVaoBuff;
+    const int m_pmvLoc;
+};
