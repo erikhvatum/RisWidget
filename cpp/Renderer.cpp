@@ -115,11 +115,9 @@ void Renderer::updateView(View* view)
         throw RisWidgetException("Renderer::updateView(View* view): View argument refers to neither image nor histogram view.");
     }
 
-    updatePending->compare_exchange_strong()
-    QMutexLocker locker(m_lock);
-    if(!*updatePending && view->m_context)
+    bool updateWasAlreadyPending{updatePending->exchange(true)};
+    if(!updateWasAlreadyPending && view->m_context)
     {
-        *updatePending = true;
         emit _updateView(view);
     }
 }

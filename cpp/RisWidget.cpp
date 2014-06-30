@@ -49,6 +49,7 @@ RisWidget::RisWidget(QString windowTitle_,
             Py_Exit(-1);
         }
 #endif
+        GilLocker gilLocker;
         np::initialize();
         oneTimeInitDone = true;
     }
@@ -65,6 +66,7 @@ RisWidget::RisWidget(QString windowTitle_,
 
     try
     {
+        GilLocker gilLocker;
         m_numpy = py::import("numpy");
         m_numpyLoad = m_numpy.attr("load");
     }
@@ -638,7 +640,11 @@ int main(int argc, char** argv)
     Py_SetProgramName(const_cast<wchar_t*>(argv0std.c_str()));
     Py_Initialize();
     PyEval_InitThreads();
-    PyObject* mainModule = PyImport_AddModule("__main__");
+    PyObject* mainModule;
+    {
+        GilLocker gilLock;
+        mainModule = PyImport_AddModule("__main__");
+    }
     if(mainModule == nullptr)
     {
         ret = -1;

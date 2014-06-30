@@ -1,3 +1,5 @@
+#version 410 core
+
 // The MIT License (MIT)
 //
 // Copyright (c) 2014 Erik Hvatum
@@ -20,7 +22,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#version 330 core
 
 // layout (origin_upper_left, pixel_center_integer) in vec4 gl_FragCoord;
 // From vertex shader

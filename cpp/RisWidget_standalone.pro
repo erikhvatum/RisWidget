@@ -22,18 +22,18 @@
 
 LANGUAGE = C++
 QT += core gui widgets opengl
-CONFIG += c++11 precompile_header exceptions rtti stl thread debug largefile
-CONFIG -= app_bundle
+CONFIG += c++11 exceptions rtti stl thread largefile release
+#CONFIG -= app_bundle
 TARGET = RisWidget
-unix {
+#unix {
+#    CFLAGS += -fno-omit-frame-pointer
+#    INCLUDEPATH += /usr/local/include /usr/local/glm /usr/include/python3.4 /usr/lib64/python3.4/site-packages/numpy/core/include
+#    LIBS += -lpython3.4 -lboost_python-3.4 -L/usr/local/lib -lboost_numpy
+#} else:macx {
     CFLAGS += -fno-omit-frame-pointer
-    INCLUDEPATH += /usr/local/include /usr/local/glm /usr/include/python3.4 /usr/lib64/python3.4/site-packages/numpy/core/include
-    LIBS += -lpython3.4 -lboost_python-3.4 -L/usr/local/lib -lboost_numpy
-} else:macx {
-    CFLAGS += -fno-omit-frame-pointer
-    INCLUDEPATH += -I/Library/Frameworks/Python.framework/Versions/3.4/include/python3.4m -I/Library/Frameworks/Python.framework/Versions/3.4/include/python3.4m
-    LIBS += -ldl -framework CoreFoundation -lpython3.4m
-}
+    INCLUDEPATH += /Library/Frameworks/Python.framework/Versions/3.4/include/python3.4m /usr/local/boost/include/boost-1_55 /usr/local/glm
+    LIBS += -ldl -framework CoreFoundation -lpython3.4m -L/usr/local/boost/lib -lboost_python-clang-darwin42-mt-1_55 -L/Library/Frameworks/Python.framework/Versions/3.4/lib/python3.4/config-3.4m -lboost_numpy
+#}
 DEFINES += ENABLE_GL_DEBUG_LOGGING STAND_ALONE_EXECUTABLE
 
 RESOURCES = RisWidget.qrc
@@ -42,8 +42,10 @@ PRECOMPILED_HEADER = Common.h
 
 HEADERS += Common.h \
            GilStateScopeOperators.h \
+           GlslProg.h \
            HistogramWidget.h \
            HistogramView.h \
+	   ImageDrawProg.h \
            ImageWidget.h \
            ImageWidgetViewScroller.h \
            ImageView.h \
@@ -62,8 +64,10 @@ FORMS +=   RisWidget.ui \
 
 SOURCES += RisWidget.cpp \
            GilStateScopeOperators.cpp \
+           GlslProg.cpp \
            HistogramWidget.cpp \
            HistogramView.cpp \
+	   ImageDrawProg.cpp \
            ImageWidget.cpp \
            ImageWidgetViewScroller.cpp \
            ImageView.cpp \
