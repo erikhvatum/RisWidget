@@ -62,7 +62,7 @@
  #include <QOpenGLDebugLogger>
 #endif
 #define GL_GLEXT_PROTOTYPES
-#include <QOpenGLFunctions_3_3_Core>
+#include <QOpenGLFunctions_4_1_Core>
 // Note: QPointers act as weak references to QObject derived class instances.  See here:
 // http://qt-project.org/doc/qt-5/qpointer.html
 #include <QPointer>

@@ -41,8 +41,9 @@ void Renderer::staticInit()
     {
         QSurfaceFormat& format = const_cast<QSurfaceFormat&>(sm_format);
         format.setRenderableType(QSurfaceFormat::OpenGL);
-        // OpenGL 3.3 support is pretty much ubiquitous these days
-        format.setVersion(4, 4);
+        // OpenGL 4.1 introduces many features including GL_ARB_debug_output and the GLProgramUniform* functions that
+        // are painful to be without.
+        format.setVersion(4, 1);
         format.setProfile(QSurfaceFormat::CoreProfile);
         format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
         format.setStereo(false);
@@ -100,7 +101,7 @@ Renderer::~Renderer()
 
 void Renderer::updateView(View* view)
 {
-    bool* updatePending;
+    std::atomic_bool* updatePending;
     if(view == m_imageView)
     {
         updatePending = &m_imageViewUpdatePending;
@@ -114,6 +115,7 @@ void Renderer::updateView(View* view)
         throw RisWidgetException("Renderer::updateView(View* view): View argument refers to neither image nor histogram view.");
     }
 
+    updatePending->compare_exchange_strong()
     QMutexLocker locker(m_lock);
     if(!*updatePending && view->m_context)
     {
@@ -256,7 +258,7 @@ void Renderer::makeGlfs()
     // through a view's own function bundle when drawing to it.  (However, the specific view's context _does_ need to be
     // current in order to draw to its frame buffer.)
     m_imageView->makeCurrent();
-    m_glfs = m_imageView->m_context->versionFunctions<QOpenGLFunctions_3_3_Core>();
+    m_glfs = m_imageView->m_context->versionFunctions<QOpenGLFunctions_4_1_Core>();
     if(m_glfs == nullptr)
     {
         throw RisWidgetException("Renderer::makeGlfs(): Failed to retrieve OpenGL function bundle.");
@@ -303,8 +305,8 @@ void Renderer::updateGlViewportSize(ViewWidget* viewWidget)
     if(viewWidget->m_viewSize.width() > 0 && viewWidget->m_viewSize.height() > 0)
     {
         QSize wantGlSize{viewWidget->m_viewSize};
-        wantGlSize.rwidth() -= wantGlSize.width() % 2;
-        wantGlSize.rheight() -= wantGlSize.height() % 2;
+//      wantGlSize.rwidth() -= wantGlSize.width() % 2;
+//      wantGlSize.rheight() -= wantGlSize.height() % 2;
         if(wantGlSize != viewWidget->m_viewGlSize)
         {
             m_glfs->glViewport(0, 0, wantGlSize.width(), wantGlSize.height());

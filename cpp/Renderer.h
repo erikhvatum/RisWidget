@@ -72,14 +72,14 @@ private:
 
     QPointer<ImageWidget> m_imageWidget;
     QPointer<ImageView> m_imageView;
-    bool m_imageViewUpdatePending;
+    std::atomic_bool m_imageViewUpdatePending;
     QPointer<HistogramWidget> m_histogramWidget;
     QPointer<HistogramView> m_histogramView;
-    bool m_histogramViewUpdatePending;
+    std::atomic_bool m_histogramViewUpdatePending;
 
     // There is good reason not to provide an accessor for this variable: in order that all OpenGL calls originate from
     // the Renderer, only Renderer and GlProgram methods have cause to use m_glfs.
-    QOpenGLFunctions_3_3_Core* m_glfs;
+    QOpenGLFunctions_4_1_Core* m_glfs;
 #ifdef ENABLE_GL_DEBUG_LOGGING
     QOpenGLDebugLogger* m_glDebugLogger;
 #endif
