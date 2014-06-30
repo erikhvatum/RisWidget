@@ -33,13 +33,6 @@
 #pragma GCC diagnostic pop
 
 #include <atomic>
-#include <boost/numpy.hpp>
-#include <boost/python.hpp>
-#include <boost/python/class.hpp>
-#include <boost/python/import.hpp>
-#include <boost/python/suite/indexing/vector_indexing_suite.hpp>
-#include <boost/python/module.hpp>
-#include <boost/python/manage_new_object.hpp>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -68,6 +61,7 @@
 #include <QPointer>
 #include <QtCore>
 #include <QtWidgets>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>

@@ -85,8 +85,8 @@ protected:
 
     std::shared_ptr<Renderer> m_renderer;
     QPointer<QThread> m_rendererThread;
-    boost::python::object m_numpy;
-    boost::python::object m_numpyLoad;
+    PyObject* m_numpyModule;
+    PyObject* m_numpyLoadFunction;
 
     bool m_showStatusBarPixelInfo;
     bool m_showStatusBarFps;

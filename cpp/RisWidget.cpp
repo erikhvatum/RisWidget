@@ -25,9 +25,6 @@
 #include "RisWidget.h"
 #include "ShowCheckerDialog.h"
 
-namespace py = boost::python;
-namespace np = boost::numpy;
-
 RisWidget::RisWidget(QString windowTitle_,
                      QWidget* parent,
                      Qt::WindowFlags flags)
@@ -45,12 +42,11 @@ RisWidget::RisWidget(QString windowTitle_,
         PyEval_InitThreads();
         if(Py_IsInitialized() == 0)
         {
-            std::cerr << "_andor Python module attempted to load while Python interpreter is not initialized (Py_IsInitialized() == 0).\n";
+            std::cerr << "RisWidget Python module attempted to load while Python interpreter is not initialized (Py_IsInitialized() == 0).\n";
             Py_Exit(-1);
         }
 #endif
         GilLocker gilLocker;
-        np::initialize();
         oneTimeInitDone = true;
     }
 
@@ -64,32 +60,35 @@ RisWidget::RisWidget(QString windowTitle_,
     updateStatusBarPixelInfoPresence();
     updateStatusBarFpsPresence();
 
-    try
     {
         GilLocker gilLocker;
-        m_numpy = py::import("numpy");
-        m_numpyLoad = m_numpy.attr("load");
-    }
-    catch(py::error_already_set const&)
-    {
-        PyErr_Print();
-        throw RisWidgetException("RisWidget constructor: Failed to import numpy Python module.");
+        m_numpyModule = PyImport_ImportModule("numpy");
+        if(PyErr_Occurred() != nullptr)
+        {
+            PyErr_Print();
+            Py_FatalError("Failed to import Python numpy module.  This program requires numpy.");
+        }
+        PyObject* loadpystr{PyUnicode_FromString("load")};
+        m_numpyLoadFunction = PyObject_GetAttr(m_numpyModule, loadpystr);
+        Py_XDECREF(loadpystr);
+        if(PyErr_Occurred() != nullptr)
+        {
+            PyErr_Print();
+            Py_FatalError("Imported numpy, but failed to get the numpy.load(..) function.  Your numpy installation is probably broken.");
+        }
     }
 
 #ifdef STAND_ALONE_EXECUTABLE
     setAttribute(Qt::WA_DeleteOnClose, true);
     QApplication::setQuitOnLastWindowClosed(true);
 #endif
-
-    /*QTimer* doShowCheckerPattern = new QTimer;
-    connect(doShowCheckerPattern, &QTimer::timeout, [&](){showCheckerPattern(40); doShowCheckerPattern->deleteLater();});
-    doShowCheckerPattern->setSingleShot(true);
-    doShowCheckerPattern->start(100);*/
-    //showCheckerPattern(40);
 }
 
 RisWidget::~RisWidget()
 {
+    GilLocker gilLocker;
+    Py_XDECREF(m_numpyLoadFunction);
+    Py_XDECREF(m_numpyModule);
 }
 
 void RisWidget::setupActions()
@@ -310,73 +309,75 @@ void RisWidget::showImage(const GLushort* imageDataRaw, const QSize& imageSize, 
 
 void RisWidget::showImage(PyObject* image, bool filterTexture)
 {
-    py::object imagepy{py::handle<>(py::borrowed(image))};
-    if(imagepy.is_none())
-    {
-        showImage(nullptr, QSize(), false);
-    }
-    else
-    {
-        np::ndarray imagenp{np::from_object(imagepy, np::dtype::get_builtin<GLushort>(), 2, 2, np::ndarray::CARRAY_RO)};
-        if(imagenp.is_none())
-        {
-            throw RisWidgetException("RisWidget::showImage(PyObject* image): image argument must be an "
-                                     "array-like object convertable to a 2d uint16 numpy array.");
-        }
-        const Py_intptr_t* shape = imagenp.get_shape();
-        showImage(reinterpret_cast<const GLushort*>(imagenp.get_data()), QSize(shape[1], shape[0]), filterTexture);
-    }
+//  py::object imagepy{py::handle<>(py::borrowed(image))};
+//  if(imagepy.is_none())
+//  {
+//      showImage(nullptr, QSize(), false);
+//  }
+//  else
+//  {
+//      np::ndarray imagenp{np::from_object(imagepy, np::dtype::get_builtin<GLushort>(), 2, 2, np::ndarray::CARRAY_RO)};
+//      if(imagenp.is_none())
+//      {
+//          throw RisWidgetException("RisWidget::showImage(PyObject* image): image argument must be an "
+//                                   "array-like object convertable to a 2d uint16 numpy array.");
+//      }
+//      const Py_intptr_t* shape = imagenp.get_shape();
+//      showImage(reinterpret_cast<const GLushort*>(imagenp.get_data()), QSize(shape[1], shape[0]), filterTexture);
+//  }
 }
 
 PyObject* RisWidget::getCurrentImage()
 {
-    ImageData imageData;
-    QSize imageSize;
-    m_renderer->getImageDataAndSize(imageData, imageSize);
-    std::unique_ptr<np::ndarray> ret;
-
-    if(!imageData.isEmpty())
-    {
-        Py_intptr_t imageSizePy = imageData.size();
-        ret.reset(new np::ndarray(np::empty(1, &imageSizePy, np::dtype::get_builtin<GLushort>())));
-//      std::cerr << "alloc\n";
-        std::copy(imageData.begin(), imageData.end(), reinterpret_cast<GLushort*>(ret->get_data()));
-//      memcpy(reinterpret_cast<void*>(ret->get_data()),
-//             reinterpret_cast<const void*>(imageData.data()),
-//             100/*sizeof(GLushort) * imageData.size()*/);
-//      std::cerr << "copy\n" << ret->get_nd() << "\t" << *ret->get_shape() << "\t" << imageSize.width() << "\t" << imageSize.height() << "\n";
-        /*try
-        {
-            ret->reshape(py::make_tuple(imageSize.height(), imageSize.width())); 
-        }
-        catch(py::error_already_set const&)
-        {
-            PyErr_Print();
-        }
-        std::cerr << "rehape\n";*/
-    }
-    Py_INCREF(ret->ptr());
-    return ret->ptr();
+//     ImageData imageData;
+//     QSize imageSize;
+//     m_renderer->getImageDataAndSize(imageData, imageSize);
+//     std::unique_ptr<np::ndarray> ret;
+// 
+//     if(!imageData.isEmpty())
+//     {
+//         Py_intptr_t imageSizePy = imageData.size();
+//         ret.reset(new np::ndarray(np::empty(1, &imageSizePy, np::dtype::get_builtin<GLushort>())));
+// //      std::cerr << "alloc\n";
+//         std::copy(imageData.begin(), imageData.end(), reinterpret_cast<GLushort*>(ret->get_data()));
+// //      memcpy(reinterpret_cast<void*>(ret->get_data()),
+// //             reinterpret_cast<const void*>(imageData.data()),
+// //             100/*sizeof(GLushort) * imageData.size()*/);
+// //      std::cerr << "copy\n" << ret->get_nd() << "\t" << *ret->get_shape() << "\t" << imageSize.width() << "\t" << imageSize.height() << "\n";
+//         /*try
+//         {
+//             ret->reshape(py::make_tuple(imageSize.height(), imageSize.width()));
+//         }
+//         catch(py::error_already_set const&)
+//         {
+//             PyErr_Print();
+//         }
+//         std::cerr << "rehape\n";*/
+//     }
+//     Py_INCREF(ret->ptr());
+//     return ret->ptr();
+    return nullptr;
 }
 
 PyObject* RisWidget::getHistogram()
 {
-    auto histogramData = m_renderer->getHistogram();
-    std::unique_ptr<np::ndarray> ret;
-
-    Py_intptr_t size = histogramData->ref().size();
-    if(size != 0)
-    {
-        ret.reset(new np::ndarray(np::empty(1, &size, np::dtype::get_builtin<GLuint>())));
-        memcpy(reinterpret_cast<void*>(ret->get_data()),
-               reinterpret_cast<const void*>(histogramData->ref().data()),
-               sizeof(GLuint) * histogramData->ref().size());
-    }
-
-    // boost::python is not managing the copy of the pointer we are returning; we must incref so that it is not garbage
-    // collected when ret goes out of scope and its destructor decrefs its internal copy of the pointer.
-    Py_INCREF(ret->ptr());
-    return ret->ptr();
+//  auto histogramData = m_renderer->getHistogram();
+//  std::unique_ptr<np::ndarray> ret;
+// 
+//  Py_intptr_t size = histogramData->ref().size();
+//  if(size != 0)
+//  {
+//      ret.reset(new np::ndarray(np::empty(1, &size, np::dtype::get_builtin<GLuint>())));
+//      memcpy(reinterpret_cast<void*>(ret->get_data()),
+//             reinterpret_cast<const void*>(histogramData->ref().data()),
+//             sizeof(GLuint) * histogramData->ref().size());
+//  }
+// 
+//  // boost::python is not managing the copy of the pointer we are returning; we must incref so that it is not garbage
+//  // collected when ret goes out of scope and its destructor decrefs its internal copy of the pointer.
+//  Py_INCREF(ret->ptr());
+//  return ret->ptr();
+    return nullptr;
 }
 
 void RisWidget::setGtpEnabled(bool gtpEnabled)
@@ -459,34 +460,38 @@ QString RisWidget::formatZoom(const GLfloat& z)
 
 void RisWidget::loadFile()
 {
-    if(Py_IsInitialized() == 0)
-    {
-        std::cerr << "_andor Python module attempted to load while Python interpreter is not initialized (Py_IsInitialized() == 0).\n";
-        Py_Exit(-1);
-    }
-
     QString fnqstr(QFileDialog::getOpenFileName(this, "Open Image or Numpy Array File", QString(), "Numpy Array Files (*.npy)"));
     if(!fnqstr.isNull())
     {
-        GilLocker gilLock; 
-        if(m_numpyLoad.is_none())
-        {
-            m_numpyLoad = m_numpy.attr("load");
-            if(m_numpyLoad.is_none())
-            {
-                throw RisWidgetException("RisWidget::loadFile(): Failed to resolve Python function numpy.load(..).");
-            }
-        }
+        GilLocker gilLock;
         std::string fnstdstr{fnqstr.toStdString()};
-        try
+        PyObject* fnpystr = PyUnicode_FromString(fnstdstr.c_str());
+        PyObject* image = PyObject_CallFunctionObjArgs(m_numpyLoadFunction, fnpystr, nullptr);
+        if(image == nullptr)
         {
-            py::object ret{m_numpyLoad(fnstdstr.c_str())};
-            showImage(ret.ptr());
+            PyObject *ptype(nullptr), *pvalue(nullptr), *ptraceback(nullptr);
+            PyErr_Fetch(&ptype, &pvalue, &ptraceback);
+            if(ptype != nullptr && pvalue != nullptr)
+            {
+                PyErr_NormalizeException(&ptype, &pvalue, &ptraceback);
+                PyObject* e{PyObject_Str(pvalue)};
+                QMessageBox::warning(this, "Failed to Open File", PyUnicode_AsUTF8(e));
+                Py_DECREF(e);
+            }
+            else
+            {
+                QMessageBox::warning(this, "Failed to Open File", "(Failed to retrieve error information.)");
+            }
+            Py_XDECREF(ptype);
+            Py_XDECREF(pvalue);
+            Py_XDECREF(ptraceback);
         }
-        catch(py::error_already_set const&)
+        else
         {
-            PyErr_Print();
+            showImage(image);
         }
+        Py_XDECREF(fnpystr);
+        Py_XDECREF(image);
     }
 }
 
