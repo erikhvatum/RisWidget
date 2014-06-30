@@ -155,6 +155,8 @@ void RisWidget::makeRenderer()
     m_renderer.reset(new Renderer(m_imageWidget, m_histogramWidget));
     m_renderer->moveToThread(m_rendererThread);
     connect(m_rendererThread.data(), &QThread::started, m_renderer.get(), &Renderer::threadInitSlot, Qt::QueuedConnection);
+    // Note: Connection must be direct or Renderer thread will terminate before finished signal is received
+    connect(m_rendererThread.data(), &QThread::finished, m_renderer.get(), &Renderer::threadDeInitSlot, Qt::DirectConnection);
     m_rendererThread->start();
     connect(m_renderer.get(), &Renderer::newImageExtrema, m_histogramWidget, &HistogramWidget::newImageExtremaFoundByRenderer, Qt::QueuedConnection);
 }

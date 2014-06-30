@@ -82,7 +82,6 @@ Renderer::Renderer(ImageWidget* imageWidget, HistogramWidget* histogramWidget)
 #ifdef ENABLE_GL_DEBUG_LOGGING
     m_glDebugLogger(nullptr),
 #endif
-    m_image(QOpenGLTexture::TargetRectangle),
     m_imageSize(0, 0),
     m_histogramBinCount(2048),
     m_histogramBlocks(std::numeric_limits<GLuint>::max()),
@@ -168,10 +167,10 @@ std::shared_ptr<LockedRef<const HistogramData>> Renderer::getHistogram()
 
 void Renderer::delImage()
 {
-    if(m_image.isCreated())
+    if(m_image && m_image->isCreated())
     {
         m_imageData.clear();
-        m_image.destroy();
+        m_image.reset();
         m_imageSize.setWidth(0);
         m_imageSize.setHeight(0);
     }
@@ -409,7 +408,7 @@ void Renderer::execImageDraw()
         m_glfs->glUniformMatrix4fv(m_imageDrawProg->m_pmvLoc, 1, GL_FALSE, glm::value_ptr(pmv));
 
         m_imageDrawProg->m_quadVao->bind();
-        m_image.bind(0);
+        m_image->bind(0);
         m_glfs->glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
     }
 
@@ -446,6 +445,25 @@ void Renderer::threadInitSlot()
     makeContexts();
     makeGlfs();
     buildGlProgs();
+}
+
+void Renderer::threadDeInitSlot()
+{
+    if(!m_imageView.isNull() && m_imageView->context() != nullptr)
+    {
+        m_imageView->makeCurrent();
+        if(m_image)
+        {
+            m_image.reset();
+        }
+#ifdef ENABLE_GL_DEBUG_LOGGING
+        if(m_glDebugLogger != nullptr)
+        {
+            delete m_glDebugLogger;
+            m_glDebugLogger = nullptr;
+        }
+#endif
+    }
 }
 
 void Renderer::updateViewSlot(View* view)
@@ -487,24 +505,25 @@ void Renderer::newImageSlot(ImageData imageData, QSize imageSize, bool filter)
         m_imageSize = imageSize;
         m_imageAspectRatio = static_cast<float>(m_imageSize.width()) / m_imageSize.height();
 
-        if(!m_image.isCreated())
+        if(!m_image || !m_image->isCreated())
         {
-            m_image.setFormat(QOpenGLTexture::R32F);
-            m_image.setWrapMode(QOpenGLTexture::ClampToEdge);
-            m_image.setAutoMipMapGenerationEnabled(false);
-            m_image.setSize(imageSize.width(), imageSize.height(), 1);
-            m_image.allocateStorage();
+            m_image.reset(new QOpenGLTexture(QOpenGLTexture::TargetRectangle));
+            m_image->setFormat(QOpenGLTexture::R32F);
+            m_image->setWrapMode(QOpenGLTexture::ClampToEdge);
+            m_image->setAutoMipMapGenerationEnabled(false);
+            m_image->setSize(imageSize.width(), imageSize.height(), 1);
+            m_image->allocateStorage();
         }
-        std::cerr << m_image.isStorageAllocated() << std::endl;
+        std::cerr << m_image->isStorageAllocated() << std::endl;
 
-        m_image.setMinMagFilters(filter ? QOpenGLTexture::Linear : QOpenGLTexture::Nearest,
-                                 QOpenGLTexture::Nearest);
-        m_image.bind();
+        m_image->setMinMagFilters(filter ? QOpenGLTexture::Linear : QOpenGLTexture::Nearest,
+                                  QOpenGLTexture::Nearest);
+        m_image->bind();
         m_glfs->glTexSubImage2D(GL_TEXTURE_RECTANGLE, 0, 0, 0,
                                 m_imageSize.width(), m_imageSize.height(),
                                 GL_RED, GL_UNSIGNED_SHORT,
                                 reinterpret_cast<GLvoid*>(m_imageData.data()));
-        m_image.release();
+        m_image->release();
 
         execHistoCalc();
         execHistoConsolidate();

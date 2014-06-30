@@ -1,4 +1,4 @@
-#include "common.h"
+#include "Common.h"
 #include "GlslProg.h"
 
 GlslProg::GlslProg(QObject *parent)

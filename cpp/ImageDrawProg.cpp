@@ -1,4 +1,4 @@
-#include "common.h"
+#include "Common.h"
 #include "ImageDrawProg.h"
 
 ImageDrawProg::ImageDrawProg(QObject* parent)

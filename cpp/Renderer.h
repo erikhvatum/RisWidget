@@ -91,7 +91,7 @@ private:
     // Raw image data
     ImageData m_imageData;
     // Image texture
-    QOpenGLTexture m_image;
+    std::unique_ptr<QOpenGLTexture> m_image;
     void delImage();
     // Dimensions of image texture
     QSize m_imageSize;
@@ -138,6 +138,12 @@ signals:
 
 public slots:
     void threadInitSlot();
+    // After shutting down the thread event loop but before exiting the thread entirely, Qt emits a finished() signal.
+    // Reception of this signal indicates that we may safely destroy OpenGL resources currently held by Renderer
+    // contexts: rendering is initiated by a signal to the thread, and as the thread's event loop has shut down, no more
+    // rendering iterations can possibly occur.  Note that if OpenGL resources are not released here and are wrapped in
+    // objects with destructors that attempt to release, errors will occur (in the case of QOpenGLTexture, for example).
+    void threadDeInitSlot();
 
 private slots:
     void newImageSlot(ImageData imageData, QSize imageSize, bool filter);
