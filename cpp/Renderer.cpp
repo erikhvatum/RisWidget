@@ -344,7 +344,6 @@ std::pair<GLushort, GLushort> Renderer::findImageExtrema(ImageData imageData)
 void Renderer::execImageDraw()
 {
     m_imageView->makeCurrent();
-    m_imageDrawProg->bind();
 
     QMutexLocker widgetLocker(m_imageWidget->m_lock);
     updateGlViewportSize(m_imageWidget);
@@ -358,6 +357,7 @@ void Renderer::execImageDraw()
 
     if(!m_imageData.empty())
     {
+        m_imageDrawProg->bind();
         glm::mat4 pmv(1.0f);
         bool highlightPointer{m_imageWidget->m_highlightPointer};
         bool pointerIsOnImagePixel{m_imageWidget->m_pointerIsOnImagePixel};
@@ -409,8 +409,9 @@ void Renderer::execImageDraw()
         m_glfs->glUniformMatrix4fv(m_imageDrawProg->m_pmvLoc, 1, GL_FALSE, glm::value_ptr(pmv));
 
         m_imageDrawProg->m_quadVao->bind();
-        m_image->bind(0);
+        m_image->bind();
         m_glfs->glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+        m_imageDrawProg->release();
     }
 
     m_imageView->swapBuffers();
@@ -513,19 +514,20 @@ void Renderer::newImageSlot(ImageData imageData, QSize imageSize, bool filter)
             m_image->setWrapMode(QOpenGLTexture::ClampToEdge);
             m_image->setAutoMipMapGenerationEnabled(true);
             m_image->setSize(imageSize.width(), imageSize.height(), 1);
+            m_image->setMipLevels(4);
             m_image->allocateStorage();
         }
 
         QOpenGLTexture::Filter filterval{filter ? QOpenGLTexture::LinearMipMapLinear : QOpenGLTexture::Nearest};
         m_image->setMinMagFilters(filterval, filterval);
 //      m_image->setMinMagFilters(QOpenGLTexture::Linear, QOpenGLTexture::Linear);
-        m_image->bind();
+//      m_image->bind();
         m_image->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt16, reinterpret_cast<GLvoid*>(m_imageData.data()));
 //      m_glfs->glTexSubImage2D(GL_TEXTURE_RECTANGLE, 0, 0, 0,
 //                              m_imageSize.width(), m_imageSize.height(),
 //                              GL_RED, GL_UNSIGNED_SHORT,
 //                              reinterpret_cast<GLvoid*>(m_imageData.data()));
-        m_image->release();
+//      m_image->release();
 
         execHistoCalc();
         execHistoConsolidate();
