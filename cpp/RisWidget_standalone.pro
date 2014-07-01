@@ -22,7 +22,7 @@
 
 LANGUAGE = C++
 QT += core gui widgets opengl
-CONFIG += c++11 exceptions rtti stl thread largefile release
+CONFIG += c++11 precompile_header exceptions rtti stl thread largefile debug
 #CONFIG -= app_bundle
 TARGET = RisWidget
 macx {

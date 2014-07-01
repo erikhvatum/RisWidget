@@ -508,21 +508,23 @@ void Renderer::newImageSlot(ImageData imageData, QSize imageSize, bool filter)
 
         if(!m_image || !m_image->isCreated())
         {
-            m_image.reset(new QOpenGLTexture(QOpenGLTexture::TargetRectangle));
+            m_image.reset(new QOpenGLTexture(QOpenGLTexture::Target2D));
             m_image->setFormat(QOpenGLTexture::R32F);
             m_image->setWrapMode(QOpenGLTexture::ClampToEdge);
-            m_image->setAutoMipMapGenerationEnabled(false);
+            m_image->setAutoMipMapGenerationEnabled(true);
             m_image->setSize(imageSize.width(), imageSize.height(), 1);
             m_image->allocateStorage();
         }
 
-        m_image->setMinMagFilters(filter ? QOpenGLTexture::Linear : QOpenGLTexture::Nearest,
-                                  QOpenGLTexture::Nearest);
+        QOpenGLTexture::Filter filterval{filter ? QOpenGLTexture::LinearMipMapLinear : QOpenGLTexture::Nearest};
+        m_image->setMinMagFilters(filterval, filterval);
+//      m_image->setMinMagFilters(QOpenGLTexture::Linear, QOpenGLTexture::Linear);
         m_image->bind();
-        m_glfs->glTexSubImage2D(GL_TEXTURE_RECTANGLE, 0, 0, 0,
-                                m_imageSize.width(), m_imageSize.height(),
-                                GL_RED, GL_UNSIGNED_SHORT,
-                                reinterpret_cast<GLvoid*>(m_imageData.data()));
+        m_image->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt16, reinterpret_cast<GLvoid*>(m_imageData.data()));
+//      m_glfs->glTexSubImage2D(GL_TEXTURE_RECTANGLE, 0, 0, 0,
+//                              m_imageSize.width(), m_imageSize.height(),
+//                              GL_RED, GL_UNSIGNED_SHORT,
+//                              reinterpret_cast<GLvoid*>(m_imageData.data()));
         m_image->release();
 
         execHistoCalc();

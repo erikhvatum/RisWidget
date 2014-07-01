@@ -23,7 +23,7 @@
 TEMPLATE = lib
 LANGUAGE = C++
 QT += core gui widgets opengl
-CONFIG += static c++11 precompile_header exceptions rtti stl thread
+CONFIG += static c++11 precompile_header exceptions rtti stl thread largefile
 CONFIG -= app_bundle
 TARGET = RisWidget
 macx {
