@@ -28,7 +28,7 @@ CONFIG -= app_bundle
 TARGET = RisWidget
 macx {
     CFLAGS += -fPIC -fno-omit-frame-pointer -march=native
-    INCLUDEPATH += /Library/Frameworks/Python.framework/Versions/3.4/include/python3.4m /usr/local/include /Library/Frameworks/Python.framework/Versions/3.4/lib/python3.4/site-packages/numpy/core/include/numpy
+    INCLUDEPATH += /Library/Frameworks/Python.framework/Versions/3.4/include/python3.4m /usr/local/include /Library/Frameworks/Python.framework/Versions/3.4/lib/python3.4/site-packages/numpy/core/include
 } else:unix {
     CFLAGS += -fPIC -fno-omit-frame-pointer -march=native
     INCLUDEPATH += /usr/local/include /usr/local/glm /usr/include/python3.4 /usr/lib64/python3.4/site-packages/numpy/core/include
