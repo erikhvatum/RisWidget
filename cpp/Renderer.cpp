@@ -83,6 +83,7 @@ Renderer::Renderer(ImageWidget* imageWidget, HistogramWidget* histogramWidget)
     m_glDebugLogger(nullptr),
 #endif
     m_imageSize(0, 0),
+    m_prevHightlightPointerDrawn(false),
     m_histogramBinCount(2048),
     m_histogramBlocks(std::numeric_limits<GLuint>::max()),
     m_histogram(std::numeric_limits<GLuint>::max()),

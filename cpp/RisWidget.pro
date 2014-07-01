@@ -26,8 +26,13 @@ QT += core gui widgets opengl
 CONFIG += static c++11 precompile_header exceptions rtti stl thread
 CONFIG -= app_bundle
 TARGET = RisWidget
-INCLUDEPATH += /usr/local/include /usr/local/glm /usr/include/python3.4 /usr/lib64/python3.4/site-packages/numpy/core/include
-CFLAGS += -fPIC -fno-omit-frame-pointer -march=native -lboost_numpy
+macx {
+    CFLAGS += -fPIC -fno-omit-frame-pointer -march=native
+    INCLUDEPATH += /Library/Frameworks/Python.framework/Versions/3.4/include/python3.4m /usr/local/include /Library/Frameworks/Python.framework/Versions/3.4/lib/python3.4/site-packages/numpy/core/include/numpy
+} else:unix {
+    CFLAGS += -fPIC -fno-omit-frame-pointer -march=native
+    INCLUDEPATH += /usr/local/include /usr/local/glm /usr/include/python3.4 /usr/lib64/python3.4/site-packages/numpy/core/include
+}
 #DEFINES += ENABLE_GL_DEBUG_LOGGING
 
 RESOURCES = RisWidget.qrc
@@ -36,8 +41,10 @@ PRECOMPILED_HEADER = Common.h
 
 HEADERS += Common.h \
            GilStateScopeOperators.h \
+           GlslProg.h \
            HistogramWidget.h \
            HistogramView.h \
+	   ImageDrawProg.h \
            ImageWidget.h \
            ImageWidgetViewScroller.h \
            ImageView.h \
@@ -56,8 +63,10 @@ FORMS +=   RisWidget.ui \
 
 SOURCES += RisWidget.cpp \
            GilStateScopeOperators.cpp \
+           GlslProg.cpp \
            HistogramWidget.cpp \
            HistogramView.cpp \
+	   ImageDrawProg.cpp \
            ImageWidget.cpp \
            ImageWidgetViewScroller.cpp \
            ImageView.cpp \
