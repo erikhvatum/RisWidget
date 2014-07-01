@@ -25,6 +25,18 @@
 #include "RisWidget.h"
 #include "ShowCheckerDialog.h"
 
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#define PY_ARRAY_UNIQUE_SYMBOL RisWidget_ARRAY_API
+#include <numpy/arrayobject.h>
+
+static void* do_import_array()
+{
+    // import_array() is actually a macro that returns NULL if it fails, so it has to be wrapped in order to be called
+    // from a constructor which necessarily does not return anything
+    import_array();
+    return reinterpret_cast<void*>(1);
+}
+
 RisWidget::RisWidget(QString windowTitle_,
                      QWidget* parent,
                      Qt::WindowFlags flags)
@@ -47,6 +59,7 @@ RisWidget::RisWidget(QString windowTitle_,
         }
 #endif
         GilLocker gilLocker;
+        do_import_array();
         oneTimeInitDone = true;
     }
 
@@ -309,75 +322,98 @@ void RisWidget::showImage(const GLushort* imageDataRaw, const QSize& imageSize, 
 
 void RisWidget::showImage(PyObject* image, bool filterTexture)
 {
-//  py::object imagepy{py::handle<>(py::borrowed(image))};
-//  if(imagepy.is_none())
-//  {
-//      showImage(nullptr, QSize(), false);
-//  }
-//  else
-//  {
-//      np::ndarray imagenp{np::from_object(imagepy, np::dtype::get_builtin<GLushort>(), 2, 2, np::ndarray::CARRAY_RO)};
-//      if(imagenp.is_none())
-//      {
-//          throw RisWidgetException("RisWidget::showImage(PyObject* image): image argument must be an "
-//                                   "array-like object convertable to a 2d uint16 numpy array.");
-//      }
-//      const Py_intptr_t* shape = imagenp.get_shape();
-//      showImage(reinterpret_cast<const GLushort*>(imagenp.get_data()), QSize(shape[1], shape[0]), filterTexture);
-//  }
+    PyArrayObject* imageao = reinterpret_cast<PyArrayObject*>(PyArray_FromAny(image, PyArray_DescrFromType(NPY_USHORT),
+                                                                              2, 2, NPY_ARRAY_CARRAY_RO, nullptr));
+    if(imageao == nullptr)
+    {
+        throw RisWidgetException("RisWidget::showImage(PyObject* image): image argument must be an "
+                                 "array-like object convertable to a 2d uint16 numpy array.");
+    }
+    npy_intp* shape = PyArray_DIMS(imageao);
+    showImage(reinterpret_cast<const GLushort*>(PyArray_DATA(imageao)), QSize(shape[1], shape[0]), filterTexture);
+    Py_DECREF(imageao);
 }
 
 PyObject* RisWidget::getCurrentImage()
 {
-//     ImageData imageData;
-//     QSize imageSize;
-//     m_renderer->getImageDataAndSize(imageData, imageSize);
-//     std::unique_ptr<np::ndarray> ret;
-// 
-//     if(!imageData.isEmpty())
-//     {
-//         Py_intptr_t imageSizePy = imageData.size();
-//         ret.reset(new np::ndarray(np::empty(1, &imageSizePy, np::dtype::get_builtin<GLushort>())));
-// //      std::cerr << "alloc\n";
-//         std::copy(imageData.begin(), imageData.end(), reinterpret_cast<GLushort*>(ret->get_data()));
-// //      memcpy(reinterpret_cast<void*>(ret->get_data()),
-// //             reinterpret_cast<const void*>(imageData.data()),
-// //             100/*sizeof(GLushort) * imageData.size()*/);
-// //      std::cerr << "copy\n" << ret->get_nd() << "\t" << *ret->get_shape() << "\t" << imageSize.width() << "\t" << imageSize.height() << "\n";
-//         /*try
-//         {
-//             ret->reshape(py::make_tuple(imageSize.height(), imageSize.width()));
-//         }
-//         catch(py::error_already_set const&)
-//         {
-//             PyErr_Print();
-//         }
-//         std::cerr << "rehape\n";*/
-//     }
-//     Py_INCREF(ret->ptr());
-//     return ret->ptr();
-    return nullptr;
+    GilLocker gilLocker;
+    ImageData imageData;
+    QSize imageSize;
+    m_renderer->getImageDataAndSize(imageData, imageSize);
+    PyObject* ret;
+
+    if(imageData.isEmpty())
+    {
+        ret = Py_None;
+        Py_XINCREF(ret);
+    }
+    else
+    {
+        npy_intp shape[] = {imageSize.height(), imageSize.width()};
+        ret = PyArray_EMPTY(2, shape, NPY_USHORT, false);
+        // Note that if ret is null, it is because PyArray_EMPTY failed and a Python exception was thrown.  We don't
+        // clear the exception, so it will propagate back to the Python code that called this function.
+        if(ret != nullptr)
+        {
+            PyArrayObject* retnp{reinterpret_cast<PyArrayObject*>(ret)};
+            npy_intp ystride{PyArray_STRIDE(retnp, 0)}, xstride{PyArray_STRIDE(retnp, 1)};
+            npy_uintp retdataddr{reinterpret_cast<npy_uintp>(PyArray_DATA(retnp))}, retdatColaddr;
+            const GLushort* srcdat{imageData.data()};
+            npy_intp y{0}, x;
+            for(;;)
+            {
+                x = 0;
+                retdatColaddr = retdataddr;
+                for(;;)
+                {
+                    *reinterpret_cast<GLushort*>(retdatColaddr) = *srcdat;
+                    ++srcdat;
+                    ++x;
+                    if(x == shape[1]) break;
+                    retdatColaddr += xstride;
+                }
+                ++y;
+                if(y == shape[0]) break;
+                retdataddr += ystride;
+            }
+        }
+    }
+    return ret;
 }
 
 PyObject* RisWidget::getHistogram()
 {
-//  auto histogramData = m_renderer->getHistogram();
-//  std::unique_ptr<np::ndarray> ret;
-// 
-//  Py_intptr_t size = histogramData->ref().size();
-//  if(size != 0)
-//  {
-//      ret.reset(new np::ndarray(np::empty(1, &size, np::dtype::get_builtin<GLuint>())));
-//      memcpy(reinterpret_cast<void*>(ret->get_data()),
-//             reinterpret_cast<const void*>(histogramData->ref().data()),
-//             sizeof(GLuint) * histogramData->ref().size());
-//  }
-// 
-//  // boost::python is not managing the copy of the pointer we are returning; we must incref so that it is not garbage
-//  // collected when ret goes out of scope and its destructor decrefs its internal copy of the pointer.
-//  Py_INCREF(ret->ptr());
-//  return ret->ptr();
-    return nullptr;
+    GilLocker gilLocker;
+    std::shared_ptr<LockedRef<const HistogramData>> histogramData(m_renderer->getHistogram());
+    PyObject* ret;
+    npy_intp size{static_cast<npy_intp>(histogramData->ref().size())};
+    
+    if(size == 0)
+    {
+        ret = Py_None;
+        Py_XINCREF(ret);
+    }
+    else
+    {
+        ret = PyArray_EMPTY(1, &size, NPY_UINT, false);
+        if(ret != nullptr)
+        {
+            PyArrayObject* retnp{reinterpret_cast<PyArrayObject*>(ret)};
+            npy_intp stride{PyArray_STRIDE(retnp, 0)};
+            npy_uintp retdataddr{reinterpret_cast<npy_uintp>(PyArray_DATA(retnp))};
+            const GLuint* srcdat{histogramData->ref().data()};
+            const GLuint* srcdatEnd{srcdat + size};
+            for(;;)
+            {
+                *reinterpret_cast<GLuint*>(retdataddr) = *srcdat;
+                ++srcdat;
+                if(srcdat == srcdatEnd) break;
+                retdataddr += stride;
+            }
+        }
+    }
+    
+    return ret;
 }
 
 void RisWidget::setGtpEnabled(bool gtpEnabled)
