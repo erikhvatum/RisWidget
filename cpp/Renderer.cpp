@@ -515,7 +515,6 @@ void Renderer::newImageSlot(ImageData imageData, QSize imageSize, bool filter)
             m_image->setSize(imageSize.width(), imageSize.height(), 1);
             m_image->allocateStorage();
         }
-        std::cerr << m_image->isStorageAllocated() << std::endl;
 
         m_image->setMinMagFilters(filter ? QOpenGLTexture::Linear : QOpenGLTexture::Nearest,
                                   QOpenGLTexture::Nearest);
