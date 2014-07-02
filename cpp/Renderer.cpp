@@ -43,7 +43,7 @@ void Renderer::staticInit()
         format.setRenderableType(QSurfaceFormat::OpenGL);
         // OpenGL 4.1 introduces many features including GL_ARB_debug_output and the GLProgramUniform* functions that
         // are painful to be without.
-        format.setVersion(3, 2);
+        format.setVersion(4, 1);
         format.setProfile(QSurfaceFormat::CoreProfile);
         format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
         format.setStereo(false);
@@ -256,7 +256,7 @@ void Renderer::makeGlfs()
     // through a view's own function bundle when drawing to it.  (However, the specific view's context _does_ need to be
     // current in order to draw to its frame buffer.)
     m_imageView->makeCurrent();
-    m_glfs = m_imageView->m_context->versionFunctions<QOpenGLFunctions_3_2_Core>();
+    m_glfs = m_imageView->m_context->versionFunctions<QOpenGLFunctions_4_1_Core>();
     if(m_glfs == nullptr)
     {
         throw RisWidgetException("Renderer::makeGlfs(): Failed to retrieve OpenGL function bundle.");
@@ -303,8 +303,8 @@ void Renderer::updateGlViewportSize(ViewWidget* viewWidget)
     if(viewWidget->m_viewSize.width() > 0 && viewWidget->m_viewSize.height() > 0)
     {
         QSize wantGlSize{viewWidget->m_viewSize};
-        wantGlSize.rwidth() -= (wantGlSize.width() % 2 == 1) ? 0 : 1 ;
-        wantGlSize.rheight() -= (wantGlSize.height() % 2 == 1) ? 0 : 1;
+//      wantGlSize.rwidth() -= (wantGlSize.width() % 2 == 1) ? 0 : 1 ;
+//      wantGlSize.rheight() -= (wantGlSize.height() % 2 == 1) ? 0 : 1;
         if(wantGlSize != viewWidget->m_viewGlSize)
         {
             m_glfs->glViewport(0, 0, wantGlSize.width(), wantGlSize.height());
@@ -359,6 +359,9 @@ void Renderer::execImageDraw()
     {
         m_imageDrawProg->bind();
         glm::dmat4 pmv(1.0);
+        glm::dmat3 fragToTexCoord(1.0);
+        fragToTexCoord[0][0] = 1.0 / m_imageSize.width();
+        fragToTexCoord[1][1] = 1.0 / m_imageSize.height();
         bool highlightPointer{m_imageWidget->m_highlightPointer};
         bool pointerIsOnImagePixel{m_imageWidget->m_pointerIsOnImagePixel};
         QPoint pointerImagePixelCoord(m_imageWidget->m_pointerImagePixelCoord);
@@ -366,12 +369,14 @@ void Renderer::execImageDraw()
         if(m_imageWidget->m_zoomToFit)
         {
             // Image aspect ratio is always maintained.  The image is centered along whichever axis does not fit.
-            double viewAspectRatio = static_cast<double>(m_imageWidget->m_viewSize.width()) / m_imageWidget->m_viewSize.height();
+            glm::dvec2 viewSize(m_imageWidget->m_viewSize.width(), m_imageWidget->m_viewSize.height());
             widgetLocker.unlock();
+            double viewAspectRatio = viewSize.x / viewSize.y;
             double correctionFactor = static_cast<double>(m_imageAspectRatio) / viewAspectRatio;
             if(correctionFactor <= 1)
             {
                 pmv = glm::scale(pmv, glm::dvec3(correctionFactor, 1.0, 1.0));
+                fragToTexCoord[2][2] = viewSize.x / m_imageSize.width();
             }
             else
             {
@@ -380,6 +385,8 @@ void Renderer::execImageDraw()
         }
         else
         {
+            /* Vertex transformation */
+
             // Image aspect ratio is always maintained; the image is centered, panned, and scaled as directed by the
             // user
             double zoomFactor = m_imageWidget->m_zoomIndex == -1 ? 
@@ -404,18 +411,24 @@ void Renderer::execImageDraw()
             pmv = glm::translate(pmv, glm::dvec3(-(pans.x * (1.0 / correctionFactor)), pans.y, 0.0));
             // Zoom
             pmv = glm::scale(pmv, glm::dvec3(sizeRatio, sizeRatio, 1.0));
+
+            /* gl_FragCoord to texture transformation */
         }
 
 //      glm::dmat4 inv(glm::inverse(pmv));
-        glm::dvec3 p(pmv * glm::dvec4(1, 1, 0, 1));
-        std::cerr << p.x << ", " << p.y << ", " << p.z << std::endl;
+//      glm::dvec3 p(pmv * glm::dvec4(1, 1, 0, 1));
+//      std::cerr << p.x << ", " << p.y << ", " << p.z << std::endl;
 
         glm::mat4 pmvf(pmv);
         m_glfs->glUniformMatrix4fv(m_imageDrawProg->m_pmvLoc, 1, GL_FALSE, glm::value_ptr(pmvf));
+        glm::mat3 fragToTexCoordf(fragToTexCoord);
+        m_glfs->glUniformMatrix3fv(m_imageDrawProg->m_fragToTexCoordLoc, 1, GL_FALSE, glm::value_ptr(fragToTexCoordf));
 
         m_imageDrawProg->m_quadVao->bind();
         m_image->bind();
         m_glfs->glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+        m_image->release();
+        m_imageDrawProg->m_quadVao->release();
         m_imageDrawProg->release();
     }
 

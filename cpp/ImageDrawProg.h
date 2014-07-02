@@ -33,16 +33,16 @@ class ImageDrawProg
 public:
     enum Locations : int
     {
-        VertCoordLoc = 0,
-        TexCoordLoc = 1
+        VertCoordLoc = 0
     };
 
     explicit ImageDrawProg(QObject* parent);
     virtual ~ImageDrawProg();
 
-    void init(QOpenGLFunctions_3_2_Core* glfs) override;
+    void init(QOpenGLFunctions_4_1_Core* glfs) override;
 
     QPointer<QOpenGLVertexArrayObject> m_quadVao;
     QOpenGLBuffer m_quadVaoBuff;
     const int m_pmvLoc;
+    const int m_fragToTexCoordLoc;
 };

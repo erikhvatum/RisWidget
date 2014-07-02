@@ -5,7 +5,8 @@ ImageDrawProg::ImageDrawProg(QObject* parent)
   : GlslProg(parent),
     m_quadVao(new QOpenGLVertexArrayObject(this)),
     m_quadVaoBuff(QOpenGLBuffer::VertexBuffer),
-    m_pmvLoc(std::numeric_limits<int>::min())
+    m_pmvLoc(std::numeric_limits<int>::min()),
+    m_fragToTexCoordLoc(std::numeric_limits<int>::min())
 {
     addShader(":/shaders/image.glslv", QOpenGLShader::Vertex);
     addShader(":/shaders/image.glslf", QOpenGLShader::Fragment);
@@ -15,7 +16,7 @@ ImageDrawProg::~ImageDrawProg()
 {
 }
 
-void ImageDrawProg::init(QOpenGLFunctions_3_2_Core* glfs)
+void ImageDrawProg::init(QOpenGLFunctions_4_1_Core* glfs)
 {
     if(!m_quadVao->create())
     {
@@ -28,12 +29,7 @@ void ImageDrawProg::init(QOpenGLFunctions_3_2_Core* glfs)
         1.0f, -1.0f,
         -1.0f, -1.0f,
         -1.0f, 1.0f,
-        1.0f, 1.0f,
-       // Texture coordinates
-        0.0f, 0.0f,
-        1.0f, 0.0f,
-        1.0f, 1.0f,
-        0.0f, 1.0f
+        1.0f, 1.0f
     };
 
     m_quadVaoBuff.create();
@@ -44,8 +40,6 @@ void ImageDrawProg::init(QOpenGLFunctions_3_2_Core* glfs)
     glfs->glEnableVertexAttribArray(VertCoordLoc);
     glfs->glVertexAttribPointer(VertCoordLoc, 2, GL_FLOAT, false, 0, nullptr);
 
-    glfs->glEnableVertexAttribArray(TexCoordLoc);
-    glfs->glVertexAttribPointer(TexCoordLoc, 2, GL_FLOAT, false, 0, reinterpret_cast<void*>(2 * 4 * 4));
-
     const_cast<int&>(m_pmvLoc) = uniformLocation("projectionModelViewMatrix");
+    const_cast<int&>(m_fragToTexCoordLoc) = uniformLocation("fragToTexCoord");
 }

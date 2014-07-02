@@ -1,5 +1,5 @@
-#version 150 core
-#extension GL_ARB_separate_shader_objects : enable
+#version 410 core
+// #extension GL_ARB_separate_shader_objects : enable
 
 // The MIT License (MIT)
 //
@@ -26,12 +26,10 @@
 uniform mat4 projectionModelViewMatrix;
 
 layout (location = 0) in vec2 vertCoord;
-layout (location = 1) in vec2 texCoord;
 
 out vec2 vsTexCoord;
 
 void main()
 {
     gl_Position = projectionModelViewMatrix * vec4(vertCoord, 0.5, 1.0);
-    vsTexCoord = texCoord;
 }

@@ -1,5 +1,5 @@
-#version 150 core
-#extension GL_ARB_separate_shader_objects : enable
+#version 410 core
+// #extension GL_ARB_separate_shader_objects : enable
 
 // The MIT License (MIT)
 //
@@ -25,14 +25,18 @@
 
 
 // layout (origin_upper_left, pixel_center_integer) in vec4 gl_FragCoord;
-// From vertex shader
-in vec2 vsTexCoord;
 uniform sampler2D tex;
+// 2D homogeneous transformation matrix for transforming gl_FragCoord viewport coordinates into image texture
+// coordinates
+uniform mat3 fragToTexCoord;
 
 layout (location = 0) out vec4 fsColor;
 
 void main()
 {
-    float v = texture(tex, vsTexCoord).r;
+    // Note that gl_FragCoord is a homogeneous 3D coordinate.  Its scaling term (.w) is used as the scaling term for its
+    // X, Y 2D homogeneous coordinate (.z).
+    vec3 texCoord = fragToTexCoord * vec3(gl_FragCoord.x, gl_FragCoord.y, gl_FragCoord.w);
+    float v = texture(tex, texCoord.xy / texCoord.z).r;
     fsColor = vec4(v, v, v, 1);
 }
