@@ -34,7 +34,7 @@ public:
     virtual ~GlslProg();
 
     // Ensure that correct GL context is current and GlslProg instance is bound before calling this function
-    virtual void init(QOpenGLFunctions_4_1_Core* glfs);
+    virtual void init(QOpenGLFunctions_3_2_Core* glfs);
 
 protected:
     void addShader(const QString& fileName, const QOpenGLShader::ShaderType& type);

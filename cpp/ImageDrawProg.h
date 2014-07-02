@@ -40,7 +40,7 @@ public:
     explicit ImageDrawProg(QObject* parent);
     virtual ~ImageDrawProg();
 
-    void init(QOpenGLFunctions_4_1_Core* glfs) override;
+    void init(QOpenGLFunctions_3_2_Core* glfs) override;
 
     QPointer<QOpenGLVertexArrayObject> m_quadVao;
     QOpenGLBuffer m_quadVaoBuff;

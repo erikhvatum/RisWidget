@@ -10,7 +10,7 @@ GlslProg::~GlslProg()
 {
 }
 
-void GlslProg::init(QOpenGLFunctions_4_1_Core*)
+void GlslProg::init(QOpenGLFunctions_3_2_Core*)
 {
 }
 

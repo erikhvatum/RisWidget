@@ -43,7 +43,7 @@ void Renderer::staticInit()
         format.setRenderableType(QSurfaceFormat::OpenGL);
         // OpenGL 4.1 introduces many features including GL_ARB_debug_output and the GLProgramUniform* functions that
         // are painful to be without.
-        format.setVersion(4, 1);
+        format.setVersion(3, 2);
         format.setProfile(QSurfaceFormat::CoreProfile);
         format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
         format.setStereo(false);
@@ -256,7 +256,7 @@ void Renderer::makeGlfs()
     // through a view's own function bundle when drawing to it.  (However, the specific view's context _does_ need to be
     // current in order to draw to its frame buffer.)
     m_imageView->makeCurrent();
-    m_glfs = m_imageView->m_context->versionFunctions<QOpenGLFunctions_4_1_Core>();
+    m_glfs = m_imageView->m_context->versionFunctions<QOpenGLFunctions_3_2_Core>();
     if(m_glfs == nullptr)
     {
         throw RisWidgetException("Renderer::makeGlfs(): Failed to retrieve OpenGL function bundle.");
@@ -303,8 +303,8 @@ void Renderer::updateGlViewportSize(ViewWidget* viewWidget)
     if(viewWidget->m_viewSize.width() > 0 && viewWidget->m_viewSize.height() > 0)
     {
         QSize wantGlSize{viewWidget->m_viewSize};
-//      wantGlSize.rwidth() -= wantGlSize.width() % 2;
-//      wantGlSize.rheight() -= wantGlSize.height() % 2;
+        wantGlSize.rwidth() -= (wantGlSize.width() % 2 == 1) ? 0 : 1 ;
+        wantGlSize.rheight() -= (wantGlSize.height() % 2 == 1) ? 0 : 1;
         if(wantGlSize != viewWidget->m_viewGlSize)
         {
             m_glfs->glViewport(0, 0, wantGlSize.width(), wantGlSize.height());
@@ -358,7 +358,7 @@ void Renderer::execImageDraw()
     if(!m_imageData.empty())
     {
         m_imageDrawProg->bind();
-        glm::mat4 pmv(1.0f);
+        glm::dmat4 pmv(1.0);
         bool highlightPointer{m_imageWidget->m_highlightPointer};
         bool pointerIsOnImagePixel{m_imageWidget->m_pointerIsOnImagePixel};
         QPoint pointerImagePixelCoord(m_imageWidget->m_pointerImagePixelCoord);
@@ -366,47 +366,52 @@ void Renderer::execImageDraw()
         if(m_imageWidget->m_zoomToFit)
         {
             // Image aspect ratio is always maintained.  The image is centered along whichever axis does not fit.
-            float viewAspectRatio = static_cast<float>(m_imageWidget->m_viewSize.width()) / m_imageWidget->m_viewSize.height();
+            double viewAspectRatio = static_cast<double>(m_imageWidget->m_viewSize.width()) / m_imageWidget->m_viewSize.height();
             widgetLocker.unlock();
-            float correctionFactor = m_imageAspectRatio / viewAspectRatio;
+            double correctionFactor = static_cast<double>(m_imageAspectRatio) / viewAspectRatio;
             if(correctionFactor <= 1)
             {
-                pmv = glm::scale(pmv, glm::vec3(correctionFactor, 1.0f, 1.0f));
+                pmv = glm::scale(pmv, glm::dvec3(correctionFactor, 1.0, 1.0));
             }
             else
             {
-                pmv = glm::scale(pmv, glm::vec3(1.0f, 1.0f / correctionFactor, 1.0f));
+                pmv = glm::scale(pmv, glm::dvec3(1.0, 1.0 / correctionFactor, 1.0));
             }
         }
         else
         {
             // Image aspect ratio is always maintained; the image is centered, panned, and scaled as directed by the
             // user
-            GLfloat zoomFactor = m_imageWidget->m_zoomIndex == -1 ? 
+            double zoomFactor = m_imageWidget->m_zoomIndex == -1 ? 
                 m_imageWidget->m_customZoom : m_imageWidget->sm_zoomPresets[m_imageWidget->m_zoomIndex];
-            glm::vec2 viewSize(m_imageWidget->m_viewSize.width(), m_imageWidget->m_viewSize.height());
-            glm::vec2 pan(m_imageWidget->m_pan.x(), m_imageWidget->m_pan.y());
+            glm::dvec2 viewSize(m_imageWidget->m_viewSize.width(), m_imageWidget->m_viewSize.height());
+            glm::dvec2 pan(m_imageWidget->m_pan.x(), m_imageWidget->m_pan.y());
             widgetLocker.unlock();
 
-            GLfloat viewAspectRatio = viewSize.x / viewSize.y;
-            GLfloat correctionFactor = m_imageAspectRatio / viewAspectRatio;
-            GLfloat sizeRatio(m_imageSize.height());
+            double viewAspectRatio = viewSize.x / viewSize.y;
+            double correctionFactor = m_imageAspectRatio / viewAspectRatio;
+            double sizeRatio(m_imageSize.height());
             sizeRatio /= viewSize.y;
             sizeRatio *= zoomFactor;
             // Scale to same aspect ratio
-            pmv = glm::scale(pmv, glm::vec3(correctionFactor, 1.0f, 1.0f));
+            pmv = glm::scale(pmv, glm::dvec3(correctionFactor, 1.0, 1.0));
             // Pan.  We've scaled to y along x, so a pan along x in image coordinates relative to y is doubly relative
             // or straight through, depending on your perspective.  Sliders slide in y-up coordinates, whereas graphics
             // stuff addresses pixels y-down: thus the omission of a - before pans.y in the translate call.  If you want
             // pan offset to be in the "natural" direction like the OS-X trackpad default designed to confuse old
             // people, the x and y term signs must be swapped.
-            glm::vec2 pans((pan / viewSize) * 2.0f);
-            pmv = glm::translate(pmv, glm::vec3(-(pans.x * (1.0f / correctionFactor)), pans.y, 0.0f));
+            glm::dvec2 pans((pan / viewSize) * 2.0);
+            pmv = glm::translate(pmv, glm::dvec3(-(pans.x * (1.0 / correctionFactor)), pans.y, 0.0));
             // Zoom
-            pmv = glm::scale(pmv, glm::vec3(sizeRatio, sizeRatio, 1.0f));
+            pmv = glm::scale(pmv, glm::dvec3(sizeRatio, sizeRatio, 1.0));
         }
-        
-        m_glfs->glUniformMatrix4fv(m_imageDrawProg->m_pmvLoc, 1, GL_FALSE, glm::value_ptr(pmv));
+
+//      glm::dmat4 inv(glm::inverse(pmv));
+        glm::dvec3 p(pmv * glm::dvec4(1, 1, 0, 1));
+        std::cerr << p.x << ", " << p.y << ", " << p.z << std::endl;
+
+        glm::mat4 pmvf(pmv);
+        m_glfs->glUniformMatrix4fv(m_imageDrawProg->m_pmvLoc, 1, GL_FALSE, glm::value_ptr(pmvf));
 
         m_imageDrawProg->m_quadVao->bind();
         m_image->bind();
@@ -520,14 +525,10 @@ void Renderer::newImageSlot(ImageData imageData, QSize imageSize, bool filter)
 
         QOpenGLTexture::Filter filterval{filter ? QOpenGLTexture::LinearMipMapLinear : QOpenGLTexture::Nearest};
         m_image->setMinMagFilters(filterval, filterval);
-//      m_image->setMinMagFilters(QOpenGLTexture::Linear, QOpenGLTexture::Linear);
-//      m_image->bind();
+        m_image->bind();
+        m_glfs->glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
         m_image->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt16, reinterpret_cast<GLvoid*>(m_imageData.data()));
-//      m_glfs->glTexSubImage2D(GL_TEXTURE_RECTANGLE, 0, 0, 0,
-//                              m_imageSize.width(), m_imageSize.height(),
-//                              GL_RED, GL_UNSIGNED_SHORT,
-//                              reinterpret_cast<GLvoid*>(m_imageData.data()));
-//      m_image->release();
+        m_image->release();
 
         execHistoCalc();
         execHistoConsolidate();

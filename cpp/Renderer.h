@@ -79,7 +79,7 @@ private:
 
     // There is good reason not to provide an accessor for this variable: in order that all OpenGL calls originate from
     // the Renderer, only Renderer and GlProgram methods have cause to use m_glfs.
-    QOpenGLFunctions_4_1_Core* m_glfs;
+    QOpenGLFunctions_3_2_Core* m_glfs;
 #ifdef ENABLE_GL_DEBUG_LOGGING
     QOpenGLDebugLogger* m_glDebugLogger;
 #endif

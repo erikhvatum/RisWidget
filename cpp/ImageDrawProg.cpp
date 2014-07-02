@@ -15,7 +15,7 @@ ImageDrawProg::~ImageDrawProg()
 {
 }
 
-void ImageDrawProg::init(QOpenGLFunctions_4_1_Core* glfs)
+void ImageDrawProg::init(QOpenGLFunctions_3_2_Core* glfs)
 {
     if(!m_quadVao->create())
     {
