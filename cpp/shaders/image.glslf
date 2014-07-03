@@ -52,21 +52,21 @@ void main()
     }
 
     float v;
-    if(texCoord.x < 0.5)
-    {
-        if(texCoord.y < 0.5)
-        {
-            v = fract(textureSize(tex, 0).x * texCoord.x);
-        }
-        else
-        {
-            v = fract(textureSize(tex, 0).y * texCoord.y);
-        }
-    }
-    else
-    {
+//  if(texCoord.x < 0.5)
+//  {
+//      if(texCoord.y < 0.5)
+//      {
+//          v = fract(textureSize(tex, 0).x * texCoord.x);
+//      }
+//      else
+//      {
+//          v = fract(textureSize(tex, 0).y * texCoord.y);
+//      }
+//  }
+//  else
+//  {
 //      texCoord = (floor(textureSize(tex, 0) * texCoord) + 0.5) / textureSize(tex, 0);
         v = texture(tex, texCoord).r;
-    }
+//  }
     fsColor = vec4(v, v, v, 1);
 }

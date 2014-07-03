@@ -422,9 +422,18 @@ void Renderer::execImageDraw()
             glm::dvec2 imageSize(m_imageSize.width(), m_imageSize.height());
             if(zoomFactor == 1)
             {
-                fragToTex[2][0] = floor((imageSize.x > viewSize.x) ? -pan.x : -(viewSize.x - imageSize.x) / 2);
-                fragToTex[2][1] = floor((imageSize.y > viewSize.y) ? pan.y : -(viewSize.y - imageSize.y) / 2);
+                fragToTex[2][0] = floor((imageSize.x > viewSize.x) ? -(viewSize.x - imageSize.x) / 2 + pan.x : -(viewSize.x - imageSize.x) / 2);
+                fragToTex[2][1] = floor((imageSize.y > viewSize.y) ? -(viewSize.y - imageSize.y) / 2 - pan.y : -(viewSize.y - imageSize.y) / 2);
             }
+//          else if(zoomFactor < 1)
+//          {
+//              imageSize *= zoomFactor;
+//              fragToTex[2][0] = floor((imageSize.x > viewSize.x) ? -pan.x / zoomFactor : -(viewSize.x - imageSize.x) / 2);
+//              fragToTex[2][1] = floor((imageSize.y > viewSize.y) ? pan.y / zoomFactor : -(viewSize.y - imageSize.y) / 2);
+//              fragToTex = glm::dmat3(1, 0, 0,
+//                                     0, 1, 0,
+//                                     0, 0, zoomFactor) * fragToTex;
+//          }
             else
             {
                 imageSize *= zoomFactor;
