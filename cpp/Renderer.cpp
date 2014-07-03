@@ -370,7 +370,7 @@ void Renderer::execImageDraw()
             {
                 pmv = glm::scale(pmv, glm::dvec3(correctionFactor, 1.0, 1.0));
                 zoomFactor = viewSize.y / m_imageSize.height();
-                // Note that glm wants matrixes in column-major, so glm matrix element access and constructors are
+                // Note that glm wants matrixes in column-major order, so glm matrix element access and constructors are
                 // transposed as compared to regular C style 2D arrays
                 fragToTex = glm::dmat3(1, 0, 0,
                                        0, 1, 0,
@@ -422,43 +422,41 @@ void Renderer::execImageDraw()
             glm::dvec2 imageSize(m_imageSize.width(), m_imageSize.height());
             if(zoomFactor == 1)
             {
+                // Facilitate correct one to one drawing by aligning screen and texture coordinates in 100% zoom mode.
+                // Not being able to correctly represent a one-to-one image would be disreputable.
                 fragToTex[2][0] = std::floor((imageSize.x > viewSize.x) ?
                                              -(viewSize.x - imageSize.x) / 2 + pan.x : -(viewSize.x - imageSize.x) / 2);
                 fragToTex[2][1] = std::floor((imageSize.y > viewSize.y) ?
                                              -(viewSize.y - imageSize.y) / 2 - pan.y : -(viewSize.y - imageSize.y) / 2);
             }
-//          else if(zoomFactor < 1)
-//          {
-//              imageSize *= zoomFactor;
-//              fragToTex[2][0] = floor((imageSize.x > viewSize.x) ? -pan.x / zoomFactor : -(viewSize.x - imageSize.x) / 2);
-//              fragToTex[2][1] = floor((imageSize.y > viewSize.y) ? pan.y / zoomFactor : -(viewSize.y - imageSize.y) / 2);
-//              fragToTex = glm::dmat3(1, 0, 0,
-//                                     0, 1, 0,
-//                                     0, 0, zoomFactor) * fragToTex;
-//          }
-            else
+            else if(zoomFactor < 1)
             {
+                // This case primarily serves to make high frequency, zoomed out image artifacts stay put rather than
+                // crawl about when the window is resized
                 imageSize *= zoomFactor;
-                fragToTex[2][0] = (imageSize.x > viewSize.x) ? -pan.x / zoomFactor : -(viewSize.x - imageSize.x) / 2;
-                fragToTex[2][1] = (imageSize.y > viewSize.y) ? pan.y / zoomFactor : -(viewSize.y - imageSize.y) / 2;
+                fragToTex[2][0] = floor((imageSize.x > viewSize.x) ?
+                                        -(viewSize.x - imageSize.x) / 2 + pan.x : -(viewSize.x - imageSize.x) / 2);
+                fragToTex[2][1] = floor((imageSize.y > viewSize.y) ?
+                                        -(viewSize.y - imageSize.y) / 2 - pan.y : -(viewSize.y - imageSize.y) / 2);
                 fragToTex = glm::dmat3(1, 0, 0,
                                        0, 1, 0,
                                        0, 0, zoomFactor) * fragToTex;
             }
-            
-
-//          fragToTex = glm::dmat3{1, 0, -pan.x,
-//                                 0, 1, pan.y,
-//                                 0, 0, 1};
-//          fragToTex = glm::dmat3{1.0 / m_imageSize.width(), 0, 0,
-//                                 0, 1.0 / m_imageSize.height(), 0,
-//                                 0, 0, 1.0} * fragToTex;
-//          fragToTex[2][2] = zoomFactor;
+            else
+            {
+                // Zoomed in, texture coordinates are unavoidably fractional.  Doing a floor here would cause the image
+                // to scroll a pixel at a time even when zoomed in very far.
+                imageSize *= zoomFactor;
+                fragToTex[2][0] = (imageSize.x > viewSize.x) ?
+                    -(viewSize.x - imageSize.x) / 2 + pan.x : -(viewSize.x - imageSize.x) / 2;
+                fragToTex[2][1] = (imageSize.y > viewSize.y) ?
+                    -(viewSize.y - imageSize.y) / 2 - pan.y : -(viewSize.y - imageSize.y) / 2;
+                fragToTex = glm::dmat3(1, 0, 0,
+                                       0, 1, 0,
+                                       0, 0, zoomFactor) * fragToTex;
+            }
         }
 
-//      glm::dmat4 inv(glm::inverse(pmv));
-//      glm::dvec3 p(pmv * glm::dvec4(1, 1, 0, 1));
-//      std::cerr << p.x << ", " << p.y << ", " << p.z << std::endl;
         fragToTex = glm::dmat3(1.0 / m_imageSize.width(), 0, 0,
                                0, 1.0 / m_imageSize.height(), 0,
                                0, 0, 1) * fragToTex;
@@ -466,9 +464,6 @@ void Renderer::execImageDraw()
         glm::mat4 pmvf(pmv);
         m_glfs->glUniformMatrix4fv(m_imageDrawProg->m_pmvLoc, 1, GL_FALSE, glm::value_ptr(pmvf));
         glm::mat3 fragToTexf(fragToTex);
-//      glm::mat3 fragToTexf(fragToTex[0][0], fragToTex[0][1], fragToTex[0][3],
-//                           fragToTex[1][0], fragToTex[1][1], fragToTex[1][3],
-//                           0,               0,               fragToTex[3][3]);
         m_glfs->glUniformMatrix3fv(m_imageDrawProg->m_fragToTexLoc, 1, GL_FALSE, glm::value_ptr(fragToTexf));
 
         m_imageDrawProg->m_quadVao->bind();
@@ -588,7 +583,7 @@ void Renderer::newImageSlot(ImageData imageData, QSize imageSize, bool filter)
         }
 
         QOpenGLTexture::Filter filterval{filter ? QOpenGLTexture::LinearMipMapLinear : QOpenGLTexture::Nearest};
-        m_image->setMinMagFilters(filterval, filterval);
+        m_image->setMinMagFilters(filterval, QOpenGLTexture::Nearest);
         m_image->bind();
         m_glfs->glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
         m_image->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt16, reinterpret_cast<GLvoid*>(m_imageData.data()));
