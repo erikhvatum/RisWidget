@@ -298,18 +298,12 @@ void Renderer::execHistoConsolidate()
 
 void Renderer::updateGlViewportSize(ViewWidget* viewWidget)
 {
-    // In order for 1:1 zoom to map exactly from image pixels to screen pixels, (0, 0) in OpenGL coordinates must fall
-    // as close to the middle of a screen pixel as possible.
-    if(viewWidget->m_viewSize.width() > 0 && viewWidget->m_viewSize.height() > 0)
+    if ( viewWidget->m_viewSize != viewWidget->m_viewGlSize
+      && viewWidget->m_viewSize.width() > 0
+      && viewWidget->m_viewSize.height() > 0 )
     {
-        QSize wantGlSize{viewWidget->m_viewSize};
-//      wantGlSize.rwidth() -= (wantGlSize.width() % 2 == 1) ? 0 : 1 ;
-//      wantGlSize.rheight() -= (wantGlSize.height() % 2 == 1) ? 0 : 1;
-        if(wantGlSize != viewWidget->m_viewGlSize)
-        {
-            m_glfs->glViewport(0, 0, wantGlSize.width(), wantGlSize.height());
-            viewWidget->m_viewGlSize = wantGlSize;
-        }
+        m_glfs->glViewport(0, 0, viewWidget->m_viewSize.width(), viewWidget->m_viewSize.height());
+        viewWidget->m_viewGlSize = viewWidget->m_viewSize;
     }
 }
 
