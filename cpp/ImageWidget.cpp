@@ -257,7 +257,7 @@ void ImageWidget::updateScrollerRanges()
     {
         GLfloat z = m_zoomIndex == -1 ? m_customZoom : sm_zoomPresets[m_zoomIndex];
 
-        auto doAxis = [&](GLfloat i, GLfloat w, QScrollBar& s)
+        auto doAxis = [&](GLfloat i, GLfloat w, QScrollBar& s, bool x)
         {
             i *= z;
             GLfloat r = std::ceil(i - w);
@@ -269,12 +269,19 @@ void ImageWidget::updateScrollerRanges()
             {
                 r /= 2.0f;
             }
-            s.setRange(-r, r);
+            if(x)
+            {
+                s.setRange(-std::floor(r), std::ceil(r));
+            }
+            else
+            {
+                s.setRange(-std::ceil(r), std::floor(r));
+            }
             s.setPageStep(w);
         };
 
-        doAxis(m_imageSize.width(), m_viewSize.width(), *m_scroller->horizontalScrollBar());
-        doAxis(m_imageSize.height(), m_viewSize.height(), *m_scroller->verticalScrollBar());
+        doAxis(m_imageSize.width(), m_viewSize.width(), *m_scroller->horizontalScrollBar(), true);
+        doAxis(m_imageSize.height(), m_viewSize.height(), *m_scroller->verticalScrollBar(), false);
     }
 }
 

@@ -422,8 +422,10 @@ void Renderer::execImageDraw()
             glm::dvec2 imageSize(m_imageSize.width(), m_imageSize.height());
             if(zoomFactor == 1)
             {
-                fragToTex[2][0] = floor((imageSize.x > viewSize.x) ? -(viewSize.x - imageSize.x) / 2 + pan.x : -(viewSize.x - imageSize.x) / 2);
-                fragToTex[2][1] = floor((imageSize.y > viewSize.y) ? -(viewSize.y - imageSize.y) / 2 - pan.y : -(viewSize.y - imageSize.y) / 2);
+                fragToTex[2][0] = std::floor((imageSize.x > viewSize.x) ?
+                                             -(viewSize.x - imageSize.x) / 2 + pan.x : -(viewSize.x - imageSize.x) / 2);
+                fragToTex[2][1] = std::floor((imageSize.y > viewSize.y) ?
+                                             -(viewSize.y - imageSize.y) / 2 - pan.y : -(viewSize.y - imageSize.y) / 2);
             }
 //          else if(zoomFactor < 1)
 //          {
