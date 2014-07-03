@@ -420,13 +420,22 @@ void Renderer::execImageDraw()
 
             fragToTex = glm::dmat3(1.0);
             glm::dvec2 imageSize(m_imageSize.width(), m_imageSize.height());
-            imageSize *= zoomFactor;
-            fragToTex[2][0] = (imageSize.x > viewSize.x) ? -pan.x / zoomFactor : -(viewSize.x - imageSize.x) / 2;
-            fragToTex[2][1] = (imageSize.y > viewSize.y) ? pan.y / zoomFactor : -(viewSize.y - imageSize.y) / 2;
-            fragToTex = glm::dmat3(1, 0, 0,
-                                   0, 1, 0,
-                                   0, 0, zoomFactor) * fragToTex;
+            if(zoomFactor == 1)
+            {
+                fragToTex[2][0] = floor((imageSize.x > viewSize.x) ? -pan.x : -(viewSize.x - imageSize.x) / 2);
+                fragToTex[2][1] = floor((imageSize.y > viewSize.y) ? pan.y : -(viewSize.y - imageSize.y) / 2);
+            }
+            else
+            {
+                imageSize *= zoomFactor;
+                fragToTex[2][0] = (imageSize.x > viewSize.x) ? -pan.x / zoomFactor : -(viewSize.x - imageSize.x) / 2;
+                fragToTex[2][1] = (imageSize.y > viewSize.y) ? pan.y / zoomFactor : -(viewSize.y - imageSize.y) / 2;
+                fragToTex = glm::dmat3(1, 0, 0,
+                                       0, 1, 0,
+                                       0, 0, zoomFactor) * fragToTex;
+            }
             
+
 //          fragToTex = glm::dmat3{1, 0, -pan.x,
 //                                 0, 1, pan.y,
 //                                 0, 0, 1};
