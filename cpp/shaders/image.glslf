@@ -42,15 +42,31 @@ void main()
 
     // Render nothing if fragment coordinate is outside of texture.  This should only happen for a display row or column
     // at the edge of the quad.
-    if(texCoord.x < 0 || texCoord.x >= 1)
-    {
-        discard;
-    }
-    if(texCoord.y < 0 || texCoord.y >= 1)
-    {
-        discard;
-    }
+//  if(texCoord.x < 0 || texCoord.x >= 1)
+//  {
+//      discard;
+//  }
+//  if(texCoord.y < 0 || texCoord.y >= 1)
+//  {
+//      discard;
+//  }
 
-    float v = texture(tex, texCoord).r;
+    float v;
+    if(texCoord.x < 0.5)
+    {
+        if(texCoord.y < 0.5)
+        {
+            v = fract(textureSize(tex, 0).x * texCoord.x);
+        }
+        else
+        {
+            v = fract(textureSize(tex, 0).y * texCoord.y);
+        }
+    }
+    else
+    {
+//      texCoord = (floor(textureSize(tex, 0) * texCoord) + 0.5) / textureSize(tex, 0);
+        v = texture(tex, texCoord).r;
+    }
     fsColor = vec4(v, v, v, 1);
 }
