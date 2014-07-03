@@ -44,5 +44,5 @@ public:
     QPointer<QOpenGLVertexArrayObject> m_quadVao;
     QOpenGLBuffer m_quadVaoBuff;
     const int m_pmvLoc;
-    const int m_fragToTexCoordLoc;
+    const int m_fragToTexLoc;
 };

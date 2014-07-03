@@ -28,7 +28,7 @@
 uniform sampler2D tex;
 // 2D homogeneous transformation matrix for transforming gl_FragCoord viewport coordinates into image texture
 // coordinates
-uniform mat3 fragToTexCoord;
+uniform mat3 fragToTex;
 
 layout (location = 0) out vec4 fsColor;
 
@@ -36,7 +36,7 @@ void main()
 {
     // Note that gl_FragCoord is a homogeneous 3D coordinate.  Its scaling term (.w) is used as the scaling term for its
     // X, Y 2D homogeneous coordinate (.z).
-    vec3 texCoord = fragToTexCoord * vec3(gl_FragCoord.x, gl_FragCoord.y, gl_FragCoord.w);
+    vec3 texCoord = fragToTex * vec3(gl_FragCoord.x, gl_FragCoord.y, gl_FragCoord.w);
     float v = texture(tex, texCoord.xy / texCoord.z).r;
     fsColor = vec4(v, v, v, 1);
 }

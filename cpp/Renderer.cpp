@@ -359,9 +359,7 @@ void Renderer::execImageDraw()
     {
         m_imageDrawProg->bind();
         glm::dmat4 pmv(1.0);
-        glm::dmat3 fragToTexCoord(1.0);
-        fragToTexCoord[0][0] = 1.0 / m_imageSize.width();
-        fragToTexCoord[1][1] = 1.0 / m_imageSize.height();
+        glm::dmat3 fragToTex(1.0);
         bool highlightPointer{m_imageWidget->m_highlightPointer};
         bool pointerIsOnImagePixel{m_imageWidget->m_pointerIsOnImagePixel};
         QPoint pointerImagePixelCoord(m_imageWidget->m_pointerImagePixelCoord);
@@ -373,15 +371,27 @@ void Renderer::execImageDraw()
             widgetLocker.unlock();
             double viewAspectRatio = viewSize.x / viewSize.y;
             double correctionFactor = static_cast<double>(m_imageAspectRatio) / viewAspectRatio;
+//          fragToTex = glm::scale(fragToTex, glm::dvec3(1.0 / m_imageSize.width(), 1.0 / m_imageSize.height(), 1.0));
+            double zoom;
             if(correctionFactor <= 1)
             {
                 pmv = glm::scale(pmv, glm::dvec3(correctionFactor, 1.0, 1.0));
-                fragToTexCoord[2][2] = viewSize.x / m_imageSize.width();
+                zoom = viewSize.y / m_imageSize.height();
+                fragToTex = glm::dmat3(1, 0, 0,
+                                       0, 1, 0,
+                                       -(viewSize.x - zoom * m_imageSize.width()) / 2, 0, 1);
             }
             else
             {
                 pmv = glm::scale(pmv, glm::dvec3(1.0, 1.0 / correctionFactor, 1.0));
+                zoom = viewSize.x / m_imageSize.width();
+                fragToTex = glm::dmat3(1, 0, 0,
+                                       0, 1, 0,
+                                       0, -(viewSize.y - zoom * m_imageSize.height()) / 2, 1);
             }
+            fragToTex = glm::dmat3(1, 0, 0,
+                                   0, 1, 0,
+                                   0, 0, zoom) * fragToTex;
         }
         else
         {
@@ -413,16 +423,31 @@ void Renderer::execImageDraw()
             pmv = glm::scale(pmv, glm::dvec3(sizeRatio, sizeRatio, 1.0));
 
             /* gl_FragCoord to texture transformation */
+            
+            
+//          fragToTex = glm::dmat3{1, 0, -pan.x,
+//                                 0, 1, pan.y,
+//                                 0, 0, 1};
+//          fragToTex = glm::dmat3{1.0 / m_imageSize.width(), 0, 0,
+//                                 0, 1.0 / m_imageSize.height(), 0,
+//                                 0, 0, 1.0} * fragToTex;
+//          fragToTex[2][2] = zoomFactor;
         }
 
 //      glm::dmat4 inv(glm::inverse(pmv));
 //      glm::dvec3 p(pmv * glm::dvec4(1, 1, 0, 1));
 //      std::cerr << p.x << ", " << p.y << ", " << p.z << std::endl;
+        fragToTex = glm::dmat3(1.0 / m_imageSize.width(), 0, 0,
+                               0, 1.0 / m_imageSize.height(), 0,
+                               0, 0, 1) * fragToTex;
 
         glm::mat4 pmvf(pmv);
         m_glfs->glUniformMatrix4fv(m_imageDrawProg->m_pmvLoc, 1, GL_FALSE, glm::value_ptr(pmvf));
-        glm::mat3 fragToTexCoordf(fragToTexCoord);
-        m_glfs->glUniformMatrix3fv(m_imageDrawProg->m_fragToTexCoordLoc, 1, GL_FALSE, glm::value_ptr(fragToTexCoordf));
+        glm::mat3 fragToTexf(fragToTex);
+//      glm::mat3 fragToTexf(fragToTex[0][0], fragToTex[0][1], fragToTex[0][3],
+//                           fragToTex[1][0], fragToTex[1][1], fragToTex[1][3],
+//                           0,               0,               fragToTex[3][3]);
+        m_glfs->glUniformMatrix3fv(m_imageDrawProg->m_fragToTexLoc, 1, GL_FALSE, glm::value_ptr(fragToTexf));
 
         m_imageDrawProg->m_quadVao->bind();
         m_image->bind();

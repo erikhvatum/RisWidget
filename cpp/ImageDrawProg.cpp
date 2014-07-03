@@ -6,7 +6,7 @@ ImageDrawProg::ImageDrawProg(QObject* parent)
     m_quadVao(new QOpenGLVertexArrayObject(this)),
     m_quadVaoBuff(QOpenGLBuffer::VertexBuffer),
     m_pmvLoc(std::numeric_limits<int>::min()),
-    m_fragToTexCoordLoc(std::numeric_limits<int>::min())
+    m_fragToTexLoc(std::numeric_limits<int>::min())
 {
     addShader(":/shaders/image.glslv", QOpenGLShader::Vertex);
     addShader(":/shaders/image.glslf", QOpenGLShader::Fragment);
@@ -41,5 +41,5 @@ void ImageDrawProg::init(QOpenGLFunctions_4_1_Core* glfs)
     glfs->glVertexAttribPointer(VertCoordLoc, 2, GL_FLOAT, false, 0, nullptr);
 
     const_cast<int&>(m_pmvLoc) = uniformLocation("projectionModelViewMatrix");
-    const_cast<int&>(m_fragToTexCoordLoc) = uniformLocation("fragToTexCoord");
+    const_cast<int&>(m_fragToTexLoc) = uniformLocation("fragToTex");
 }
