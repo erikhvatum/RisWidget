@@ -36,7 +36,21 @@ void main()
 {
     // Note that gl_FragCoord is a homogeneous 3D coordinate.  Its scaling term (.w) is used as the scaling term for its
     // X, Y 2D homogeneous coordinate (.z).
-    vec3 texCoord = fragToTex * vec3(gl_FragCoord.x, gl_FragCoord.y, gl_FragCoord.w);
-    float v = texture(tex, texCoord.xy / texCoord.z).r;
+    vec3 texCoordh = fragToTex * vec3(gl_FragCoord.x, gl_FragCoord.y, gl_FragCoord.w);
+    // Compute 2D coordinate from homogeneous 2D coordinate
+    vec2 texCoord = texCoordh.xy / texCoordh.z;
+
+    // Render nothing if fragment coordinate is outside of texture.  This should only happen for a display row or column
+    // at the edge of the quad.
+    if(texCoord.x < 0 || texCoord.x >= 1)
+    {
+        discard;
+    }
+    if(texCoord.y < 0 || texCoord.y >= 1)
+    {
+        discard;
+    }
+
+    float v = texture(tex, texCoord).r;
     fsColor = vec4(v, v, v, 1);
 }

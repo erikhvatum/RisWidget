@@ -359,49 +359,49 @@ void Renderer::execImageDraw()
     {
         m_imageDrawProg->bind();
         glm::dmat4 pmv(1.0);
-        glm::dmat3 fragToTex(1.0);
-        bool highlightPointer{m_imageWidget->m_highlightPointer};
-        bool pointerIsOnImagePixel{m_imageWidget->m_pointerIsOnImagePixel};
-        QPoint pointerImagePixelCoord(m_imageWidget->m_pointerImagePixelCoord);
+        glm::dmat3 fragToTex;
+        double zoomFactor;
+        glm::dvec2 viewSize(m_imageWidget->m_viewSize.width(), m_imageWidget->m_viewSize.height());
+//      bool highlightPointer{m_imageWidget->m_highlightPointer};
+//      bool pointerIsOnImagePixel{m_imageWidget->m_pointerIsOnImagePixel};
+//      QPoint pointerImagePixelCoord(m_imageWidget->m_pointerImagePixelCoord);
 
         if(m_imageWidget->m_zoomToFit)
         {
             // Image aspect ratio is always maintained.  The image is centered along whichever axis does not fit.
-            glm::dvec2 viewSize(m_imageWidget->m_viewSize.width(), m_imageWidget->m_viewSize.height());
             widgetLocker.unlock();
             double viewAspectRatio = viewSize.x / viewSize.y;
             double correctionFactor = static_cast<double>(m_imageAspectRatio) / viewAspectRatio;
-//          fragToTex = glm::scale(fragToTex, glm::dvec3(1.0 / m_imageSize.width(), 1.0 / m_imageSize.height(), 1.0));
-            double zoom;
             if(correctionFactor <= 1)
             {
                 pmv = glm::scale(pmv, glm::dvec3(correctionFactor, 1.0, 1.0));
-                zoom = viewSize.y / m_imageSize.height();
+                zoomFactor = viewSize.y / m_imageSize.height();
+                // Note that glm wants matrixes in column-major, so glm matrix element access and constructors are
+                // transposed as compared to regular C style 2D arrays
                 fragToTex = glm::dmat3(1, 0, 0,
                                        0, 1, 0,
-                                       -(viewSize.x - zoom * m_imageSize.width()) / 2, 0, 1);
+                                       -(viewSize.x - zoomFactor * m_imageSize.width()) / 2, 0, 1);
             }
             else
             {
                 pmv = glm::scale(pmv, glm::dvec3(1.0, 1.0 / correctionFactor, 1.0));
-                zoom = viewSize.x / m_imageSize.width();
+                zoomFactor = viewSize.x / m_imageSize.width();
                 fragToTex = glm::dmat3(1, 0, 0,
                                        0, 1, 0,
-                                       0, -(viewSize.y - zoom * m_imageSize.height()) / 2, 1);
+                                       0, -(viewSize.y - zoomFactor * m_imageSize.height()) / 2, 1);
             }
             fragToTex = glm::dmat3(1, 0, 0,
                                    0, 1, 0,
-                                   0, 0, zoom) * fragToTex;
+                                   0, 0, zoomFactor) * fragToTex;
         }
         else
         {
-            /* Vertex transformation */
+            /* Compute vertex transformation matrix */
 
             // Image aspect ratio is always maintained; the image is centered, panned, and scaled as directed by the
             // user
-            double zoomFactor = m_imageWidget->m_zoomIndex == -1 ? 
-                m_imageWidget->m_customZoom : m_imageWidget->sm_zoomPresets[m_imageWidget->m_zoomIndex];
-            glm::dvec2 viewSize(m_imageWidget->m_viewSize.width(), m_imageWidget->m_viewSize.height());
+            zoomFactor = (m_imageWidget->m_zoomIndex == -1) ? m_imageWidget->m_customZoom :
+                                                              m_imageWidget->sm_zoomPresets[m_imageWidget->m_zoomIndex];
             glm::dvec2 pan(m_imageWidget->m_pan.x(), m_imageWidget->m_pan.y());
             widgetLocker.unlock();
 
@@ -422,8 +422,16 @@ void Renderer::execImageDraw()
             // Zoom
             pmv = glm::scale(pmv, glm::dvec3(sizeRatio, sizeRatio, 1.0));
 
-            /* gl_FragCoord to texture transformation */
-            
+            /* Compute gl_FragCoord to texture transformation matrix */
+
+            fragToTex = glm::dmat3(1.0);
+            glm::dvec2 imageSize(m_imageSize.width(), m_imageSize.height());
+            imageSize *= zoomFactor;
+            fragToTex[2][0] = (imageSize.x > viewSize.x) ? -pan.x / zoomFactor : -(viewSize.x - imageSize.x) / 2;
+            fragToTex[2][1] = (imageSize.y > viewSize.y) ? pan.y / zoomFactor : -(viewSize.y - imageSize.y) / 2;
+            fragToTex = glm::dmat3(1, 0, 0,
+                                   0, 1, 0,
+                                   0, 0, zoomFactor) * fragToTex;
             
 //          fragToTex = glm::dmat3{1, 0, -pan.x,
 //                                 0, 1, pan.y,
@@ -455,6 +463,10 @@ void Renderer::execImageDraw()
         m_image->release();
         m_imageDrawProg->m_quadVao->release();
         m_imageDrawProg->release();
+    }
+    else
+    {
+        widgetLocker.unlock();
     }
 
     m_imageView->swapBuffers();

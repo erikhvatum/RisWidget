@@ -26,10 +26,10 @@ void ImageDrawProg::init(QOpenGLFunctions_4_1_Core* glfs)
 
     float quad[] = {
         // Vertex positions
-        1.0f, -1.0f,
-        -1.0f, -1.0f,
-        -1.0f, 1.0f,
-        1.0f, 1.0f
+        1.1f, -1.1f,
+        -1.1f, -1.1f,
+        -1.1f, 1.1f,
+        1.1f, 1.1f
     };
 
     m_quadVaoBuff.create();
