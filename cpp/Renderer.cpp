@@ -74,10 +74,8 @@ Renderer::Renderer(ImageWidget* imageWidget, HistogramWidget* histogramWidget)
     m_lock(new QMutex(QMutex::Recursive)),
     m_imageWidget(imageWidget),
     m_imageView(m_imageWidget->imageView()),
-    m_imageViewUpdatePending(false),
     m_histogramWidget(histogramWidget),
     m_histogramView(m_histogramWidget->histogramView()),
-    m_histogramViewUpdatePending(false),
     m_glfs(nullptr),
 #ifdef ENABLE_GL_DEBUG_LOGGING
     m_glDebugLogger(nullptr),
@@ -89,6 +87,8 @@ Renderer::Renderer(ImageWidget* imageWidget, HistogramWidget* histogramWidget)
     m_histogram(std::numeric_limits<GLuint>::max()),
     m_histogramData(m_histogramBinCount, 0)
 {
+    m_imageViewUpdatePending.store(false);
+    m_histogramViewUpdatePending.store(false);
     connect(this, &Renderer::_updateView, this, &Renderer::updateViewSlot, Qt::QueuedConnection);
     connect(this, &Renderer::_newImage, this, &Renderer::newImageSlot, Qt::QueuedConnection);
     connect(this, &Renderer::_setHistogramBinCount, this, &Renderer::setHistogramBinCountSlot, Qt::QueuedConnection);
