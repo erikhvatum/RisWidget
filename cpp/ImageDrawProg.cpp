@@ -8,8 +8,8 @@ ImageDrawProg::ImageDrawProg(QObject* parent)
     m_pmvLoc(std::numeric_limits<int>::min()),
     m_fragToTexLoc(std::numeric_limits<int>::min())
 {
-    addShader(":/shaders/image.glslv", QOpenGLShader::Vertex);
-    addShader(":/shaders/image.glslf", QOpenGLShader::Fragment);
+    addShader(":/gpu/image.glslv", QOpenGLShader::Vertex);
+    addShader(":/gpu/image.glslf", QOpenGLShader::Fragment);
 }
 
 ImageDrawProg::~ImageDrawProg()

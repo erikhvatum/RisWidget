@@ -215,14 +215,13 @@
 				<F N="cpp/ui_ShowCheckerDialog.h"/>
 			</Folder>
 			<Folder
-				Name="shaders"
+				Name="gpu"
 				Filters="">
-				<F N="cpp/shaders/histogram.glslf"/>
-				<F N="cpp/shaders/histogram.glslv"/>
-				<F N="cpp/shaders/histogramCalc.glslc"/>
-				<F N="cpp/shaders/histogramConsolidate.glslc"/>
-				<F N="cpp/shaders/image.glslf"/>
-				<F N="cpp/shaders/image.glslv"/>
+				<F N="cpp/gpu/histogram.cl"/>
+				<F N="cpp/gpu/histogram.glslf"/>
+				<F N="cpp/gpu/histogram.glslv"/>
+				<F N="cpp/gpu/image.glslf"/>
+				<F N="cpp/gpu/image.glslv"/>
 			</Folder>
 			<F N="cpp/Common.h"/>
 			<F N="cpp/GilStateScopeOperators.cpp"/>

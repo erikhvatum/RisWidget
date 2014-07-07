@@ -19,7 +19,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-
+#ifdef __cplusplus
 #ifndef __RIS_WIDGET__COMMON_H_01936724387909345__
 #define __RIS_WIDGET__COMMON_H_01936724387909345__
 
@@ -35,6 +35,11 @@
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#define __CL_ENABLE_EXCEPTIONS
+#include <OpenCL/opencl.h>
+#undef CL_VERSION_1_2
+#define CL_USE_DEPRECATED_OPENCL_1_1_APIS
+#include "cl.hpp"
 #include <cstdint>
 // Need cstring include for memcpy(..).  Note: this is the C++ version of string.h; it has nothing to do with
 // Microsoft's CString.
@@ -71,4 +76,4 @@
 #include "RisWidgetException.h"
 
 #endif
-
+#endif

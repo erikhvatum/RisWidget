@@ -28,7 +28,7 @@ TARGET = RisWidget
 macx {
     CFLAGS += -fno-omit-frame-pointer
     INCLUDEPATH += /Library/Frameworks/Python.framework/Versions/3.4/include/python3.4m /usr/local/include /Library/Frameworks/Python.framework/Versions/3.4/lib/python3.4/site-packages/numpy/core/include
-    LIBS += -ldl -framework CoreFoundation -lpython3.4m -L/usr/local/lib -L/Library/Frameworks/Python.framework/Versions/3.4/lib/python3.4/config-3.4m
+    LIBS += -ldl -framework CoreFoundation -framework OpenCL -lpython3.4m -L/usr/local/lib -L/Library/Frameworks/Python.framework/Versions/3.4/lib/python3.4/config-3.4m
 } else:unix {
     CFLAGS += -fno-omit-frame-pointer
     INCLUDEPATH += /usr/local/include /usr/local/glm /usr/include/python3.4 /usr/lib64/python3.4/site-packages/numpy/core/include

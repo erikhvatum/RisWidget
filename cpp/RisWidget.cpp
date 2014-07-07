@@ -169,6 +169,8 @@ void RisWidget::makeRenderer()
     connect(m_rendererThread.data(), &QThread::started, m_renderer.get(), &Renderer::threadInitSlot, Qt::QueuedConnection);
     // Note: Connection must be direct or Renderer thread will terminate before finished signal is received
     connect(m_rendererThread.data(), &QThread::finished, m_renderer.get(), &Renderer::threadDeInitSlot, Qt::DirectConnection);
+    connect(m_renderer.get(), &Renderer::openClDeviceListChanged, this, &RisWidget::openClDeviceListChangedSlot, Qt::QueuedConnection);
+    connect(m_renderer.get(), &Renderer::currentOpenClDeviceListIndexChanged, this, &RisWidget::currentOpenClDeviceListIndexChangedSlot, Qt::QueuedConnection);
     m_rendererThread->start();
     connect(m_renderer.get(), &Renderer::newImageExtrema, m_histogramWidget, &HistogramWidget::newImageExtremaFoundByRenderer, Qt::QueuedConnection);
 }
@@ -651,15 +653,60 @@ void RisWidget::statusBarFpsToggled(bool showStatusBarFps)
     }
 }
 
-// bool RisWidget::event(QEvent* event)
-// {
-//     bool ret{QMainWindow::event(event)};
-//     if(event->type() == QEvent::PolishRequest)
-//     {
-//         emit polishRequestReceived;
-//     }
-//     return ret;
-// }
+void RisWidget::refreshOpenClDeviceList()
+{
+}
+
+QVector<QString> RisWidget::getOpenClDeviceList() const
+{
+    return m_renderer->getOpenClDeviceList();
+}
+
+int RisWidget::getCurrentOpenClDeviceListIndex() const
+{
+    return m_renderer->getCurrentOpenClDeviceListIndex();
+}
+
+void RisWidget::setCurrentOpenClDeviceListIndex(int newOpenClDeviceListIndex)
+{
+    m_renderer->setCurrentOpenClDeviceListIndex(newOpenClDeviceListIndex);
+}
+
+void RisWidget::openClDeviceListChangedSlot(QVector<QString> openClDeviceList)
+{
+    if(!m_openClDevicesGroup.isNull())
+    {
+        m_menuOpenClDevices->clear();
+        m_actionsOpenClDevices.clear();
+        m_openClDevicesGroup->deleteLater();
+    }
+    m_openClDevicesGroup.reset(new QActionGroup(this));
+    m_actionsOpenClDevices.reserve(openClDeviceList.size());
+    for(const QString& description : openClDeviceList)
+    {
+        QAction* action{m_menuOpenClDevices->addAction(description)};
+        action->setCheckable(true);
+        action->setChecked(false);
+        m_openClDevicesGroup->addAction(action);
+        m_actionsOpenClDevices.append(action);
+    }
+    emit openClDeviceListChanged(openClDeviceList);
+}
+
+void RisWidget::currentOpenClDeviceListIndexChangedSlot(int currentOpenClDeviceListIndex)
+{
+    if(currentOpenClDeviceListIndex < 0 || currentOpenClDeviceListIndex >= m_actionsOpenClDevices.size())
+    {
+        std::ostringstream o;
+        o << "RisWidget::currentOpenClDeviceListIndexChangedSlot(int currentOpenClDeviceListIndex): Value for ";
+        o << "currentOpenClDeviceListIndex must be in the range [0, " << m_actionsOpenClDevices.size() << "), not ";
+        o << currentOpenClDeviceListIndex << ".  Note that the right end of this is a function of the number of OpenCL ";
+        o << "devices available.";
+        throw RisWidgetException(o.str());
+    }
+    m_actionsOpenClDevices[currentOpenClDeviceListIndex]->setChecked(true);
+    emit currentOpenClDeviceListIndexChanged(currentOpenClDeviceListIndex);
+}
 
 #ifdef STAND_ALONE_EXECUTABLE
 

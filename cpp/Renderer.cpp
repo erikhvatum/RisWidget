@@ -72,6 +72,7 @@ void Renderer::staticInit()
 Renderer::Renderer(ImageWidget* imageWidget, HistogramWidget* histogramWidget)
   : m_threadInited(false),
     m_lock(new QMutex(QMutex::Recursive)),
+    m_currOpenClDeviceListEntry(std::numeric_limits<int>::min()),
     m_imageWidget(imageWidget),
     m_imageView(m_imageWidget->imageView()),
     m_histogramWidget(histogramWidget),
@@ -89,6 +90,8 @@ Renderer::Renderer(ImageWidget* imageWidget, HistogramWidget* histogramWidget)
 {
     m_imageViewUpdatePending.store(false);
     m_histogramViewUpdatePending.store(false);
+    connect(this, &Renderer::_refreshOpenClDeviceList, this, &Renderer::refreshOpenClDeviceListSlot, Qt::QueuedConnection);
+    connect(this, &Renderer::_setCurrentOpenClDeviceListIndex, this, &Renderer::setCurrentOpenClDeviceListIndexSlot, Qt::QueuedConnection);
     connect(this, &Renderer::_updateView, this, &Renderer::updateViewSlot, Qt::QueuedConnection);
     connect(this, &Renderer::_newImage, this, &Renderer::newImageSlot, Qt::QueuedConnection);
     connect(this, &Renderer::_setHistogramBinCount, this, &Renderer::setHistogramBinCountSlot, Qt::QueuedConnection);
@@ -97,6 +100,42 @@ Renderer::Renderer(ImageWidget* imageWidget, HistogramWidget* histogramWidget)
 Renderer::~Renderer()
 {
     delete m_lock;
+}
+
+void Renderer::refreshOpenClDeviceList()
+{
+    emit _refreshOpenClDeviceList();
+}
+
+QVector<QString> Renderer::getOpenClDeviceList() const
+{
+    QVector<QString> ret;
+    QMutexLocker lock(m_lock);
+    ret.reserve(m_openClDeviceList.size());
+    for(const OpenClDeviceListEntry& entry : m_openClDeviceList)
+    {
+        ret.append(entry.description);
+    }
+    return ret;
+}
+
+int Renderer::getCurrentOpenClDeviceListIndex() const
+{
+    QMutexLocker lock(m_lock);
+    return m_currOpenClDeviceListEntry;
+}
+
+void Renderer::setCurrentOpenClDeviceListIndex(int newOpenClDeviceListIndex)
+{
+    emit _setCurrentOpenClDeviceListIndex(newOpenClDeviceListIndex);
+}
+
+void Renderer::refreshOpenClDeviceListSlot()
+{
+}
+
+void Renderer::setCurrentOpenClDeviceListIndexSlot(int newOpenClDeviceListIndex)
+{
 }
 
 void Renderer::updateView(View* view)
@@ -202,7 +241,7 @@ void Renderer::delHistogram()
 //  }
 }
 
-void Renderer::makeContexts()
+void Renderer::makeGlContexts()
 {
     m_imageView->m_renderer = this;
     m_imageView->m_context = new QOpenGLContext(this);

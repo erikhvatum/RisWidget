@@ -54,6 +54,11 @@ public:
     Renderer(const Renderer&) = delete;
     Renderer& operator = (const Renderer&) = delete;
 
+    void refreshOpenClDeviceList();
+    QVector<QString> getOpenClDeviceList() const;
+    int getCurrentOpenClDeviceListIndex() const;
+    void setCurrentOpenClDeviceListIndex(int newOpenClDeviceListIndex);
+
     // Queue a refresh of view (no-op if a refresh of view is already pending).  Refer to View::update()'s declaration
     // in View.h for more details.
     void updateView(View* view);
@@ -65,10 +70,20 @@ public:
     std::shared_ptr<LockedRef<const HistogramData>> getHistogram();
 
 private:
+    struct OpenClDeviceListEntry
+    {
+        QString description;
+        cl_platform_id platform;
+        cl_device_id device;
+    };
+
     static bool sm_staticInited;
     bool m_threadInited;
 
     QMutex* m_lock;
+
+    std::vector<OpenClDeviceListEntry> m_openClDeviceList;
+    int m_currOpenClDeviceListEntry;
 
     QPointer<ImageWidget> m_imageWidget;
     QPointer<ImageView> m_imageView;
@@ -117,7 +132,7 @@ private:
     void delHistogram();
     HistogramData m_histogramData;
 
-    void makeContexts();
+    void makeGlContexts();
     void makeGlfs();
     void buildGlProgs();
 
@@ -133,9 +148,13 @@ private:
 
     // Leading _ indicates that a signal is private and is used internally for cross-thread procedure calls
 signals:
+    void _refreshOpenClDeviceList();
+    void _setCurrentOpenClDeviceListIndex(int newOpenClDeviceListIndex);
     void _newImage(ImageData imageData, QSize imageSize, bool filter);
     void _updateView(View* view);
     void _setHistogramBinCount(GLuint histogramBinCount);
+    void openClDeviceListChanged(QVector<QString> openClDeviceList);
+    void currentOpenClDeviceListIndexChanged(int currentOpenClDeviceListIndex);
     // Used to notify HistogramWidget so that it can update its min/max sliders and editbox values when in auto min/max
     // mode
     void newImageExtrema(GLushort minIntensity, GLushort maxIntensity);
@@ -150,6 +169,8 @@ public slots:
     void threadDeInitSlot();
 
 private slots:
+    void refreshOpenClDeviceListSlot();
+    void setCurrentOpenClDeviceListIndexSlot(int newOpenClDeviceListIndex);
     void newImageSlot(ImageData imageData, QSize imageSize, bool filter);
     void updateViewSlot(View* view);
     void setHistogramBinCountSlot(GLuint histogramBinCount);

@@ -36,6 +36,13 @@ class RisWidget
     protected Ui::RisWidget
 {
     Q_OBJECT;
+    Q_PROPERTY(QVector<QString> openClDeviceList
+                   READ getOpenClDeviceList
+                   NOTIFY openClDeviceListChanged);
+    Q_PROPERTY(int currentOpenClDeviceListIndex
+                   READ getCurrentOpenClDeviceListIndex
+                   WRITE setCurrentOpenClDeviceListIndex
+                   NOTIFY currentOpenClDeviceListIndexChanged);
 
 public:
     explicit RisWidget(QString windowTitle_ = "RisWidget",
@@ -71,6 +78,11 @@ public:
     GLfloat getGtpGamma() const;
     GLfloat getGtpGammaGamma() const;
 
+    void refreshOpenClDeviceList();
+    QVector<QString> getOpenClDeviceList() const;
+    int getCurrentOpenClDeviceListIndex() const;
+    void setCurrentOpenClDeviceListIndex(int newOpenClDeviceListIndex);
+
 protected:
     QPointer<QActionGroup> m_imageViewInteractionModeGroup;
     QPointer<QToolBar> m_imageViewToolBar;
@@ -82,6 +94,8 @@ protected:
     QPointer<QLabel> m_statusBarPixelInfoWidget_intensity;
     QPointer<QWidget> m_statusBarFpsWidget;
     QPointer<QLabel> m_statusBarFpsWidget_fps;
+    QScopedPointer<QActionGroup> m_openClDevicesGroup;
+    QVector<QAction*> m_actionsOpenClDevices;
 
     std::shared_ptr<Renderer> m_renderer;
     QPointer<QThread> m_rendererThread;
@@ -105,7 +119,10 @@ protected:
 #ifdef STAND_ALONE_EXECUTABLE
     void closeEvent(QCloseEvent* event);
 #endif
-//  virtual bool event(QEvent* event);
+
+signals:
+    void openClDeviceListChanged(QVector<QString> openClDeviceList);
+    void currentOpenClDeviceListIndexChanged(int currentOpenClDeviceListIndex);
 
 public slots:
     // Presents Open File dialog.  Supports images as well as numpy data files.
@@ -113,6 +130,8 @@ public slots:
     void clearCanvasSlot();
 
 protected slots:
+    void openClDeviceListChangedSlot(QVector<QString> openClDeviceList);
+    void currentOpenClDeviceListIndexChangedSlot(int currentOpenClDeviceListIndex);
     void imageViewZoomComboCustomValueEntered();
     void imageViewZoomComboChanged(int index);
     void imageViewZoomChanged(int zoomIndex, GLfloat customZoom);
@@ -122,8 +141,4 @@ protected slots:
     void imageViewPointerMovedToDifferentPixel(bool isOnPixel, QPoint pixelCoord, GLushort pixelValue);
     void statusBarPixelInfoToggled(bool showStatusBarPixelInfo);
     void statusBarFpsToggled(bool showStatusBarFps);
-
-// signals:
-//  // Emitted when a QEvent::PolishRequest is received
-//  void polishRequestReceived();
 };
