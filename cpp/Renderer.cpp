@@ -473,6 +473,7 @@ void Renderer::makeClContext()
         cl::Device device(m_openClDeviceList[index].device);
         cl_context_properties properties[] = {CL_CONTEXT_PLATFORM, (cl_context_properties)m_openClDeviceList[index].platform, 0};
         m_openClContext.reset(new cl::Context(device, properties, &Renderer::openClErrorCallbackWrapper, reinterpret_cast<void*>(this)));
+        m_openClCq.reset(new cl::CommandQueue(*m_openClContext, device));
         m_currOpenClDeviceListEntry = index;
         emit currentOpenClDeviceListIndexChanged(m_currOpenClDeviceListEntry);
     }
@@ -492,10 +493,51 @@ void Renderer::makeClContext()
 
 void Renderer::buildClProgs()
 {
+    std::vector<cl::Device> devices;
+    devices.push_back(cl::Device(m_openClDeviceList[m_currOpenClDeviceListEntry].device));
+    auto buildProg = [&](QString sfn, const char* kernFuncName, std::unique_ptr<cl::Program>& prog, std::unique_ptr<cl::Kernel>& kern)
+    {
+        QFile sf(sfn);
+        if(!sf.open(QIODevice::ReadOnly | QIODevice::Text))
+        {
+            throw RisWidgetException(std::string("Renderer::buildClProgs(): Failed to open OpenCL source file \"") +
+                                     sfn.toStdString() + "\".");
+        }
+        QByteArray s{sf.readAll()};
+        if(s.isEmpty())
+        {
+            throw RisWidgetException(std::string("Renderer::buildClProgs(): Failed to read any data from OpenCL source ")
+                                     + std::string("file \"") + sfn.toStdString() + "\".  Is it a zero byte file?  If so, "
+                                     "it probably shouldn't be.");
+        }
+        cl::Program::Sources source(1, std::make_pair(s.data(), s.size()));
+        prog.reset(new cl::Program(*m_openClContext, source));
+        prog->build(devices);
+        kern.reset(new cl::Kernel(*prog, kernFuncName));
+    };
+    
+    buildProg(":/gpu/histogram.cl", "histogram", m_histoCalcProg, m_histoCalcKernel);
 }
 
 void Renderer::execHistoCalc()
 {
+    std::vector<float> in{00.0f, 01.0f, 02.0f, 03.0f,
+                          04.0f, 05.0f, 06.0f, 07.0f,
+                          08.0f, 09.0f, 10.0f, 11.0f,
+                          12.0f, 13.0f, 14.0f, 15.0f};
+    std::vector<float> out(16, std::numeric_limits<float>::lowest());
+    cl::Buffer inb(*m_openClContext, CL_MEM_READ_ONLY, in.size() * sizeof(float));
+    cl::Buffer outb(*m_openClContext, CL_MEM_READ_ONLY, in.size() * sizeof(float));
+    m_openClCq->enqueueWriteBuffer(inb, CL_TRUE, 0, in.size() * sizeof(float), in.data());
+    m_histoCalcKernel->setArg(0, inb);
+    m_histoCalcKernel->setArg(1, outb);
+    m_openClCq->enqueueNDRangeKernel(*m_histoCalcKernel, cl::NullRange, cl::NDRange(in.size()), cl::NDRange(1));
+    m_openClCq->enqueueReadBuffer(outb, CL_TRUE, 0, in.size() * sizeof(float), const_cast<float*>(out.data()));
+    for(float v : out)
+    {
+        std::cout << v << ' ';
+    }
+    std::cout << std::endl;
 }
 
 void Renderer::execHistoConsolidate()
@@ -743,6 +785,10 @@ void Renderer::threadDeInitSlot()
         }
 #endif
     }
+    m_histoCalcKernel.reset();
+    m_histoCalcProg.reset();
+    m_openClCq.reset();
+    m_openClContext.reset();
 }
 
 void Renderer::updateViewSlot(View* view)

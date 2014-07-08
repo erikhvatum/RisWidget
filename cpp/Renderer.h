@@ -90,9 +90,10 @@ private:
 
     QMutex* m_lock;
 
-    std::unique_ptr<cl::Context> m_openClContext;
     std::vector<OpenClDeviceListEntry> m_openClDeviceList;
     int m_currOpenClDeviceListEntry;
+    std::unique_ptr<cl::Context> m_openClContext;
+    std::unique_ptr<cl::CommandQueue> m_openClCq;
 
     static void openClErrorCallbackWrapper(const char* errorInfo, const void* privateInfo, std::size_t cb, void* userData);
 
@@ -111,6 +112,8 @@ private:
 #endif
 
     QPointer<ImageDrawProg> m_imageDrawProg;
+    std::unique_ptr<cl::Program> m_histoCalcProg;
+    std::unique_ptr<cl::Kernel> m_histoCalcKernel;
 //  ImageDrawProg m_imageDrawProg;
 //  HistoDrawProg m_histoDrawProg;
 

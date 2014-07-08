@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-kernel void HistoCalc(global float* input, global float* output)
+kernel void histogram(global float* input, global float* output)
 {
     size_t i = get_global_id(0);
     output[i] = input[i] * input[i];
