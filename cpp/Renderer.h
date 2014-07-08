@@ -73,8 +73,16 @@ private:
     struct OpenClDeviceListEntry
     {
         QString description;
+        cl_device_type type;
         cl_platform_id platform;
         cl_device_id device;
+        inline bool operator == (const OpenClDeviceListEntry& rhs) const
+        {
+            return description == rhs.description
+                && type == rhs.type
+                && platform == rhs.platform
+                && device == rhs.device;
+        }
     };
 
     static bool sm_staticInited;
@@ -82,8 +90,11 @@ private:
 
     QMutex* m_lock;
 
+    std::unique_ptr<cl::Context> m_openClContext;
     std::vector<OpenClDeviceListEntry> m_openClDeviceList;
     int m_currOpenClDeviceListEntry;
+
+    static void openClErrorCallbackWrapper(const char* errorInfo, const void* privateInfo, std::size_t cb, void* userData);
 
     QPointer<ImageWidget> m_imageWidget;
     QPointer<ImageView> m_imageView;
@@ -135,6 +146,8 @@ private:
     void makeGlContexts();
     void makeGlfs();
     void buildGlProgs();
+    void makeClContext();
+    void buildClProgs();
 
     void execHistoCalc();
     void execHistoConsolidate();
@@ -146,8 +159,10 @@ private:
     // The function executed in yet another thread by m_imageExtremaFuture
     static std::pair<GLushort, GLushort> findImageExtrema(ImageData imageData);
 
-    // Leading _ indicates that a signal is private and is used internally for cross-thread procedure calls
+    void openClErrorCallback(const char* errorInfo, const void* privateInfo, std::size_t cb);
+
 signals:
+    // Leading _ indicates that a signal is private and is used internally for cross-thread procedure calls
     void _refreshOpenClDeviceList();
     void _setCurrentOpenClDeviceListIndex(int newOpenClDeviceListIndex);
     void _newImage(ImageData imageData, QSize imageSize, bool filter);

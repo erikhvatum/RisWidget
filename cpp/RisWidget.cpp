@@ -677,18 +677,26 @@ void RisWidget::openClDeviceListChangedSlot(QVector<QString> openClDeviceList)
     if(!m_openClDevicesGroup.isNull())
     {
         m_menuOpenClDevices->clear();
+        for(QAction* action : m_actionsOpenClDevices)
+        {
+            disconnect(action, SIGNAL(triggered()), nullptr, nullptr);
+            action->deleteLater();
+        }
         m_actionsOpenClDevices.clear();
         m_openClDevicesGroup->deleteLater();
     }
     m_openClDevicesGroup.reset(new QActionGroup(this));
     m_actionsOpenClDevices.reserve(openClDeviceList.size());
+    int i = 0;
     for(const QString& description : openClDeviceList)
     {
         QAction* action{m_menuOpenClDevices->addAction(description)};
         action->setCheckable(true);
         action->setChecked(false);
+        connect(action, &QAction::triggered, [&, i](){setCurrentOpenClDeviceListIndex(i);});
         m_openClDevicesGroup->addAction(action);
         m_actionsOpenClDevices.append(action);
+        ++i;
     }
     emit openClDeviceListChanged(openClDeviceList);
 }

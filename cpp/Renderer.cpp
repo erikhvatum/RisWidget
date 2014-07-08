@@ -69,6 +69,11 @@ void Renderer::staticInit()
     }
 }
 
+void Renderer::openClErrorCallbackWrapper(const char* errorInfo, const void* privateInfo, std::size_t cb, void* userData)
+{
+    reinterpret_cast<Renderer*>(userData)->openClErrorCallback(errorInfo, privateInfo, cb);
+}
+
 Renderer::Renderer(ImageWidget* imageWidget, HistogramWidget* histogramWidget)
   : m_threadInited(false),
     m_lock(new QMutex(QMutex::Recursive)),
@@ -132,10 +137,87 @@ void Renderer::setCurrentOpenClDeviceListIndex(int newOpenClDeviceListIndex)
 
 void Renderer::refreshOpenClDeviceListSlot()
 {
+    try
+    {
+        QMutexLocker lock(m_lock);
+        std::vector<OpenClDeviceListEntry> openClDeviceList;
+        std::vector<cl::Platform> platforms;
+        cl::Platform::get(&platforms);
+        if(platforms.empty())
+        {
+            throw RisWidgetException("Renderer::makeClContext(): No OpenCL platform available.");
+        }
+        for(cl::Platform& platform : platforms)
+        {
+            std::vector<cl::Device> devices;
+            platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
+            for(cl::Device& device : devices)
+            {
+                QString typeName;
+                cl_device_type type{device.getInfo<CL_DEVICE_TYPE>()}; 
+                switch(type)
+                {
+                case CL_DEVICE_TYPE_CPU:
+                    typeName = "CPU";
+                    break;
+                case CL_DEVICE_TYPE_GPU:
+                    typeName = "GPU";
+                    break;
+                case CL_DEVICE_TYPE_ACCELERATOR:
+                    typeName = "Special Purpose Accelerator";
+                    break;
+                default:
+                    typeName = "[unknown]";
+                    break;
+                }
+                std::string deviceName(device.getInfo<CL_DEVICE_NAME>());
+                if(deviceName.empty()) deviceName = "[unnamed]";
+                std::string supportedOpenClVersion(device.getInfo<CL_DEVICE_VERSION>());
+                if(supportedOpenClVersion.empty()) supportedOpenClVersion = "[unknown]";
+                QString description(QString("%1 (%2) (%3)").arg(deviceName.c_str(), typeName, supportedOpenClVersion.c_str()));
+                openClDeviceList.push_back({description, type, platform(), device()});
+            }
+        }
+        if(openClDeviceList != m_openClDeviceList)
+        {
+            m_openClDeviceList.swap(openClDeviceList);
+            QVector<QString> signalOpenClDeviceList;
+            signalOpenClDeviceList.reserve(m_openClDeviceList.size());
+            for(const OpenClDeviceListEntry& entry : m_openClDeviceList)
+            {
+                signalOpenClDeviceList.append(entry.description);
+            }
+            emit openClDeviceListChanged(signalOpenClDeviceList);
+        }
+    }
+    catch(cl::Error e)
+    {
+        std::ostringstream o;
+        o << "Renderer::refreshOpenClDeviceListSlot(): Failed enumerate OpenCL devices and platforms: " << e.what() << " ";
+        o << '(' << e.err() << ").";
+        throw RisWidgetException(o.str());
+    }
 }
 
 void Renderer::setCurrentOpenClDeviceListIndexSlot(int newOpenClDeviceListIndex)
 {
+    QMutexLocker lock(m_lock);
+    if(newOpenClDeviceListIndex != m_currOpenClDeviceListEntry)
+    {
+        if(newOpenClDeviceListIndex < 0 || static_cast<std::size_t>(newOpenClDeviceListIndex) >= m_openClDeviceList.size())
+        {
+            std::ostringstream o;
+            o << "Renderer::setCurrentOpenClDeviceListIndexSlot(int newOpenClDeviceListIndex): newOpenClDeviceListIndex ";
+            o << "must be in the range [0, " << m_openClDeviceList.size() << ").  Note that the right limit of this open ";
+            o << "interval is simply the number of logical OpenCL devices made available by the host.";
+            throw RisWidgetException(o.str());
+        }
+        cl::Device device(m_openClDeviceList[newOpenClDeviceListIndex].device);
+        cl_context_properties properties[] = {CL_CONTEXT_PLATFORM, (cl_context_properties)m_openClDeviceList[newOpenClDeviceListIndex].platform, 0};
+        m_openClContext.reset(new cl::Context(device, properties, &Renderer::openClErrorCallbackWrapper, reinterpret_cast<void*>(this)));
+        m_currOpenClDeviceListEntry = newOpenClDeviceListIndex;
+        emit currentOpenClDeviceListIndexChanged(m_currOpenClDeviceListEntry);
+    }
 }
 
 void Renderer::updateView(View* view)
@@ -327,6 +409,91 @@ void Renderer::buildGlProgs()
 //  m_imageDrawProg.build(m_glfs);
 }
 
+void Renderer::makeClContext()
+{
+    // Due to #define __CL_ENABLE_EXCEPTIONS before #include "cl.hpp", the OpenCL API, when accessed through the C++
+    // interface provided by cl.hpp, will exception upon error.
+    try
+    {
+        refreshOpenClDeviceListSlot();
+        int index = -1, i = 0;
+        // A GPU is preferred
+        for(OpenClDeviceListEntry& entry : m_openClDeviceList)
+        {
+            if((entry.type & CL_DEVICE_TYPE_GPU) != 0)
+            {
+                index = i;
+                break;
+            }
+            ++i;
+        }
+        // An accelerator (such as a Xeon Phi) is our second choice
+        if(index == -1)
+        {
+            for(OpenClDeviceListEntry& entry : m_openClDeviceList)
+            {
+                if((entry.type & CL_DEVICE_TYPE_ACCELERATOR) != 0)
+                {
+                    index = i;
+                    break;
+                }
+                ++i;
+            }
+            // Running on anything that's not the CPU is our third choice
+            if(index == -1)
+            {
+                for(OpenClDeviceListEntry& entry : m_openClDeviceList)
+                {
+                    if((entry.type & CL_DEVICE_TYPE_CPU) == 0)
+                    {
+                        index = i;
+                        break;
+                    }
+                    ++i;
+                }
+                // Running on the CPU is our final fallback
+                if(index == -1)
+                {
+                    for(OpenClDeviceListEntry& entry : m_openClDeviceList)
+                    {
+                        if((entry.type & CL_DEVICE_TYPE_CPU) != 0)
+                        {
+                            index = i;
+                            break;
+                        }
+                        ++i;
+                    }
+                    if(index == -1)
+                    {
+                        throw RisWidgetException("No OpenCL device available.");
+                    }
+                }
+            }
+        }
+        cl::Device device(m_openClDeviceList[index].device);
+        cl_context_properties properties[] = {CL_CONTEXT_PLATFORM, (cl_context_properties)m_openClDeviceList[index].platform, 0};
+        m_openClContext.reset(new cl::Context(device, properties, &Renderer::openClErrorCallbackWrapper, reinterpret_cast<void*>(this)));
+        m_currOpenClDeviceListEntry = index;
+        emit currentOpenClDeviceListIndexChanged(m_currOpenClDeviceListEntry);
+    }
+    catch(cl::Error e)
+    {
+        std::ostringstream o;
+        o << "Renderer::makeClContext(): Failed to create OpenCL context: " << e.what() << " ";
+        o << '(' << e.err() << ").";
+        throw RisWidgetException(o.str());
+    }
+    catch(RisWidgetException e)
+    {
+        throw RisWidgetException(std::string("Renderer::makeClContext(): Failed to create OpenCL context:\n\t") + 
+                                 e.description());
+    }
+}
+
+void Renderer::buildClProgs()
+{
+}
+
 void Renderer::execHistoCalc()
 {
 }
@@ -372,6 +539,11 @@ std::pair<GLushort, GLushort> Renderer::findImageExtrema(ImageData imageData)
         }
     }
     return ret;
+}
+
+void Renderer::openClErrorCallback(const char* errorInfo, const void*, std::size_t)
+{
+    std::cerr << "OpenCL error: " << errorInfo << std::endl;
 }
 
 void Renderer::execImageDraw()
@@ -547,9 +719,11 @@ void Renderer::threadInitSlot()
     }
     m_threadInited = true;
 
-    makeContexts();
+    makeGlContexts();
     makeGlfs();
     buildGlProgs();
+    makeClContext();
+    buildClProgs();
 }
 
 void Renderer::threadDeInitSlot()
