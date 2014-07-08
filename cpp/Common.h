@@ -36,7 +36,11 @@
 #include <chrono>
 #include <cmath>
 #define __CL_ENABLE_EXCEPTIONS
-#include <OpenCL/opencl.h>
+#if defined(__APPLE__) || defined(__MACOSX)
+ #include <OpenCL/opencl.h>
+#else
+ #include <CL/cl.h>
+#endif
 #undef CL_VERSION_1_2
 #define CL_USE_DEPRECATED_OPENCL_1_1_APIS
 #include "cl.hpp"
