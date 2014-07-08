@@ -20,8 +20,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-kernel void histogramCalc(global float* input, global float* output)
+constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST;
+
+kernel void histogramCalc(read_only image2d_t image, global float* output)
 {
     size_t i = get_global_id(0);
-    output[i] = input[i] * input[i];
+    if(i == 0)
+    {
+        output[0] = get_image_width(image);
+    }
+    else if(i == 1)
+    {
+        output[1] = get_image_height(image);
+    }
+    else
+    {
+        output[i] = read_imagef(image, sampler, (int2)(i - 2, 0)).x;
+    }
 }

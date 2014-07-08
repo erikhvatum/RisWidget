@@ -570,21 +570,21 @@ void Renderer::buildClProgs()
 
 void Renderer::execHistoCalc()
 {
-    std::vector<float> in{00.0f, 01.0f, 02.0f, 03.0f,
-                          04.0f, 05.0f, 06.0f, 07.0f,
-                          08.0f, 09.0f, 10.0f, 11.0f,
-                          12.0f, 13.0f, 14.0f, 15.0f};
     std::vector<float> out(16, std::numeric_limits<float>::lowest());
-    cl::Buffer inb(*m_openClContext, CL_MEM_READ_ONLY, in.size() * sizeof(float));
-    cl::Buffer outb(*m_openClContext, CL_MEM_READ_ONLY, in.size() * sizeof(float));
-    m_openClCq->enqueueWriteBuffer(inb, CL_TRUE, 0, in.size() * sizeof(float), in.data());
-    m_histoCalcKern->setArg(0, inb);
+    cl::Buffer outb(*m_openClContext, CL_MEM_READ_ONLY, out.size() * sizeof(float));
+    m_imageView->makeCurrent();
+    m_glfs->glFinish();
+    std::vector<cl::Memory> memObjs;
+    memObjs.push_back(*m_imageCl);
+    m_openClCq->enqueueAcquireGLObjects(&memObjs);
+    m_histoCalcKern->setArg(0, m_imageCl->operator()());
     m_histoCalcKern->setArg(1, outb);
-    m_openClCq->enqueueNDRangeKernel(*m_histoCalcKern, cl::NullRange, cl::NDRange(in.size()), cl::NDRange(1));
-    m_openClCq->enqueueReadBuffer(outb, CL_TRUE, 0, in.size() * sizeof(float), const_cast<float*>(out.data()));
+    m_openClCq->enqueueNDRangeKernel(*m_histoCalcKern, cl::NullRange, cl::NDRange(out.size()), cl::NDRange(1));
+    m_openClCq->enqueueReadBuffer(outb, CL_TRUE, 0, out.size() * sizeof(float), const_cast<float*>(out.data()));
+    m_openClCq->enqueueReleaseGLObjects(&memObjs);
     for(float v : out)
     {
-        std::cout << v << ' ';
+        std::cout << (v * 65535) << ' ';
     }
     std::cout << std::endl;
 }
