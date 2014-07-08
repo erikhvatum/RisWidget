@@ -410,6 +410,22 @@ void Renderer::buildGlProgs()
 //  m_imageDrawProg.build(m_glfs);
 }
 
+#if !defined(__APPLE__) && !defined(__MACOSX) && !defined(_WIN32)
+ #include <GL/glx.h>
+ #undef Bool
+ #undef Status
+ #undef CursorShape
+ #undef Unsorted
+ #undef None
+ #undef KeyPress
+ #undef Type
+ #undef KeyRelease
+ #undef FocusIn
+ #undef FocusOut
+ #undef FontChange
+ #undef Expose
+#endif
+
 void Renderer::makeClContext()
 {
     // Due to #define __CL_ENABLE_EXCEPTIONS before #include "cl.hpp", the OpenCL API, when accessed through the C++
@@ -818,6 +834,7 @@ void Renderer::threadDeInitSlot()
         }
 #endif
     }
+    m_imageCl.reset();
     m_histoCalcKern.reset();
     m_histoCalcProg.reset();
     m_histoConsolidateKern.reset();
