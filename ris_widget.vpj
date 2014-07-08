@@ -217,9 +217,10 @@
 			<Folder
 				Name="gpu"
 				Filters="">
-				<F N="cpp/gpu/histogram.cl"/>
 				<F N="cpp/gpu/histogram.glslf"/>
 				<F N="cpp/gpu/histogram.glslv"/>
+				<F N="cpp/gpu/histogramCalc.cl"/>
+				<F N="cpp/gpu/histogramConsolidate.cl"/>
 				<F N="cpp/gpu/image.glslf"/>
 				<F N="cpp/gpu/image.glslv"/>
 			</Folder>

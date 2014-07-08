@@ -113,14 +113,17 @@ private:
 
     QPointer<ImageDrawProg> m_imageDrawProg;
     std::unique_ptr<cl::Program> m_histoCalcProg;
-    std::unique_ptr<cl::Kernel> m_histoCalcKernel;
-//  ImageDrawProg m_imageDrawProg;
+    std::unique_ptr<cl::Kernel> m_histoCalcKern;
+    std::unique_ptr<cl::Program> m_histoConsolidateProg;
+    std::unique_ptr<cl::Kernel> m_histoConsolidateKern;
 //  HistoDrawProg m_histoDrawProg;
 
     // Raw image data
     ImageData m_imageData;
     // Image texture
     std::unique_ptr<QOpenGLTexture> m_image;
+    // OpenCL GL sharing reference to m_image
+    std::unique_ptr<cl::Image2DGL> m_imageCl;
     void delImage();
     // Dimensions of image texture
     QSize m_imageSize;

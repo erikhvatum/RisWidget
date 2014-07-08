@@ -291,6 +291,7 @@ void Renderer::delImage()
 {
     if(m_image && m_image->isCreated())
     {
+        m_imageCl.reset();
         m_imageData.clear();
         m_image.reset();
         m_imageSize.setWidth(0);
@@ -471,7 +472,27 @@ void Renderer::makeClContext()
             }
         }
         cl::Device device(m_openClDeviceList[index].device);
-        cl_context_properties properties[] = {CL_CONTEXT_PLATFORM, (cl_context_properties)m_openClDeviceList[index].platform, 0};
+        m_imageView->makeCurrent();
+        cl_context_properties properties[] = {CL_CONTEXT_PLATFORM,
+                                                 (cl_context_properties)m_openClDeviceList[index].platform,
+#if defined(__APPLE__) || defined(__MACOSX)
+                                              // OS X
+                                              CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE,
+                                                 (cl_context_properties)CGLGetShareGroup(CGLGetCurrentContext()),
+#elif defined(_WIN32)
+                                              // Windows
+                                              CL_GL_CONTEXT_KHR,
+                                                 (cl_context_properties)wglGetCurrentContext(),
+                                              CL_WGL_HDC_KHR,
+                                                 (cl_context_properties)wglGetCurrentDC()
+#else
+                                              // Linux (and anything else supporting GLX and all required features)
+                                              CL_GL_CONTEXT_KHR,
+                                                 (cl_context_properties)glXGetCurrentContext(),
+                                              CL_GLX_DISPLAY_KHR,
+                                                 (cl_context_properties)glXGetCurrentDisplay(),
+#endif
+                                              0};
         m_openClContext.reset(new cl::Context(device, properties, &Renderer::openClErrorCallbackWrapper, reinterpret_cast<void*>(this)));
         m_openClCq.reset(new cl::CommandQueue(*m_openClContext, device));
         m_currOpenClDeviceListEntry = index;
@@ -512,11 +533,23 @@ void Renderer::buildClProgs()
         }
         cl::Program::Sources source(1, std::make_pair(s.data(), s.size()));
         prog.reset(new cl::Program(*m_openClContext, source));
-        prog->build(devices);
+        try
+        {
+            prog->build(devices);
+        }
+        catch(cl::Error e)
+        {
+            if(e.err() == CL_BUILD_PROGRAM_FAILURE)
+            {
+                throw RisWidgetException(std::string("Failed to build OpenCL source file \"") + sfn.toStdString() +
+                                         std::string("\": ") + prog->getBuildInfo<CL_PROGRAM_BUILD_LOG>(devices[0]));
+            }
+        }
         kern.reset(new cl::Kernel(*prog, kernFuncName));
     };
     
-    buildProg(":/gpu/histogram.cl", "histogram", m_histoCalcProg, m_histoCalcKernel);
+    buildProg(":/gpu/histogramCalc.cl", "histogramCalc", m_histoCalcProg, m_histoCalcKern);
+    buildProg(":/gpu/histogramConsolidate.cl", "histogramConsolidate", m_histoConsolidateProg, m_histoConsolidateKern);
 }
 
 void Renderer::execHistoCalc()
@@ -529,9 +562,9 @@ void Renderer::execHistoCalc()
     cl::Buffer inb(*m_openClContext, CL_MEM_READ_ONLY, in.size() * sizeof(float));
     cl::Buffer outb(*m_openClContext, CL_MEM_READ_ONLY, in.size() * sizeof(float));
     m_openClCq->enqueueWriteBuffer(inb, CL_TRUE, 0, in.size() * sizeof(float), in.data());
-    m_histoCalcKernel->setArg(0, inb);
-    m_histoCalcKernel->setArg(1, outb);
-    m_openClCq->enqueueNDRangeKernel(*m_histoCalcKernel, cl::NullRange, cl::NDRange(in.size()), cl::NDRange(1));
+    m_histoCalcKern->setArg(0, inb);
+    m_histoCalcKern->setArg(1, outb);
+    m_openClCq->enqueueNDRangeKernel(*m_histoCalcKern, cl::NullRange, cl::NDRange(in.size()), cl::NDRange(1));
     m_openClCq->enqueueReadBuffer(outb, CL_TRUE, 0, in.size() * sizeof(float), const_cast<float*>(out.data()));
     for(float v : out)
     {
@@ -785,8 +818,10 @@ void Renderer::threadDeInitSlot()
         }
 #endif
     }
-    m_histoCalcKernel.reset();
+    m_histoCalcKern.reset();
     m_histoCalcProg.reset();
+    m_histoConsolidateKern.reset();
+    m_histoConsolidateProg.reset();
     m_openClCq.reset();
     m_openClContext.reset();
 }
@@ -847,6 +882,8 @@ void Renderer::newImageSlot(ImageData imageData, QSize imageSize, bool filter)
         m_glfs->glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
         m_image->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt16, reinterpret_cast<GLvoid*>(m_imageData.data()));
         m_image->release();
+
+        m_imageCl.reset(new cl::Image2DGL(*m_openClContext, CL_MEM_READ_ONLY, GL_TEXTURE_2D, 0, m_image->textureId()));
 
         execHistoCalc();
         execHistoConsolidate();
