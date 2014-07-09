@@ -592,9 +592,9 @@ void Renderer::execHistoCalc()
                                      nullptr, m_histoBlocksKernComplete.get());
     m_openClCq->enqueueReadBuffer(outb, CL_TRUE, 0, out.size() * sizeof(float), (float*)out.data());
     m_openClCq->enqueueReleaseGLObjects(&memObjs);
-    for(float *v{(float*)out.data()}, *ve{(float*)out.data() + out.size()}; v != ve; v += 4)
+    for(float *v{(float*)out.data()}, *ve{(float*)out.data() + out.size()}; v < ve; v += 8)
     {
-        std::cout << v[0] << ' ' << v[1] << ' ' << v[2] << ' ' << v[3] << std::endl;
+        std::cout << v[0] << ' ' << v[1] << ' ' << v[2] << ' ' << v[3] << ' ' << v[4] << ' ' << v[5] << std::endl;
     }
     std::cout << std::endl;
 }

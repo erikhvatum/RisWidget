@@ -22,11 +22,11 @@
 
 constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST;
 
-kernel void computeBlocks(read_only image2d_t image, global float4* output, volatile global uint* nextIdx)//local uint* blockHistogram, global float* histogram)
+kernel void computeBlocks(read_only image2d_t image, global float8* output, volatile global uint* nextIdx)//local uint* blockHistogram, global float* histogram)
 {
     uint curIdx = atomic_inc(nextIdx);
     --curIdx;
-    output[curIdx] = (float4)(get_global_id(0), get_global_id(1), get_local_id(0), get_local_id(1));
+    output[curIdx] = (float8)(get_global_id(0), get_global_id(1), get_group_id(0), get_group_id(1), get_local_id(0), get_local_id(1), 0, 0);
 }
 
 kernel void reduceBlocks(global int* blah)
