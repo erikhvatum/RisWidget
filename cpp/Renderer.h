@@ -92,6 +92,7 @@ private:
 
     std::vector<OpenClDeviceListEntry> m_openClDeviceList;
     int m_currOpenClDeviceListEntry;
+    std::unique_ptr<cl::Device> m_openClDevice;
     std::unique_ptr<cl::Context> m_openClContext;
     std::unique_ptr<cl::CommandQueue> m_openClCq;
 
@@ -113,9 +114,9 @@ private:
 
     QPointer<ImageDrawProg> m_imageDrawProg;
     std::unique_ptr<cl::Program> m_histoCalcProg;
-    std::unique_ptr<cl::Kernel> m_histoCalcKern;
-    std::unique_ptr<cl::Program> m_histoConsolidateProg;
-    std::unique_ptr<cl::Kernel> m_histoConsolidateKern;
+    std::unique_ptr<cl::Kernel> m_histoBlocksKern;
+    std::unique_ptr<cl::Event> m_histoBlocksKernComplete;
+    std::unique_ptr<cl::Kernel> m_histoReduceKern;
 //  HistoDrawProg m_histoDrawProg;
 
     // Raw image data

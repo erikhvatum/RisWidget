@@ -22,19 +22,14 @@
 
 constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST;
 
-kernel void histogramCalc(read_only image2d_t image, global float* output)
+kernel void computeBlocks(read_only image2d_t image, global float4* output, volatile global uint* nextIdx)//local uint* blockHistogram, global float* histogram)
 {
-    size_t i = get_global_id(0);
-    if(i == 0)
-    {
-        output[0] = get_image_width(image);
-    }
-    else if(i == 1)
-    {
-        output[1] = get_image_height(image);
-    }
-    else
-    {
-        output[i] = read_imagef(image, sampler, (int2)(i - 2, 0)).x;
-    }
+    uint curIdx = atomic_inc(nextIdx);
+    --curIdx;
+    output[curIdx] = (float4)(get_global_id(0), get_global_id(1), get_local_id(0), get_local_id(1));
+}
+
+kernel void reduceBlocks(global int* blah)
+{
+    ++(*blah);
 }

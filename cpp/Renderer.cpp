@@ -487,7 +487,7 @@ void Renderer::makeClContext()
                 }
             }
         }
-        cl::Device device(m_openClDeviceList[index].device);
+        m_openClDevice.reset(new cl::Device(m_openClDeviceList[index].device));
         m_imageView->makeCurrent();
         cl_context_properties properties[] = {CL_CONTEXT_PLATFORM,
                                                  (cl_context_properties)m_openClDeviceList[index].platform,
@@ -509,8 +509,9 @@ void Renderer::makeClContext()
                                                  (cl_context_properties)glXGetCurrentDisplay(),
 #endif
                                               0};
-        m_openClContext.reset(new cl::Context(device, properties, &Renderer::openClErrorCallbackWrapper, reinterpret_cast<void*>(this)));
-        m_openClCq.reset(new cl::CommandQueue(*m_openClContext, device));
+        m_openClContext.reset(new cl::Context(*m_openClDevice, properties, &Renderer::openClErrorCallbackWrapper, reinterpret_cast<void*>(this)));
+        m_openClCq.reset(new cl::CommandQueue(*m_openClContext, *m_openClDevice));
+        m_histoBlocksKernComplete.reset(new cl::Event);
         m_currOpenClDeviceListEntry = index;
         emit currentOpenClDeviceListIndexChanged(m_currOpenClDeviceListEntry);
     }
@@ -530,9 +531,9 @@ void Renderer::makeClContext()
 
 void Renderer::buildClProgs()
 {
-    std::vector<cl::Device> devices;
-    devices.push_back(cl::Device(m_openClDeviceList[m_currOpenClDeviceListEntry].device));
-    auto buildProg = [&](QString sfn, const char* kernFuncName, std::unique_ptr<cl::Program>& prog, std::unique_ptr<cl::Kernel>& kern)
+    auto buildProg = [&](QString sfn,
+                         std::unique_ptr<cl::Program>& prog,
+                         std::vector<std::pair<std::string, std::unique_ptr<cl::Kernel>*>>&& kps)
     {
         QFile sf(sfn);
         if(!sf.open(QIODevice::ReadOnly | QIODevice::Text))
@@ -551,40 +552,49 @@ void Renderer::buildClProgs()
         prog.reset(new cl::Program(*m_openClContext, source));
         try
         {
-            prog->build(devices);
+            prog->build({*m_openClDevice});
         }
         catch(cl::Error e)
         {
             if(e.err() == CL_BUILD_PROGRAM_FAILURE)
             {
                 throw RisWidgetException(std::string("Failed to build OpenCL source file \"") + sfn.toStdString() +
-                                         std::string("\": ") + prog->getBuildInfo<CL_PROGRAM_BUILD_LOG>(devices[0]));
+                                         std::string("\": ") + prog->getBuildInfo<CL_PROGRAM_BUILD_LOG>(*m_openClDevice));
             }
         }
-        kern.reset(new cl::Kernel(*prog, kernFuncName));
+        for(std::pair<std::string, std::unique_ptr<cl::Kernel>*>& kp : kps)
+        {
+            kp.second->reset(new cl::Kernel(*prog, kp.first.c_str()));
+        }
     };
     
-    buildProg(":/gpu/histogramCalc.cl", "histogramCalc", m_histoCalcProg, m_histoCalcKern);
-    buildProg(":/gpu/histogramConsolidate.cl", "histogramConsolidate", m_histoConsolidateProg, m_histoConsolidateKern);
+    buildProg(":/gpu/histogram.cl", m_histoCalcProg, {std::make_pair(std::string("computeBlocks"), &m_histoBlocksKern),
+                                                      std::make_pair(std::string("reduceBlocks"), &m_histoReduceKern)});
 }
 
 void Renderer::execHistoCalc()
 {
-    std::vector<float> out(16, std::numeric_limits<float>::lowest());
-    cl::Buffer outb(*m_openClContext, CL_MEM_READ_ONLY, out.size() * sizeof(float));
+    std::vector<float> out(1024, std::numeric_limits<float>::lowest());
+    cl::Buffer outb(*m_openClContext, CL_MEM_WRITE_ONLY, out.size() * sizeof(float));
+    uint32_t nextIdx{0};
+    cl::Buffer nextIdxb(*m_openClContext, CL_MEM_READ_WRITE, sizeof(uint32_t));
+    m_openClCq->enqueueWriteBuffer(nextIdxb, CL_TRUE, 0, sizeof(uint32_t), &nextIdx);
     m_imageView->makeCurrent();
     m_glfs->glFinish();
-    std::vector<cl::Memory> memObjs;
-    memObjs.push_back(*m_imageCl);
+    std::vector<cl::Memory> memObjs{*m_imageCl};
+    std::vector<cl::Event> eventObjs{*m_histoBlocksKernComplete};
     m_openClCq->enqueueAcquireGLObjects(&memObjs);
-    m_histoCalcKern->setArg(0, m_imageCl->operator()());
-    m_histoCalcKern->setArg(1, outb);
-    m_openClCq->enqueueNDRangeKernel(*m_histoCalcKern, cl::NullRange, cl::NDRange(out.size()), cl::NDRange(1));
-    m_openClCq->enqueueReadBuffer(outb, CL_TRUE, 0, out.size() * sizeof(float), const_cast<float*>(out.data()));
+    m_histoBlocksKern->setArg(0, m_imageCl->operator()());
+    m_histoBlocksKern->setArg(1, outb);
+    m_histoBlocksKern->setArg(2, nextIdxb);
+    m_openClCq->enqueueNDRangeKernel(*m_histoBlocksKern,
+                                     cl::NullRange, cl::NDRange(8, 8), cl::NDRange(8, 8),
+                                     nullptr, m_histoBlocksKernComplete.get());
+    m_openClCq->enqueueReadBuffer(outb, CL_TRUE, 0, out.size() * sizeof(float), (float*)out.data());
     m_openClCq->enqueueReleaseGLObjects(&memObjs);
-    for(float v : out)
+    for(float *v{(float*)out.data()}, *ve{(float*)out.data() + out.size()}; v != ve; v += 4)
     {
-        std::cout << (v * 65535) << ' ';
+        std::cout << v[0] << ' ' << v[1] << ' ' << v[2] << ' ' << v[3] << std::endl;
     }
     std::cout << std::endl;
 }
@@ -834,13 +844,14 @@ void Renderer::threadDeInitSlot()
         }
 #endif
     }
-    m_imageCl.reset();
-    m_histoCalcKern.reset();
+    m_histoBlocksKern.reset();
+    m_histoReduceKern.reset();
     m_histoCalcProg.reset();
-    m_histoConsolidateKern.reset();
-    m_histoConsolidateProg.reset();
+    m_imageCl.reset();
+    m_histoBlocksKernComplete.reset();
     m_openClCq.reset();
     m_openClContext.reset();
+    m_openClDevice.reset();
 }
 
 void Renderer::updateViewSlot(View* view)
