@@ -574,7 +574,7 @@ void Renderer::buildClProgs()
 
 void Renderer::execHistoCalc()
 {
-    std::vector<float> out(1024, std::numeric_limits<float>::lowest());
+    std::vector<float> out(4096, std::numeric_limits<float>::lowest());
     cl::Buffer outb(*m_openClContext, CL_MEM_WRITE_ONLY, out.size() * sizeof(float));
     uint32_t nextIdx{0};
     cl::Buffer nextIdxb(*m_openClContext, CL_MEM_READ_WRITE, sizeof(uint32_t));
@@ -588,13 +588,13 @@ void Renderer::execHistoCalc()
     m_histoBlocksKern->setArg(1, outb);
     m_histoBlocksKern->setArg(2, nextIdxb);
     m_openClCq->enqueueNDRangeKernel(*m_histoBlocksKern,
-                                     cl::NullRange, cl::NDRange(8, 8), cl::NDRange(8, 8),
+                                     cl::NullRange, cl::NDRange(16, 16), cl::NDRange(8, 8),
                                      nullptr, m_histoBlocksKernComplete.get());
     m_openClCq->enqueueReadBuffer(outb, CL_TRUE, 0, out.size() * sizeof(float), (float*)out.data());
     m_openClCq->enqueueReleaseGLObjects(&memObjs);
     for(float *v{(float*)out.data()}, *ve{(float*)out.data() + out.size()}; v < ve; v += 8)
     {
-        std::cout << v[0] << ' ' << v[1] << ' ' << v[2] << ' ' << v[3] << ' ' << v[4] << ' ' << v[5] << std::endl;
+        std::cout << v[0] << '\t' << v[1] << '\t' << v[2] << '\t' << v[3] << '\t' << v[4] << '\t' << v[5] << std::endl;
     }
     std::cout << std::endl;
 }
