@@ -89,7 +89,6 @@ Renderer::Renderer(ImageWidget* imageWidget, HistogramWidget* histogramWidget)
     m_imageSize(0, 0),
     m_prevHightlightPointerDrawn(false),
     m_histogramBinCount(2048),
-    m_histogramBlocks(std::numeric_limits<GLuint>::max()),
     m_histogram(std::numeric_limits<GLuint>::max()),
     m_histogramData(m_histogramBinCount, 0)
 {
@@ -301,27 +300,21 @@ void Renderer::delImage()
 
 void Renderer::delHistogramBlocks()
 {
-//  if(m_histogramBlocks != std::numeric_limits<GLuint>::max())
-//  {
-//      m_glfs->glDeleteTextures(1, &m_histogramBlocks);
-//      m_histogramBlocks = std::numeric_limits<GLuint>::max();
-//  }
+    m_histogramBlocks.reset();
 }
 
 void Renderer::delHistogram()
 {
-//  if(m_histogram != std::numeric_limits<GLuint>::max())
-//  {
-//      m_glfs->glDeleteTextures(1, &m_histogram);
-//      m_histogram = std::numeric_limits<GLuint>::max();
-// 
-//      m_histogramView->makeCurrent();
-//      m_glfs->glUseProgram(m_histoDrawProg);
-//      m_glfs->glDeleteVertexArrays(1, &m_histoDrawProg.pointVao);
-//      m_histoDrawProg.pointVao = std::numeric_limits<GLuint>::max();
-//      m_glfs->glDeleteBuffers(1, &m_histoDrawProg.pointVaoBuff);
-//      m_histoDrawProg.pointVaoBuff = std::numeric_limits<GLuint>::max();
-//  }
+    if(m_histogram != std::numeric_limits<GLuint>::max())
+    {
+        m_histogramClBuffer.reset();
+        m_glfs->glDeleteTextures(1, &m_histogram);
+        m_histogram = std::numeric_limits<GLuint>::max();
+
+        m_histoDrawProg->bind();
+        m_histoDrawProg->m_binVao->destroy();
+        m_histoDrawProg->m_binVaoBuff->destroy();
+    }
 }
 
 void Renderer::makeGlContexts()
@@ -392,22 +385,22 @@ void Renderer::makeGlfs()
 void Renderer::buildGlProgs()
 {
     m_histogramView->makeCurrent();
-//  m_histoCalcProg.build(m_glfs);
-//  m_histoConsolidateProg.build(m_glfs);
-//  m_histoDrawProg.build(m_glfs);
+    m_histoDrawProg = new HistoDrawProg(this);
+    if(!m_histoDrawProg->link())
+    {
+        throw RisWidgetException("Renderer::buildGlProgs(): Failed to link histogram drawing GLSL program.");
+    }
+    m_histoDrawProg->bind();
+    m_histoDrawProg->init(m_glfs);
 
     m_imageView->makeCurrent();
     m_imageDrawProg = new ImageDrawProg(this);
-    // Note that a colon prepended to a filename opened by a Qt object refers to a path in the Qt resource bundle built
-    // into a program/library's binary
     if(!m_imageDrawProg->link())
     {
         throw RisWidgetException("Renderer::buildGlProgs(): Failed to link image drawing GLSL program.");
     }
     m_imageDrawProg->bind();
     m_imageDrawProg->init(m_glfs);
-
-//  m_imageDrawProg.build(m_glfs);
 }
 
 #if !defined(__APPLE__) && !defined(__MACOSX) && !defined(_WIN32)
@@ -574,7 +567,7 @@ void Renderer::buildClProgs()
 
 void Renderer::execHistoCalc()
 {
-    std::vector<float> out(4096, std::numeric_limits<float>::lowest());
+    std::vector<float> out(16384, std::numeric_limits<float>::lowest());
     cl::Buffer outb(*m_openClContext, CL_MEM_WRITE_ONLY, out.size() * sizeof(float));
     uint32_t nextIdx{0};
     cl::Buffer nextIdxb(*m_openClContext, CL_MEM_READ_WRITE, sizeof(uint32_t));
@@ -588,7 +581,7 @@ void Renderer::execHistoCalc()
     m_histoBlocksKern->setArg(1, outb);
     m_histoBlocksKern->setArg(2, nextIdxb);
     m_openClCq->enqueueNDRangeKernel(*m_histoBlocksKern,
-                                     cl::NullRange, cl::NDRange(16, 16), cl::NDRange(8, 8),
+                                     cl::NullRange, cl::NDRange(128, 128), cl::NDRange(16, 16),
                                      nullptr, m_histoBlocksKernComplete.get());
     m_openClCq->enqueueReadBuffer(outb, CL_TRUE, 0, out.size() * sizeof(float), (float*)out.data());
     m_openClCq->enqueueReleaseGLObjects(&memObjs);

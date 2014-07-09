@@ -24,6 +24,7 @@
 
 #include "Common.h"
 #include "ImageDrawProg.h"
+#include "HistoDrawProg.h"
 
 class View;
 class ViewWidget;
@@ -117,7 +118,7 @@ private:
     std::unique_ptr<cl::Kernel> m_histoBlocksKern;
     std::unique_ptr<cl::Event> m_histoBlocksKernComplete;
     std::unique_ptr<cl::Kernel> m_histoReduceKern;
-//  HistoDrawProg m_histoDrawProg;
+    QPointer<HistoDrawProg> m_histoDrawProg;
 
     // Raw image data
     ImageData m_imageData;
@@ -144,10 +145,16 @@ private:
     QPoint m_prevHightlightPointerCoord;
 
     GLuint m_histogramBinCount;
-    GLuint m_histogramBlocks;
+    std::unique_ptr<cl::Buffer> m_histogramBlocks;
     void delHistogramBlocks();
+    // OpenGL buffer backing the histogram buffer texture
+    GLuint m_histogramGlBuffer;
+    // OpenGL histogram buffer texture
     GLuint m_histogram;
+    // OpenCL reference to histogram buffer
+    std::unique_ptr<cl::BufferGL> m_histogramClBuffer;
     void delHistogram();
+    // RAM cache of histogram data computed by OpenCL
     HistogramData m_histogramData;
 
     void makeGlContexts();

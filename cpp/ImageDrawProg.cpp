@@ -8,6 +8,8 @@ ImageDrawProg::ImageDrawProg(QObject* parent)
     m_pmvLoc(std::numeric_limits<int>::min()),
     m_fragToTexLoc(std::numeric_limits<int>::min())
 {
+    // Note Qt interprets a path beginning with a colon as a Qt resource bundle identifier.  Such a path refers to an
+    // object integrated into this application's binary.
     addShader(":/gpu/image.glslv", QOpenGLShader::Vertex);
     addShader(":/gpu/image.glslf", QOpenGLShader::Fragment);
 }

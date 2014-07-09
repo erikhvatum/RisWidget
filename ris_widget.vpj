@@ -199,6 +199,15 @@
 			Name="cpp"
 			Filters="*.cpp;*.h">
 			<Folder
+				Name="gpu"
+				Filters="">
+				<F N="cpp/gpu/histogram.cl"/>
+				<F N="cpp/gpu/histogram.glslf"/>
+				<F N="cpp/gpu/histogram.glslv"/>
+				<F N="cpp/gpu/image.glslf"/>
+				<F N="cpp/gpu/image.glslv"/>
+			</Folder>
+			<Folder
 				Name="qt generated files"
 				Filters="">
 				<F N="cpp/moc_HistogramView.cpp"/>
@@ -214,20 +223,13 @@
 				<F N="cpp/ui_RisWidget.h"/>
 				<F N="cpp/ui_ShowCheckerDialog.h"/>
 			</Folder>
-			<Folder
-				Name="gpu"
-				Filters="">
-				<F N="cpp/gpu/histogram.cl"/>
-				<F N="cpp/gpu/histogram.glslf"/>
-				<F N="cpp/gpu/histogram.glslv"/>
-				<F N="cpp/gpu/image.glslf"/>
-				<F N="cpp/gpu/image.glslv"/>
-			</Folder>
 			<F N="cpp/Common.h"/>
 			<F N="cpp/GilStateScopeOperators.cpp"/>
 			<F N="cpp/GilStateScopeOperators.h"/>
 			<F N="cpp/GlslProg.cpp"/>
 			<F N="cpp/GlslProg.h"/>
+			<F N="cpp/HistoDrawProg.cpp"/>
+			<F N="cpp/HistoDrawProg.h"/>
 			<F N="cpp/HistogramView.cpp"/>
 			<F N="cpp/HistogramView.h"/>
 			<F N="cpp/HistogramWidget.cpp"/>

@@ -1,3 +1,4 @@
+#version 410 core
 // The MIT License (MIT)
 //
 // Copyright (c) 2014 Erik Hvatum
@@ -20,19 +21,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#version 430 core
-
 uniform mat4 projectionModelViewMatrix;
 uniform uint binCount;
 uniform float binScale;
 uniform float gammaGammaVal = 1.0;
-layout (binding = 0, r32ui) uniform readonly uimage1D histogram;
+uniform usamplerBuffer histogram;
 
 in float binIndex;
 
 void main()
 {
-    uint binValue = imageLoad(histogram, int(binIndex)).r;
+    uint binValue = texelFetch(histogram, int(binIndex)).r;
     gl_Position = projectionModelViewMatrix * vec4((float(binIndex) / float(binCount) - 0.5) * 2.0,
 //                                                 (log(float(binValue)) / binScale - 0.5) * 2.0,
 //                                                 (float(binValue) / binScale - 0.5) * 2.0,

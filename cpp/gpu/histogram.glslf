@@ -1,3 +1,4 @@
+#version 410 core
 // The MIT License (MIT)
 //
 // Copyright (c) 2014 Erik Hvatum
@@ -19,13 +20,6 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-
-#version 430 core
-
-uniform usampler2D tex;
-
-// From vertex shader
-in vec2 vsTexCoord;
 
 layout (location = 0) out vec4 fsColor;
 
