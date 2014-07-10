@@ -626,7 +626,7 @@ void Renderer::execHistoCalc()
                                      cl::NullRange, cl::NDRange(128, 128), cl::NDRange(16, 16),
                                      waits.get(), &e2);
     
-    std::ofstream o("/Users/ehvatum/debug.txt", std::ios_base::out | std::ios_base::trunc);
+    std::ofstream o("/home/ehvatum/debug.txt", std::ios_base::out | std::ios_base::trunc);
     waits.reset(new std::vector<cl::Event>{e2});
     b = m_openClCq->enqueueMapBuffer(*m_histogramBlocks, CL_TRUE, CL_MEM_READ_ONLY, 0, histoBlocksByteCount, waits.get());
     uint row{0};

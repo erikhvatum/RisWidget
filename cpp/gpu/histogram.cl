@@ -41,9 +41,9 @@ kernel void computeBlocks(read_only image2d_t image,
     {
         for(x = start.x; x < end.x; ++x)
         {
-            intensity = read_imagef(image, sampler, (int2)(x, y)).r;
-            bin = (uint)(floor(intensity * binCount));
-            atomic_inc(block + bin);
+            intensity = read_imagef(image, sampler, (int2)(x, y)).x;
+            bin = (uint)(floor(intensity * (binCount - 1)));
+            atom_inc(block + bin);
         }
     }
 //  block[binCount - 1] = get_group_id(0);
