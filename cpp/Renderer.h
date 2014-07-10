@@ -116,7 +116,6 @@ private:
     QPointer<ImageDrawProg> m_imageDrawProg;
     std::unique_ptr<cl::Program> m_histoCalcProg;
     std::unique_ptr<cl::Kernel> m_histoBlocksKern;
-    std::unique_ptr<cl::Event> m_histoBlocksKernComplete;
     std::unique_ptr<cl::Kernel> m_histoReduceKern;
     QPointer<HistoDrawProg> m_histoDrawProg;
 
@@ -147,9 +146,12 @@ private:
     GLuint m_histogramBinCount;
     std::unique_ptr<cl::Buffer> m_histogramBlocks;
     void delHistogramBlocks();
-    // OpenGL buffer backing the histogram buffer texture
+    // OpenGL buffer backing the histogram buffer texture.  It would be preferrable to use QOpenGLBuffer rather than
+    // interacting with the OpenGL API directly with the texture represented by its OpenGL uint name.  However, in Qt
+    // 5.3.1, QOpenGLBuffer is not intended to store a GL_TEXTURE_BUFFER.
     GLuint m_histogramGlBuffer;
-    // OpenGL histogram buffer texture
+    // OpenGL histogram buffer texture.  QOpenGLTexture does support texture buffer target, but provides no apparent
+    // way to supply the required buffer.  So, we again store an OpenGL uint name directly.
     GLuint m_histogram;
     // OpenCL reference to histogram buffer
     std::unique_ptr<cl::BufferGL> m_histogramClBuffer;
@@ -164,7 +166,6 @@ private:
     void buildClProgs();
 
     void execHistoCalc();
-    void execHistoConsolidate();
     void execImageDraw();
     void execHistoDraw();
 

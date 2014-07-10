@@ -89,6 +89,7 @@ Renderer::Renderer(ImageWidget* imageWidget, HistogramWidget* histogramWidget)
     m_imageSize(0, 0),
     m_prevHightlightPointerDrawn(false),
     m_histogramBinCount(2048),
+    m_histogramGlBuffer(std::numeric_limits<GLuint>::max()),
     m_histogram(std::numeric_limits<GLuint>::max()),
     m_histogramData(m_histogramBinCount, 0)
 {
@@ -310,6 +311,8 @@ void Renderer::delHistogram()
         m_histogramClBuffer.reset();
         m_glfs->glDeleteTextures(1, &m_histogram);
         m_histogram = std::numeric_limits<GLuint>::max();
+        m_glfs->glDeleteBuffers(1, &m_histogramGlBuffer);
+        m_histogramGlBuffer = std::numeric_limits<GLuint>::max();
 
         m_histoDrawProg->bind();
         m_histoDrawProg->m_binVao->destroy();
@@ -504,7 +507,6 @@ void Renderer::makeClContext()
                                               0};
         m_openClContext.reset(new cl::Context(*m_openClDevice, properties, &Renderer::openClErrorCallbackWrapper, reinterpret_cast<void*>(this)));
         m_openClCq.reset(new cl::CommandQueue(*m_openClContext, *m_openClDevice));
-        m_histoBlocksKernComplete.reset(new cl::Event);
         m_currOpenClDeviceListEntry = index;
         emit currentOpenClDeviceListIndexChanged(m_currOpenClDeviceListEntry);
     }
@@ -567,33 +569,113 @@ void Renderer::buildClProgs()
 
 void Renderer::execHistoCalc()
 {
-    std::vector<float> out(16384, std::numeric_limits<float>::lowest());
-    cl::Buffer outb(*m_openClContext, CL_MEM_WRITE_ONLY, out.size() * sizeof(float));
-    uint32_t nextIdx{0};
-    cl::Buffer nextIdxb(*m_openClContext, CL_MEM_READ_WRITE, sizeof(uint32_t));
-    m_openClCq->enqueueWriteBuffer(nextIdxb, CL_TRUE, 0, sizeof(uint32_t), &nextIdx);
+    static const std::size_t threadsPerWorkgroupAxis{16};
+    static const std::size_t threadsPerAxis{128};
+    static_assert(threadsPerAxis % threadsPerWorkgroupAxis == 0,
+                  "ThreadsPerAxis must be divisible by threadsPerWorkgroupAxis.");
+    static const std::size_t workgroupsPerAxis{threadsPerAxis / threadsPerWorkgroupAxis};
+    static const std::size_t workgroups{workgroupsPerAxis * workgroupsPerAxis};
+    const std::size_t histoByteCount{sizeof(cl_uint) * m_histogramBinCount};
+    // Block consolidation is vectorized into blocks of 16 uint32s, so blocks composing the m_histogramBlocks array are
+    // padded to 128 byte increments
+    const std::size_t histoPaddedBlockByteCount{(histoByteCount % sizeof(cl_uint16) ?
+                                                 histoByteCount / sizeof(cl_uint16) + 1 :
+                                                 histoByteCount / sizeof(cl_uint16)) * sizeof(cl_uint16)};
+    const std::size_t histoBlocksByteCount{histoPaddedBlockByteCount * workgroups};
+
     m_imageView->makeCurrent();
+    if(m_histogramGlBuffer == std::numeric_limits<GLuint>::max())
+    {
+        m_glfs->glGenBuffers(1, &m_histogramGlBuffer);
+        m_glfs->glBindBuffer(GL_TEXTURE_BUFFER, m_histogramGlBuffer);
+        m_glfs->glBufferData(GL_TEXTURE_BUFFER, histoByteCount, nullptr, GL_STATIC_COPY);
+        m_histogramClBuffer.reset(new cl::BufferGL(*m_openClContext, CL_MEM_WRITE_ONLY, m_histogramGlBuffer));
+        m_histogramBlocks.reset(new cl::Buffer(*m_openClContext, CL_MEM_READ_WRITE, histoBlocksByteCount));
+    }
+    cl::Event e0, e1, e2;
+    std::unique_ptr<std::vector<cl::Event>> waits;
+    void* b{m_openClCq->enqueueMapBuffer(*m_histogramBlocks, CL_FALSE, CL_MAP_WRITE, 0, histoBlocksByteCount, nullptr, &e0)};
+    memset(m_glfs->glMapBuffer(GL_TEXTURE_BUFFER, GL_WRITE_ONLY), 0, histoByteCount);
+    m_glfs->glUnmapBuffer(GL_TEXTURE_BUFFER);
+    e0.wait();
+    memset(b, 0, histoBlocksByteCount);
+    m_openClCq->enqueueUnmapMemObject(*m_histogramBlocks, b, nullptr, &e0);
+    
     m_glfs->glFinish();
-    std::vector<cl::Memory> memObjs{*m_imageCl};
-    std::vector<cl::Event> eventObjs{*m_histoBlocksKernComplete};
-    m_openClCq->enqueueAcquireGLObjects(&memObjs);
-    m_histoBlocksKern->setArg(0, m_imageCl->operator()());
-    m_histoBlocksKern->setArg(1, outb);
-    m_histoBlocksKern->setArg(2, nextIdxb);
+    std::vector<cl::Memory> memObjs{*m_imageCl, *m_histogramClBuffer};
+    m_openClCq->enqueueAcquireGLObjects(&memObjs, nullptr, &e1);
+    auto roundUp = [&](cl_uint w){
+        cl_uint r = w / threadsPerAxis;
+        if(w % threadsPerAxis) ++r;
+        return r;
+    };
+    cl_uint invocationRegionSize[2] = {roundUp(m_imageSize.width()), roundUp(m_imageSize.height())};
+    cl_uint paddedBlockSize{static_cast<cl_uint>(histoPaddedBlockByteCount / sizeof(cl_uint))};
+
+    m_histoBlocksKern->setArg(0, *m_imageCl);
+    m_histoBlocksKern->setArg(1, sizeof(GLuint), &m_histogramBinCount);
+    m_histoBlocksKern->setArg(2, sizeof(invocationRegionSize), invocationRegionSize);
+    m_histoBlocksKern->setArg(3, sizeof(paddedBlockSize), &paddedBlockSize);
+    m_histoBlocksKern->setArg(4, histoByteCount, nullptr);
+    m_histoBlocksKern->setArg(5, *m_histogramBlocks);
+
+//  m_histoReduceKern->setArg(
+
+    waits.reset(new std::vector<cl::Event>{e0, e1});
     m_openClCq->enqueueNDRangeKernel(*m_histoBlocksKern,
                                      cl::NullRange, cl::NDRange(128, 128), cl::NDRange(16, 16),
-                                     nullptr, m_histoBlocksKernComplete.get());
-    m_openClCq->enqueueReadBuffer(outb, CL_TRUE, 0, out.size() * sizeof(float), (float*)out.data());
-    m_openClCq->enqueueReleaseGLObjects(&memObjs);
-    for(float *v{(float*)out.data()}, *ve{(float*)out.data() + out.size()}; v < ve; v += 8)
+                                     waits.get(), &e2);
+    
+    std::ofstream o("/Users/ehvatum/debug.txt", std::ios_base::out | std::ios_base::trunc);
+    waits.reset(new std::vector<cl::Event>{e2});
+    b = m_openClCq->enqueueMapBuffer(*m_histogramBlocks, CL_TRUE, CL_MEM_READ_ONLY, 0, histoBlocksByteCount, waits.get());
+    uint row{0};
+//  for(const cl_uint* v{reinterpret_cast<cl_uint*>(b)}, *ve{reinterpret_cast<cl_uint*>(b) + histoBlocksByteCount / sizeof(cl_uint)};
+//      v != ve;
+//      ++v)
+//  {
+//      o << *v << ',';
+//  }
+    for(const cl_uint *v{reinterpret_cast<cl_uint*>(b)}, *re; row < workgroups; ++row)
     {
-        std::cout << v[0] << '\t' << v[1] << '\t' << v[2] << '\t' << v[3] << '\t' << v[4] << '\t' << v[5] << std::endl;
+        bool first{true};
+        for(re = v + ((histoByteCount % sizeof(cl_uint16) ?
+                      histoByteCount / sizeof(cl_uint16) + 1 :
+                      histoByteCount / sizeof(cl_uint16))) * sizeof(cl_uint16) / sizeof(cl_uint);
+            v != re;
+            ++v)
+        {
+            if(first) first = false;
+            else o << ' ';
+            o << *v;
+        }
+        o << std::endl;
     }
-    std::cout << std::endl;
-}
-
-void Renderer::execHistoConsolidate()
-{
+    m_openClCq->enqueueUnmapMemObject(*m_histogramBlocks, b, nullptr, &e0);
+    e0.wait();
+//  m_openClCq->enqueueNDRangeKernel(*m_histo, cl::NDRange(), cl::NDRange());
+//  std::vector<float> out(16384, std::numeric_limits<float>::lowest());
+//  cl::Buffer outb(*m_openClContext, CL_MEM_WRITE_ONLY, out.size() * sizeof(float));
+//  uint32_t nextIdx{0};
+//  cl::Buffer nextIdxb(*m_openClContext, CL_MEM_READ_WRITE, sizeof(uint32_t));
+//  m_openClCq->enqueueWriteBuffer(nextIdxb, CL_TRUE, 0, sizeof(uint32_t), &nextIdx);
+// 
+// 
+//  std::vector<cl::Event> eventObjs{*m_histoBlocksKernComplete};
+//  m_openClCq->enqueueAcquireGLObjects(&memObjs);
+//  m_histoBlocksKern->setArg(0, m_imageCl->operator()());
+//  m_histoBlocksKern->setArg(1, outb);
+//  m_histoBlocksKern->setArg(2, nextIdxb);
+//  m_openClCq->enqueueNDRangeKernel(*m_histoBlocksKern,
+//                                   cl::NullRange, cl::NDRange(128, 128), cl::NDRange(16, 16),
+//                                   nullptr, m_histoBlocksKernComplete.get());
+//  m_openClCq->enqueueReadBuffer(outb, CL_TRUE, 0, out.size() * sizeof(float), (float*)out.data());
+//  m_openClCq->enqueueReleaseGLObjects(&memObjs);
+//  for(float *v{(float*)out.data()}, *ve{(float*)out.data() + out.size()}; v < ve; v += 8)
+//  {
+//      std::cout << v[0] << '\t' << v[1] << '\t' << v[2] << '\t' << v[3] << '\t' << v[4] << '\t' << v[5] << std::endl;
+//  }
+//  std::cout << std::endl;
 }
 
 void Renderer::updateGlViewportSize(ViewWidget* viewWidget)
@@ -841,7 +923,6 @@ void Renderer::threadDeInitSlot()
     m_histoReduceKern.reset();
     m_histoCalcProg.reset();
     m_imageCl.reset();
-    m_histoBlocksKernComplete.reset();
     m_openClCq.reset();
     m_openClContext.reset();
     m_openClDevice.reset();
@@ -907,7 +988,6 @@ void Renderer::newImageSlot(ImageData imageData, QSize imageSize, bool filter)
         m_imageCl.reset(new cl::Image2DGL(*m_openClContext, CL_MEM_READ_ONLY, GL_TEXTURE_2D, 0, m_image->textureId()));
 
         execHistoCalc();
-        execHistoConsolidate();
     }
 
     execImageDraw();
@@ -928,7 +1008,6 @@ void Renderer::setHistogramBinCountSlot(GLuint histogramBinCount)
         if(!m_imageData.empty())
         {
             execHistoCalc();
-            execHistoConsolidate();
             execHistoDraw();
         }
     }

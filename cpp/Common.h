@@ -50,6 +50,7 @@
 // Microsoft's CString.
 #include <cstring>
 #include <iostream>
+#include <fstream>
 #include <future>
 #include <limits>
 #include <list>
