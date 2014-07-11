@@ -145,6 +145,7 @@ private:
 
     GLuint m_histogramBinCount;
     std::unique_ptr<cl::Buffer> m_histogramBlocks;
+    std::unique_ptr<cl::Buffer> m_histogramZeroBlock;
     void delHistogramBlocks();
     // OpenGL buffer backing the histogram buffer texture.  It would be preferrable to use QOpenGLBuffer rather than
     // interacting with the OpenGL API directly with the texture represented by its OpenGL uint name.  However, in Qt
