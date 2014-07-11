@@ -652,7 +652,7 @@ void Renderer::execHistoCalc()
         m_openClCq->enqueueUnmapMemObject(*m_histoBlocksKernArgs, b0, nullptr, &e0);
         e1.wait();
         memset(b1, 0, histoByteCount);
-        m_openClCq->enqueueUnmapMemObject(*m_histogramZeroBlock, b0, nullptr, &e1);
+        m_openClCq->enqueueUnmapMemObject(*m_histogramZeroBlock, b1, nullptr, &e1);
         waits->push_back(e0);
         waits->push_back(e1);
         m_histoBlocksKern->setArg(0, *m_histoBlocksKernArgs);
