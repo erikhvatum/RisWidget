@@ -23,22 +23,23 @@
 constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST;
 
 // Stuffing these read-only arguments into a struct allows them to be passed as a pointer to magically fast global
-// read-only memory.
-typedef struct _ComputeBlocksConstArgs
+// read-only memory
+typedef struct _xxBlocksConstArgs
 {
     const uint2 imageSize;
+    // Used only by computeBlocks(..)
     const uint2 invocationRegionSize;
     const uint binCount;
     const uint paddedBlockSize;
 }
-ComputeBlocksConstArgs;
+XxBlocksConstArgs;
 
 // Note that ComputeBlocksConstArgs must be passed as a pointer.  If not passed as a pointer, it will instead gobble up
 // thread local registers (this is what happens when each thread AKA work item receiving its own private duplicate of
 // the struct).  The constant qualifier in OpenCL exists for _exactly_this_situation_, where a function depends on a
 // bunch of read-only variables that are read often and also requires lots of writeable registers to work efficiently
 // (as most functions do!).
-kernel void computeBlocks(constant ComputeBlocksConstArgs* args,
+kernel void computeBlocks(constant XxBlocksConstArgs* args,
                           read_only image2d_t image,
                           global uint16* blocks,
                           local uint* block,
@@ -78,8 +79,7 @@ kernel void computeBlocks(constant ComputeBlocksConstArgs* args,
     wait_group_events(1, &copyEvent);
 }
 
-kernel void reduceBlocks(uint binCount,
-                         uint paddedBlockSize,
+kernel void reduceBlocks(constant XxBlocksConstArgs* args,
                          global uint16* blocks)
 {
     ++blocks[0].x;
