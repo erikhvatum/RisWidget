@@ -956,15 +956,13 @@ void Renderer::threadDeInitSlot()
     if(!m_imageView.isNull() && m_imageView->context() != nullptr)
     {
         m_imageView->makeCurrent();
-        if(m_image)
-        {
-            m_image.reset();
-        }
+        m_image.reset();
         if(m_histogram != std::numeric_limits<GLuint>::max())
         {
             m_glfs->glDeleteTextures(1, &m_histogram);
             m_histogram = std::numeric_limits<GLuint>::max();
         }
+        m_histogramClBuffer.reset();
         if(m_histogramGlBuffer != std::numeric_limits<GLuint>::max())
         {
             m_glfs->glDeleteBuffers(1, &m_histogramGlBuffer);
@@ -984,6 +982,7 @@ void Renderer::threadDeInitSlot()
     m_imageCl.reset();
     m_histogramBlocks.reset();
     m_histogramZeroBlock.reset();
+    m_histoXxKernArgs.reset();
     m_openClCq.reset();
     m_openClContext.reset();
     m_openClDevice.reset();
