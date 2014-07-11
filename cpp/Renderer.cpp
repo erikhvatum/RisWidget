@@ -303,6 +303,7 @@ void Renderer::delHistogramBlocks()
 {
     m_histogramBlocks.reset();
     m_histogramZeroBlock.reset();
+    m_histoBlocksKernArgs.reset();
 }
 
 void Renderer::delHistogram()
@@ -584,61 +585,120 @@ void Renderer::execHistoCalc()
                                                  histoByteCount / sizeof(cl_uint16)) * sizeof(cl_uint16)};
     const std::size_t histoBlocksByteCount{histoPaddedBlockByteCount * workgroups};
 
-    m_imageView->makeCurrent();
-    cl::Event e0, e1, e2;
-    void* b;
-    std::unique_ptr<std::vector<cl::Event>> waits;
+    cl::Event e0, e1, e2, e3;
+    void *b0, *b1, *b2;
+/* 
+    Note the same wait vector contents may not be reused.  Each time a cl::Event object is supplied as the
+    output/completion parameter of an OpenCL host function, _a_new_event_is_generated_, and the cl::Event instance no
+    longer refers to the same event.  So, this will not work (when attempted, it caused a memory error in the userland
+    portion of the OS X Intel driver and a hard lock on a Windows7 NVidia GTX Titan system):
+    
+    cl::Event e;
+    // e is uninitialized and can not be waited upon
+    std::vector<cl::Event> w{e};
+    m_openClCq->enqueueOpA(..., nullptr, &e);
+    // e now refers to an event, but the shallow copy in w remains uninitialized
+    m_openClCq->enqueueOpB_DependingOnA(..., &w);  // SEGFAULT OR HARD LOCK
+    
+    Likewise:
+    
+    cl::Event e;
+    m_openClCq->enqueueOpA(..., nullptr, &e);
+    std::vector<cl::Event> w{e};
+    m_openClCq->enqueueOpB_DependingOnA(..., &w, &e);
+    // e has been waited upon by enqueueOpB_DependingOnA and deleted upon wait completion. Subsequently, a new event
+    // was generated and e modified to refer to it.  Upon completion of enqueueOpB_DependingOnA, this event will be
+    // triggered.  However, the shallow copy in w still refers to the old event, which was deleted.
+    m_openClCq->enqueueOpC_DependingOnB(..., &w); // SEFAULT OR HARD LOCK
+    
+    To avoid this, the e value in w must be refreshed before m_openClCq->enqueueOpC_DependingOnB(..., &w).  EG,
+    before m_openClCq->enqueueOpC_DependingOnB(..., &w), there should be w[0] = e.
+*/
+
+    std::unique_ptr<std::vector<cl::Event>> waits(new std::vector<cl::Event>);
+    waits->reserve(4);
     if(m_histogramGlBuffer == std::numeric_limits<GLuint>::max())
     {
+        struct HistoBlocksKernArgs
+        {
+            cl_uint2 imageSize;
+            cl_uint2 invocationRegionSize;
+            cl_uint binCount;
+            cl_uint paddedBlockSize;
+        };
         m_glfs->glGenBuffers(1, &m_histogramGlBuffer);
         m_glfs->glBindBuffer(GL_TEXTURE_BUFFER, m_histogramGlBuffer);
         m_glfs->glBufferData(GL_TEXTURE_BUFFER, histoByteCount, nullptr, GL_STATIC_COPY);
         m_histogramClBuffer.reset(new cl::BufferGL(*m_openClContext, CL_MEM_WRITE_ONLY, m_histogramGlBuffer));
         m_histogramBlocks.reset(new cl::Buffer(*m_openClContext, CL_MEM_READ_WRITE, histoBlocksByteCount));
         m_histogramZeroBlock.reset(new cl::Buffer(*m_openClContext, CL_MEM_READ_ONLY, histoByteCount));
-        b = m_openClCq->enqueueMapBuffer(*m_histogramZeroBlock, CL_TRUE, CL_MAP_WRITE, 0, histoByteCount);
-        memset(b, 0, histoByteCount);
-        m_openClCq->enqueueUnmapMemObject(*m_histogramZeroBlock, b, nullptr, &e0);
+        m_histoBlocksKernArgs.reset(new cl::Buffer(*m_openClContext, CL_MEM_READ_ONLY, sizeof(HistoBlocksKernArgs)));
+        b0 = m_openClCq->enqueueMapBuffer(*m_histoBlocksKernArgs, CL_FALSE, CL_MAP_WRITE, 0, sizeof(HistoBlocksKernArgs), nullptr, &e0);
+        b1 = m_openClCq->enqueueMapBuffer(*m_histogramZeroBlock, CL_FALSE, CL_MAP_WRITE, 0, histoByteCount, nullptr, &e1);
+        auto roundUp = [&](cl_uint w){
+            cl_uint r = w / threadsPerAxis;
+            if(w % threadsPerAxis) ++r;
+            return r;
+        };
         e0.wait();
+        // HistoBlocksKernArgs change only when image size and/or histogram bin count change
+        *reinterpret_cast<HistoBlocksKernArgs*>(b0) =
+        {
+            {static_cast<cl_uint>(m_imageSize.width()), static_cast<cl_uint>(m_imageSize.height())},
+            {roundUp(m_imageSize.width()), roundUp(m_imageSize.height())},
+            m_histogramBinCount,
+            static_cast<cl_uint>(histoPaddedBlockByteCount / sizeof(cl_uint))
+        };
+        m_openClCq->enqueueUnmapMemObject(*m_histoBlocksKernArgs, b0, nullptr, &e0);
+        e1.wait();
+        memset(b1, 0, histoByteCount);
+        m_openClCq->enqueueUnmapMemObject(*m_histogramZeroBlock, b0, nullptr, &e1);
+        waits->push_back(e0);
+        waits->push_back(e1);
+        m_histoBlocksKern->setArg(0, *m_histoBlocksKernArgs);
+        m_histoBlocksKern->setArg(3, histoByteCount, nullptr);
+        m_histoBlocksKern->setArg(4, *m_histogramZeroBlock);
     }
-    b = m_openClCq->enqueueMapBuffer(*m_histogramBlocks, CL_FALSE, CL_MAP_WRITE, 0, histoBlocksByteCount, nullptr, &e0);
-    memset(m_glfs->glMapBuffer(GL_TEXTURE_BUFFER, GL_WRITE_ONLY), 0, histoByteCount);
-    m_glfs->glUnmapBuffer(GL_TEXTURE_BUFFER);
-    e0.wait();
-    memset(b, 0, histoBlocksByteCount);
-    m_openClCq->enqueueUnmapMemObject(*m_histogramBlocks, b, nullptr, &e0);
+    b2 = m_openClCq->enqueueMapBuffer(*m_histogramBlocks, CL_FALSE, CL_MAP_WRITE, 0, histoBlocksByteCount, nullptr, &e2);
+//    memset(m_glfs->glMapBuffer(GL_TEXTURE_BUFFER, GL_WRITE_ONLY), 0, histoByteCount);
+//    m_glfs->glUnmapBuffer(GL_TEXTURE_BUFFER);
     
+    // All shared GL contexts that in turn share with the CL context must be idle while CL has GL objects acquired
+    m_imageView->makeCurrent();
     m_glfs->glFinish();
+    m_histogramView->makeCurrent();
+    m_glfs->glFinish();
+
     std::vector<cl::Memory> memObjs{*m_imageCl, *m_histogramClBuffer};
-    m_openClCq->enqueueAcquireGLObjects(&memObjs, nullptr, &e1);
-    auto roundUp = [&](cl_uint w){
-        cl_uint r = w / threadsPerAxis;
-        if(w % threadsPerAxis) ++r;
-        return r;
-    };
-    cl_uint invocationRegionSize[2] = {roundUp(m_imageSize.width()), roundUp(m_imageSize.height())};
-    cl_uint paddedBlockSize{static_cast<cl_uint>(histoPaddedBlockByteCount / sizeof(cl_uint))};
+    m_openClCq->enqueueAcquireGLObjects(&memObjs, nullptr, &e3);
+    waits->push_back(e3);
+    
+    e2.wait();
+    memset(b2, 0, histoBlocksByteCount);
+    m_openClCq->enqueueUnmapMemObject(*m_histogramBlocks, b2, nullptr, &e2);
+    waits->push_back(e2);
 
-    m_histoBlocksKern->setArg(0, *m_imageCl);
-    m_histoBlocksKern->setArg(1, sizeof(GLuint), &m_histogramBinCount);
-    m_histoBlocksKern->setArg(2, sizeof(invocationRegionSize), invocationRegionSize);
-    m_histoBlocksKern->setArg(3, sizeof(paddedBlockSize), &paddedBlockSize);
-    m_histoBlocksKern->setArg(4, *m_histogramZeroBlock);
-    m_histoBlocksKern->setArg(5, histoByteCount, nullptr);
-    m_histoBlocksKern->setArg(6, *m_histogramBlocks);
+    m_histoBlocksKern->setArg(1, *m_imageCl);
+    m_histoBlocksKern->setArg(2, *m_histogramBlocks);
 
-//  m_histoReduceKern->setArg(
+    m_histoReduceKern->setArg(0, sizeof(GLuint), &m_histogramBinCount);
+//    m_histoReduceKern->setArg(1, sizeof(paddedBlockSize), &paddedBlockSize);
+    m_histoReduceKern->setArg(2, *m_histogramBlocks);
 
-    waits.reset(new std::vector<cl::Event>{e0, e1});
+    waits.reset(new std::vector<cl::Event>{e0, e1, e2, e3});
     m_openClCq->enqueueNDRangeKernel(*m_histoBlocksKern,
                                      cl::NullRange, cl::NDRange(128, 128), cl::NDRange(16, 16),
-                                     waits.get(), &e2);
+                                     waits.get(), &e0);
+//  waits.reset(new std::vector<cl::Event>{e0});
+//  m_openClCq->enqueueNDRangeKernel(*m_histoBlocksKern,
+//                                   cl::NullRange, cl::
     
+
     std::ofstream o("/Users/ehvatum/debug.txt", std::ios_base::out | std::ios_base::trunc);
-    waits.reset(new std::vector<cl::Event>{e2});
-    b = m_openClCq->enqueueMapBuffer(*m_histogramBlocks, CL_TRUE, CL_MEM_READ_ONLY, 0, histoBlocksByteCount, waits.get());
+    waits.reset(new std::vector<cl::Event>{e0});
+    b0 = m_openClCq->enqueueMapBuffer(*m_histogramBlocks, CL_TRUE, CL_MEM_READ_ONLY, 0, histoBlocksByteCount, waits.get());
     uint row{0};
-    for(const cl_uint *v{reinterpret_cast<cl_uint*>(b)}, *re; row < workgroups; ++row)
+    for(const cl_uint *v{reinterpret_cast<cl_uint*>(b0)}, *re; row < workgroups; ++row)
     {
         bool first{true};
         for(re = v + ((histoByteCount % sizeof(cl_uint16) ?
@@ -653,7 +713,7 @@ void Renderer::execHistoCalc()
         }
         o << std::endl;
     }
-    m_openClCq->enqueueUnmapMemObject(*m_histogramBlocks, b, nullptr, &e0);
+    m_openClCq->enqueueUnmapMemObject(*m_histogramBlocks, b0, nullptr, &e0);
     e0.wait();
 }
 
