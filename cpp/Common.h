@@ -62,6 +62,21 @@
 #else
  #include <Python.h>
 #endif
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
+
+// Some terrible environments #define min and max (Windows, for example).  How is std::numeric_limits<...>::max going to
+// work if max expands to (( ( ( a )  >  ( b ) ) ? ( a ) : ( b ) )) ?!  BY NOT WORKING!  THAT'S HOW!  Anyway, Qt uses
+// std::numeric_limits::min/max in its headers, so these defines have to go away before we include Qt.
+#ifdef min
+ #undef min
+#endif
+#ifdef max
+ #undef max
+#endif
+
 #ifdef ENABLE_GL_DEBUG_LOGGING
  #include <QOpenGLDebugLogger>
 #endif
@@ -72,10 +87,6 @@
 #include <QPointer>
 #include <QtCore>
 #include <QtWidgets>
-#include <sstream>
-#include <string>
-#include <utility>
-#include <vector>
 
 #include "GilStateScopeOperators.h"
 #include "LockedRef.h"

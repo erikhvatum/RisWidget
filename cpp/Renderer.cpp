@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 #include "Common.h"
+#include "GlxFunctions.h"'
 #include "HistogramView.h"
 #include "HistogramWidget.h"
 #include "ImageView.h"
@@ -408,22 +409,6 @@ void Renderer::buildGlProgs()
     m_imageDrawProg->init(m_glfs);
 }
 
-#if !defined(__APPLE__) && !defined(__MACOSX) && !defined(_WIN32)
- #include <GL/glx.h>
- #undef Bool
- #undef Status
- #undef CursorShape
- #undef Unsorted
- #undef None
- #undef KeyPress
- #undef Type
- #undef KeyRelease
- #undef FocusIn
- #undef FocusOut
- #undef FontChange
- #undef Expose
-#endif
-
 void Renderer::makeClContext()
 {
     // Due to #define __CL_ENABLE_EXCEPTIONS before #include "cl.hpp", the OpenCL API, when accessed through the C++
@@ -487,27 +472,45 @@ void Renderer::makeClContext()
         }
         m_openClDevice.reset(new cl::Device(m_openClDeviceList[index].device));
         m_imageView->makeCurrent();
-        cl_context_properties properties[] = {CL_CONTEXT_PLATFORM,
-                                                 (cl_context_properties)m_openClDeviceList[index].platform,
+        // Not-these-other-things leaves only GLX as a supported possibility.  It would be good to investigate using EGL
+        // for this purpose, if available, before finally attempting GLX.  In the case where EGL is present, if at run
+        // time EGL decides to be difficult (perhaps because it happens to be misconfigured and only be aware of OpenGL
+        // ES profiles), GLX should be attempted. Does Wayland use EGL? A vagrant in the culvert halted me whilest I was
+        // walking the dogge, and counseled that Wayland is EGL, at least right now. However, he's the only individual I
+        // have met willing to disclose that he uses Wayland.  A hard luck case, he is, brave as his days may be.
+        std::vector<cl_context_properties> properties{
+            (cl_context_properties)CL_CONTEXT_PLATFORM,
+                (cl_context_properties)m_openClDeviceList[index].platform,
 #if defined(__APPLE__) || defined(__MACOSX)
-                                              // OS X
-                                              CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE,
-                                                 (cl_context_properties)CGLGetShareGroup(CGLGetCurrentContext()),
+            // OS X
+            (cl_context_properties)CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE,
+                (cl_context_properties)CGLGetShareGroup(CGLGetCurrentContext()),
+            (cl_context_properties)0};
 #elif defined(_WIN32)
-                                              // Windows
-                                              CL_GL_CONTEXT_KHR,
-                                                 (cl_context_properties)wglGetCurrentContext(),
-                                              CL_WGL_HDC_KHR,
-                                                 (cl_context_properties)wglGetCurrentDC()
+            // Windows
+            (cl_context_properties)CL_GL_CONTEXT_KHR,
+                (cl_context_properties)wglGetCurrentContext(),
+            (cl_context_properties)CL_WGL_HDC_KHR,
+                (cl_context_properties)wglGetCurrentDC(),
+            (cl_context_properties)0};
 #else
-                                              // Linux (and anything else supporting GLX and all required features)
-                                              CL_GL_CONTEXT_KHR,
-                                                 (cl_context_properties)glXGetCurrentContext(),
-                                              CL_GLX_DISPLAY_KHR,
-                                                 (cl_context_properties)glXGetCurrentDisplay(),
+            // Linux (and anything else supporting GLX and all required features).  The GLX headers #define a bunch of
+            // things that really shouldn't be #defined ever, by anyone, and that happen to break Qt.  So, we have to
+            // farm out the vector insert operations that require function calls and types from the GLX headers to a
+            // plain C compilation unit which can safely do the GLX #includes, being a C file that therefore has a
+            // _separate_ precompiled header blob with everything that could possibly conflict with GLX headers safely
+            // fenced off behind #ifdef __cplusplus.
+            (cl_context_properties)0,     // dummy replaced by implantClContextGlxSharingProperties(..) call below
+                (cl_context_properties)0, // dummy replaced by implantClContextGlxSharingProperties(..) call below
+            (cl_context_properties)0,     // dummy replaced by implantClContextGlxSharingProperties(..) call below
+                (cl_context_properties)0, // dummy replaced by implantClContextGlxSharingProperties(..) call below
+            (cl_context_properties)0};
+        implantClContextGlxSharingProperties(properties.data(), static_cast<unsigned int>(properties.size()));
 #endif
-                                              0};
-        m_openClContext.reset(new cl::Context(*m_openClDevice, properties, &Renderer::openClErrorCallbackWrapper, reinterpret_cast<void*>(this)));
+        m_openClContext.reset(new cl::Context(*m_openClDevice,
+                                              properties.data(),
+                                              &Renderer::openClErrorCallbackWrapper,
+                                              reinterpret_cast<void*>(this)));
         cl_command_queue_properties commandQueueProps{0};
         if(m_openClDevice->getInfo<CL_DEVICE_QUEUE_PROPERTIES>() & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)
         {

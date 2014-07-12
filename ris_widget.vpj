@@ -228,6 +228,8 @@
 			<F N="cpp/GilStateScopeOperators.h"/>
 			<F N="cpp/GlslProg.cpp"/>
 			<F N="cpp/GlslProg.h"/>
+			<F N="cpp/GlxFunctions.c"/>
+			<F N="cpp/GlxFunctions.h"/>
 			<F N="cpp/HistoDrawProg.cpp"/>
 			<F N="cpp/HistoDrawProg.h"/>
 			<F N="cpp/HistogramView.cpp"/>
