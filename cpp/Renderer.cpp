@@ -654,8 +654,8 @@ void Renderer::execHistoCalc()
         // HistoBlocksKernArgs change only when image size and/or histogram bin count change
         *reinterpret_cast<XxBlocksConstArgs*>(b0) =
         {
-            {static_cast<cl_uint>(m_imageSize.width()), static_cast<cl_uint>(m_imageSize.height())},
-            {roundUp(m_imageSize.width()), roundUp(m_imageSize.height())},
+            {{static_cast<cl_uint>(m_imageSize.width()), static_cast<cl_uint>(m_imageSize.height())}},
+            {{roundUp(m_imageSize.width()), roundUp(m_imageSize.height())}},
             m_histogramBinCount,
             static_cast<cl_uint>(histoPaddedBlockByteCount / sizeof(cl_uint))
         };
@@ -685,6 +685,7 @@ void Renderer::execHistoCalc()
     m_openClCq->enqueueAcquireGLObjects(&memObjs, nullptr, &e3);
     waits->push_back(e3);
     
+    // Zero out histogram blocks buffer
     e2.wait();
     memset(b2, 0, histoBlocksByteCount);
     m_openClCq->enqueueUnmapMemObject(*m_histogramBlocks, b2, nullptr, &e2);
@@ -693,16 +694,27 @@ void Renderer::execHistoCalc()
     m_histoBlocksKern->setArg(1, *m_imageCl);
     m_histoBlocksKern->setArg(2, *m_histogramBlocks);
 
-    waits.reset(new std::vector<cl::Event>{e0, e1, e2, e3});
+    // Compute histograms for image blocks
     m_openClCq->enqueueNDRangeKernel(*m_histoBlocksKern,
                                      cl::NullRange, cl::NDRange(128, 128), cl::NDRange(16, 16),
                                      waits.get(), &e0);
     m_histoReduceKern->setArg(1, *m_histogramBlocks);
     waits.reset(new std::vector<cl::Event>{e0});
-//    m_openClCq->enqueueNDRangeKernel(*m_histoBlocksKern,
+    // Sum all subsequent histograms into the first histogram in m_histogramBlocks
+//    m_openClCq->enqueueNDRangeKernel(*m_histoReduceKern,
 //                                     cl::NullRange, cl::,
 //                                     waits.get(), &e0);
-    
+
+    waits.reset(new std::vector<cl::Event>{e0});
+    // Copy first block histogram to GL buffer
+    m_openClCq->enqueueCopyBuffer(*m_histogramBlocks, *m_histogramClBuffer, 0, 0, histoByteCount, waits.get(), &e1);
+    // Cache histogram data in system RAM
+    m_histogramData.resize(m_histogramBinCount);
+    m_openClCq->enqueueReadBuffer(*m_histogramBlocks, CL_FALSE, 0, histoByteCount, (void*)m_histogramData.data(), waits.get(), &e2);
+
+    waits.reset(new std::vector<cl::Event>{e1, e2});
+    m_openClCq->enqueueReleaseGLObjects(&memObjs, waits.get(), &e0);
+    e0.wait();
 
 //  std::ofstream o("/Users/ehvatum/debug.txt", std::ios_base::out | std::ios_base::trunc);
 //  waits.reset(new std::vector<cl::Event>{e0});
