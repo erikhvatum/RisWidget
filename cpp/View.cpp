@@ -77,7 +77,7 @@ void View::update()
         // that time if the widget is visible.  So, there is not even a reason to put render requests in a queue for
         // lazy execution: when a render is needed, a request is submitted automatically.  What use would another
         // request be? To render the same thing twice at the same instant?
-        // 
+        //
         // Additionally, swapBuffers(..), called by Renderer upon completion of drawing to display the new rendering,
         // checks m_visibleAndExposed before actually doing a render.  Thus, if a View becomes hidden before Renderer
         // gets around to rendering it, the update is skipped.  However, the next time the View becomes visible, a new

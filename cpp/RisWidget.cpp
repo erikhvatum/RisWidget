@@ -389,7 +389,7 @@ PyObject* RisWidget::getHistogram()
     std::shared_ptr<LockedRef<const HistogramData>> histogramData(m_renderer->getHistogram());
     PyObject* ret;
     npy_intp size{static_cast<npy_intp>(histogramData->ref().size())};
-    
+
     if(size == 0)
     {
         ret = Py_None;
@@ -414,7 +414,7 @@ PyObject* RisWidget::getHistogram()
             }
         }
     }
-    
+
     return ret;
 }
 

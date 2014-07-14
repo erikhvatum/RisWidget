@@ -155,7 +155,7 @@ void Renderer::refreshOpenClDeviceListSlot()
             for(cl::Device& device : devices)
             {
                 QString typeName;
-                cl_device_type type{device.getInfo<CL_DEVICE_TYPE>()}; 
+                cl_device_type type{device.getInfo<CL_DEVICE_TYPE>()};
                 switch(type)
                 {
                 case CL_DEVICE_TYPE_CPU:
@@ -370,7 +370,7 @@ void Renderer::makeGlfs()
     // 1) The context is responsible for deleting the function bundle instance
     // 2) The function bundle provides OpenGL functions up to, at most, the OpenGL version of the context.  So, you
     // can't get GL4.3 functions from a GL3.3 context, for example.
-    // 
+    //
     // Therefore, because the image and histogram necessarily are of the same OpenGL version, and because no functions
     // will be needed from either's function bundle while the other does not exist, we can arbitrarily choose to use
     // either view's function bundle exclusively regardless of which view is being manipulated.  We don't need to call
@@ -534,7 +534,7 @@ void Renderer::makeClContext()
     }
     catch(RisWidgetException e)
     {
-        throw RisWidgetException(std::string("Renderer::makeClContext(): Failed to create OpenCL context:\n\t") + 
+        throw RisWidgetException(std::string("Renderer::makeClContext(): Failed to create OpenCL context:\n\t") +
                                  e.description());
     }
 }
@@ -577,7 +577,7 @@ void Renderer::buildClProgs()
             kp.second->reset(new cl::Kernel(*prog, kp.first.c_str()));
         }
     };
-    
+
     buildProg(":/gpu/histogram.cl", m_histoCalcProg, {std::make_pair(std::string("computeBlocks"), &m_histoBlocksKern),
                                                       std::make_pair(std::string("reduceBlocks"), &m_histoReduceKern)});
 }
@@ -600,21 +600,21 @@ void Renderer::execHistoCalc()
 
     cl::Event e0, e1, e2, e3;
     void *b0, *b1, *b2;
-/* 
+/*
     Note the same wait vector contents may not be reused.  Each time a cl::Event object is supplied as the
     output/completion parameter of an OpenCL host function, _a_new_event_is_generated_, and the cl::Event instance no
     longer refers to the same event.  So, this will not work (when attempted, it caused a memory error in the userland
     portion of the OS X Intel driver and a hard lock on a Windows7 NVidia GTX Titan system):
-    
+
     cl::Event e;
     // e is uninitialized and can not be waited upon
     std::vector<cl::Event> w{e};
     m_openClCq->enqueueOpA(..., nullptr, &e);
     // e now refers to an event, but the shallow copy in w remains uninitialized
     m_openClCq->enqueueOpB_DependingOnA(..., &w);  // SEGFAULT OR HARD LOCK
-    
+
     Likewise:
-    
+
     cl::Event e;
     m_openClCq->enqueueOpA(..., nullptr, &e);
     std::vector<cl::Event> w{e};
@@ -623,7 +623,7 @@ void Renderer::execHistoCalc()
     // was generated and e modified to refer to it.  Upon completion of enqueueOpB_DependingOnA, this event will be
     // triggered.  However, the shallow copy in w still refers to the old event, which was deleted.
     m_openClCq->enqueueOpC_DependingOnB(..., &w); // SEFAULT OR HARD LOCK
-    
+
     To avoid this, the e value in w must be refreshed before m_openClCq->enqueueOpC_DependingOnB(..., &w).  EG,
     before m_openClCq->enqueueOpC_DependingOnB(..., &w), there should be w[0] = e.
 */
@@ -671,13 +671,13 @@ void Renderer::execHistoCalc()
         m_histoBlocksKern->setArg(0, *m_histoXxKernArgs);
         m_histoBlocksKern->setArg(3, histoByteCount, nullptr);
         m_histoBlocksKern->setArg(4, *m_histogramZeroBlock);
-        
+
         m_histoReduceKern->setArg(0, *m_histoXxKernArgs);
     }
     b2 = m_openClCq->enqueueMapBuffer(*m_histogramBlocks, CL_FALSE, CL_MAP_WRITE, 0, histoBlocksByteCount, nullptr, &e2);
 //    memset(m_glfs->glMapBuffer(GL_TEXTURE_BUFFER, GL_WRITE_ONLY), 0, histoByteCount);
 //    m_glfs->glUnmapBuffer(GL_TEXTURE_BUFFER);
-    
+
     // All shared GL contexts that in turn share with the CL context must be idle while CL has GL objects acquired
     m_imageView->makeCurrent();
     m_glfs->glFinish();
@@ -687,7 +687,7 @@ void Renderer::execHistoCalc()
     std::vector<cl::Memory> memObjs{*m_imageCl, *m_histogramClBuffer};
     m_openClCq->enqueueAcquireGLObjects(&memObjs, nullptr, &e3);
     waits->push_back(e3);
-    
+
     // Zero out histogram blocks buffer
     e2.wait();
     memset(b2, 0, histoBlocksByteCount);
