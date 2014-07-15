@@ -44,10 +44,11 @@ PRECOMPILED_HEADER = Common.h
 HEADERS += Common.h \
            GilStateScopeOperators.h \
            GlslProg.h \
+           GlxFunctions.h \
            HistoDrawProg.h \
            HistogramWidget.h \
            HistogramView.h \
-	   ImageDrawProg.h \
+           ImageDrawProg.h \
            ImageWidget.h \
            ImageWidgetViewScroller.h \
            ImageView.h \
@@ -67,10 +68,11 @@ FORMS +=   RisWidget.ui \
 SOURCES += RisWidget.cpp \
            GilStateScopeOperators.cpp \
            GlslProg.cpp \
+           GlxFunctions.c \
            HistoDrawProg.cpp \
            HistogramWidget.cpp \
            HistogramView.cpp \
-	   ImageDrawProg.cpp \
+           ImageDrawProg.cpp \
            ImageWidget.cpp \
            ImageWidgetViewScroller.cpp \
            ImageView.cpp \

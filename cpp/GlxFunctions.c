@@ -21,7 +21,6 @@
 // SOFTWARE.
 
 #include "Common.h"
-#include "GlxFunctions.h"
 
 #if !defined(__APPLE__) && !defined(__MACOSX) && !defined(_WIN32)
  #ifdef __cplusplus
@@ -42,6 +41,10 @@
 // #undef FocusOut
 // #undef FontChange
 // #undef Expose
+ #include <CL/cl.h>
+ #include <CL/cl_gl.h>
+
+ #include "GlxFunctions.h"
 
 void implantClContextGlxSharingProperties(cl_context_properties* properties, unsigned int propertiesSize)
 {
