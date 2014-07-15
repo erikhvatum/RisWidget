@@ -62,9 +62,8 @@ kernel void computeBlocks(constant XxBlocksConstArgs* args,
         for(x = start.x; x < end.x; ++x)
         {
             intensity = read_imagef(image, sampler, (int2)(x, y)).x;
-            bin = (uint)(floor(intensity * (args->binCount - 1)));
+            bin = clamp((uint)(ceil(intensity * args->binCount) - 1), (uint)0, (uint)65535);
             atomic_inc(block + bin);
-//          atomic_xchg(block + bin, 1);
         }
     }
 
