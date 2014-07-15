@@ -64,6 +64,7 @@ kernel void computeBlocks(constant XxBlocksConstArgs* args,
             intensity = read_imagef(image, sampler, (int2)(x, y)).x;
             bin = (uint)(floor(intensity * (args->binCount - 1)));
             atomic_inc(block + bin);
+//          atomic_xchg(block + bin, 1);
         }
     }
 
@@ -80,7 +81,43 @@ kernel void computeBlocks(constant XxBlocksConstArgs* args,
 }
 
 kernel void reduceBlocks(constant XxBlocksConstArgs* args,
+                         const uint invocationBinCount,
                          global uint16* blocks)
 {
-    ++blocks[0].x;
+    if(get_global_id(0) == 0 && get_global_id(1) == 0)
+    {
+        return;
+    }
+    global const uint* sbin = ((global const uint*)blocks) + (get_global_id(1) * 8 + get_global_id(0)) * args->paddedBlockSize;
+//  global const uint* sbin = (global const uint*)(blocks + (get_global_id(1) * 8 + get_global_id(0)));
+    for ( global uint *bin = (global uint*)blocks, *binsEnd = ((global uint*)blocks) + args->binCount;
+          bin != binsEnd;
+          ++bin, ++sbin )
+    {
+        atomic_add(bin, *sbin);
+//      atomic_inc(bin);
+    }
+//  global uint* b = (global uint*)blocks;
+//  uint o = atomic_inc(b);
+//  b[o] = get_global_id(1) * 8 + get_global_id(0);
+//  if(get_global_id(0) == get_global_id(1) == 0)
+//  {
+//      return;
+//  }
+//  global const uint16* sblock = blocks + (get_global_id(1) * 8 + get_global_id(0));
+//  global const uint* sblockc;
+//  global const uint* sblockce;
+//  global const uint16* sblockEnd = sblock + (args->binCount / 16);
+//  global uint16* dblock = blocks;
+//  global uint* dblockc;
+//  for(;;)
+//  {
+//      for(sblockc = (const global uint*)sblock, sblockce = (const global uint*)sblock + 16, dblockc = (global uint*)dblock; sblockc != sblockce; ++sblockc, ++dblockc)
+//      {
+//          atomic_add(dblockc, *sblockc);
+//      }
+//      ++sblock;
+//      if(sblock >= sblockEnd) break;
+//      ++dblock;
+//  }
 }
