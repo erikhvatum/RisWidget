@@ -63,12 +63,12 @@ kernel void computeBlocks(constant XxBlocksConstArgs* args,
         {
             intensity = read_imagef(image, sampler, (int2)(x, y)).x;
             bin = clamp((uint)(ceil(intensity * args->binCount) - 1), (uint)0, (uint)65535);
-            atomic_inc(block + bin);
+            atom_inc(block + bin);
         }
     }
 
     // Wait until all invocations in the work group have finished running the loop above
-    write_mem_fence(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_LOCAL_MEM_FENCE);
 
     // Copy block histogram to global memory for reduction
     const size_t idx = (get_group_id(1) * get_num_groups(0) + get_group_id(0)) * args->paddedBlockSize;
