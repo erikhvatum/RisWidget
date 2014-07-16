@@ -32,6 +32,7 @@ typedef struct _xxBlocksConstArgs
     const uint2 invocationRegionSize;
     const uint binCount;
     const uint paddedBlockSize;
+    const uint workgroupsPerAxis;
 }
 XxBlocksConstArgs;
 
@@ -63,8 +64,8 @@ kernel void computeBlocks(constant XxBlocksConstArgs* args,
         for(x = start.x; x < end.x; ++x)
         {
             intensity = read_imagef(image, sampler, (int2)(x, y)).x;
-            bin = clamp((uint)(ceil(intensity * args->binCount) - 1), (uint)0, (uint)65535);
-            ++block[bin];
+            bin = clamp((uint)(ceil(intensity * args->binCount) - 1), (uint)0, (uint)args->binCount);
+            atomic_inc(block + bin);
         }
     }
 
@@ -88,7 +89,7 @@ kernel void reduceBlocks(constant XxBlocksConstArgs* args,
     {
         return;
     }
-    global const uint* sbin = ((global const uint*)blocks) + (get_global_id(1) * 8 + get_global_id(0)) * args->paddedBlockSize;
+    global const uint* sbin = ((global const uint*)blocks) + (get_global_id(1) * args->workgroupsPerAxis + get_global_id(0)) * args->paddedBlockSize;
 //  global const uint* sbin = (global const uint*)(blocks + (get_global_id(1) * 8 + get_global_id(0)));
     for ( global uint *bin = (global uint*)blocks, *binsEnd = ((global uint*)blocks) + args->binCount;
           bin != binsEnd;

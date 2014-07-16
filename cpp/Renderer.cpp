@@ -635,8 +635,8 @@ static void printClEventDelta(cl::Event& e, const char* name)
 
 void Renderer::execHistoCalc()
 {
-    static const std::size_t threadsPerWorkgroupAxis{1};
-    static const std::size_t threadsPerAxis{16};
+    static const std::size_t threadsPerWorkgroupAxis{8};
+    static const std::size_t threadsPerAxis{128};
     static_assert(threadsPerAxis % threadsPerWorkgroupAxis == 0,
                   "ThreadsPerAxis must be divisible by threadsPerWorkgroupAxis.");
     static const std::size_t workgroupsPerAxis{threadsPerAxis / threadsPerWorkgroupAxis};
@@ -689,6 +689,7 @@ void Renderer::execHistoCalc()
             cl_uint2 invocationRegionSize;
             cl_uint binCount;
             cl_uint paddedBlockSize;
+            cl_uint workgroupsPerAxis;
         };
         m_glfs->glGenBuffers(1, &m_histogramGlBuffer);
         m_glfs->glBindBuffer(GL_TEXTURE_BUFFER, m_histogramGlBuffer);
@@ -714,7 +715,8 @@ void Renderer::execHistoCalc()
             {{static_cast<cl_uint>(m_imageSize.width()), static_cast<cl_uint>(m_imageSize.height())}},
             {{roundUp(m_imageSize.width()), roundUp(m_imageSize.height())}},
             m_histogramBinCount,
-            static_cast<cl_uint>(histoPaddedBlockByteCount / sizeof(cl_uint))
+            static_cast<cl_uint>(histoPaddedBlockByteCount / sizeof(cl_uint)),
+            static_cast<cl_uint>(workgroupsPerAxis)
         };
         m_openClCq->enqueueUnmapMemObject(*m_histoXxKernArgs, b0, nullptr, &e0);
         e1.wait();
@@ -798,7 +800,7 @@ void Renderer::execHistoCalc()
     }
     std::cout << std::endl << sum << std::endl << std::endl;
 
-//  std::ofstream o("/Users/ehvatum/debug.txt", std::ios_base::out | std::ios_base::trunc);
+//  std::ofstream o("/home/ehvatum/debug.txt", std::ios_base::out | std::ios_base::trunc);
 //  b0 = m_openClCq->enqueueMapBuffer(*m_histogramBlocks, CL_TRUE, CL_MAP_READ, 0, histoBlocksByteCount);
 //  uint row{0};
 //  for(const cl_uint *v{reinterpret_cast<cl_uint*>(b0)}, *re; row < workgroups; ++row)
