@@ -34,8 +34,8 @@ macx {
     INCLUDEPATH += /usr/local/include /usr/local/glm /usr/include/python3.4 /usr/lib64/python3.4/site-packages/numpy/core/include
     LIBS += -lpython3.4 -L/usr/local/lib -lOpenCL
 }
-#DEFINES += ENABLE_GL_DEBUG_LOGGING STAND_ALONE_EXECUTABLE
-DEFINES += STAND_ALONE_EXECUTABLE
+DEFINES += ENABLE_GL_DEBUG_LOGGING ENABLE_CL_PROFILING STAND_ALONE_EXECUTABLE
+#DEFINES += STAND_ALONE_EXECUTABLE
 
 RESOURCES = RisWidget.qrc
 

@@ -467,12 +467,24 @@ void Renderer::makeClContext()
                                               reinterpret_cast<void*>(this)));
         cl_command_queue_properties commandQueueProps{0};
 #ifdef ENABLE_CL_PROFILING
-        commandQueueProps |= CL_QUEUE_PROFILING_ENABLE;
+        if(m_openClDevice->getInfo<CL_DEVICE_QUEUE_PROPERTIES>() & CL_QUEUE_PROFILING_ENABLE)
+        {
+            commandQueueProps |= CL_QUEUE_PROFILING_ENABLE;
+        }
+        else
+        {
+            throw RisWidgetException("Renderer::makeClContext(): OpenCL profiling was requested but is not supported by the device.");
+        }
 #endif
         if(m_openClDevice->getInfo<CL_DEVICE_QUEUE_PROPERTIES>() & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)
         {
+#ifdef ENABLE_CL_PROFILING
+            std::cerr << "NOTE: OpenCL command queue out of order execution is SUPPORTED by the OpenCL device, but is not enabled "
+                         "(OpenCL profiling is enabled, which can be problematic in combination with out of order execution).\n";
+#else
             std::cerr << "NOTE: OpenCL command queue out of order execution is SUPPORTED by the OpenCL device and is ENABLED.\n";
             commandQueueProps = CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
+#endif
         }
         else
         {
@@ -763,9 +775,9 @@ void Renderer::execHistoCalc()
     // Copy first block histogram to GL buffer
     m_openClCq->enqueueCopyBuffer(*m_histogramBlocks, *m_histogramClBuffer, 0, 0, histoByteCount, waits.get(), &e1);
 #ifdef ENABLE_CL_PROFILING
-    e4.wait();
+    m_openClCq->flush();
+    m_openClCq->finish();
     printClEventDelta(e4, "histoBlocksKern");
-    e0.wait();
     printClEventDelta(e0, "histoReduceKern");
 #endif
     // Cache histogram data in system RAM
