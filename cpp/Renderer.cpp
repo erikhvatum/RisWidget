@@ -89,7 +89,7 @@ Renderer::Renderer(ImageWidget* imageWidget, HistogramWidget* histogramWidget)
 #endif
     m_imageSize(0, 0),
     m_prevHightlightPointerDrawn(false),
-    m_histogramBinCount(2048),
+    m_histogramBinCount(512),
     m_histogramGlBuffer(std::numeric_limits<GLuint>::max()),
     m_histogram(std::numeric_limits<GLuint>::max()),
     m_histogramData(m_histogramBinCount, 0)
@@ -635,8 +635,8 @@ static void printClEventDelta(cl::Event& e, const char* name)
 
 void Renderer::execHistoCalc()
 {
-    static const std::size_t threadsPerWorkgroupAxis{16};
-    static const std::size_t threadsPerAxis{128};
+    static const std::size_t threadsPerWorkgroupAxis{1};
+    static const std::size_t threadsPerAxis{16};
     static_assert(threadsPerAxis % threadsPerWorkgroupAxis == 0,
                   "ThreadsPerAxis must be divisible by threadsPerWorkgroupAxis.");
     static const std::size_t workgroupsPerAxis{threadsPerAxis / threadsPerWorkgroupAxis};
