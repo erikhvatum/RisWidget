@@ -346,67 +346,22 @@ void Renderer::makeGlContexts()
     }
 #ifdef ENABLE_GL_DEBUG_LOGGING
     m_imageView->makeCurrent();
-    m_glDebugLogger = new QOpenGLDebugLogger(this);
-    if(!m_glDebugLogger->initialize())
+    if(!m_imageView->m_context->hasExtension(QByteArrayLiteral("GL_KHR_debug")))
     {
-        throw RisWidgetException("Renderer::makeContexts(): Failed to initialize OpenGL logger.");
+        std::cerr << "GL_KHR_debug OpenGL extension is required for OpenGL debug logging.  Logging disabled.\n";
     }
-    connect(m_glDebugLogger, &QOpenGLDebugLogger::messageLogged, this, &Renderer::glDebugMessageLogged);
-    m_glDebugLogger->startLogging(QOpenGLDebugLogger::SynchronousLogging);
-    m_glDebugLogger->enableMessages();
+    else
+    {
+        m_glDebugLogger = new QOpenGLDebugLogger(this);
+        if(!m_glDebugLogger->initialize())
+        {
+            throw RisWidgetException("Renderer::makeContexts(): Failed to initialize OpenGL logger.");
+        }
+        connect(m_glDebugLogger, &QOpenGLDebugLogger::messageLogged, this, &Renderer::glDebugMessageLogged);
+        m_glDebugLogger->startLogging(QOpenGLDebugLogger::SynchronousLogging);
+        m_glDebugLogger->enableMessages();
+    }
 #endif
-}
-
-#ifdef ENABLE_GL_DEBUG_LOGGING
-void Renderer::glDebugMessageLogged(const QOpenGLDebugMessage& debugMessage)
-{
-    std::cerr << "GL: " << debugMessage.message().toStdString() << std::endl;
-}
-#endif
-
-void Renderer::makeGlfs()
-{
-    // An QOpenGLFunctions_X function bundle instance is associated with a specific context in two ways:
-    // 1) The context is responsible for deleting the function bundle instance
-    // 2) The function bundle provides OpenGL functions up to, at most, the OpenGL version of the context.  So, you
-    // can't get GL4.3 functions from a GL3.3 context, for example.
-    //
-    // Therefore, because the image and histogram necessarily are of the same OpenGL version, and because no functions
-    // will be needed from either's function bundle while the other does not exist, we can arbitrarily choose to use
-    // either view's function bundle exclusively regardless of which view is being manipulated.  We don't need to call
-    // through a view's own function bundle when drawing to it.  (However, the specific view's context _does_ need to be
-    // current in order to draw to its frame buffer.)
-    m_imageView->makeCurrent();
-    m_glfs = m_imageView->m_context->versionFunctions<QOpenGLFunctions_4_1_Core>();
-    if(m_glfs == nullptr)
-    {
-        throw RisWidgetException("Renderer::makeGlfs(): Failed to retrieve OpenGL function bundle.");
-    }
-    if(!m_glfs->initializeOpenGLFunctions())
-    {
-        throw RisWidgetException("Renderer::makeGlfs(): Failed to initialize OpenGL function bundle.");
-    }
-}
-
-void Renderer::buildGlProgs()
-{
-    m_histogramView->makeCurrent();
-    m_histoDrawProg = new HistoDrawProg(this);
-    if(!m_histoDrawProg->link())
-    {
-        throw RisWidgetException("Renderer::buildGlProgs(): Failed to link histogram drawing GLSL program.");
-    }
-    m_histoDrawProg->bind();
-    m_histoDrawProg->init(m_glfs);
-
-    m_imageView->makeCurrent();
-    m_imageDrawProg = new ImageDrawProg(this);
-    if(!m_imageDrawProg->link())
-    {
-        throw RisWidgetException("Renderer::buildGlProgs(): Failed to link image drawing GLSL program.");
-    }
-    m_imageDrawProg->bind();
-    m_imageDrawProg->init(m_glfs);
 }
 
 void Renderer::makeClContext()
@@ -475,43 +430,45 @@ void Renderer::makeClContext()
         // Not-these-other-things leaves only GLX as a supported possibility.  It would be good to investigate using EGL
         // for this purpose, if available, before finally attempting GLX.  In the case where EGL is present, if at run
         // time EGL decides to be difficult (perhaps because it happens to be misconfigured and only be aware of OpenGL
-        // ES profiles), GLX should be attempted. Does Wayland use EGL? A vagrant in the culvert halted me whilest I was
-        // walking the dogge, and counseled that Wayland is EGL, at least right now. However, he's the only individual I
-        // have met willing to disclose that he uses Wayland.  A hard luck case, he is, brave as his days may be.
-        std::vector<cl_context_properties> properties{
+        // ES profiles), GLX should be attempted. Does Wayland use EGL?
+        std::vector<cl_context_properties> properties
+        {
             (cl_context_properties)CL_CONTEXT_PLATFORM,
-                (cl_context_properties)m_openClDeviceList[index].platform,
+            (cl_context_properties)m_openClDeviceList[index].platform
+        };
 #if defined(__APPLE__) || defined(__MACOSX)
             // OS X
-            (cl_context_properties)CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE,
-                (cl_context_properties)CGLGetShareGroup(CGLGetCurrentContext()),
-            (cl_context_properties)0};
+        properties.push_back((cl_context_properties)CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE);
+        properties.push_back((cl_context_properties)CGLGetShareGroup(CGLGetCurrentContext()));
 #elif defined(_WIN32)
-            // Windows
-            (cl_context_properties)CL_GL_CONTEXT_KHR,
-                (cl_context_properties)wglGetCurrentContext(),
-            (cl_context_properties)CL_WGL_HDC_KHR,
-                (cl_context_properties)wglGetCurrentDC(),
-            (cl_context_properties)0};
+        // Windows
+        properties.push_back((cl_context_properties)CL_GL_CONTEXT_KHR);
+        properties.push_back((cl_context_properties)wglGetCurrentContext());
+        properties.push_back((cl_context_properties)CL_WGL_HDC_KHR);
+        properties.push_back((cl_context_properties)wglGetCurrentDC());
 #else
-            // Linux (and anything else supporting GLX and all required features).  The GLX headers #define a bunch of
-            // things that really shouldn't be #defined ever, by anyone, and that happen to break Qt.  So, we have to
-            // farm out the vector insert operations that require function calls and types from the GLX headers to a
-            // plain C compilation unit which can safely do the GLX #includes, being a C file that therefore has a
-            // _separate_ precompiled header blob with everything that could possibly conflict with GLX headers safely
-            // fenced off behind #ifdef __cplusplus.
-            (cl_context_properties)0,     // dummy replaced by implantClContextGlxSharingProperties(..) call below
-                (cl_context_properties)0, // dummy replaced by implantClContextGlxSharingProperties(..) call below
-            (cl_context_properties)0,     // dummy replaced by implantClContextGlxSharingProperties(..) call below
-                (cl_context_properties)0, // dummy replaced by implantClContextGlxSharingProperties(..) call below
-            (cl_context_properties)0};
+        // Linux (and anything else supporting GLX and all required features).  The GLX headers #define a bunch of
+        // things that really shouldn't be #defined ever, by anyone, and that happen to break Qt.  So, we have to farm
+        // out the vector insert operations that require function calls and types from the GLX headers to a plain C
+        // compilation unit which can safely do the GLX #includes, being a C file that therefore has a _separate_
+        // precompiled header blob with everything that could possibly conflict with GLX headers safely fenced off
+        // behind #ifdef __cplusplus.
+        properties.push_back((cl_context_properties)0); // dummy replaced by implantClContextGlxSharingProperties(..) call below
+        properties.push_back((cl_context_properties)0); // dummy replaced by implantClContextGlxSharingProperties(..) call below
+        properties.push_back((cl_context_properties)0); // dummy replaced by implantClContextGlxSharingProperties(..) call below
+        properties.push_back((cl_context_properties)0); // dummy replaced by implantClContextGlxSharingProperties(..) call below
         implantClContextGlxSharingProperties(properties.data(), static_cast<unsigned int>(properties.size()));
 #endif
+        // Terminator
+        properties.push_back((cl_context_properties)0);
         m_openClContext.reset(new cl::Context(*m_openClDevice,
                                               properties.data(),
                                               &Renderer::openClErrorCallbackWrapper,
                                               reinterpret_cast<void*>(this)));
         cl_command_queue_properties commandQueueProps{0};
+#ifdef ENABLE_CL_PROFILING
+        commandQueueProps |= CL_QUEUE_PROFILING_ENABLE;
+#endif
         if(m_openClDevice->getInfo<CL_DEVICE_QUEUE_PROPERTIES>() & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)
         {
             std::cerr << "NOTE: OpenCL command queue out of order execution is SUPPORTED by the OpenCL device and is ENABLED.\n";
@@ -537,6 +494,58 @@ void Renderer::makeClContext()
         throw RisWidgetException(std::string("Renderer::makeClContext(): Failed to create OpenCL context:\n\t") +
                                  e.description());
     }
+}
+
+#ifdef ENABLE_GL_DEBUG_LOGGING
+void Renderer::glDebugMessageLogged(const QOpenGLDebugMessage& debugMessage)
+{
+    std::cerr << "GL: " << debugMessage.message().toStdString() << std::endl;
+}
+#endif
+
+void Renderer::makeGlfs()
+{
+    // An QOpenGLFunctions_X function bundle instance is associated with a specific context in two ways:
+    // 1) The context is responsible for deleting the function bundle instance
+    // 2) The function bundle provides OpenGL functions up to, at most, the OpenGL version of the context.  So, you
+    // can't get GL4.3 functions from a GL3.3 context, for example.
+    //
+    // Therefore, because the image and histogram necessarily are of the same OpenGL version, and because no functions
+    // will be needed from either's function bundle while the other does not exist, we can arbitrarily choose to use
+    // either view's function bundle exclusively regardless of which view is being manipulated.  We don't need to call
+    // through a view's own function bundle when drawing to it.  (However, the specific view's context _does_ need to be
+    // current in order to draw to its frame buffer.)
+    m_imageView->makeCurrent();
+    m_glfs = m_imageView->m_context->versionFunctions<QOpenGLFunctions_4_1_Core>();
+    if(m_glfs == nullptr)
+    {
+        throw RisWidgetException("Renderer::makeGlfs(): Failed to retrieve OpenGL function bundle.");
+    }
+    if(!m_glfs->initializeOpenGLFunctions())
+    {
+        throw RisWidgetException("Renderer::makeGlfs(): Failed to initialize OpenGL function bundle.");
+    }
+}
+
+void Renderer::buildGlProgs()
+{
+    m_histogramView->makeCurrent();
+    m_histoDrawProg = new HistoDrawProg(this);
+    if(!m_histoDrawProg->link())
+    {
+        throw RisWidgetException("Renderer::buildGlProgs(): Failed to link histogram drawing GLSL program.");
+    }
+    m_histoDrawProg->bind();
+    m_histoDrawProg->init(m_glfs);
+
+    m_imageView->makeCurrent();
+    m_imageDrawProg = new ImageDrawProg(this);
+    if(!m_imageDrawProg->link())
+    {
+        throw RisWidgetException("Renderer::buildGlProgs(): Failed to link image drawing GLSL program.");
+    }
+    m_imageDrawProg->bind();
+    m_imageDrawProg->init(m_glfs);
 }
 
 void Renderer::buildClProgs()
@@ -581,6 +590,36 @@ void Renderer::buildClProgs()
     buildProg(":/gpu/histogram.cl", m_histoCalcProg, {std::make_pair(std::string("computeBlocks"), &m_histoBlocksKern),
                                                       std::make_pair(std::string("reduceBlocks"), &m_histoReduceKern)});
 }
+
+#ifdef ENABLE_CL_PROFILING
+static cl_ulong getClEventDelta(cl::Event& e)
+{
+    return e.getProfilingInfo<CL_PROFILING_COMMAND_END>() - e.getProfilingInfo<CL_PROFILING_COMMAND_START>();
+}
+
+static void printClEventDelta(cl::Event& e, const char* name)
+{
+    std::cout << name << ": ";
+    double d = getClEventDelta(e);
+    if(d >= 1.0e9)
+    {
+        std::cout << (d/1.0e9) << " s";
+    }
+    else if(d >= 1.0e6)
+    {
+        std::cout << (d/1.0e6) << " ms";
+    }
+    else if(d >= 1.0e3)
+    {
+        std::cout << (d/1.0e3) << " µs";
+    }
+    else
+    {
+        std::cout << d << " ns";
+    }
+    std::cout << std::endl;
+}
+#endif
 
 void Renderer::execHistoCalc()
 {
@@ -715,14 +754,20 @@ void Renderer::execHistoCalc()
     // Sum all block histograms into a histogram representing the entire image
     m_openClCq->enqueueNDRangeKernel(*m_histoReduceKern,
                                      cl::NullRange,
-                                     cl::NDRange(workgroups * m_histogramBinCount),
-                                     cl::NDRange(m_histogramBinCount),
+                                     cl::NDRange(workgroupsPerAxis, workgroupsPerAxis),
+                                     cl::NDRange(1, 1),
                                      waits.get(),
                                      &e0);
 
     waits.reset(new std::vector<cl::Event>{e0});
     // Copy first block histogram to GL buffer
     m_openClCq->enqueueCopyBuffer(*m_histogramBlocks, *m_histogramClBuffer, 0, 0, histoByteCount, waits.get(), &e1);
+#ifdef ENABLE_CL_PROFILING
+    e4.wait();
+    printClEventDelta(e4, "histoBlocksKern");
+    e0.wait();
+    printClEventDelta(e0, "histoReduceKern");
+#endif
     // Cache histogram data in system RAM
     b0 = m_openClCq->enqueueMapBuffer(*m_histogramBlocks, CL_TRUE, CL_MAP_READ, 0, histoByteCount, waits.get());
     m_histogramData.resize(m_histogramBinCount);
@@ -741,26 +786,26 @@ void Renderer::execHistoCalc()
     }
     std::cout << std::endl << sum << std::endl << std::endl;
 
-    std::ofstream o("/Users/ehvatum/debug.txt", std::ios_base::out | std::ios_base::trunc);
-    b0 = m_openClCq->enqueueMapBuffer(*m_histogramBlocks, CL_TRUE, CL_MAP_READ, 0, histoBlocksByteCount);
-    uint row{0};
-    for(const cl_uint *v{reinterpret_cast<cl_uint*>(b0)}, *re; row < workgroups; ++row)
-    {
-        bool first{true};
-        for(re = v + ((histoByteCount % sizeof(cl_uint16) ?
-                      histoByteCount / sizeof(cl_uint16) + 1 :
-                      histoByteCount / sizeof(cl_uint16))) * sizeof(cl_uint16) / sizeof(cl_uint);
-            v != re;
-            ++v)
-        {
-            if(first) first = false;
-            else o << ' ';
-            o << *v;
-        }
-        o << std::endl;
-    }
-    m_openClCq->enqueueUnmapMemObject(*m_histogramBlocks, b0, nullptr, &e0);
-    e0.wait();
+//  std::ofstream o("/Users/ehvatum/debug.txt", std::ios_base::out | std::ios_base::trunc);
+//  b0 = m_openClCq->enqueueMapBuffer(*m_histogramBlocks, CL_TRUE, CL_MAP_READ, 0, histoBlocksByteCount);
+//  uint row{0};
+//  for(const cl_uint *v{reinterpret_cast<cl_uint*>(b0)}, *re; row < workgroups; ++row)
+//  {
+//      bool first{true};
+//      for(re = v + ((histoByteCount % sizeof(cl_uint16) ?
+//                    histoByteCount / sizeof(cl_uint16) + 1 :
+//                    histoByteCount / sizeof(cl_uint16))) * sizeof(cl_uint16) / sizeof(cl_uint);
+//          v != re;
+//          ++v)
+//      {
+//          if(first) first = false;
+//          else o << ' ';
+//          o << *v;
+//      }
+//      o << std::endl;
+//  }
+//  m_openClCq->enqueueUnmapMemObject(*m_histogramBlocks, b0, nullptr, &e0);
+//  e0.wait();
 }
 
 void Renderer::updateGlViewportSize(ViewWidget* viewWidget)

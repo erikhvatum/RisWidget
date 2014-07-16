@@ -48,11 +48,10 @@
 
 void implantClContextGlxSharingProperties(cl_context_properties* properties, unsigned int propertiesSize)
 {
-    properties[propertiesSize - 5] = CL_GL_CONTEXT_KHR;
-    properties[propertiesSize - 4] = (cl_context_properties)glXGetCurrentContext();
-    properties[propertiesSize - 3] = CL_GLX_DISPLAY_KHR;
-    properties[propertiesSize - 2] = (cl_context_properties)glXGetCurrentDisplay();
-    // Last element is 0 and serves as a terminator
+    properties[propertiesSize - 4] = CL_GL_CONTEXT_KHR;
+    properties[propertiesSize - 3] = (cl_context_properties)glXGetCurrentContext();
+    properties[propertiesSize - 2] = CL_GLX_DISPLAY_KHR;
+    properties[propertiesSize - 1] = (cl_context_properties)glXGetCurrentDisplay();
 }
 
  #ifdef __cplusplus
