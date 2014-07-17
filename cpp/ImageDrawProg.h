@@ -45,4 +45,22 @@ public:
     QOpenGLBuffer m_quadVaoBuff;
     const int m_pmvLoc;
     const int m_fragToTexLoc;
+    const int m_gtpMinLoc;
+    const int m_gtpMaxLoc;
+    const int m_gtpRangeLoc;
+    const int m_gtpGammaLoc;
+    const GLint m_drawImageLoc;
+    const GLuint m_drawImagePassthroughIdx;
+    const GLuint m_drawImageGammaIdx;
+
+    void setGtpRange(const GLfloat& gtpMin, const GLfloat& gtpMax);
+    void setGtpGamma(const GLfloat& gtpGamma);
+    void setDrawImageSubroutineIdx(const GLuint& drawImageSubroutineIdx);
+
+private:
+    GLfloat m_gtpMin;
+    GLfloat m_gtpMax;
+    GLfloat m_gtpRange;
+    GLfloat m_gtpGamma;
+    GLuint m_drawImageSubroutineIdx;
 };

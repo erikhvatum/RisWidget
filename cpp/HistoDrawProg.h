@@ -33,7 +33,7 @@ class HistoDrawProg
 public:
     enum Locations : int
     {
-        VertCoordLoc = 0
+        BinIndexLoc = 0
     };
 
     explicit HistoDrawProg(QObject* parent);
@@ -41,21 +41,26 @@ public:
 
     void init(QOpenGLFunctions_4_1_Core* glfs) override;
 
-    QPointer<QOpenGLVertexArrayObject> m_binVao;
-    std::unique_ptr<QOpenGLBuffer> m_binVaoBuff;
     const int m_pmvLoc;
     const int m_binCountLoc;
     const int m_binScaleLoc;
     const int m_gammaGammaValLoc;
 
+    void setPmv(const glm::mat4& pmv);
     void setBinCount(const GLuint& binCount);
     void setBinScale(const GLfloat& binScale);
     void setGammaGammaVal(const GLfloat& gammaGammaVal);
-    void setPmv(const glm::mat4& pmv);
+
+    // Note: m_binCount must be current before this function is called; do setBinCount(..) before getBinVao()
+    std::shared_ptr<QOpenGLVertexArrayObject::Binder> getBinVao();
 
 private:
+    QPointer<QOpenGLVertexArrayObject> m_binVao;
+    QOpenGLBuffer m_binVaoBuff;
+    GLuint m_binVaoSize;
+
+    glm::mat4 m_pmv;
     GLuint m_binCount;
     GLfloat m_binScale;
     GLfloat m_gammaGammaVal;
-    glm::mat4 m_pmv;
 };

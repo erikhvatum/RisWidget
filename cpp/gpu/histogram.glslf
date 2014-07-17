@@ -1,4 +1,5 @@
 #version 410 core
+#line 3
 // The MIT License (MIT)
 //
 // Copyright (c) 2014 Erik Hvatum

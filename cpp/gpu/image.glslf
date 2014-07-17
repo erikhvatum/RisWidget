@@ -1,4 +1,5 @@
 #version 410 core
+#line 3
 // #extension GL_ARB_separate_shader_objects : enable
 
 // The MIT License (MIT)
@@ -23,14 +24,32 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+subroutine vec3 DrawImage(vec2 texCoord);
 
 // layout (origin_upper_left, pixel_center_integer) in vec4 gl_FragCoord;
 uniform sampler2D tex;
 // 2D homogeneous transformation matrix for transforming gl_FragCoord viewport coordinates into image texture
 // coordinates
 uniform mat3 fragToTex;
+uniform float gtpMin;
+uniform float gtpMax;
+// Equal to gtpMax - gtpMin
+uniform float gtpRange;
+uniform float gtpGamma;
+subroutine uniform DrawImage drawImage;
 
 layout (location = 0) out vec4 fsColor;
+
+subroutine (DrawImage) vec3 drawImage_passthrough(vec2 texCoord)
+{
+    return texture(tex, texCoord).rrr;
+}
+
+subroutine (DrawImage) vec3 drawImage_gamma(vec2 texCoord)
+{
+    float scaled = pow(clamp( (texture(tex, texCoord) - gtpMin).r / gtpRange, 0.0f, 1.0 ), gtpGamma);
+    return vec3(scaled, scaled, scaled);
+}
 
 void main()
 {
@@ -51,7 +70,7 @@ void main()
         discard;
     }
 
-    float v;
+//  float v;
 //  if(texCoord.x < 0.5)
 //  {
 //      if(texCoord.y < 0.5)
@@ -66,7 +85,8 @@ void main()
 //  else
 //  {
 //      texCoord = (floor(textureSize(tex, 0) * texCoord) + 0.5) / textureSize(tex, 0);
-        v = texture(tex, texCoord).r;
+//      v = texture(tex, texCoord).r;
 //  }
-    fsColor = vec4(v, v, v, 1);
+//  fsColor = vec4(v, v, v, 1);
+    fsColor = vec4(drawImage(texCoord), 1);
 }

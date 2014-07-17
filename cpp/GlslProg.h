@@ -37,5 +37,6 @@ public:
     virtual void init(QOpenGLFunctions_4_1_Core* glfs);
 
 protected:
+    QOpenGLFunctions_4_1_Core* m_glfs;
     void addShader(const QString& fileName, const QOpenGLShader::ShaderType& type);
 };

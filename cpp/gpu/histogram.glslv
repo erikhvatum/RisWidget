@@ -1,4 +1,5 @@
 #version 410 core
+#line 3
 // The MIT License (MIT)
 //
 // Copyright (c) 2014 Erik Hvatum
@@ -27,7 +28,7 @@ uniform float binScale;
 uniform float gammaGammaVal = 1.0;
 uniform usamplerBuffer histogram;
 
-in float binIndex;
+layout (location = 0) in float binIndex;
 
 void main()
 {

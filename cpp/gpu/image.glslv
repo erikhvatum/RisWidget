@@ -1,4 +1,5 @@
 #version 410 core
+#line 3
 // #extension GL_ARB_separate_shader_objects : enable
 
 // The MIT License (MIT)
