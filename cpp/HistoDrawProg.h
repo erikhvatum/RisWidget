@@ -47,4 +47,15 @@ public:
     const int m_binCountLoc;
     const int m_binScaleLoc;
     const int m_gammaGammaValLoc;
+
+    void setBinCount(const GLuint& binCount);
+    void setBinScale(const GLfloat& binScale);
+    void setGammaGammaVal(const GLfloat& gammaGammaVal);
+    void setPmv(const glm::mat4& pmv);
+
+private:
+    GLuint m_binCount;
+    GLfloat m_binScale;
+    GLfloat m_gammaGammaVal;
+    glm::mat4 m_pmv;
 };

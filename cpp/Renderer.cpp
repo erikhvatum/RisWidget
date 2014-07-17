@@ -1026,6 +1026,58 @@ void Renderer::execHistoDraw()
     m_glfs->glClearDepth(1.0f);
     m_glfs->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    if(!m_imageData.empty())
+    {
+        GLfloat gammaGamma{m_histogramWidget->m_gtpGammaGamma};
+        widgetLocker.unlock();
+        if(gammaGamma != m_histoDrawProg.gammaGamma)
+        {
+            m_glfs->glUniform1f(m_histoDrawProg.gammaGammaLoc, gammaGamma);
+            m_histoDrawProg.gammaGamma = gammaGamma;
+        }
+        m_glfs->glUniform1ui(m_histoDrawProg.binCountLoc, m_histogramBinCount);
+        m_glfs->glUniform1f(m_histoDrawProg.binScaleLoc, m_histoConsolidateProg.extrema[1]);
+        glm::mat4 pmv(1.0f);
+        m_glfs->glUniformMatrix4fv(m_histoDrawProg.projectionModelViewMatrixLoc, 1, GL_FALSE, glm::value_ptr(pmv));
+
+        if(m_histoDrawProg.pointVao == std::numeric_limits<GLuint>::max())
+        {
+            m_glfs->glGenVertexArrays(1, &m_histoDrawProg.pointVao);
+            m_glfs->glBindVertexArray(m_histoDrawProg.pointVao);
+
+            m_glfs->glGenBuffers(1, &m_histoDrawProg.pointVaoBuff);
+            m_glfs->glBindBuffer(GL_ARRAY_BUFFER, m_histoDrawProg.pointVaoBuff);
+            {
+                std::vector<float> points;
+                points.resize(m_histogramBinCount, 0);
+                GLuint i = 0;
+                for(std::vector<float>::iterator point(points.begin()); point != points.end(); ++point, ++i)
+                {
+                    *point = i;
+                }
+                m_glfs->glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * m_histogramBinCount,
+                                     reinterpret_cast<const GLvoid*>(points.data()),
+                                     GL_STATIC_DRAW);
+            }
+
+            m_glfs->glEnableVertexAttribArray(m_histoDrawProg.binIndexLoc);
+            m_glfs->glVertexAttribPointer(m_histoDrawProg.binIndexLoc, 1, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+            m_glfs->glBindBuffer(GL_ARRAY_BUFFER, 0);
+        }
+        else
+        {
+            m_glfs->glBindVertexArray(m_histoDrawProg.pointVao);
+        }
+
+        m_glfs->glBindTexture(GL_TEXTURE_1D, 0);
+        m_glfs->glBindImageTexture(m_histoDrawProg.histogramLoc, m_histogram, 0, true, 0, GL_READ_ONLY, GL_R32UI);
+
+        m_glfs->glDrawArrays(GL_LINE_STRIP, 0, m_histogramBinCount);
+        m_glfs->glPointSize(4);
+        m_glfs->glDrawArrays(GL_POINTS, 0, m_histogramBinCount);
+    }
+
     m_histogramView->swapBuffers();
 }
 
