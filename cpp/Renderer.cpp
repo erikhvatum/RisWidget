@@ -729,9 +729,9 @@ void Renderer::execHistoCalc()
         m_histoBlocksKern->setArg(4, *m_histogramZeroBlock);
 
         m_histoReduceKern->setArg(0, *m_histoXxKernArgs);
-        cl_uint cibc{m_histogramBinCount / 16};
-        if(m_histogramBinCount % 16) ++cibc;
-        m_histoReduceKern->setArg(1, cibc);
+//        cl_uint cibc{m_histogramBinCount / 16};
+//        if(m_histogramBinCount % 16) ++cibc;
+//        m_histoReduceKern->setArg(1, cibc);
     }
     b2 = m_openClCq->enqueueMapBuffer(*m_histogramBlocks, CL_FALSE, CL_MAP_WRITE, 0, histoBlocksByteCount, nullptr, &e2);
 
@@ -762,7 +762,7 @@ void Renderer::execHistoCalc()
                                      waits.get(),
                                      &e4);
 
-    m_histoReduceKern->setArg(2, *m_histogramBlocks);
+    m_histoReduceKern->setArg(1, *m_histogramBlocks);
     waits->push_back(e4);
 
     // Sum all block histograms into a histogram representing the entire image

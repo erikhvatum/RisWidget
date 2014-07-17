@@ -82,7 +82,7 @@ kernel void computeBlocks(constant XxBlocksConstArgs* args,
 }
 
 kernel void reduceBlocks(constant XxBlocksConstArgs* args,
-                         const uint invocationBinCount,
+//                       const uint invocationBinCount,
                          global uint16* blocks)
 {
     if(get_global_id(0) == 0 && get_global_id(1) == 0)
