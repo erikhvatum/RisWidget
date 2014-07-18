@@ -138,6 +138,8 @@ private:
     // instance uses will only be released when that instance terminates.
     std::future<std::pair<GLushort, GLushort>> m_imageExtremaFuture;
     std::pair<GLushort, GLushort> m_imageExtrema;
+    // Minimum and maximum histogram bin values
+    std::pair<GLuint, GLuint> m_histogramExtrema;
     // Used when "highlight image pixel under mouse" is enabled in order to remember the location of the previous
     // highlight so that it may be erased when the highlight moves
     bool m_prevHightlightPointerDrawn;

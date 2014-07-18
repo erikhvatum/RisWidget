@@ -778,10 +778,41 @@ void Renderer::execHistoCalc()
     printClEventDelta(e4, "histoBlocksKern");
     printClEventDelta(e0, "histoReduceKern");
 #endif
-    // Cache histogram data in system RAM
+    // Cache histogram data in system RAM and find min & max histogram bin values
     b0 = m_openClCq->enqueueMapBuffer(*m_histogramBlocks, CL_TRUE, CL_MAP_READ, 0, histoByteCount, waits.get());
     m_histogramData.resize(m_histogramBinCount);
-    memcpy(m_histogramData.data(), b0, histoByteCount);
+    m_histogramExtrema.first = std::numeric_limits<decltype(m_histogramExtrema.first)>::max();
+    m_histogramExtrema.second = std::numeric_limits<decltype(m_histogramExtrema.second)>::min();
+    if(m_histogramBinCount == 1)
+    {
+        m_histogramExtrema.first = m_histogramExtrema.second = m_histogramData[0] = *reinterpret_cast<GLuint*>(b0);
+    }
+    else
+    {
+        // This will segfault if m_histogramBinCount == 0.  However, if m_histogramBinCount == 0, an explosion would
+        // have occurred long before this code is reached.
+        GLuint *s{reinterpret_cast<GLuint*>(b0)};
+        GLuint *se{reinterpret_cast<GLuint*>(b0) + m_histogramBinCount};
+        GLuint *d{m_histogramData.data()};
+        for(;;)
+        {
+            if(*s < m_histogramExtrema.first)
+            {
+                m_histogramExtrema.first = *s;
+            }
+            else if(*s > m_histogramExtrema.second)
+            {
+                m_histogramExtrema.second = *s;
+            }
+            *d = *s;
+            ++s;
+            if(s == se)
+            {
+                break;
+            }
+            ++d;
+        }
+    }
     m_openClCq->enqueueUnmapMemObject(*m_histogramBlocks, b0, nullptr, &e2);
 
     waits.reset(new std::vector<cl::Event>{e1, e2});
@@ -869,8 +900,8 @@ void Renderer::execImageDraw()
     std::unique_ptr<QMutexLocker> widgetLocker(new QMutexLocker(m_histogramWidget->m_lock));
     bool gtpEnabled{m_histogramWidget->m_gtpEnabled};
     bool gtpAutoMinMaxEnabled{m_histogramWidget->m_gtpAutoMinMaxEnabled};
-    GLfloat gtpMin{m_histogramWidget->m_gtpMin / 65535.0f};
-    GLfloat gtpMax{m_histogramWidget->m_gtpMax / 65535.0f};
+    GLfloat gtpMin{static_cast<GLfloat>(m_histogramWidget->m_gtpMin)};
+    GLfloat gtpMax{m_histogramWidget->m_gtpMax};
     GLfloat gtpGamma{m_histogramWidget->m_gtpGamma};
 
     widgetLocker.reset(new QMutexLocker(m_imageWidget->m_lock));
@@ -1015,7 +1046,7 @@ void Renderer::execImageDraw()
 
         if(gtpEnabled)
         {
-            m_imageDrawProg->setGtpRange(gtpMin, gtpMax);
+            m_imageDrawProg->setGtpRange(gtpMin / 65535.0f, gtpMax / 65535.0f);
             m_imageDrawProg->setGtpGamma(gtpGamma);
             m_imageDrawProg->setDrawImageSubroutineIdx(m_imageDrawProg->m_drawImageGammaIdx);
         }
@@ -1055,11 +1086,13 @@ void Renderer::execHistoDraw()
 
     if(!m_imageData.empty())
     {
+        GLfloat gtpGammaGamma{m_histogramWidget->m_gtpGammaGamma};
+        widgetLocker.unlock();
         m_histoDrawProg->bind();
-        m_histoDrawProg->setGammaGammaVal(m_histogramWidget->m_gtpGammaGamma);
+        m_histoDrawProg->setGtpGammaGamma(gtpGammaGamma);
         widgetLocker.unlock();
         m_histoDrawProg->setBinCount(m_histogramBinCount);
-        m_histoDrawProg->setBinScale(m_imageExtrema.second);
+        m_histoDrawProg->setBinScale(powf(m_histogramExtrema.second, gtpGammaGamma));
         auto binVaoBinder(m_histoDrawProg->getBinVao());
 
         m_glfs->glBindTexture(GL_TEXTURE_BUFFER, m_histogram);

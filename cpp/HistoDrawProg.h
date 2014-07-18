@@ -44,12 +44,12 @@ public:
     const int m_pmvLoc;
     const int m_binCountLoc;
     const int m_binScaleLoc;
-    const int m_gammaGammaValLoc;
+    const int m_gtpGammaGammaLoc;
 
     void setPmv(const glm::mat4& pmv);
     void setBinCount(const GLuint& binCount);
     void setBinScale(const GLfloat& binScale);
-    void setGammaGammaVal(const GLfloat& gammaGammaVal);
+    void setGtpGammaGamma(const GLfloat& gtpGammaGamma);
 
     // Note: m_binCount must be current before this function is called; do setBinCount(..) before getBinVao()
     std::shared_ptr<QOpenGLVertexArrayObject::Binder> getBinVao();
@@ -62,5 +62,5 @@ private:
     glm::mat4 m_pmv;
     GLuint m_binCount;
     GLfloat m_binScale;
-    GLfloat m_gammaGammaVal;
+    GLfloat m_gtpGammaGamma;
 };

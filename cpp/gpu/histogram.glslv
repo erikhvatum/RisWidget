@@ -25,18 +25,22 @@
 uniform mat4 projectionModelViewMatrix;
 uniform uint binCount;
 uniform float binScale;
-uniform float gammaGammaVal = 1.0;
+uniform float gtpGammaGamma;
 uniform usamplerBuffer histogram;
 
 layout (location = 0) in float binIndex;
 
 void main()
 {
-    uint binValue = texelFetch(histogram, int(binIndex)).r;
-    gl_Position = projectionModelViewMatrix * vec4((float(binIndex) / float(binCount) - 0.5) * 2.0,
-//                                                 (log(float(binValue)) / binScale - 0.5) * 2.0,
-//                                                 (float(binValue) / binScale - 0.5) * 2.0,
-                                                   (pow(float(binValue) / binScale, gammaGammaVal) - 0.5) * 2.0,
-                                                   0.4,
-                                                   1.0);
+    float binValue = texelFetch(histogram, int(binIndex)).r;
+//     gl_Position = projectionModelViewMatrix * vec4((float(binIndex) / float(binCount) - 0.5) * 2.0,
+// //                                                 (log(float(binValue)) / binScale - 0.5) * 2.0,
+// //                                                 (float(binValue) / binScale - 0.5) * 2.0,
+//                                                    (pow(float(binValue) / binScale, gammaGammaVal) - 0.5) * 2.0,
+//                                                    0.4,
+//                                                    1.0);
+    gl_Position = vec4((binIndex / binCount - 0.5f) * 2.0f,
+                       (pow(binValue, gtpGammaGamma) / binScale - 0.5f) * 2.0f,
+                       0.4,
+                       1.0);
 }

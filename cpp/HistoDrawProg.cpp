@@ -6,14 +6,14 @@ HistoDrawProg::HistoDrawProg(QObject* parent)
     m_pmvLoc(std::numeric_limits<int>::min()),
     m_binCountLoc(std::numeric_limits<int>::min()),
     m_binScaleLoc(std::numeric_limits<int>::min()),
-    m_gammaGammaValLoc(std::numeric_limits<int>::min()),
+    m_gtpGammaGammaLoc(std::numeric_limits<int>::min()),
     m_binVao(new QOpenGLVertexArrayObject(this)),
     m_binVaoBuff(QOpenGLBuffer::VertexBuffer),
     m_binVaoSize(std::numeric_limits<GLuint>::max()),
     m_pmv(1.0f),
     m_binCount(std::numeric_limits<GLuint>::max()),
     m_binScale(NAN),
-    m_gammaGammaVal(NAN)
+    m_gtpGammaGamma(NAN)
 {
     // Cause any comparison to fail so that the first setPmv(..) call will assign new value to m_pmv
     m_pmv[0][0] = NAN;
@@ -34,7 +34,7 @@ void HistoDrawProg::init(QOpenGLFunctions_4_1_Core* glfs)
     const_cast<int&>(m_pmvLoc) = uniformLocation("projectionModelViewMatrix");
     const_cast<int&>(m_binCountLoc) = uniformLocation("binCount");
     const_cast<int&>(m_binScaleLoc) = uniformLocation("binScale");
-    const_cast<int&>(m_gammaGammaValLoc) = uniformLocation("gammaGammaVal");
+    const_cast<int&>(m_gtpGammaGammaLoc) = uniformLocation("gtpGammaGamma");
 
     // For now, the histogram is the only content of the histogram view, and so the histogram occupies the entire view
     // and is not scaled.  Thus, its transformation matrix is the identity matrix, and only needs to be set once, upon
@@ -55,7 +55,7 @@ void HistoDrawProg::setBinCount(const GLuint& binCount)
 {
     if(binCount != m_binCount)
     {
-        setUniformValue(m_binCountLoc, binCount);
+        m_glfs->glUniform1ui(m_binCountLoc, binCount); 
         m_binCount = binCount;
     }
 }
@@ -64,17 +64,17 @@ void HistoDrawProg::setBinScale(const GLfloat& binScale)
 {
     if(binScale != m_binScale)
     {
-        setUniformValue(m_binScaleLoc, binScale);
+        m_glfs->glUniform1f(m_binScaleLoc, binScale);
         m_binScale = binScale;
     }
 }
 
-void HistoDrawProg::setGammaGammaVal(const GLfloat& gammaGammaVal)
+void HistoDrawProg::setGtpGammaGamma(const GLfloat& gtpGammaGamma)
 {
-    if(gammaGammaVal != m_gammaGammaVal)
+    if(gtpGammaGamma != m_gtpGammaGamma)
     {
-        setUniformValue(m_gammaGammaValLoc, gammaGammaVal);
-        m_gammaGammaVal = gammaGammaVal;
+        m_glfs->glUniform1f(m_gtpGammaGammaLoc, gtpGammaGamma);
+        m_gtpGammaGamma = gtpGammaGamma;
     }
 }
 
