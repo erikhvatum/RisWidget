@@ -901,7 +901,7 @@ void Renderer::execImageDraw()
     bool gtpEnabled{m_histogramWidget->m_gtpEnabled};
     bool gtpAutoMinMaxEnabled{m_histogramWidget->m_gtpAutoMinMaxEnabled};
     GLfloat gtpMin{static_cast<GLfloat>(m_histogramWidget->m_gtpMin)};
-    GLfloat gtpMax{m_histogramWidget->m_gtpMax};
+    GLfloat gtpMax{static_cast<GLfloat>(m_histogramWidget->m_gtpMax)};
     GLfloat gtpGamma{m_histogramWidget->m_gtpGamma};
 
     widgetLocker.reset(new QMutexLocker(m_imageWidget->m_lock));
