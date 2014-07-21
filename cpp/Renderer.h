@@ -143,7 +143,7 @@ private:
     // Used when "highlight image pixel under mouse" is enabled in order to remember the location of the previous
     // highlight so that it may be erased when the highlight moves
     bool m_prevHightlightPointerDrawn;
-    QPoint m_prevHightlightPointerCoord;
+    QPoint m_prevPointerImagePixelCoord;
 
     GLuint m_histogramBinCount;
     std::unique_ptr<cl::Buffer> m_histogramBlocks;

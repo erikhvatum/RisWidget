@@ -901,7 +901,7 @@ void Renderer::execImageDraw()
     bool gtpEnabled{m_histogramWidget->m_gtpEnabled};
     bool gtpAutoMinMaxEnabled{m_histogramWidget->m_gtpAutoMinMaxEnabled};
     GLfloat gtpMin{static_cast<GLfloat>(m_histogramWidget->m_gtpMin)};
-    GLfloat gtpMax{m_histogramWidget->m_gtpMax};
+    GLfloat gtpMax{static_cast<GLfloat>(m_histogramWidget->m_gtpMax)};
     GLfloat gtpGamma{m_histogramWidget->m_gtpGamma};
 
     widgetLocker.reset(new QMutexLocker(m_imageWidget->m_lock));
@@ -921,9 +921,9 @@ void Renderer::execImageDraw()
         glm::dmat3 fragToTex;
         double zoomFactor;
         glm::dvec2 viewSize(m_imageWidget->m_viewSize.width(), m_imageWidget->m_viewSize.height());
-//      bool highlightPointer{m_imageWidget->m_highlightPointer};
-//      bool pointerIsOnImagePixel{m_imageWidget->m_pointerIsOnImagePixel};
-//      QPoint pointerImagePixelCoord(m_imageWidget->m_pointerImagePixelCoord);
+        bool highlightPointer{m_imageWidget->m_highlightPointer};
+        bool pointerIsOnImagePixel{m_imageWidget->m_pointerIsOnImagePixel};
+        QPoint pointerImagePixelCoord(m_imageWidget->m_pointerImagePixelCoord);
 
         if(m_imageWidget->m_zoomToFit)
         {
@@ -992,7 +992,7 @@ void Renderer::execImageDraw()
                 fragToTex[2][0] = std::floor((imageSize.x > viewSize.x) ?
                                              -(viewSize.x - imageSize.x) / 2 + pan.x : -(viewSize.x - imageSize.x) / 2);
                 fragToTex[2][1] = std::floor((imageSize.y > viewSize.y) ?
-                                             -(viewSize.y - imageSize.y) / 2 - pan.y : -(viewSize.y - imageSize.y) / 2);
+                                             (viewSize.y - imageSize.y) / 2 + pan.y : (viewSize.y - imageSize.y) / 2);
             }
             else if(zoomFactor < 1)
             {
@@ -1002,7 +1002,7 @@ void Renderer::execImageDraw()
                 fragToTex[2][0] = floor((imageSize.x > viewSize.x) ?
                                         -(viewSize.x - imageSize.x) / 2 + pan.x : -(viewSize.x - imageSize.x) / 2);
                 fragToTex[2][1] = floor((imageSize.y > viewSize.y) ?
-                                        -(viewSize.y - imageSize.y) / 2 - pan.y : -(viewSize.y - imageSize.y) / 2);
+                                        (viewSize.y - imageSize.y) / 2 + pan.y : (viewSize.y - imageSize.y) / 2);
                 fragToTex = glm::dmat3(1, 0, 0,
                                        0, 1, 0,
                                        0, 0, zoomFactor) * fragToTex;
@@ -1015,7 +1015,7 @@ void Renderer::execImageDraw()
                 fragToTex[2][0] = (imageSize.x > viewSize.x) ?
                     -(viewSize.x - imageSize.x) / 2 + pan.x : -(viewSize.x - imageSize.x) / 2;
                 fragToTex[2][1] = (imageSize.y > viewSize.y) ?
-                    -(viewSize.y - imageSize.y) / 2 - pan.y : -(viewSize.y - imageSize.y) / 2;
+                    (viewSize.y - imageSize.y) / 2 + pan.y : (viewSize.y - imageSize.y) / 2;
                 fragToTex = glm::dmat3(1, 0, 0,
                                        0, 1, 0,
                                        0, 0, zoomFactor) * fragToTex;
@@ -1024,7 +1024,10 @@ void Renderer::execImageDraw()
 
         fragToTex = glm::dmat3(1.0 / m_imageSize.width(), 0, 0,
                                0, 1.0 / m_imageSize.height(), 0,
-                               0, 0, 1) * fragToTex;
+                               0, 0, 1) * fragToTex *
+                    glm::dmat3(1, 0, 0,
+                               0, -1, 0,
+                               0, m_imageSize.height() * zoomFactor, 1);
 
         glm::mat4 pmvf(pmv);
         m_glfs->glUniformMatrix4fv(m_imageDrawProg->m_pmvLoc, 1, GL_FALSE, glm::value_ptr(pmvf));
@@ -1054,6 +1057,49 @@ void Renderer::execImageDraw()
         {
             m_imageDrawProg->setDrawImageSubroutineIdx(m_imageDrawProg->m_drawImagePassthroughIdx);
         }
+
+        // Update pointer position highlight in image texture
+//      {
+//          bool erasePrev;
+//          bool drawCur;
+// 
+//          if(m_prevHightlightPointerDrawn)
+//          {
+//              if(highlightPointer)
+//              {
+//                  if(pointerIsOnImagePixel)
+//                  {
+//                      erasePrev = drawCur = (pointerImagePixelCoord != m_prevHightlightPointerDrawn);
+//                  }
+//                  else
+//                  {
+//                      erasePrev = true;
+//                      drawCur = false;
+//                  }
+//              }
+//              else
+//              {
+//                  erasePrev = true;
+//                  drawCur = false;
+//              }
+//          }
+//          else
+//          {
+//              erasePrev = false;
+//              drawCur = (highlightPointer && pointerIsOnImagePixel);
+//          }
+// 
+//          if(erasePrev || drawCur)
+//          {
+//              m_image->bind();
+//              const QRect imrect(QPoint(0, 0), m_imageSize);
+//              if(erasePrev)
+//              {
+// 
+//              }
+//              m_image->generateMipMaps();
+//          }
+//      }
 
         m_imageDrawProg->m_quadVao->bind();
         m_image->bind();
