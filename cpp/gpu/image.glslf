@@ -27,6 +27,7 @@
 subroutine vec3 DrawImage(vec2 texCoord);
 
 // layout (origin_upper_left, pixel_center_integer) in vec4 gl_FragCoord;
+// layout (origin_upper_left) in vec4 gl_FragCoord;
 uniform sampler2D tex;
 // 2D homogeneous transformation matrix for transforming gl_FragCoord viewport coordinates into image texture
 // coordinates
@@ -58,6 +59,7 @@ void main()
     vec3 texCoordh = fragToTex * vec3(gl_FragCoord.x, gl_FragCoord.y, gl_FragCoord.w);
     // Compute 2D coordinate from homogeneous 2D coordinate
     vec2 texCoord = texCoordh.xy / texCoordh.z;
+//  texCoord.y = 1.0f - texCoord.y;
 
     // Render nothing if fragment coordinate is outside of texture.  This should only happen for a display row or column
     // at the edge of the quad.

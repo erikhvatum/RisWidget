@@ -81,8 +81,8 @@ void View::update()
         // Additionally, swapBuffers(..), called by Renderer upon completion of drawing to display the new rendering,
         // checks m_visibleAndExposed before actually doing a render.  Thus, if a View becomes hidden before Renderer
         // gets around to rendering it, the update is skipped.  However, the next time the View becomes visible, a new
-        // update is queued, so there is no opportunity for a View to be both visible and without being refreshed or at
-        // least having a refresh pending.
+        // update is queued, so there is no opportunity for a View to be both visible and out of date with no refresh
+        // pending.
         m_renderer->updateView(this);
     }
 }

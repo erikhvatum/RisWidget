@@ -10,7 +10,6 @@ HistoDrawProg::HistoDrawProg(QObject* parent)
     m_binVao(new QOpenGLVertexArrayObject(this)),
     m_binVaoBuff(QOpenGLBuffer::VertexBuffer),
     m_binVaoSize(std::numeric_limits<GLuint>::max()),
-    m_pmv(1.0f),
     m_binCount(std::numeric_limits<GLuint>::max()),
     m_binScale(NAN),
     m_gtpGammaGamma(NAN)
