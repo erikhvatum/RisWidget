@@ -59,9 +59,6 @@ protected:
     virtual void makeView(bool doAddWidget = true);
     // Helper for makeView
     virtual View* instantiateView() = 0;
-    // Another makeView helper, this one to avoid detached GL surfaces floating around on the screen during the interval
-    // between when a RisWidget is instantiated and when it is shown
-//  void showViewWhenTheTimeIsRight();
 
 protected slots:
     virtual void resizeEventInView(QResizeEvent* ev);

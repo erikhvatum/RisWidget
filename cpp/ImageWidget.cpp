@@ -34,9 +34,7 @@ ImageWidget::ImageWidget(QWidget* parent)
     m_zoomIndex(sm_defaultZoomPreset),
     m_customZoom(0.0f),
     m_zoomToFit(false),
-    m_highlightPointer(false),
-    m_pointerIsOnImagePixel(false),
-    m_pointerIsInWidget(false)
+    m_highlightPointer(false)
 {
     setupUi(this);
 }
@@ -164,71 +162,6 @@ void ImageWidget::setHighlightPointer(bool highlightPointer)
     m_view->update();
 }
 
-void ImageWidget::mapFromWidgetToImage(const QPoint& widgetCoord, bool& isOnPixel, QPoint& pixelCoord)
-{
-    Renderer* renderer = m_view->renderer();
-
-    if(renderer == nullptr || m_imageData.isEmpty())
-    {
-        isOnPixel = false;
-        pixelCoord.rx() = pixelCoord.ry() = 0;
-    }
-    else
-    {
-        // Note: double precision is important here; it is trivial to demonstrate that with high zoom and a large image,
-        // panning offsets will fall under 32-bit floating point epsilon, causing the calculated image position to be
-        // off by > 0.01% near the middle of the image (where coordinate values are large enough for the small pan
-        // values to slip under epsilon).  Double precision buys plenty of room, so that by the time error is apparent,
-        // the user has bigger problems, such as an image file the size of.... an incomparably massive thing that
-        // presents problems for this comparative analogy and anything else it encounters.
-        glm::dvec2 ipc(widgetCoord.x(), widgetCoord.y());
-        glm::dvec2 viewSize(m_viewSize.width(), m_viewSize.height());
-        glm::dvec2 imageSize(m_imageSize.width(), m_imageSize.height());
-        double zoom;
-        if(m_zoomToFit)
-        {
-            double viewAspectRatio = viewSize.x / viewSize.y;
-            double imageAspectRatio = imageSize.x / imageSize.y;
-            if(imageAspectRatio >= viewAspectRatio)
-            {
-                // Image is constrained horizontally and centered vertically
-                zoom = viewSize.x / imageSize.x;
-                ipc.y += (imageSize.y * zoom - viewSize.y) / 2.0;
-                ipc /= zoom;
-            }
-            else
-            {
-                // Image is constrained vertically and centered horizontally
-                zoom = viewSize.y / imageSize.y;
-                ipc.x += (imageSize.x * zoom - viewSize.x) / 2.0;
-                ipc /= zoom;
-            }
-        }
-        else
-        {
-            zoom = m_zoomIndex == -1 ? m_customZoom : sm_zoomPresets[m_zoomIndex];
-            // Image is centered vertically and horizontally...
-            ipc += (imageSize * zoom - viewSize) / 2.0;
-            // ...and is offset by panning
-            ipc += glm::dvec2(m_pan.x(), m_pan.y());
-            ipc /= zoom;
-        }
-        ipc = glm::floor(ipc);
-        if ( ipc.x >= 0 && ipc.x < m_imageSize.width()
-          && ipc.y >= 0 && ipc.y < m_imageSize.height() )
-        {
-            isOnPixel = true;
-            pixelCoord.setX(static_cast<int>(ipc.x));
-            pixelCoord.setY(static_cast<int>(ipc.y));
-        }
-        else
-        {
-            isOnPixel = false;
-            pixelCoord.rx() = pixelCoord.ry() = 0;
-        }
-    }
-}
-
 void ImageWidget::updateImageSizeAndData(const QSize& imageSize, const ImageData& imageData)
 {
     {
@@ -285,32 +218,6 @@ void ImageWidget::updateScrollerRanges()
     }
 }
 
-void ImageWidget::emitPointerMovedToDifferentPixel(const bool& isOnPixel, const QPoint& pixelCoord, const GLushort& pixelValue,
-                                                   const bool& isInWidget, const QPoint& widgetCoord)
-{
-    bool doEmit =  ( isOnPixel
-                  && ( pixelCoord != m_pointerImagePixelCoord
-                    || pixelValue != m_pointerImagePixelValue ) )
-                || isOnPixel != m_pointerIsOnImagePixel;
-
-    m_pointerIsInWidget = isInWidget;
-    m_pointerWidgetCoord = widgetCoord;
-    m_pointerImagePixelValue = pixelValue;
-    {
-        QMutexLocker locker(m_lock);
-        m_pointerIsOnImagePixel = isOnPixel;
-        m_pointerImagePixelCoord = pixelCoord;
-    }
-    if(m_highlightPointer)
-    {
-        m_view->update();
-    }
-    if(doEmit)
-    {
-        pointerMovedToDifferentPixel(isOnPixel, pixelCoord, pixelValue);
-    }
-}
-
 void ImageWidget::scrollViewContentsBy(int /*dx*/, int /*dy*/)
 {
     {
@@ -329,24 +236,17 @@ void ImageWidget::mousePressEventInView(QMouseEvent* ev)
 void ImageWidget::mouseMoveEventInView(QMouseEvent* ev)
 {
     ev->accept();
-    bool isOnPixel;
-    QPoint pixelCoord;
-    mapFromWidgetToImage(ev->pos(), isOnPixel, pixelCoord);
-    const GLushort pixelValue = isOnPixel ?
-        // Our texture coordinates are set up so that we can feed OpenGL a C-order texture without it being transposed. This
-        // makes indexing back into the texture's data from Qt GUI coordinates a little strange.
-        m_imageData[static_cast<std::ptrdiff_t>(m_imageSize.height() - pixelCoord.y() - 1) * m_imageSize.width() +
-                    static_cast<std::ptrdiff_t>(m_imageSize.width() - pixelCoord.x() - 1)] : 0;
-    emitPointerMovedToDifferentPixel(isOnPixel, pixelCoord, pixelValue,
-                                     true, ev->pos());
+    QPoint glViewCoord(ev->pos());
+    // OpenGL origin is bottom left, whereas Qt origin is top left
+    glViewCoord.setY(m_viewSize.height() - glViewCoord.y() - 1);
+    viewPointerMoved(true, glViewCoord);
 }
 
 void ImageWidget::mouseEnterExitView(bool entered)
 {
     if(!entered)
     {
-        emitPointerMovedToDifferentPixel(false, QPoint(), 0,
-                                         false, QPoint());
+        viewPointerMoved(false, QPoint());
     }
 }
 

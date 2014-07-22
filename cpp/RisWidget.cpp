@@ -157,7 +157,6 @@ void RisWidget::makeViews()
     m_imageWidget->setClearColor(glm::vec4(1.0f/3.0f, 1.0f/3.0f, 1.0f/3.0f, 0.0f));
     m_histogramWidget->setClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
 
-    connect(m_imageWidget, &ImageWidget::pointerMovedToDifferentPixel, this, &RisWidget::imageViewPointerMovedToDifferentPixel);
     connect(m_histogramWidget, &HistogramWidget::gtpChanged, [&](){m_imageWidget->view()->update();});
 }
 
@@ -171,6 +170,7 @@ void RisWidget::makeRenderer()
     connect(m_rendererThread.data(), &QThread::finished, m_renderer.get(), &Renderer::threadDeInitSlot, Qt::DirectConnection);
     connect(m_renderer.get(), &Renderer::openClDeviceListChanged, this, &RisWidget::openClDeviceListChangedSlot, Qt::QueuedConnection);
     connect(m_renderer.get(), &Renderer::currentOpenClDeviceListIndexChanged, this, &RisWidget::currentOpenClDeviceListIndexChangedSlot, Qt::QueuedConnection);
+    connect(m_renderer.get(), &Renderer::imageViewPointerMovedToDifferentPixel, this, &RisWidget::imageViewPointerMovedToDifferentPixel, Qt::QueuedConnection);
     m_rendererThread->start();
     connect(m_renderer.get(), &Renderer::newImageExtrema, m_histogramWidget, &HistogramWidget::newImageExtremaFoundByRenderer, Qt::QueuedConnection);
 }

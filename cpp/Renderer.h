@@ -144,6 +144,14 @@ private:
     // highlight so that it may be erased when the highlight moves
     bool m_prevHightlightPointerDrawn;
     QPoint m_prevPointerImagePixelCoord;
+    // Used to find new image view pointer pixel coordinate and intensity values when the image changes without the
+    // mouse moving (for example, because the user has the mouse on a pixel of interest while viewing a video)
+    bool m_pointerIsInImageView;
+    QPoint m_imageViewPointerGlCoord;
+    // Cached values used to determine if emission of imageViewPointerMovedToDifferentPixel signal is warranted
+    bool m_imageViewPointerIsOnPixel;
+    QPoint m_imageViewPointerPixelCoord;
+    GLushort m_imageViewPointerPixelIntensity;
 
     GLuint m_histogramBinCount;
     std::unique_ptr<cl::Buffer> m_histogramBlocks;
@@ -189,6 +197,12 @@ signals:
     void _setHistogramBinCount(GLuint histogramBinCount);
     void openClDeviceListChanged(QVector<QString> openClDeviceList);
     void currentOpenClDeviceListIndexChanged(int currentOpenClDeviceListIndex);
+    // Note that this signal is also emitted when a new image is loaded while the mouse pointer lies on an image pixel
+    // whose value and/or image coordinate changes.  If the pointer was between the edge of the image and the edge of
+    // the image widget, outside of the image, and remains so for the new image, the signal is not emitted. If pointer
+    // does fall upon an image pixel before and after and that image pixel has the same value and coordinate, the signal
+    // is not emitted.
+    void imageViewPointerMovedToDifferentPixel(bool isOnPixel, QPoint pixelCoord, GLushort pixelValue);
     // Used to notify HistogramWidget so that it can update its min/max sliders and editbox values when in auto min/max
     // mode
     void newImageExtrema(GLushort minIntensity, GLushort maxIntensity);
@@ -207,6 +221,7 @@ private slots:
     void setCurrentOpenClDeviceListIndexSlot(int newOpenClDeviceListIndex);
     void newImageSlot(ImageData imageData, QSize imageSize, bool filter);
     void updateViewSlot(View* view);
+    void imageViewPointerMovedSlot(bool isInView, QPoint glViewCoord);
     void setHistogramBinCountSlot(GLuint histogramBinCount);
 #ifdef ENABLE_GL_DEBUG_LOGGING
     void glDebugMessageLogged(const QOpenGLDebugMessage& debugMessage);

@@ -71,17 +71,10 @@ public:
     void setZoomToFit(bool zoomToFit);
     bool highlightPointer() const;
     void setHighlightPointer(bool highlightPointer);
-    // Convert a widget coordinate into an image pixel coordinate
-    void mapFromWidgetToImage(const QPoint& widgetCoord, bool& isOnPixel, QPoint& pixelCoord);
 
 signals:
     void interactionModeChanged(InteractionMode interactionMode, InteractionMode previousInteractionMode);
-    // Note that this signal is also emitted when a new image is loaded while the mouse pointer lies on an
-    // image pixel whose value and/or image coordinate changes.  If the pointer was between the edge of the image and
-    // the edge of the image widget, outside of the image, and remains so for the new image, the signal is not emitted.
-    // If pointer does fall upon an image pixel before and after and that image pixel has the same value and coordinate,
-    // the signal is not emitted.
-    void pointerMovedToDifferentPixel(bool isOnPixel, QPoint pixelCoord, GLushort pixelValue);
+    void viewPointerMoved(bool isInView, QPoint glViewCoord);
     void zoomChanged(int zoomIndex, GLfloat customZoom);
 
 protected:
@@ -93,20 +86,12 @@ protected:
     QSize m_imageSize;
     ImageData m_imageData;
     bool m_highlightPointer;
-    bool m_pointerIsOnImagePixel;
-    QPoint m_pointerImagePixelCoord;
-    GLushort m_pointerImagePixelValue;
-    bool m_pointerIsInWidget;
-    QPoint m_pointerWidgetCoord;
 
     virtual void makeView(bool doAddWidget = true) override;
     virtual View* instantiateView() override;
     void updateImageSizeAndData(const QSize& imageSize, const ImageData& imageData);
     virtual void resizeEventInView(QResizeEvent* ev) override;
     void updateScrollerRanges();
-    void updatePointerPixel();
-    void emitPointerMovedToDifferentPixel(const bool& isOnPixel, const QPoint& pixelCoord, const GLushort& pixelValue,
-                                          const bool& isInWidget, const QPoint& widgetCoord);
 
 protected slots:
     void scrollViewContentsBy(int dx, int dy);

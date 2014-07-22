@@ -53,11 +53,16 @@ public:
     const GLuint m_drawImagePassthroughIdx;
     const GLuint m_drawImageGammaIdx;
 
+    void setPmv(const glm::mat4& pmv);
+    void setFragToTex(const glm::mat3& fragToTex);
+    const glm::mat3& getFragToTex() const;
     void setGtpRange(const GLfloat& gtpMin, const GLfloat& gtpMax);
     void setGtpGamma(const GLfloat& gtpGamma);
     void setDrawImageSubroutineIdx(const GLuint& drawImageSubroutineIdx);
 
 private:
+    glm::mat4 m_pmv;
+    glm::mat3 m_fragToTex;
     GLfloat m_gtpMin;
     GLfloat m_gtpMax;
     GLfloat m_gtpRange;

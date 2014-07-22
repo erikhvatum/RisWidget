@@ -89,6 +89,10 @@ Renderer::Renderer(ImageWidget* imageWidget, HistogramWidget* histogramWidget)
 #endif
     m_imageSize(0, 0),
     m_prevHightlightPointerDrawn(false),
+    m_pointerIsInImageView(false),
+    m_imageViewPointerGlCoord(-1, -1),
+    m_imageViewPointerIsOnPixel(false),
+    m_imageViewPointerPixelCoord(-1, -1),
     m_histogramBinCount(512),
     m_histogramGlBuffer(std::numeric_limits<GLuint>::max()),
     m_histogram(std::numeric_limits<GLuint>::max()),
@@ -101,6 +105,7 @@ Renderer::Renderer(ImageWidget* imageWidget, HistogramWidget* histogramWidget)
     connect(this, &Renderer::_updateView, this, &Renderer::updateViewSlot, Qt::QueuedConnection);
     connect(this, &Renderer::_newImage, this, &Renderer::newImageSlot, Qt::QueuedConnection);
     connect(this, &Renderer::_setHistogramBinCount, this, &Renderer::setHistogramBinCountSlot, Qt::QueuedConnection);
+    connect(m_imageWidget.data(), &ImageWidget::viewPointerMoved, this, &Renderer::imageViewPointerMovedSlot, Qt::QueuedConnection);
 }
 
 Renderer::~Renderer()
@@ -921,9 +926,9 @@ void Renderer::execImageDraw()
         glm::dmat3 fragToTex;
         double zoomFactor;
         glm::dvec2 viewSize(m_imageWidget->m_viewSize.width(), m_imageWidget->m_viewSize.height());
-        bool highlightPointer{m_imageWidget->m_highlightPointer};
-        bool pointerIsOnImagePixel{m_imageWidget->m_pointerIsOnImagePixel};
-        QPoint pointerImagePixelCoord(m_imageWidget->m_pointerImagePixelCoord);
+//      bool highlightPointer{m_imageWidget->m_highlightPointer};
+//      bool pointerIsOnImagePixel{m_imageWidget->m_pointerIsOnImagePixel};
+//      QPoint pointerImagePixelCoord(m_imageWidget->m_pointerImagePixelCoord);
 
         if(m_imageWidget->m_zoomToFit)
         {
@@ -1029,10 +1034,8 @@ void Renderer::execImageDraw()
                                0, -1, 0,
                                0, m_imageSize.height() * zoomFactor, 1);
 
-        glm::mat4 pmvf(pmv);
-        m_glfs->glUniformMatrix4fv(m_imageDrawProg->m_pmvLoc, 1, GL_FALSE, glm::value_ptr(pmvf));
-        glm::mat3 fragToTexf(fragToTex);
-        m_glfs->glUniformMatrix3fv(m_imageDrawProg->m_fragToTexLoc, 1, GL_FALSE, glm::value_ptr(fragToTexf));
+        m_imageDrawProg->setPmv(glm::mat4(pmv));
+        m_imageDrawProg->setFragToTex(glm::mat3(fragToTex));
 
         if(gtpAutoMinMaxEnabled)
         {
@@ -1230,6 +1233,55 @@ void Renderer::updateViewSlot(View* view)
     }
 }
 
+void Renderer::imageViewPointerMovedSlot(bool isInView, QPoint glViewCoord)
+{
+    m_pointerIsInImageView = isInView;
+    m_imageViewPointerGlCoord = glViewCoord;
+
+    if(!m_imageData.empty() && isInView)
+    {
+        const glm::mat3 fragToTex(m_imageDrawProg->getFragToTex());
+        glm::vec3 pointerPixelCoordh(fragToTex * glm::vec3(glViewCoord.x(), glViewCoord.y(), 1));
+        QPoint pointerPixelCoord(static_cast<int>( (pointerPixelCoordh.x / pointerPixelCoordh.z) * m_imageSize.width() ),
+                                 static_cast<int>( (pointerPixelCoordh.y / pointerPixelCoordh.z) * m_imageSize.height() ));
+        if ( pointerPixelCoord.x() < 0 || pointerPixelCoord.x() >= m_imageSize.width()
+          || pointerPixelCoord.y() < 0 || pointerPixelCoord.y() >= m_imageSize.height() )
+        {
+            if(m_imageViewPointerIsOnPixel)
+            {
+                m_imageViewPointerIsOnPixel = false;
+                imageViewPointerMovedToDifferentPixel(m_imageViewPointerIsOnPixel, QPoint(), 0);
+            }
+        }
+        else
+        {
+            std::ptrdiff_t i{static_cast<std::ptrdiff_t>(pointerPixelCoord.y())};
+            i *= m_imageSize.width();
+            i += pointerPixelCoord.x();
+            GLushort pointerPixelIntensity{m_imageData[i]};
+            if ( m_imageViewPointerIsOnPixel == false
+              || pointerPixelCoord != m_imageViewPointerPixelCoord
+              || pointerPixelIntensity != m_imageViewPointerPixelIntensity )
+            {
+                m_imageViewPointerIsOnPixel = true;
+                m_imageViewPointerPixelCoord = pointerPixelCoord;
+                m_imageViewPointerPixelIntensity = pointerPixelIntensity;
+                imageViewPointerMovedToDifferentPixel(m_imageViewPointerIsOnPixel,
+                                                      m_imageViewPointerPixelCoord,
+                                                      m_imageViewPointerPixelIntensity);
+            }
+        }
+    }
+    else
+    {
+        if(m_imageViewPointerIsOnPixel)
+        {
+            m_imageViewPointerIsOnPixel = false;
+            imageViewPointerMovedToDifferentPixel(m_imageViewPointerIsOnPixel, QPoint(), 0);
+        }
+    }
+}
+
 void Renderer::newImageSlot(ImageData imageData, QSize imageSize, bool filter)
 {
     QMutexLocker locker(m_lock);
@@ -1273,6 +1325,7 @@ void Renderer::newImageSlot(ImageData imageData, QSize imageSize, bool filter)
 
     execImageDraw();
     execHistoDraw();
+    imageViewPointerMovedSlot(m_pointerIsInImageView, m_imageViewPointerGlCoord);
 }
 
 void Renderer::setHistogramBinCountSlot(GLuint histogramBinCount)

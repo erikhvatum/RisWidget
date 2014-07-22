@@ -20,6 +20,9 @@ ImageDrawProg::ImageDrawProg(QObject* parent)
     m_gtpGamma(NAN),
     m_drawImageSubroutineIdx(std::numeric_limits<GLuint>::max())
 {
+    // Cause any comparison to fail so that the first setPmv(..) call will assign new value to m_pmv
+    m_pmv[0][0] = NAN;
+    m_fragToTex[0][0] = NAN;
     // Note Qt interprets a path beginning with a colon as a Qt resource bundle identifier.  Such a path refers to an
     // object integrated into this application's binary.
     addShader(":/gpu/image.glslv", QOpenGLShader::Vertex);
@@ -68,6 +71,29 @@ void ImageDrawProg::init(QOpenGLFunctions_4_1_Core* glfs)
         m_glfs->glGetSubroutineIndex(programId(), GL_FRAGMENT_SHADER, "drawImage_passthrough");
     const_cast<GLuint&>(m_drawImageGammaIdx) =
         m_glfs->glGetSubroutineIndex(programId(), GL_FRAGMENT_SHADER, "drawImage_gamma");
+}
+
+void ImageDrawProg::setPmv(const glm::mat4& pmv)
+{
+    if(pmv != m_pmv)
+    {
+        m_glfs->glUniformMatrix4fv(m_pmvLoc, 1, GL_FALSE, glm::value_ptr(pmv));
+        m_pmv = pmv;
+    }
+}
+
+void ImageDrawProg::setFragToTex(const glm::mat3& fragToTex)
+{
+    if(fragToTex != m_fragToTex)
+    {
+        m_glfs->glUniformMatrix3fv(m_fragToTexLoc, 1, GL_FALSE, glm::value_ptr(fragToTex));
+        m_fragToTex = fragToTex;
+    }
+}
+
+const glm::mat3& ImageDrawProg::getFragToTex() const
+{
+    return m_fragToTex;
 }
 
 void ImageDrawProg::setGtpRange(const GLfloat& gtpMin, const GLfloat& gtpMax)
