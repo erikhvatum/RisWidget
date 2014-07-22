@@ -24,9 +24,38 @@
 #include "HistogramWidget.h"
 #include "ImageView.h"
 
-const int HistogramWidget::sm_gammasSliderRawMax = 1000000000;
-const double HistogramWidget::sm_gammasSliderMax = 10.0;
-const double HistogramWidget::sm_gammasSliderFactor = static_cast<double>(sm_gammasSliderRawMax) / sm_gammasSliderMax;
+const std::pair<int, int> HistogramWidget::sm_gammasSliderRawRange(0, 1.0e9);
+const int HistogramWidget::sm_gammasSliderRawRangeWidth{sm_gammasSliderRawRange.second - sm_gammasSliderRawRange.first};
+const std::pair<double, double> HistogramWidget::sm_gammasSliderFloatRange(-4, 2);
+const double HistogramWidget::sm_gammasSliderFloatRangeWidth{sm_gammasSliderFloatRange.second - sm_gammasSliderFloatRange.first};
+const std::pair<double, double> HistogramWidget::sm_gammasRange(exp2(sm_gammasSliderFloatRange.first),
+                                                                exp2(sm_gammasSliderFloatRange.second));
+
+double HistogramWidget::gammasRawToScaled(const int& raw)
+{
+    double ret{static_cast<double>(raw)};
+    // Map raw value into float range
+    ret -= sm_gammasSliderRawRange.first;
+    ret /= sm_gammasSliderRawRangeWidth;
+    ret *= sm_gammasSliderFloatRangeWidth;
+    ret += sm_gammasSliderFloatRange.first;
+    // Map to logarithmic scale
+    ret = exp2(ret);
+    return ret;
+}
+
+int HistogramWidget::gammasScaledToRaw(const double& scaled)
+{
+    double ret{scaled};
+    // Map to linear scale
+    ret = log2(ret);
+    // Map float value into raw range
+    ret -= sm_gammasSliderFloatRange.first;
+    ret /= sm_gammasSliderFloatRangeWidth;
+    ret *= sm_gammasSliderRawRangeWidth;
+    ret += sm_gammasSliderRawRange.first;
+    return static_cast<int>(ret);
+}
 
 HistogramWidget::HistogramWidget(QWidget* parent)
   : ViewWidget(parent),
@@ -37,7 +66,7 @@ HistogramWidget::HistogramWidget(QWidget* parent)
     m_gtpMax(65535),
     m_gtpGamma(1.0f),
     m_gtpGammaGamma(1.0f),
-    m_gammasValidator(new QDoubleValidator(0.0, sm_gammasSliderMax, 0, this)),
+    m_gammasValidator(new QDoubleValidator(sm_gammasSliderFloatRange.first, sm_gammasSliderFloatRange.second, 6, this)),
     m_imageExtremaValid(false)
 {
     setupUi(this);
@@ -87,31 +116,33 @@ void HistogramWidget::setGtpMax(GLushort gtpMax)
 
 void HistogramWidget::setGtpGamma(GLfloat gtpGamma)
 {
-    if(gtpGamma < 0 || gtpGamma > sm_gammasSliderMax)
+    if(gtpGamma < sm_gammasRange.first || gtpGamma > sm_gammasRange.second)
     {
         std::ostringstream o;
         o << "HistogramWidget::setGtpGamma(GLfloat gtpGamma): Value supplied for gtpGamma (";
-        o << gtpGamma << ") must be within the range [0, " << sm_gammasSliderMax << "].";
+        o << gtpGamma << ") must be within the range [" << sm_gammasRange.first << ", ";
+        o << sm_gammasRange.second << "].";
         throw RisWidgetException(o.str());
     }
     else
     {
-        m_gtpGammaSlider->setValue(static_cast<int>(sm_gammasSliderFactor * gtpGamma));
+        m_gtpGammaSlider->setValue(gammasScaledToRaw(gtpGamma));
     }
 }
 
 void HistogramWidget::setGtpGammaGamma(GLfloat gtpGammaGamma)
 {
-    if(gtpGammaGamma < 0 || gtpGammaGamma > sm_gammasSliderMax)
+    if(gtpGammaGamma < sm_gammasRange.first || gtpGammaGamma > sm_gammasRange.second)
     {
         std::ostringstream o;
         o << "HistogramWidget::setGtpGammaGamma(GLfloat gtpGammaGamma): Value supplied for gtpGammaGamma (";
-        o << gtpGammaGamma << ") must be within the range [0, " << sm_gammasSliderMax << "].";
+        o << gtpGammaGamma << ") must be within the range [" << sm_gammasRange.first << ", ";
+        o << sm_gammasRange.second << "].";
         throw RisWidgetException(o.str());
     }
     else
     {
-        m_gtpGammaGammaSlider->setValue(static_cast<int>(sm_gammasSliderFactor * gtpGammaGamma));
+        m_gtpGammaGammaSlider->setValue(gammasScaledToRaw(gtpGammaGamma));
     }
 }
 
@@ -215,24 +246,23 @@ void HistogramWidget::updateEnablement()
 
 void HistogramWidget::gammasSliderValueChanged(int value, QSlider* slider, QLineEdit* edit)
 {
-    double valued = value;
-    valued /= sm_gammasSliderFactor;
+    double scaled{gammasRawToScaled(value)};
     {
         QMutexLocker locker(m_lock);
         if(slider == m_gtpGammaSlider)
         {
-            m_gtpGamma = valued;
+            m_gtpGamma = scaled;
         }
         else if(slider == m_gtpGammaGammaSlider)
         {
-            m_gtpGammaGamma = valued;
+            m_gtpGammaGamma = scaled;
         }
         else
         {
             throw RisWidgetException("HistogramWidget::gammasSliderValueChanged(int value, QSlider* slider, QLineEdit* edit): "
                                      "The value supplied for the slider argument does not correspond to either gamma slider.");
         }
-        edit->setText(QString::number(valued));
+        edit->setText(QString::number(scaled));
     }
     if(slider == m_gtpGammaSlider)
     {
@@ -248,10 +278,10 @@ void HistogramWidget::gammasSliderValueChanged(int value, QSlider* slider, QLine
 void HistogramWidget::gammasEditChanged(QLineEdit* edit, QSlider* slider)
 {
     bool ok{false};
-    double valued = edit->text().toDouble(&ok);
+    double scaled{edit->text().toDouble(&ok)};
     if(ok)
     {
-        slider->setValue(static_cast<int>(valued * sm_gammasSliderFactor));
+        slider->setValue(gammasScaledToRaw(scaled));
     }
 }
 

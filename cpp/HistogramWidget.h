@@ -65,15 +65,22 @@ signals:
     void gtpChanged();
 
 protected:
+    static const std::pair<int, int> sm_gammasSliderRawRange;
+    static const int sm_gammasSliderRawRangeWidth;
+    static const std::pair<double, double> sm_gammasSliderFloatRange;
+    static const double sm_gammasSliderFloatRangeWidth;
+    static const std::pair<double, double> sm_gammasRange;
+    // Slider value -> gamma value
+    static double gammasRawToScaled(const int& raw);
+    // Gamma value -> slider value
+    static int gammasScaledToRaw(const double& scaled);
+
     bool m_imageLoaded;
     bool m_gtpEnabled;
     bool m_gtpAutoMinMaxEnabled;
     GLushort m_gtpMin, m_gtpMax;
     GLfloat m_gtpGamma;
     GLfloat m_gtpGammaGamma;
-    static const int sm_gammasSliderRawMax;
-    static const double sm_gammasSliderMax;
-    static const double sm_gammasSliderFactor;
     QPointer<QDoubleValidator> m_gammasValidator;
     // Cached data from Renderer
     std::pair<GLushort, GLushort> m_imageExtrema;
