@@ -952,7 +952,7 @@ void Renderer::execImageDraw()
                 zoomFactor = viewSize.x / m_imageSize.width();
                 fragToTex = glm::dmat3(1, 0, 0,
                                        0, 1, 0,
-                                       0, -(viewSize.y - zoomFactor * m_imageSize.height()) / 2, 1);
+                                       0, (viewSize.y - zoomFactor * m_imageSize.height()) / 2, 1);
             }
             fragToTex = glm::dmat3(1, 0, 0,
                                    0, 1, 0,
