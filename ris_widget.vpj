@@ -302,6 +302,7 @@
 		<F N="dead_simple_build.bash"/>
 		<F N="dead_simple_build.bat"/>
 		<F N="dead_simple_build_debug.bash"/>
+		<F N="flipbook.py"/>
 		<F N="Makefile"/>
 		<F N="ris_widget.sip"/>
 	</Files>
