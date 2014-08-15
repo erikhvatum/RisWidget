@@ -36,11 +36,11 @@ typedef struct _xxBlocksConstArgs
 }
 XxBlocksConstArgs;
 
-// Note that ComputeBlocksConstArgs must be passed as a pointer.  If not passed as a pointer, it will instead gobble up
-// thread local registers (this is what happens when each thread AKA work item receiving its own private duplicate of
-// the struct).  The constant qualifier in OpenCL exists for _exactly_this_situation_, where a function depends on a
-// bunch of read-only variables that are read often and also requires lots of writeable registers to work efficiently
-// (as most functions do!).
+// Note that ComputeBlocksConstArgs must be passed as a pointer.  If not passed as a pointer, it will not be stored in
+// dedicated global constant cache, and will instead gobble up thread local registers (this is what happens when each
+// thread AKA work item receiving its own private duplicate of the struct).  The constant qualifier in OpenCL exists for
+// _exactly_this_situation_, where a function depends on a bunch of read-only variables that are read often and also
+// requires lots of writeable registers to work efficiently (as most functions do!).
 kernel void computeBlocks(constant XxBlocksConstArgs* args,
                           read_only image2d_t image,
                           global uint16* blocks,

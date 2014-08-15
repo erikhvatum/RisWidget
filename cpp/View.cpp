@@ -25,9 +25,9 @@
 #include "View.h"
 
 View::View(QWindow* parent)
-  : QWindow(parent),
-    m_visibleAndExposed{false}
+  : QWindow(parent)
 {
+	m_visibleAndExposed.store(false);
     setSurfaceType(QWindow::OpenGLSurface);
     setFormat(Renderer::sm_format);
     create();
