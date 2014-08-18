@@ -67,6 +67,7 @@ public:
     // removing current image if there is one
     void showImage(const ImageData& imageData, const QSize& imageSize, const bool& filter);
     void setHistogramBinCount(const GLuint& histogramBinCount);
+    GLuint getHistogramBinCount() const;
     void getImageDataAndSize(ImageData& imageData, QSize& imageSize) const;
     std::shared_ptr<LockedRef<const HistogramData>> getHistogram();
 
@@ -206,6 +207,7 @@ signals:
     // Used to notify HistogramWidget so that it can update its min/max sliders and editbox values when in auto min/max
     // mode
     void newImageExtrema(GLushort minIntensity, GLushort maxIntensity);
+    void histogramBinCountChanged(GLuint currentHistogramBinCount);
 
 public slots:
     void threadInitSlot();

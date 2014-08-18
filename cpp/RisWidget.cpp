@@ -171,6 +171,7 @@ void RisWidget::makeRenderer()
     connect(m_renderer.get(), &Renderer::openClDeviceListChanged, this, &RisWidget::openClDeviceListChangedSlot, Qt::QueuedConnection);
     connect(m_renderer.get(), &Renderer::currentOpenClDeviceListIndexChanged, this, &RisWidget::currentOpenClDeviceListIndexChangedSlot, Qt::QueuedConnection);
     connect(m_renderer.get(), &Renderer::imageViewPointerMovedToDifferentPixel, this, &RisWidget::imageViewPointerMovedToDifferentPixel, Qt::QueuedConnection);
+    connect(m_renderer.get(), &Renderer::histogramBinCountChanged, this, &RisWidget::histogramBinCountChanged, Qt::QueuedConnection);
     m_rendererThread->start();
     connect(m_renderer.get(), &Renderer::newImageExtrema, m_histogramWidget, &HistogramWidget::newImageExtremaFoundByRenderer, Qt::QueuedConnection);
 }
@@ -416,6 +417,16 @@ PyObject* RisWidget::getHistogram()
     }
 
     return ret;
+}
+
+GLuint RisWidget::getHistogramBinCount() const
+{
+    return m_renderer->getHistogramBinCount();
+}
+
+void RisWidget::setHistogramBinCount(GLuint histogramBinCount)
+{
+    m_renderer->setHistogramBinCount(histogramBinCount);
 }
 
 void RisWidget::setGtpEnabled(bool gtpEnabled)

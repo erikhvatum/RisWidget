@@ -43,6 +43,10 @@ class RisWidget
                    READ getCurrentOpenClDeviceListIndex
                    WRITE setCurrentOpenClDeviceListIndex
                    NOTIFY currentOpenClDeviceListIndexChanged);
+    Q_PROPERTY(int histogramBinCount
+                   READ getHistogramBinCount
+                   WRITE setHistogramBinCount
+                   NOTIFY histogramBinCountChanged);
 
 public:
     explicit RisWidget(QString windowTitle_ = "RisWidget",
@@ -61,6 +65,8 @@ public:
     void showImage(PyObject* image, bool filterTexture=true);
     PyObject* getCurrentImage();
     PyObject* getHistogram();
+    GLuint getHistogramBinCount() const;
+    void setHistogramBinCount(GLuint histogramBinCount);
 
     // setGtp* calls must originate from the thread owning the associated instance
     void setGtpEnabled(bool gtpEnabled);
@@ -123,6 +129,7 @@ protected:
 signals:
     void openClDeviceListChanged(QVector<QString> openClDeviceList);
     void currentOpenClDeviceListIndexChanged(int currentOpenClDeviceListIndex);
+    void histogramBinCountChanged(int currentHistogramBinCount);
 
 public slots:
     // Presents Open File dialog.  Supports images as well as numpy data files.

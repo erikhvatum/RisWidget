@@ -21,7 +21,6 @@
 // SOFTWARE.
 
 constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST;
-#define BINCOUNT 512
 
 // Stuffing these read-only arguments into a struct allows them to be passed as a pointer to magically fast global
 // read-only memory

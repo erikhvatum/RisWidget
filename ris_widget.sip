@@ -82,6 +82,9 @@ public:
     Returns a copy of the currently displayed image's histogram data as a numpy array.
 %End
 
+    int getHistogramBinCount();
+    void setHistogramBinCount();
+
     void setGtpEnabled(bool gtpEnabled);
 %Docstring
     Note: call this method only from the thread with which its bound instance is associated.

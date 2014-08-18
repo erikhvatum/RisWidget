@@ -280,6 +280,12 @@ void Renderer::setHistogramBinCount(const GLuint& histogramBinCount)
     emit _setHistogramBinCount(histogramBinCount);
 }
 
+GLuint Renderer::getHistogramBinCount() const
+{
+    QMutexLocker locker(const_cast<QMutex*>(m_lock));
+    return m_histogramBinCount;
+}
+
 void Renderer::getImageDataAndSize(ImageData& imageData, QSize& imageSize) const
 {
     QMutexLocker locker(const_cast<QMutex*>(m_lock));
@@ -1344,5 +1350,7 @@ void Renderer::setHistogramBinCountSlot(GLuint histogramBinCount)
             execHistoCalc();
             execHistoDraw();
         }
+
+        histogramBinCountChanged(m_histogramBinCount);
     }
 }
