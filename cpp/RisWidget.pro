@@ -33,7 +33,7 @@ macx {
     CFLAGS += -fPIC -fno-omit-frame-pointer -march=native
     INCLUDEPATH += /usr/local/include /usr/local/glm /usr/include/python3.4 /usr/lib64/python3.4/site-packages/numpy/core/include
 }
-DEFINES += ENABLE_CL_PROFILING
+#DEFINES += ENABLE_CL_PROFILING
 
 RESOURCES = RisWidget.qrc
 

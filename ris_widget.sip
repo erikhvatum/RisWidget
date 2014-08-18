@@ -82,8 +82,8 @@ public:
     Returns a copy of the currently displayed image's histogram data as a numpy array.
 %End
 
-    int getHistogramBinCount();
-    void setHistogramBinCount();
+    GLuint getHistogramBinCount();
+    void setHistogramBinCount(GLuint histogramBinCount);
 
     void setGtpEnabled(bool gtpEnabled);
 %Docstring
@@ -116,6 +116,16 @@ public:
     GLushort getGtpMax() const;
     GLfloat getGtpGamma() const;
     GLfloat getGtpGammaGamma() const;
+
+    void refreshOpenClDeviceList();
+    QVector<QString> getOpenClDeviceList() const;
+    int getCurrentOpenClDeviceListIndex() const;
+    void setCurrentOpenClDeviceListIndex(int newOpenClDeviceListIndex);
+
+signals:
+    void openClDeviceListChanged(QVector<QString> openClDeviceList);
+    void currentOpenClDeviceListIndexChanged(int currentOpenClDeviceListIndex);
+    void histogramBinCountChanged(int currentHistogramBinCount);
 
 public slots:
     void loadFile() /ReleaseGIL/;
