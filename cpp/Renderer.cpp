@@ -222,7 +222,7 @@ void Renderer::setCurrentOpenClDeviceListIndexSlot(int newOpenClDeviceListIndex)
         cl_context_properties properties[] = {CL_CONTEXT_PLATFORM, (cl_context_properties)m_openClDeviceList[newOpenClDeviceListIndex].platform, 0};
         m_openClContext.reset(new cl::Context(device, properties, &Renderer::openClErrorCallbackWrapper, reinterpret_cast<void*>(this)));
         m_currOpenClDeviceListEntry = newOpenClDeviceListIndex;
-        emit currentOpenClDeviceListIndexChanged(m_currOpenClDeviceListEntry);
+        currentOpenClDeviceListIndexChanged(m_currOpenClDeviceListEntry);
     }
 }
 
@@ -499,7 +499,7 @@ void Renderer::makeClContext()
         }
         m_openClCq.reset(new cl::CommandQueue(*m_openClContext, *m_openClDevice, commandQueueProps));
         m_currOpenClDeviceListEntry = index;
-        emit currentOpenClDeviceListIndexChanged(m_currOpenClDeviceListEntry);
+        currentOpenClDeviceListIndexChanged(m_currOpenClDeviceListEntry);
     }
     catch(cl::Error e)
     {
@@ -792,36 +792,37 @@ void Renderer::execHistoCalc()
     // Cache histogram data in system RAM and find min & max histogram bin values
     b0 = m_openClCq->enqueueMapBuffer(*m_histogramBlocks, CL_TRUE, CL_MAP_READ, 0, histoByteCount, waits.get());
     m_histogramData.resize(m_histogramBinCount);
-    m_histogramExtrema.first = std::numeric_limits<decltype(m_histogramExtrema.first)>::max();
-    m_histogramExtrema.second = std::numeric_limits<decltype(m_histogramExtrema.second)>::min();
-    if(m_histogramBinCount == 1)
-    {
-        m_histogramExtrema.first = m_histogramExtrema.second = m_histogramData[0] = *reinterpret_cast<GLuint*>(b0);
-    }
-    else
     {
         // This will segfault if m_histogramBinCount == 0.  However, if m_histogramBinCount == 0, an explosion would
         // have occurred long before this code is reached.
         GLuint *s{reinterpret_cast<GLuint*>(b0)};
         GLuint *se{reinterpret_cast<GLuint*>(b0) + m_histogramBinCount};
         GLuint *d{m_histogramData.data()};
-        for(;;)
+        m_histogramExtrema.first = *s;
+        m_histogramExtrema.second = *s;
+        *d = *s;
+        ++s;
+        if(s != se)
         {
-            if(*s < m_histogramExtrema.first)
-            {
-                m_histogramExtrema.first = *s;
-            }
-            else if(*s > m_histogramExtrema.second)
-            {
-                m_histogramExtrema.second = *s;
-            }
-            *d = *s;
-            ++s;
-            if(s == se)
-            {
-                break;
-            }
             ++d;
+            for(;;)
+            {
+                if(*s < m_histogramExtrema.first)
+                {
+                    m_histogramExtrema.first = *s;
+                }
+                else if(*s > m_histogramExtrema.second)
+                {
+                    m_histogramExtrema.second = *s;
+                }
+                *d = *s;
+                ++s;
+                if(s == se)
+                {
+                    break;
+                }
+                ++d;
+            }
         }
     }
     m_openClCq->enqueueUnmapMemObject(*m_histogramBlocks, b0, nullptr, &e2);
@@ -830,13 +831,13 @@ void Renderer::execHistoCalc()
     m_openClCq->enqueueReleaseGLObjects(&memObjs, waits.get(), &e0);
     e0.wait();
 
-//  uint32_t sum{0};
-//  for(auto i(m_histogramData.begin()); i != m_histogramData.end(); ++i)
-//  {
-//      std::cout << *i << ' ';
-//      sum += *i;
-//  }
-//  std::cout << std::endl << sum << std::endl << std::endl;
+    uint32_t sum{0};
+    for(auto i(m_histogramData.begin()); i != m_histogramData.end(); ++i)
+    {
+        std::cout << *i << ' ';
+        sum += *i;
+    }
+    std::cout << std::endl << sum << std::endl << std::endl;
 
 //  std::ofstream o("/home/ehvatum/debug.txt", std::ios_base::out | std::ios_base::trunc);
 //  b0 = m_openClCq->enqueueMapBuffer(*m_histogramBlocks, CL_TRUE, CL_MAP_READ, 0, histoBlocksByteCount);
@@ -873,26 +874,26 @@ void Renderer::updateGlViewportSize(ViewWidget* viewWidget)
 
 std::pair<GLushort, GLushort> Renderer::findImageExtrema(ImageData imageData)
 {
-    std::pair<GLushort, GLushort> ret{65535, 0};
-    if(imageData.size() == 1)
+    const GLushort *i{imageData.constData()};
+    const GLushort *ie{i + imageData.size()};
+    std::pair<GLushort, GLushort> ret{*i, *i};
+    ++i;
+    if(i != ie)
     {
-        ret.first = ret.second = imageData[0];
-    }
-    else
-    {
-        for(GLushort p : imageData)
+        for(;;)
         {
-            // Only an image with one pixel must ever have the same pixel be the min and max, which is handled in the if
-            // clause above.  An image with two pixels of the same value will fall through to the else below and set the
-            // max as well.  Therefore, the special case check for image size of one above lets us use the if/else-if
-            // optimization here.
-            if(p < ret.first)
+            if(*i < ret.first)
             {
-                ret.first = p;
+                ret.first = *i;
             }
-            else if(p > ret.second)
+            else if(*i > ret.second)
             {
-                ret.second = p;
+                ret.second = *i;
+            }
+            ++i;
+            if(i == ie)
+            {
+                break;
             }
         }
     }
