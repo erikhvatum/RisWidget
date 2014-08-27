@@ -831,13 +831,13 @@ void Renderer::execHistoCalc()
     m_openClCq->enqueueReleaseGLObjects(&memObjs, waits.get(), &e0);
     e0.wait();
 
-    uint32_t sum{0};
-    for(auto i(m_histogramData.begin()); i != m_histogramData.end(); ++i)
-    {
-        std::cout << *i << ' ';
-        sum += *i;
-    }
-    std::cout << std::endl << sum << std::endl << std::endl;
+//  uint32_t sum{0};
+//  for(auto i(m_histogramData.begin()); i != m_histogramData.end(); ++i)
+//  {
+//      std::cout << *i << ' ';
+//      sum += *i;
+//  }
+//  std::cout << std::endl << sum << std::endl << std::endl;
 
 //  std::ofstream o("/home/ehvatum/debug.txt", std::ios_base::out | std::ios_base::trunc);
 //  b0 = m_openClCq->enqueueMapBuffer(*m_histogramBlocks, CL_TRUE, CL_MAP_READ, 0, histoBlocksByteCount);
