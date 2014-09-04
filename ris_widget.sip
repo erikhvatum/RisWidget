@@ -122,6 +122,12 @@ public:
     int getCurrentOpenClDeviceListIndex() const;
     void setCurrentOpenClDeviceListIndex(int newOpenClDeviceListIndex);
 
+protected:
+    void dragEnterEvent(QDragEnterEvent* event);
+    void dragMoveEvent(QDragMoveEvent* event);
+    void dragLeaveEvent(QDragLeaveEvent* event);
+    void dropEvent(QDropEvent* event);
+
 signals:
     void openClDeviceListChanged(QVector<QString> openClDeviceList);
     void currentOpenClDeviceListIndexChanged(int currentOpenClDeviceListIndex);

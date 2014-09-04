@@ -49,6 +49,7 @@
 // Need cstring include for memcpy(..).  Note: this is the C++ version of string.h; it has nothing to do with
 // Microsoft's CString.
 #include <cstring>
+#include <FreeImagePlus.h>
 #include <iostream>
 #include <fstream>
 #include <future>

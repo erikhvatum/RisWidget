@@ -63,6 +63,7 @@ public:
     void risImageAcquired(PyObject* stream, PyObject* image);
     void showImage(const GLushort* imageDataRaw, const QSize& imageSize, bool filterTexture=true);
     void showImage(PyObject* image, bool filterTexture=true);
+    void showImageFromNpyFile(const std::string& npyFileName);
     PyObject* getCurrentImage();
     PyObject* getHistogram();
     GLuint getHistogramBinCount() const;
@@ -122,6 +123,10 @@ protected:
     void updateStatusBarFpsPresence();
     void updateStatusBarPixelInfoPresence();
 
+    void dragEnterEvent(QDragEnterEvent* event);
+    void dragMoveEvent(QDragMoveEvent* event);
+    void dragLeaveEvent(QDragLeaveEvent* event);
+    void dropEvent(QDropEvent* event);
 #ifdef STAND_ALONE_EXECUTABLE
     void closeEvent(QCloseEvent* event);
 #endif
