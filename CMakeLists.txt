@@ -30,18 +30,28 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 # Instruct CMake to run moc automatically when needed.
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 add_definitions(-DSTAND_ALONE_EXECUTABLE)
 
 include_directories(SYSTEM /usr/local/include
                            /usr/local/glm
                            /usr/include/python3.4
                            /usr/lib64/python3.4/site-packages/numpy/core/include)
+include_directories(source/cpp)
 
 find_package(OpenGL REQUIRED)
+find_package(FreeImage)
 find_package(Qt5Core)
 find_package(Qt5Gui)
 find_package(Qt5OpenGL)
 find_package(Qt5Widgets)
+
+qt5_wrap_ui(UI_HEADERS source/cpp/HistogramWidget.ui
+                       source/cpp/RisWidget.ui
+                       source/cpp/ShowCheckerDialog.ui
+                       source/cpp/ImageWidget.ui)
+
+qt5_add_resources(UI_RESOURCES source/cpp/RisWidget.qrc)
 
 add_executable(ris_widget source/cpp/RisWidget.cpp
                           source/cpp/GilStateScopeOperators.cpp
@@ -62,14 +72,11 @@ add_executable(ris_widget source/cpp/RisWidget.cpp
                           ${UI_HEADERS}
                           ${UI_RESOURCES})
 
-qt5_wrap_ui(UI_HEADERS source/cpp/HistogramWidget.ui
-                       source/cpp/RisWidget.ui
-                       source/cpp/ShowCheckerDialog.ui
-                       source/cpp/ImageWidget.ui)
-
-qt5_add_resources(UI_RESOURCES source/cpp/RisWidget.qrc)
-
-target_link_libraries(ris_widget Qt5::Core
+target_link_libraries(ris_widget GL
+                                 OpenCL
+                                 freeimageplus
+                                 python3.4
+                                 Qt5::Core
                                  Qt5::Gui
                                  Qt5::OpenGL
                                  Qt5::Widgets)
