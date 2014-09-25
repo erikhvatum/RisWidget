@@ -3,15 +3,15 @@
 	Version="10.0"
 	VendorName="SlickEdit"
 	TemplateName="GNU C/C++"
-	WorkingDir=".">
+	WorkingDir="."
+	BuildSystem="vsbuild">
 	<Config
 		Name="Debug"
 		Type="gnuc"
 		DebugCallbackName="gdb"
 		Version="1"
-		OutputFile="/home/ehvatum/zplrepo/ris_widget/cpp/RisWidget"
-		CompilerConfigName="Latest Version"
-		Defines="">
+		OutputFile="%bdris_widget"
+		CompilerConfigName="Latest Version">
 		<Menu>
 			<Target
 				Name="Compile"
@@ -22,7 +22,7 @@
 				OutputExts="*.o"
 				SaveOption="SaveCurrent"
 				RunFromDir="%rw">
-				<Exec CmdLine='g++ -c %xup %defd -g -o "%bd%n%oe" %i %f'/>
+				<Exec CmdLine='g++ -c %xup  %defd -g -o "%bd%n%oe" %i "%f"'/>
 			</Target>
 			<Target
 				Name="Link"
@@ -33,30 +33,33 @@
 				Deletable="0"
 				SaveOption="SaveCurrent"
 				RunFromDir="%rw">
-				<Exec CmdLine='g++ %xup -g -o "%o" %objs'/>
+				<Exec CmdLine='g++ %xup -g -o "%o" %f %libs'/>
 			</Target>
 			<Target
 				Name="Build"
 				MenuCaption="&amp;Build"
+				Dialog="_gnuc_options_form Compile"
 				CaptureOutputWith="ProcessBuffer"
 				Deletable="0"
 				SaveOption="SaveWorkspaceFiles"
 				RunFromDir="%rw">
-				<Exec CmdLine="make"/>
+				<Exec CmdLine='"%(VSLICKBIN1)vsbuild" "%w" "%r" -t build'/>
 			</Target>
 			<Target
 				Name="Rebuild"
 				MenuCaption="&amp;Rebuild"
+				Dialog="_gnuc_options_form Compile"
 				CaptureOutputWith="ProcessBuffer"
 				Deletable="0"
 				SaveOption="SaveWorkspaceFiles"
 				RunFromDir="%rw">
-				<Exec CmdLine=""/>
+				<Exec CmdLine='"%(VSLICKBIN1)vsbuild" "%w" "%r" -t rebuild'/>
 			</Target>
 			<Target
 				Name="Debug"
 				MenuCaption="&amp;Debug"
 				Dialog="_gnuc_options_form Run/Debug"
+				BuildFirst="1"
 				CaptureOutputWith="ProcessBuffer"
 				Deletable="0"
 				SaveOption="SaveNone"
@@ -96,17 +99,14 @@
 				Name="LinkerOutputType"
 				Value="Executable"/>
 		</List>
-		<Includes/>
-		<Libs PreObjects="0"/>
 	</Config>
 	<Config
 		Name="Release"
 		Type="gnuc"
 		DebugCallbackName="gdb"
 		Version="1"
-		OutputFile="/home/ehvatum/zplrepo/ris_widget/cpp/RisWidget"
-		CompilerConfigName="Latest Version"
-		Defines="">
+		OutputFile="%bdris_widget"
+		CompilerConfigName="Latest Version">
 		<Menu>
 			<Target
 				Name="Compile"
@@ -117,7 +117,7 @@
 				OutputExts="*.o"
 				SaveOption="SaveCurrent"
 				RunFromDir="%rw">
-				<Exec CmdLine='g++ -c %xup %defd -o "%bd%n%oe" %i %f'/>
+				<Exec CmdLine='g++ -c %xup %defd -o "%bd%n%oe" %i "%f"'/>
 			</Target>
 			<Target
 				Name="Link"
@@ -128,30 +128,33 @@
 				Deletable="0"
 				SaveOption="SaveCurrent"
 				RunFromDir="%rw">
-				<Exec CmdLine='g++ %xup -o "%o" %objs'/>
+				<Exec CmdLine='g++ %xup -o "%o" %f %libs'/>
 			</Target>
 			<Target
 				Name="Build"
 				MenuCaption="&amp;Build"
+				Dialog="_gnuc_options_form Compile"
 				CaptureOutputWith="ProcessBuffer"
 				Deletable="0"
 				SaveOption="SaveWorkspaceFiles"
 				RunFromDir="%rw">
-				<Exec CmdLine="make"/>
+				<Exec CmdLine='"%(VSLICKBIN1)vsbuild" "%w" "%r" -t build'/>
 			</Target>
 			<Target
 				Name="Rebuild"
 				MenuCaption="&amp;Rebuild"
+				Dialog="_gnuc_options_form Compile"
 				CaptureOutputWith="ProcessBuffer"
 				Deletable="0"
 				SaveOption="SaveWorkspaceFiles"
 				RunFromDir="%rw">
-				<Exec CmdLine=""/>
+				<Exec CmdLine='"%(VSLICKBIN1)vsbuild" "%w" "%r" -t rebuild'/>
 			</Target>
 			<Target
 				Name="Debug"
 				MenuCaption="&amp;Debug"
 				Dialog="_gnuc_options_form Run/Debug"
+				BuildFirst="1"
 				CaptureOutputWith="ProcessBuffer"
 				Deletable="0"
 				SaveOption="SaveNone"
@@ -191,119 +194,75 @@
 				Name="LinkerOutputType"
 				Value="Executable"/>
 		</List>
-		<Includes/>
-		<Libs PreObjects="0"/>
 	</Config>
 	<Files>
 		<Folder
 			Name="cpp"
-			Filters="*.cpp;*.h">
-			<Folder
-				Name="gpu"
-				Filters="">
-				<F N="cpp/gpu/histogram.cl"/>
-				<F N="cpp/gpu/histogram.glslf"/>
-				<F N="cpp/gpu/histogram.glslv"/>
-				<F N="cpp/gpu/image.glslf"/>
-				<F N="cpp/gpu/image.glslv"/>
-			</Folder>
-			<Folder
-				Name="qt generated files"
-				Filters="">
-				<F N="cpp/moc_HistogramView.cpp"/>
-				<F N="cpp/moc_HistogramWidget.cpp"/>
-				<F N="cpp/moc_ImageView.cpp"/>
-				<F N="cpp/moc_ImageWidget.cpp"/>
-				<F N="cpp/moc_RisWidget.cpp"/>
-				<F N="cpp/moc_ShowCheckerDialog.cpp"/>
-				<F N="cpp/moc_ViewWidget.cpp"/>
-				<F N="cpp/qrc_RisWidget.cpp"/>
-				<F N="cpp/ui_HistogramWidget.h"/>
-				<F N="cpp/ui_ImageWidget.h"/>
-				<F N="cpp/ui_RisWidget.h"/>
-				<F N="cpp/ui_ShowCheckerDialog.h"/>
-			</Folder>
-			<F N="cpp/Common.h"/>
-			<F N="cpp/GilStateScopeOperators.cpp"/>
-			<F N="cpp/GilStateScopeOperators.h"/>
-			<F N="cpp/GlslProg.cpp"/>
-			<F N="cpp/GlslProg.h"/>
-			<F N="cpp/GlxFunctions.c"/>
-			<F N="cpp/GlxFunctions.h"/>
-			<F N="cpp/HistoDrawProg.cpp"/>
-			<F N="cpp/HistoDrawProg.h"/>
-			<F N="cpp/HistogramView.cpp"/>
-			<F N="cpp/HistogramView.h"/>
-			<F N="cpp/HistogramWidget.cpp"/>
-			<F N="cpp/HistogramWidget.h"/>
-			<F N="cpp/HistogramWidget.ui"/>
-			<F N="cpp/ImageDrawProg.cpp"/>
-			<F N="cpp/ImageDrawProg.h"/>
-			<F N="cpp/ImageView.cpp"/>
-			<F N="cpp/ImageView.h"/>
-			<F N="cpp/ImageWidget.cpp"/>
-			<F N="cpp/ImageWidget.h"/>
-			<F N="cpp/ImageWidget.ui"/>
-			<F N="cpp/ImageWidgetViewScroller.cpp"/>
-			<F N="cpp/ImageWidgetViewScroller.h"/>
-			<F N="cpp/LockedRef.h"/>
-			<F N="cpp/Renderer.cpp"/>
-			<F N="cpp/Renderer.h"/>
-			<F N="cpp/RisWidget.cpp"/>
-			<F N="cpp/RisWidget.h"/>
-			<F N="cpp/RisWidget.pro"/>
-			<F N="cpp/RisWidget.qrc"/>
-			<F N="cpp/RisWidget.ui"/>
-			<F N="cpp/RisWidget_debug.pro"/>
-			<F N="cpp/RisWidget_standalone.pro"/>
-			<F N="cpp/RisWidgetException.cpp"/>
-			<F N="cpp/RisWidgetException.h"/>
-			<F N="cpp/ShowCheckerDialog.cpp"/>
-			<F N="cpp/ShowCheckerDialog.h"/>
-			<F N="cpp/ShowCheckerDialog.ui"/>
-			<F N="cpp/View.cpp"/>
-			<F N="cpp/View.h"/>
-			<F N="cpp/ViewWidget.cpp"/>
-			<F N="cpp/ViewWidget.h"/>
+			Filters="">
+			<F N="source/cpp/Common.cpp"/>
+			<F N="source/cpp/GilStateScopeOperators.cpp"/>
+			<F N="source/cpp/GlslProg.cpp"/>
+			<F N="source/cpp/GlxFunctions.c"/>
+			<F N="source/cpp/HistoDrawProg.cpp"/>
+			<F N="source/cpp/HistogramView.cpp"/>
+			<F N="source/cpp/HistogramWidget.cpp"/>
+			<F N="source/cpp/ImageDrawProg.cpp"/>
+			<F N="source/cpp/ImageView.cpp"/>
+			<F N="source/cpp/ImageWidget.cpp"/>
+			<F N="source/cpp/ImageWidgetViewScroller.cpp"/>
+			<F N="source/cpp/Renderer.cpp"/>
+			<F N="source/cpp/RisWidget.cpp"/>
+			<F N="source/cpp/RisWidgetException.cpp"/>
+			<F N="source/cpp/ShowCheckerDialog.cpp"/>
+			<F N="source/cpp/View.cpp"/>
+			<F N="source/cpp/ViewWidget.cpp"/>
+			<F N="source/cpp/Common.h"/>
+			<F N="source/cpp/GilStateScopeOperators.h"/>
+			<F N="source/cpp/GlslProg.h"/>
+			<F N="source/cpp/GlxFunctions.h"/>
+			<F N="source/cpp/HistoDrawProg.h"/>
+			<F N="source/cpp/HistogramView.h"/>
+			<F N="source/cpp/HistogramWidget.h"/>
+			<F N="source/cpp/ImageDrawProg.h"/>
+			<F N="source/cpp/ImageView.h"/>
+			<F N="source/cpp/ImageWidget.h"/>
+			<F N="source/cpp/ImageWidgetViewScroller.h"/>
+			<F N="source/cpp/LockedRef.h"/>
+			<F N="source/cpp/Renderer.h"/>
+			<F N="source/cpp/RisWidget.h"/>
+			<F N="source/cpp/RisWidgetException.h"/>
+			<F N="source/cpp/ShowCheckerDialog.h"/>
+			<F N="source/cpp/View.h"/>
+			<F N="source/cpp/ViewWidget.h"/>
+			<F N="source/cpp/cl.hpp"/>
+			<F N="source/cpp/HistogramWidget.ui"/>
+			<F N="source/cpp/ImageWidget.ui"/>
+			<F N="source/cpp/RisWidget.pro"/>
+			<F N="source/cpp/RisWidget.qrc"/>
+			<F N="source/cpp/RisWidget.ui"/>
+			<F N="source/cpp/RisWidget.vcxproj"/>
+			<F N="source/cpp/RisWidget_debug.pro"/>
+			<F N="source/cpp/RisWidget_standalone.pro"/>
+			<F N="source/cpp/ShowCheckerDialog.ui"/>
+			<F N="source/cpp/ris_widget.sip"/>
 		</Folder>
 		<Folder
-			Name="sip generated files"
+			Name="gpu"
 			Filters="">
-			<F N="ris_widget.sbf"/>
-			<F N="sipAPIris_widget.h"/>
-			<F N="sipris_widgetcmodule.cpp"/>
-			<F N="sipris_widgetHistogramView.cpp"/>
-			<F N="sipris_widgetHistogramWidget.cpp"/>
-			<F N="sipris_widgetImageView.cpp"/>
-			<F N="sipris_widgetImageWidget.cpp"/>
-			<F N="sipris_widgetRisWidget.cpp"/>
+			<F N="source/gpu/histogram.cl"/>
+			<F N="source/gpu/histogram.glslf"/>
+			<F N="source/gpu/histogram.glslv"/>
+			<F N="source/gpu/image.glslf"/>
+			<F N="source/gpu/image.glslv"/>
 		</Folder>
 		<Folder
-			Name="original"
+			Name="py"
 			Filters="">
-			<F N="original/ris_widget/__init__.py"/>
-			<F N="original/ris_widget/histogram.glslf"/>
-			<F N="original/ris_widget/histogram.glslv"/>
-			<F N="original/ris_widget/histogramCalc.glslc"/>
-			<F N="original/ris_widget/histogramConsolidate.glslc"/>
-			<F N="original/ris_widget/loop_cache_sink_stream.py"/>
-			<F N="original/ris_widget/micro_manager_focus_sink.py"/>
-			<F N="original/ris_widget/micro_manager_snapstream.py"/>
-			<F N="original/ris_widget/panel.glslf"/>
-			<F N="original/ris_widget/panel.glslv"/>
-			<F N="original/ris_widget/ris.py"/>
-			<F N="original/ris_widget/ris_exceptions.py"/>
-			<F N="original/ris_widget/ris_widget.py"/>
-			<F N="original/ris_widget/ris_widget_exceptions.py"/>
-			<F N="original/ris_widget/shader_program.py"/>
-			<F N="original/ris_widget/size.py"/>
+			<F N="source/py/__init__.py"/>
+			<F N="source/py/flipbook.py"/>
 		</Folder>
-		<F N="C:/Users/wix/.ipython/profile_default/startup/50-ris_widget.ipy"/>
-		<F N="dead_simple_build.bash"/>
-		<F N="dead_simple_build.bat"/>
-		<F N="dead_simple_build_debug.bash"/>
-		<F N="flipbook.py"/>
-		<F N="Makefile"/>
-		<F N="ris_widget.sip"/>
+		<F N="CMakeLists.txt"/>
+		<F N="LICENSE"/>
+		<F N="README.md"/>
 	</Files>
 </Project>
