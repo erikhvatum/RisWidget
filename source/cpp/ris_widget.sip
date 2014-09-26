@@ -36,7 +36,7 @@ class RisWidget
   : public QMainWindow
 {
 %TypeHeaderCode
-#include "cpp/RisWidget.h"
+#include "RisWidget.h"
 %End
 
 public:
@@ -151,7 +151,7 @@ class ImageWidget
   : public QWidget
 {
 %TypeHeaderCode
-#include "cpp/ImageWidget.h"
+#include "ImageWidget.h"
 %End
 
 public:
@@ -168,7 +168,7 @@ class ImageView
   : public View /NoDefaultCtors/
 {
 %TypeHeaderCode
-#include "cpp/ImageView.h"
+#include "ImageView.h"
 %End
 
 public:
@@ -182,7 +182,7 @@ class HistogramWidget
   : public QWidget
 {
 %TypeHeaderCode
-#include "cpp/HistogramWidget.h"
+#include "HistogramWidget.h"
 %End
 
 public:
@@ -199,7 +199,7 @@ class HistogramView
   : public View /NoDefaultCtors/
 {
 %TypeHeaderCode
-#include "cpp/HistogramView.h"
+#include "HistogramView.h"
 %End
 
 public:
@@ -214,14 +214,14 @@ class View
   : public QGLWidget /NoDefaultCtors/
 {
 %TypeHeaderCode
-#include "cpp/View.h"
+#include "View.h"
 %End
 
 public:
     /*class SharedGlObjects
     {
     %TypeHeaderCode
-    #include "cpp/View.h"
+    #include "View.h"
     %End
     };
     typedef std::shared_ptr<SharedGlObjects> SharedGlObjectsPtr;*/

@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2014 Erik Hvatum
+# Copyright (c) 2014 WUSTL ZPLAB
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,11 +19,17 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+#
+# Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 # CMake 2.8.11 introduced the target_link_libraries command, a huge time saver
 cmake_minimum_required(VERSION 2.8.11)
 
 project(ris_widget)
+
+set(AS_PYTHON_MODULE TRUE CACHE BOOL "Build as a native Python extension (for example, a .so file on Linux) using PyQt5 and SIP.  Otherwise, ris_widget is built as a stand-alone executable.")
+set(ENABLE_GL_DEBUG_LOGGING FALSE CACHE BOOL "Enable OpenGL debug output.")
+set(ENABLE_CL_PROFILING FALSE CACHE BOOL "Enable OpenCL profiling and output of kernel execution times.")
 
 # Find includes in corresponding build directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -31,10 +37,9 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 set(Python_ADDITIONAL_VERSIONS ${Python_ADDITIONAL_VERSIONS} "3.4")
-add_definitions(-DSTAND_ALONE_EXECUTABLE)
-
 include_directories(SYSTEM /usr/local/include)
 include_directories(source/cpp)
 
@@ -49,54 +54,23 @@ find_package(Qt5OpenGL REQUIRED)
 find_package(Qt5Widgets REQUIRED)
 find_package(PythonInterp 3.4 REQUIRED)
 find_package(PythonLibs 3.4 REQUIRED)
+if(AS_PYTHON_MODULE)
+    find_package(SIP REQUIRED)
+    find_package(PyQt5 REQUIRED)
+endif()
 
 include_directories(SYSTEM ${GLM_INCLUDE_DIR})
 include_directories(SYSTEM ${PYTHON_INCLUDE_DIR})
 include_directories(SYSTEM ${FREEIMAGEPLUS_INCLUDE_PATH})
-#execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())" OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
-#include_directories(SYSTEM "${PYTHON_SITE_PACKAGES}/numpy/core/include")
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import numpy;print(numpy.get_include())"
                 RESULT_VARIABLE _NUMPY_INCLUDE_DIR_FOUND
                 ERROR_VARIABLE _NUMPY_INCLUDE_DIR_ERROR
                 OUTPUT_VARIABLE NUMPY_INCLUDE_DIR
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
 if(NOT _NUMPY_INCLUDE_DIR_FOUND MATCHES 0)
-    message(FATAL_ERROR "Failed to import numpy:\n${_NUMPY_INCLUDE_DIR_ERROR}")
+    message(FATAL_ERROR "Failed to import numpy (which must be done in order to locate the numpy C API header directory):\n${_NUMPY_INCLUDE_DIR_ERROR}")
     return()
 endif()
 include_directories(SYSTEM ${NUMPY_INCLUDE_DIR})
 
-qt5_wrap_ui(UI_HEADERS source/cpp/HistogramWidget.ui
-                       source/cpp/RisWidget.ui
-                       source/cpp/ShowCheckerDialog.ui
-                       source/cpp/ImageWidget.ui)
-
-qt5_add_resources(UI_RESOURCES source/cpp/RisWidget.qrc)
-
-add_executable(ris_widget source/cpp/RisWidget.cpp
-                          source/cpp/GilStateScopeOperators.cpp
-                          source/cpp/GlslProg.cpp
-                          source/cpp/GlxFunctions.c
-                          source/cpp/HistoDrawProg.cpp
-                          source/cpp/HistogramWidget.cpp
-                          source/cpp/HistogramView.cpp
-                          source/cpp/ImageDrawProg.cpp
-                          source/cpp/ImageWidget.cpp
-                          source/cpp/ImageWidgetViewScroller.cpp
-                          source/cpp/ImageView.cpp
-                          source/cpp/Renderer.cpp
-                          source/cpp/RisWidgetException.cpp
-                          source/cpp/ShowCheckerDialog.cpp
-                          source/cpp/View.cpp
-                          source/cpp/ViewWidget.cpp
-                          ${UI_HEADERS}
-                          ${UI_RESOURCES})
-
-target_link_libraries(ris_widget ${OPENGL_LIBRARIES}
-                                 ${FREEIMAGEPLUS_LIBRARY}
-                                 ${PYTHON_LIBRARY}
-                                 ${OPENCL_LIBRARIES}
-                                 Qt5::Core
-                                 Qt5::Gui
-                                 Qt5::OpenGL
-                                 Qt5::Widgets)
+add_subdirectory(source/cpp output/cpp)

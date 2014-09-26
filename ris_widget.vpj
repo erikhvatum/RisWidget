@@ -261,6 +261,18 @@
 			<F N="source/py/__init__.py"/>
 			<F N="source/py/flipbook.py"/>
 		</Folder>
+		<Folder
+			Name="cmake_modules"
+			Filters="">
+			<F N="cmake_modules/FindFreeImage.cmake"/>
+			<F N="cmake_modules/FindFreeImagePlus.cmake"/>
+			<F N="cmake_modules/FindGLM.cmake"/>
+			<F N="cmake_modules/FindOpenCL.cmake"/>
+			<F N="cmake_modules/FindPyQt5.cmake"/>
+			<F N="cmake_modules/FindSIP.cmake"/>
+			<F N="cmake_modules/FindSIP.py"/>
+			<F N="cmake_modules/SIPMacros.cmake"/>
+		</Folder>
 		<F N="CMakeLists.txt"/>
 		<F N="LICENSE"/>
 		<F N="README.md"/>
