@@ -41,6 +41,7 @@ include_directories(source/cpp)
 find_package(OpenGL REQUIRED)
 find_package(OpenCL REQUIRED)
 find_package(FreeImage REQUIRED)
+find_package(FreeImagePlus REQUIRED)
 find_package(GLM REQUIRED)
 find_package(Qt5Core REQUIRED)
 find_package(Qt5Gui REQUIRED)
@@ -51,6 +52,7 @@ find_package(PythonLibs 3.4 REQUIRED)
 
 include_directories(SYSTEM ${GLM_INCLUDE_DIR})
 include_directories(SYSTEM ${PYTHON_INCLUDE_DIR})
+include_directories(SYSTEM ${FREEIMAGEPLUS_INCLUDE_PATH})
 #execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())" OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
 #include_directories(SYSTEM "${PYTHON_SITE_PACKAGES}/numpy/core/include")
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import numpy;print(numpy.get_include())"
@@ -91,7 +93,7 @@ add_executable(ris_widget source/cpp/RisWidget.cpp
                           ${UI_RESOURCES})
 
 target_link_libraries(ris_widget ${OPENGL_LIBRARIES}
-                                 ${FREEIMAGEANDFREEIMAGEPLUS_LIBRARIES}
+                                 ${FREEIMAGEPLUS_LIBRARY}
                                  ${PYTHON_LIBRARY}
                                  ${OPENCL_LIBRARIES}
                                  Qt5::Core

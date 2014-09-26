@@ -1,22 +1,55 @@
-# - Try to find FreeImagePlus
-# Once done, this will define
 #
-#  FreeImagePlus_FOUND - system has FreeImagePlus
-#  FreeImagePlus_INCLUDE_DIRS - the FreeImagePlus include directories 
-#  FreeImagePlus_LIBRARIES - link these to use FreeImagePlus
+# Try to find the FreeImagePlus library and include path.
+# Once done this will define
+#
+# FREEIMAGEPLUS_FOUND
+# FREEIMAGEPLUS_INCLUDE_PATH
+# FREEIMAGEPLUS_LIBRARY
+# 
 
-include(FindPkgMacros)
-findpkg_begin(FreeImagePlus)
+IF (WIN32)
+	FIND_PATH( FREEIMAGEPLUS_INCLUDE_PATH FreeImagePlus.h
+		${PROJECT_SOURCE_DIR}/extern/FreeImage
+		DOC "The directory where FreeImagePlus.h resides")
+	FIND_LIBRARY( FREEIMAGEPLUS_LIBRARY
+		NAMES FreeImage freeimage
+		PATHS
+		${PROJECT_SOURCE_DIR}/FreeImage
+		DOC "The FreeImage library")
+ELSE (WIN32)
+	FIND_PATH( FREEIMAGEPLUS_INCLUDE_PATH FreeImagePlus.h
+		/usr/include
+		/usr/local/include
+		/sw/include
+		/opt/local/include
+		DOC "The directory where FreeImagePlus.h resides")
+	FIND_LIBRARY( FREEIMAGEPLUS_LIBRARY
+		NAMES FreeImagePlus freeimageplus
+		PATHS
+		/usr/lib64
+		/usr/lib
+		/usr/local/lib64
+		/usr/local/lib
+		/sw/lib
+		/opt/local/lib
+		DOC "The FreeImage library")
+ENDIF (WIN32)
 
-set(FreeImagePlus_LIBRARY_NAMES freeimageplus)
-get_debug_names(FreeImagePlus_LIBRARY_NAMES)
+SET(FREEIMAGEPLUS_LIBRARIES ${FREEIMAGEPLUS_LIBRARY})
 
-use_pkgconfig(FreeImagePlus_PKGC freeimageplus)
+IF (FREEIMAGEPLUS_INCLUDE_PATH AND FREEIMAGEPLUS_LIBRARY)
+	SET( FREEIMAGEPLUS_FOUND TRUE CACHE BOOL "Set to TRUE if FreeImagePlus is found, FALSE otherwise")
+ELSE (FREEIMAGEPLUS_INCLUDE_PATH AND FREEIMAGEPLUS_LIBRARY)
+	SET( FREEIMAGEPLUS_FOUND FALSE CACHE BOOL "Set to TRUE if FreeImagePlus is found, FALSE otherwise")
+ENDIF (FREEIMAGEPLUS_INCLUDE_PATH AND FREEIMAGEPLUS_LIBRARY)
 
-find_path(FreeImagePlus_INCLUDE_DIR NAMES FreeImagePlus.h PATHS ${FreeImagePlus_PKGC_INCLUDE_DIRS})
-find_library(FreeImagePlus_LIBRARY_REL NAMES ${FreeImage_LIBRARY_NAMES} PATHS ${FreeImage_PKGC_LIBRARY_DIRS})
-find_library(FreeImagePlus_LIBRARY_DBG NAMES ${FreeImage_LIBRARY_NAMES_DBG} PATHS ${FreeImage_PKGC_LIBRARY_DIRS})
-make_library_set(FreeImagePlus_LIBRARY)
+MARK_AS_ADVANCED(
+	FREEIMAGEPLUS_FOUND
+	FREEIMAGEPLUS_LIBRARY
+	FREEIMAGEPLUS_LIBRARIES
+	FREEIMAGEPLUS_INCLUDE_PATH)
 
-findpkg_finish(FreeImage)
-
+IF (FREEIMAGEPLUS_FOUND)
+    MESSAGE(STATUS "FREEIMAGEPLUS_INCLUDE_PATH = ${FREEIMAGEPLUS_INCLUDE_PATH}")
+    MESSAGE(STATUS "FREEIMAGEPLUS_LIBRARY = ${FREEIMAGEPLUS_LIBRARY}")
+ENDIF (FREEIMAGEPLUS_FOUND)
