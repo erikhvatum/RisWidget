@@ -29,22 +29,40 @@ project(ris_widget)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 # Instruct CMake to run moc automatically when needed.
 set(CMAKE_AUTOMOC ON)
+set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
+set(Python_ADDITIONAL_VERSIONS ${Python_ADDITIONAL_VERSIONS} "3.4")
 add_definitions(-DSTAND_ALONE_EXECUTABLE)
 
-include_directories(SYSTEM /usr/local/include
-                           /usr/local/glm
-                           /usr/include/python3.4
-                           /usr/lib64/python3.4/site-packages/numpy/core/include)
+include_directories(SYSTEM /usr/local/include)
 include_directories(source/cpp)
 
 find_package(OpenGL REQUIRED)
-find_package(FreeImage)
-find_package(Qt5Core)
-find_package(Qt5Gui)
-find_package(Qt5OpenGL)
-find_package(Qt5Widgets)
+find_package(OpenCL REQUIRED)
+find_package(FreeImage REQUIRED)
+find_package(GLM REQUIRED)
+find_package(Qt5Core REQUIRED)
+find_package(Qt5Gui REQUIRED)
+find_package(Qt5OpenGL REQUIRED)
+find_package(Qt5Widgets REQUIRED)
+find_package(PythonInterp 3.4 REQUIRED)
+find_package(PythonLibs 3.4 REQUIRED)
+
+include_directories(SYSTEM ${GLM_INCLUDE_DIR})
+include_directories(SYSTEM ${PYTHON_INCLUDE_DIR})
+#execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())" OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
+#include_directories(SYSTEM "${PYTHON_SITE_PACKAGES}/numpy/core/include")
+execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import numpy;print(numpy.get_include())"
+                RESULT_VARIABLE _NUMPY_INCLUDE_DIR_FOUND
+                ERROR_VARIABLE _NUMPY_INCLUDE_DIR_ERROR
+                OUTPUT_VARIABLE NUMPY_INCLUDE_DIR
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
+if(NOT _NUMPY_INCLUDE_DIR_FOUND MATCHES 0)
+    message(FATAL_ERROR "Failed to import numpy:\n${_NUMPY_INCLUDE_DIR_ERROR}")
+    return()
+endif()
+include_directories(SYSTEM ${NUMPY_INCLUDE_DIR})
 
 qt5_wrap_ui(UI_HEADERS source/cpp/HistogramWidget.ui
                        source/cpp/RisWidget.ui
@@ -72,10 +90,10 @@ add_executable(ris_widget source/cpp/RisWidget.cpp
                           ${UI_HEADERS}
                           ${UI_RESOURCES})
 
-target_link_libraries(ris_widget GL
-                                 OpenCL
-                                 freeimageplus
-                                 python3.4
+target_link_libraries(ris_widget ${OPENGL_LIBRARIES}
+                                 ${FREEIMAGEANDFREEIMAGEPLUS_LIBRARIES}
+                                 ${PYTHON_LIBRARY}
+                                 ${OPENCL_LIBRARIES}
                                  Qt5::Core
                                  Qt5::Gui
                                  Qt5::OpenGL
