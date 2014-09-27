@@ -42,7 +42,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 set(Python_ADDITIONAL_VERSIONS ${Python_ADDITIONAL_VERSIONS} "3.4")
 include_directories(SYSTEM /usr/local/include)
 include_directories(source/cpp)
-
 find_package(OpenGL REQUIRED)
 find_package(OpenCL REQUIRED)
 find_package(FreeImage REQUIRED)
@@ -53,7 +52,27 @@ find_package(Qt5Gui REQUIRED)
 find_package(Qt5OpenGL REQUIRED)
 find_package(Qt5Widgets REQUIRED)
 find_package(PythonInterp 3.4 REQUIRED)
-find_package(PythonLibs 3.4 REQUIRED)
+if(NOT APPLE)
+    find_package(PythonLibs 3.4 REQUIRED)
+else()
+    # FindPythonLibs.cmake is totally horked on OS X and will probably remain so until the end of time and beyond: http://www.itk.org/Bug/view.php?id=14809
+    # Because Find*.cmake modules must support cross compilation, the obvious fix of just asking the interpreter where its stuff is can't go into the
+    # official CMake distribution.  Because it's better to have it not work at all under any circumstance, I guess?  Okay, that would be fine, except
+    # we need this to work.  So, we resort to asking the interpreter.
+    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import distutils.sysconfig; vs = distutils.sysconfig.get_config_vars(); print('LIBPL:\"{}\"LIBRARY:\"{}\"get_python_lib:\"{}\"get_python_inc:\"{}\"'.format(vs['LIBPL'], vs['LIBRARY'], distutils.sysconfig.get_python_lib(), distutils.sysconfig.get_python_inc()))"
+                    RESULT_VARIABLE _PYC_RESULT
+                    ERROR_VARIABLE _PYC_ERROR
+                    OUTPUT_VARIABLE _PYC_OUT
+                    OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if(NOT _PYC_RESULT MATCHES 0)
+        message(FATAL_ERROR "Failed to interrogate Python interpreter (which must be done in order to locate the CPython library and header directories):\n${_PYC_ERROR}")
+        return()
+    endif()
+    # TODO: extract strings from _PYC_OUT
+    unset(_PYC_RESULT)
+    unset(_PYC_ERROR)
+    unset(_PYC_OUT)
+endif()
 if(AS_PYTHON_MODULE)
     find_package(SIP REQUIRED)
     find_package(PyQt5 REQUIRED)
@@ -71,6 +90,8 @@ if(NOT _NUMPY_INCLUDE_DIR_FOUND MATCHES 0)
     message(FATAL_ERROR "Failed to import numpy (which must be done in order to locate the numpy C API header directory):\n${_NUMPY_INCLUDE_DIR_ERROR}")
     return()
 endif()
+unset(_NUMPY_INCLUDE_DIR_FOUND)
+unset(_NUMPY_INCLUDE_DIR_ERROR)
 include_directories(SYSTEM ${NUMPY_INCLUDE_DIR})
 
 add_subdirectory(source/cpp output/cpp)
