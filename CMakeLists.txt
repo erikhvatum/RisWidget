@@ -68,7 +68,16 @@ else()
         message(FATAL_ERROR "Failed to interrogate Python interpreter (which must be done in order to locate the CPython library and header directories):\n${_PYC_ERROR}")
         return()
     endif()
-    # TODO: extract strings from _PYC_OUT
+    string(REGEX REPLACE
+           "LIBPL:\"(.+)\"LIBRARY:\"lib(python.*)\\.a\"get_python_lib:\"(.+)\"get_python_inc:\"(.+)\""
+           "\\1;\\2;\\3;\\4"
+           _PYC_OUTS
+           ${_PYC_OUT})
+    set(PYTHONLIBS_FOUND true)
+    list(GET _PYC_OUTS #TODO: store into appropriate variables (what belongs in PYTHON_LIBRARIES?  lib path, site-package path?)
+    foreach(out ${outs})
+        message(STATUS ${out})
+    endforeach()
     unset(_PYC_RESULT)
     unset(_PYC_ERROR)
     unset(_PYC_OUT)
