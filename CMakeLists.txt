@@ -26,6 +26,10 @@
 cmake_minimum_required(VERSION 2.8.11)
 
 project(ris_widget)
+set(MAJOR_VERSION 1)
+set(MINOR_VERSION 0)
+set(PACKAGE ris_widget)
+set(PACKAGE_VERSION ${MAJOR_VERSION}.${MINOR_VERSION})
 
 set(AS_PYTHON_MODULE TRUE CACHE BOOL "Build as a native Python extension (for example, a .so file on Linux) using PyQt5 and SIP.  Otherwise, ris_widget is built as a stand-alone executable.")
 set(ENABLE_GL_DEBUG_LOGGING FALSE CACHE BOOL "Enable OpenGL debug output.")
