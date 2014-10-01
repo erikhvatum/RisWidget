@@ -8,10 +8,10 @@
 #
 # Once done this will define
 #  OPENCL_FOUND        - system has OpenCL
-#  OPENCL_INCLUDE_DIRS  - the OpenCL include directory
+#  OPENCL_INCLUDE_DIRS - the OpenCL include directory
+#  OPENCL_LIB_DIR      - directory in which OpenCL link libs are located
 #  OPENCL_LIBRARIES    - link these to use OpenCL
-#
-# WIN32 should work, but is untested
+#  OPENCL_HAS_CPP_BINDINGS - cl.hpp found
 
 FIND_PACKAGE(PackageHandleStandardArgs)
 
@@ -30,23 +30,33 @@ ELSE (APPLE)
 
 	IF (WIN32)
 
-		FIND_PATH(OPENCL_INCLUDE_DIRS CL/cl.h)
-		FIND_PATH(_OPENCL_CPP_INCLUDE_DIRS CL/cl.hpp)
-
-		# The AMD SDK currently installs both x86 and x86_64 libraries
-		# This is only a hack to find out architecture
-		IF( ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "AMD64" )
-			SET(OPENCL_LIB_DIR "$ENV{ATISTREAMSDKROOT}/lib/x86_64")
-		ELSE (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "AMD64")
-			SET(OPENCL_LIB_DIR "$ENV{ATISTREAMSDKROOT}/lib/x86")
-		ENDIF( ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "AMD64" )
+        if(NOT DEFINED OpenCL_INCPATH AND NOT DEFINED OpenCL_LIBPATH)
+            if(DEFINED ENV{ATISTREAMSDKROOT})
+                message(STATUS "Detected ATISTREAMSDKROOT environment variable ($ENV{ATISTREAMSDKROOT})")
+                set(_OPENCL_SDK_ROOT $ENV{ATISTREAMSDKROOT})
+            elseif(DEFINED ENV{AMDAPPSDKROOT})
+                message(STATUS "Detected AMDAPPSDKROOT environment variable ($ENV{AMDAPPSDKROOT})")
+                set(_OPENCL_SDK_ROOT $ENV{AMDAPPSDKROOT})
+            else()
+                message(FATAL_ERROR "No OpenCL headers found in default paths and no SDK environment variables suggesting other places to look are defined.")
+            endif()
+        endif()
+        if(NOT DEFINED OpenCL_LIBPATH)
+    		# The AMD SDK currently installs both x86 and x86_64 libraries
+    		# This is only a hack to find out architecture
+    		IF( ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "AMD64" )
+    			SET(OPENCL_LIB_DIR "${_OPENCL_SDK_ROOT}/lib/x86_64")
+    		ELSE (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "AMD64")
+    			SET(OPENCL_LIB_DIR "${_OPENCL_SDK_ROOT}/lib/x86")
+    		ENDIF( ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "AMD64" )
+        endif()
 		FIND_LIBRARY(OPENCL_LIBRARIES OpenCL.lib PATHS ${OPENCL_LIB_DIR} ENV OpenCL_LIBPATH)
 
-		GET_FILENAME_COMPONENT(_OPENCL_INC_CAND ${OPENCL_LIB_DIR}/../../include ABSOLUTE)
-
 		# On Win32 search relative to the library
-		FIND_PATH(OPENCL_INCLUDE_DIRS CL/cl.h PATHS "${_OPENCL_INC_CAND}" ENV OpenCL_INCPATH)
-		FIND_PATH(_OPENCL_CPP_INCLUDE_DIRS CL/cl.hpp PATHS "${_OPENCL_INC_CAND}" ENV OpenCL_INCPATH)
+		FIND_PATH(OPENCL_INCLUDE_DIRS CL/cl.h PATHS "${_OPENCL_SDK_ROOT}/include" ENV OpenCL_INCPATH)
+		FIND_PATH(_OPENCL_CPP_INCLUDE_DIRS CL/cl.hpp PATHS "${_OPENCL_SDK_ROOT}/include" ENV OpenCL_INCPATH)
+
+        unset(_OPENCL_SDK_ROOT)
 
 	ELSE (WIN32)
 

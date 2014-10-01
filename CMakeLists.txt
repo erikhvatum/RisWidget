@@ -36,7 +36,9 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 # Instruct CMake to run moc automatically when needed.
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_VERBOSE_MAKEFILE ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+if(NOT WIN32)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 set(Python_ADDITIONAL_VERSIONS ${Python_ADDITIONAL_VERSIONS} "3.4")
@@ -96,6 +98,8 @@ endif()
 
 include_directories(SYSTEM ${GLM_INCLUDE_DIR})
 include_directories(SYSTEM ${PYTHON_INCLUDE_DIR})
+include_directories(SYSTEM ${OPENCL_INCLUDE_DIRS})
+include_directories(SYSTEM ${FREEIMAGE_INCLUDE_PATH})
 include_directories(SYSTEM ${FREEIMAGEPLUS_INCLUDE_PATH})
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import numpy;print(numpy.get_include())"
                 RESULT_VARIABLE _NUMPY_INCLUDE_DIR_FOUND
