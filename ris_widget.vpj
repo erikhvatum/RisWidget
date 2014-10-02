@@ -199,6 +199,16 @@
 		<Folder
 			Name="cpp"
 			Filters="">
+			<Folder
+				Name="Flipper"
+				Filters="">
+				<F N="source/cpp/Flipper/DiskFlipper.cpp"/>
+				<F N="source/cpp/Flipper/DiskFlipper.h"/>
+				<F N="source/cpp/Flipper/Flipper.cpp"/>
+				<F N="source/cpp/Flipper/Flipper.h"/>
+				<F N="source/cpp/Flipper/RamFlipper.cpp"/>
+				<F N="source/cpp/Flipper/RamFlipper.h"/>
+			</Folder>
 			<F N="source/cpp/cl.hpp"/>
 			<F N="source/cpp/CMakeLists.txt"/>
 			<F N="source/cpp/Common.cpp"/>

@@ -149,11 +149,6 @@
     <string>Useful for debugging screen -&gt; GL -&gt; image coordinate transformation</string>
    </property>
   </action>
-  <action name="m_actionStoreImage">
-   <property name="text">
-    <string>store</string>
-   </property>
-  </action>
   <action name="m_actionClear">
    <property name="text">
     <string>Clear</string>
@@ -185,6 +180,22 @@
    </property>
    <property name="toolTip">
     <string>Show current frames per second in status bar.</string>
+   </property>
+  </action>
+  <action name="m_actionMakeRamFlipper">
+   <property name="text">
+    <string>Make RAM Flipper</string>
+   </property>
+   <property name="toolTip">
+    <string>Make an image flipbook widget that keeps its images in memory</string>
+   </property>
+  </action>
+  <action name="m_actionMakeDiskFlipper">
+   <property name="text">
+    <string>Make Disk Flipper</string>
+   </property>
+   <property name="toolTip">
+    <string>Make an image flipbook widget loads images from disk as needed in order to minimize RAM usage</string>
    </property>
   </action>
  </widget>
@@ -332,6 +343,38 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>m_actionMakeRamFlipper</sender>
+   <signal>triggered()</signal>
+   <receiver>RisWidget</receiver>
+   <slot>makeRamFlipper()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>507</x>
+     <y>400</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>m_actionMakeDiskFlipper</sender>
+   <signal>triggered()</signal>
+   <receiver>RisWidget</receiver>
+   <slot>makeDiskFlipper()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>507</x>
+     <y>400</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>loadFile()</slot>
@@ -341,5 +384,7 @@
   <slot>clearCanvasSlot()</slot>
   <slot>statusBarPixelInfoToggled(bool)</slot>
   <slot>statusBarFpsToggled(bool)</slot>
+  <slot>makeDiskFlipper()</slot>
+  <slot>makeRamFlipper()</slot>
  </slots>
 </ui>

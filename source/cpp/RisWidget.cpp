@@ -148,7 +148,8 @@ void RisWidget::makeToolBars()
     m_imageViewToolBar->addSeparator();
     m_imageViewToolBar->addAction(m_actionHighlightImagePixelUnderMouse);
     m_imageViewToolBar->addSeparator();
-    m_imageViewToolBar->addAction(m_actionStoreImage);
+    m_imageViewToolBar->addAction(m_actionMakeRamFlipper);
+    m_imageViewToolBar->addAction(m_actionMakeDiskFlipper);
 }
 
 void RisWidget::makeViews()
@@ -233,11 +234,6 @@ ImageWidget* RisWidget::imageWidget()
 HistogramWidget* RisWidget::histogramWidget()
 {
     return m_histogramWidget;
-}
-
-QAction* RisWidget::getStoreImageAction() const
-{
-    return m_actionStoreImage;
 }
 
 void RisWidget::showCheckerPatternSlot()

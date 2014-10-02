@@ -57,8 +57,6 @@ public:
     ImageWidget* imageWidget();
     HistogramWidget* histogramWidget();
 
-    QAction* getStoreImageAction() const;
-
     void showCheckerPattern(int width, bool filterTexture=false);
     void risImageAcquired(PyObject* stream, PyObject* image);
     void showImage(const GLushort* imageDataRaw, const QSize& imageSize, bool filterTexture=true);

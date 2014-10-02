@@ -36,14 +36,18 @@ if(ENABLE_CL_PROFILING)
     set(_RIS_WIDGET_GUI_DEFS ${_RIS_WIDGET_GUI_DEFS} "-DENABLE_CL_PROFILING")
 endif()
 
-qt5_wrap_ui(UI_HEADERS HistogramWidget.ui
+qt5_wrap_ui(UI_HEADERS Flipper/Flipper.ui
+                       HistogramWidget.ui
+                       ImageWidget.ui
                        RisWidget.ui
-                       ShowCheckerDialog.ui
-                       ImageWidget.ui)
+                       ShowCheckerDialog.ui)
 
 qt5_add_resources(UI_RESOURCES RisWidget.qrc)
 
 set(SOURCES RisWidget.cpp
+            Flipper/DiskFlipper.cpp
+            Flipper/Flipper.cpp
+            Flipper/RamFlipper.cpp
             GilStateScopeOperators.cpp
             GlslProg.cpp
             GlxFunctions.c

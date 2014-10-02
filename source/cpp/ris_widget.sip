@@ -52,8 +52,6 @@ public:
     ImageWidget* imageWidget();
     HistogramWidget* histogramWidget();
 
-    QAction* getStoreImageAction() const;
-
     void showCheckerPattern(int width) /ReleaseGIL/;
 %Docstring
     RisWidget.showCheckerPattern(width): Display a width X width checkerboard pattern in which each checkerboard square
@@ -227,4 +225,33 @@ public:
     typedef std::shared_ptr<SharedGlObjects> SharedGlObjectsPtr;*/
 
     virtual ~View();
+};
+
+
+
+
+class Flipper
+  : public QWidget
+{
+%TypeHeaderCode
+#include "Flipper/Flipper.h"
+%End
+
+public:
+    explicit Flipper(QWidget* parent);
+    virtual ~Flipper();
+
+    int getFrameIndex() const;
+
+signals:
+    void frameIndexChanged(int frameIndex);
+
+public slots:
+    void setFrameIndex(int frameIndex);
+    void incrementFrameIndex();
+
+protected slots:
+    void playbackButtonClicked();
+    void frameIndexSliderPressed();
+    void frameIndexSliderReleased();
 };
