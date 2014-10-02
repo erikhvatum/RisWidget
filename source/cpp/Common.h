@@ -38,13 +38,19 @@
 #include <cmath>
 #define __CL_ENABLE_EXCEPTIONS
 #if defined(__APPLE__) || defined(__MACOSX)
+ #pragma GCC diagnostic push
+ #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
  #include <OpenCL/opencl.h>
+ #undef CL_VERSION_1_2
+ #define CL_USE_DEPRECATED_OPENCL_1_1_APIS
+ #include "cl.hpp"
+ #pragma GCC diagnostic pop
 #else
  #include <CL/cl.h>
+ #undef CL_VERSION_1_2
+ #define CL_USE_DEPRECATED_OPENCL_1_1_APIS
+ #include "cl.hpp"
 #endif
-#undef CL_VERSION_1_2
-#define CL_USE_DEPRECATED_OPENCL_1_1_APIS
-#include "cl.hpp"
 #include <cstdint>
 // Need cstring include for memcpy(..).  Note: this is the C++ version of string.h; it has nothing to do with
 // Microsoft's CString.
