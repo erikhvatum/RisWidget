@@ -21,3 +21,15 @@
 // SOFTWARE.
 // 
 // Authors: Erik Hvatum
+
+#include "../Common.h"
+#include "DiskFlipper.h"
+
+DiskFlipper::DiskFlipper(QDockWidget* parent)
+  : Flipper(parent)
+{
+}
+
+DiskFlipper::~DiskFlipper()
+{
+}

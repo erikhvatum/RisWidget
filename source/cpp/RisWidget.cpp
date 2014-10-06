@@ -553,6 +553,25 @@ void RisWidget::clearCanvasSlot()
     m_histogramWidget->updateImageLoaded(false);
 }
 
+RamFlipper* RisWidget::makeRamFlipper()
+{
+    QDockWidget* dw{new QDockWidget("RAM Flip Book", this)};
+    dw->setAttribute(Qt::WA_DeleteOnClose, true);
+    dw->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    RamFlipper* flipper{new RamFlipper(dw)};
+    dw->setWidget(flipper);
+    addDockWidget(Qt::RightDockWidgetArea, dw);
+    return flipper;
+}
+
+DiskFlipper* RisWidget::makeDiskFlipper()
+{
+//  DiskFlipper* flipper{new DiskFlipper(this)};
+//  flipper->show();
+//  return flipper;
+    return nullptr;
+}
+
 void RisWidget::imageViewPointerMovedToDifferentPixel(bool isOnPixel, QPoint pixelCoord, GLushort pixelValue)
 {
     if(m_showStatusBarPixelInfo)

@@ -34,7 +34,7 @@ class Flipper
     Q_OBJECT;
 
 public:
-    explicit Flipper(QWidget* parent);
+    explicit Flipper(QDockWidget* parent);
     virtual ~Flipper();
 
     int getFrameIndex() const;

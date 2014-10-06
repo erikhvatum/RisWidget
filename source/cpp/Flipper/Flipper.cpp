@@ -25,7 +25,7 @@
 #include "Common.h"
 #include "Flipper.h"
 
-Flipper::Flipper(QWidget* parent)
+Flipper::Flipper(QDockWidget* parent)
   : QWidget(parent),
     m_frameIndex(0)
 {
@@ -34,6 +34,7 @@ Flipper::Flipper(QWidget* parent)
 
 Flipper::~Flipper()
 {
+    std::cerr << "~Flipper()\n";
 }
 
 int Flipper::getFrameIndex() const
@@ -42,6 +43,10 @@ int Flipper::getFrameIndex() const
 }
 
 void Flipper::setFrameIndex(int frameIndex)
+{
+}
+
+void Flipper::incrementFrameIndex()
 {
 }
 

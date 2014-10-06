@@ -21,3 +21,18 @@
 // SOFTWARE.
 // 
 // Authors: Erik Hvatum
+
+#pragma once
+
+#include "../Common.h"
+#include "Flipper.h"
+
+class RamFlipper
+  : public Flipper
+{
+    Q_OBJECT;
+
+public:
+    explicit RamFlipper(QDockWidget* parent);
+    virtual ~RamFlipper();
+};

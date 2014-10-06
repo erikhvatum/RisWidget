@@ -142,7 +142,7 @@
    <sender>m_frameIndexSlider</sender>
    <signal>valueChanged(int)</signal>
    <receiver>Flipper</receiver>
-   <slot>showFrame(int)</slot>
+   <slot>setFrameIndex(int)</slot>
    <hints>
     <hint type="sourcelabel">
      <x>235</x>
@@ -158,7 +158,7 @@
    <sender>m_frameIndexSpinner</sender>
    <signal>valueChanged(int)</signal>
    <receiver>Flipper</receiver>
-   <slot>showFrame(int)</slot>
+   <slot>setFrameIndex(int)</slot>
    <hints>
     <hint type="sourcelabel">
      <x>434</x>
@@ -175,6 +175,6 @@
   <slot>playbackButtonClicked()</slot>
   <slot>frameIndexSliderPressed()</slot>
   <slot>frameIndexSliderReleased()</slot>
-  <slot>showFrame(int)</slot>
+  <slot>setFrameIndex(int)</slot>
  </slots>
 </ui>

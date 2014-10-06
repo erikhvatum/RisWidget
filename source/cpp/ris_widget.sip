@@ -140,6 +140,8 @@ public slots:
 %Docstring
     If an image is currently displayed, it is cleared and replaced with nothing.
 %End
+    RamFlipper* makeRamFlipper();
+    DiskFlipper* makeDiskFlipper();
 };
 
 
@@ -230,15 +232,42 @@ public:
 
 
 
+class DiskFlipper
+  : public Flipper /NoDefaultCtors/
+{
+%TypeHeaderCode
+#include "Flipper/DiskFlipper.h"
+%End
+
+public:
+    virtual ~DiskFlipper();
+};
+
+
+
+
+class RamFlipper
+  : public Flipper /NoDefaultCtors/
+{
+%TypeHeaderCode
+#include "Flipper/RamFlipper.h"
+%End
+
+public:
+    virtual ~RamFlipper();
+};
+
+
+
+
 class Flipper
-  : public QWidget
+  : public QWidget /NoDefaultCtors/
 {
 %TypeHeaderCode
 #include "Flipper/Flipper.h"
 %End
 
 public:
-    explicit Flipper(QWidget* parent);
     virtual ~Flipper();
 
     int getFrameIndex() const;

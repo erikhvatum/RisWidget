@@ -21,3 +21,18 @@
 // SOFTWARE.
 // 
 // Authors: Erik Hvatum
+
+#pragma once
+
+#include "../Common.h"
+#include "Flipper.h"
+
+class DiskFlipper
+  : public Flipper
+{
+    Q_OBJECT;
+
+public:
+    explicit DiskFlipper(QDockWidget* parent);
+    virtual ~DiskFlipper();
+};

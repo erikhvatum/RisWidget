@@ -21,3 +21,15 @@
 // SOFTWARE.
 // 
 // Authors: Erik Hvatum
+
+#include "../Common.h"
+#include "RamFlipper.h"
+
+RamFlipper::RamFlipper(QDockWidget* parent)
+  : Flipper(parent)
+{
+}
+
+RamFlipper::~RamFlipper()
+{
+}

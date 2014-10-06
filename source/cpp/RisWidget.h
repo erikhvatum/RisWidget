@@ -23,6 +23,8 @@
 #pragma once
 
 #include "Common.h"
+#include "Flipper/DiskFlipper.h"
+#include "Flipper/RamFlipper.h"
 #include "HistogramWidget.h"
 #include "ImageWidget.h"
 #include "Renderer.h"
@@ -138,6 +140,8 @@ public slots:
     // Presents Open File dialog.  Supports images as well as numpy data files.
     void loadFile();
     void clearCanvasSlot();
+    RamFlipper* makeRamFlipper();
+    DiskFlipper* makeDiskFlipper();
 
 protected slots:
     void openClDeviceListChangedSlot(QVector<QString> openClDeviceList);
