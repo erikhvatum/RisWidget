@@ -91,8 +91,9 @@ if(AS_PYTHON_MODULE)
     add_sip_python_module(_ris_widget ris_widget.sip ris_widget_gui ${LIBRARIES})
 
     get_target_property(_PYTHON_MODULE_LOCATION python_module__ris_widget LOCATION)
+    message(STATUS "***************************${_PYTHON_MODULE_LOCATION}****************************")
     if(WIN32)
-        add_custom_command(python_module__ris_widget
+        add_custom_command(TARGET python_module__ris_widget
                            POST_BUILD
                            COMMAND copy /Y ${_PYTHON_MODULE_LOCATION} "${PROJECT_SOURCE_DIR}/_ris_widget.pyd")
     else()
