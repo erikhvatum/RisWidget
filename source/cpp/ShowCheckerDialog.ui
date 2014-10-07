@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>269</width>
-    <height>123</height>
+    <width>289</width>
+    <height>140</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -68,6 +68,9 @@
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
+       <property name="toolTip">
+        <string>362 is the largest width unsigned 16-bit grayscale checkerboard with a unique value for all non-black squares</string>
+       </property>
        <property name="suffix">
         <string> squares</string>
        </property>
@@ -75,7 +78,7 @@
         <number>65535</number>
        </property>
        <property name="value">
-        <number>40</number>
+        <number>362</number>
        </property>
       </widget>
      </item>

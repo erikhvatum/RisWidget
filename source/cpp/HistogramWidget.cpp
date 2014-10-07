@@ -182,19 +182,22 @@ GLfloat HistogramWidget::getGtpGammaGamma() const
     return m_gtpGammaGamma;
 }
 
-void HistogramWidget::makeView(bool /*doAddWidget*/)
+void HistogramWidget::makeView(bool /*doAddWidget*/, QWidget* /*parent*/)
 {
     QMutexLocker locker(m_lock);
-    ViewWidget::makeView(false);
+    ViewWidget::makeView(false, m_histogramFrame);
+    QHBoxLayout* layout{new QHBoxLayout};
+    layout->setSpacing(0);
+    layout->setMargin(0);
+    m_histogramFrame->setLayout(layout);
     m_viewContainerWidget->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
-    m_bottomLeftVerticalLayout->insertWidget(1, m_viewContainerWidget);
+    layout->addWidget(m_viewContainerWidget);
     m_viewContainerWidget->show();
-//  showViewWhenTheTimeIsRight();
 }
 
-View* HistogramWidget::instantiateView()
+View* HistogramWidget::instantiateView(QWidget* parent)
 {
-    return new HistogramView(windowHandle());
+    return new HistogramView(parent->windowHandle());
 }
 
 void HistogramWidget::updateImageLoaded(const bool& imageLoaded)
@@ -208,11 +211,13 @@ void HistogramWidget::updateEnablement()
 {
     if(m_imageLoaded && m_gtpEnabled)
     {
+        m_gtpGammaGammaSliderLabel->setEnabled(true);
         m_gtpGammaGammaSlider->setEnabled(true);
         m_gtpGammaGammaEditLabel->setEnabled(true);
         m_gtpGammaGammaEdit->setEnabled(true);
         m_gtpEnableCheckBox->setEnabled(true);
         m_gtpAutoMinMaxCheckBox->setEnabled(true);
+        m_gtpGammaSliderLabel->setEnabled(false);
         m_gtpGammaSlider->setEnabled(true);
         m_gtpGammaEditLabel->setEnabled(true);
         m_gtpGammaEdit->setEnabled(true);
@@ -227,11 +232,13 @@ void HistogramWidget::updateEnablement()
     }
     else
     {
+        m_gtpGammaGammaSliderLabel->setEnabled(m_imageLoaded);
         m_gtpGammaGammaSlider->setEnabled(m_imageLoaded);
         m_gtpGammaGammaEditLabel->setEnabled(m_imageLoaded);
         m_gtpGammaGammaEdit->setEnabled(m_imageLoaded);
         m_gtpEnableCheckBox->setEnabled(m_imageLoaded);
         m_gtpAutoMinMaxCheckBox->setEnabled(false);
+        m_gtpGammaSliderLabel->setEnabled(false);
         m_gtpGammaSlider->setEnabled(false);
         m_gtpGammaEditLabel->setEnabled(false);
         m_gtpGammaEdit->setEnabled(false);

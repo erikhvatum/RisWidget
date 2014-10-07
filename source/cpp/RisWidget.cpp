@@ -642,7 +642,6 @@ void RisWidget::flipperClosing(Flipper* flipper)
     disconnect(flipper, &Flipper::closing, this, &RisWidget::flipperClosing);
     // NB: Because Flipper's Qt::WA_DeleteOnClose attribute is set to true, flipper will be automatically deallocated,
     // and we must not delete flipper manually
-    std::cerr << "flipper \"" << flipperName.toStdString() << "\" destroyed.\n";
 }
 
 void RisWidget::imageViewPointerMovedToDifferentPixel(bool isOnPixel, QPoint pixelCoord, GLushort pixelValue)

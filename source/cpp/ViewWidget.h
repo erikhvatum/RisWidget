@@ -56,9 +56,9 @@ protected:
     QSize m_viewSize;
     QSize m_viewGlSize;
 
-    virtual void makeView(bool doAddWidget = true);
+    virtual void makeView(bool doAddWidget = true, QWidget* parent = nullptr);
     // Helper for makeView
-    virtual View* instantiateView() = 0;
+    virtual View* instantiateView(QWidget* parent) = 0;
 
 protected slots:
     virtual void resizeEventInView(QResizeEvent* ev);

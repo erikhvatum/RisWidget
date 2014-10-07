@@ -86,8 +86,8 @@ protected:
     std::pair<GLushort, GLushort> m_imageExtrema;
     bool m_imageExtremaValid;
 
-    virtual void makeView(bool doAddWidget = true) override;
-    virtual View* instantiateView();
+    virtual void makeView(bool doAddWidget = true, QWidget* parent = nullptr) override;
+    virtual View* instantiateView(QWidget* parent);
     void updateEnablement();
     void updateImageLoaded(const bool& imageLoaded);
     void gammasSliderValueChanged(int value, QSlider* slider, QLineEdit* edit);

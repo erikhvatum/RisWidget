@@ -48,7 +48,7 @@ ImageView* ImageWidget::imageView()
     return dynamic_cast<ImageView*>(m_view.data());
 }
 
-void ImageWidget::makeView(bool /*doAddWidget*/)
+void ImageWidget::makeView(bool /*doAddWidget*/, QWidget* /*parent*/)
 {
     QMutexLocker locker(m_lock);
     ViewWidget::makeView(false);
@@ -63,9 +63,9 @@ void ImageWidget::makeView(bool /*doAddWidget*/)
     connect(m_view.data(), &View::mouseEnterExitSignal, this, &ImageWidget::mouseEnterExitView);
 }
 
-View* ImageWidget::instantiateView()
+View* ImageWidget::instantiateView(QWidget* parent)
 {
-    return new ImageView(windowHandle());
+    return new ImageView(parent->windowHandle());
 }
 
 ImageWidget::InteractionMode ImageWidget::interactionMode() const

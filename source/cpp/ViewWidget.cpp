@@ -70,8 +70,12 @@ glm::vec4 ViewWidget::clearColor() const
     return std::move(ret);
 }
 
-void ViewWidget::makeView(bool doAddWidget)
+void ViewWidget::makeView(bool doAddWidget, QWidget* parent)
 {
+    if(parent == nullptr)
+    {
+        parent = this;
+    }
     QMutexLocker locker(m_lock);
     if(m_view || m_viewContainerWidget)
     {
@@ -85,21 +89,20 @@ void ViewWidget::makeView(bool doAddWidget)
     }
     // Note: calling winId() causes an underlying QWindow to be created immediately rather than lazily, and we need the
     // QWindow in order that the GL surface may be properly parented to us
-    winId();
+    parent->winId();
 #ifdef _DEBUG
-    if(windowHandle() == nullptr)
+    if(parent->windowHandle() == nullptr)
     {
         throw RisWidgetException("ViewWidget::makeView(..): winId() failed to provoke instantiation of underlying QWindow.");
     }
 #endif
-    m_view = instantiateView();
+    m_view = instantiateView(parent);
     connect(m_view.data(), &View::resizeEventSignal, this, &ViewWidget::resizeEventInView);
-    m_viewContainerWidget = QWidget::createWindowContainer(m_view, this, Qt::Widget);
+    m_viewContainerWidget = QWidget::createWindowContainer(m_view, parent, Qt::Widget);
     if(doAddWidget)
     {
         layout()->addWidget(m_viewContainerWidget);
         m_viewContainerWidget->show();
-//      showViewWhenTheTimeIsRight();
     }
 }
 

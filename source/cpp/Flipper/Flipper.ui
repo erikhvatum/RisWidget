@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>384</width>
-    <height>387</height>
+    <width>415</width>
+    <height>444</height>
    </rect>
   </property>
   <property name="acceptDrops">
@@ -68,16 +68,16 @@
         <bool>false</bool>
        </property>
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+        <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
        <property name="text">
-        <string>Play</string>
+        <string>(scrubbing)</string>
        </property>
-       <property name="flat">
-        <bool>false</bool>
+       <property name="checkable">
+        <bool>true</bool>
        </property>
       </widget>
      </item>
@@ -117,6 +117,9 @@
          <width>40</width>
          <height>0</height>
         </size>
+       </property>
+       <property name="text">
+        <string>5</string>
        </property>
       </widget>
      </item>
@@ -207,9 +210,9 @@
  <connections>
   <connection>
    <sender>m_playbackButton</sender>
-   <signal>clicked()</signal>
+   <signal>clicked(bool)</signal>
    <receiver>Flipper</receiver>
-   <slot>playbackButtonClicked()</slot>
+   <slot>playbackButtonClicked(bool)</slot>
    <hints>
     <hint type="sourcelabel">
      <x>45</x>
@@ -317,13 +320,46 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>m_frameListbox</sender>
+   <signal>currentRowChanged(int)</signal>
+   <receiver>Flipper</receiver>
+   <slot>setFrameIndex(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>191</x>
+     <y>256</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>191</x>
+     <y>193</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>m_fpsLimitEdit</sender>
+   <signal>textChanged(QString)</signal>
+   <receiver>Flipper</receiver>
+   <slot>fpsLimitEdited(QString)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>190</x>
+     <y>69</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>191</x>
+     <y>193</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
-  <slot>playbackButtonClicked()</slot>
+  <slot>playbackButtonClicked(bool)</slot>
   <slot>frameIndexSliderPressed()</slot>
   <slot>frameIndexSliderReleased()</slot>
   <slot>setFrameIndex(int)</slot>
   <slot>renameButtonClicked()</slot>
   <slot>alwaysStoreImagesInRamToggled(bool)</slot>
+  <slot>fpsLimitEdited(QString)</slot>
  </slots>
 </ui>

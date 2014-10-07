@@ -29,6 +29,8 @@ class RisWidgetException
 public:
     explicit RisWidgetException(std::string&& description_);
     explicit RisWidgetException(const std::string& description_ = std::string(""));
+    explicit RisWidgetException(const QString& description_);
+    explicit RisWidgetException(const char* description_);
 
     const std::string& description() const;
 

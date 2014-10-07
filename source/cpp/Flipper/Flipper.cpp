@@ -33,9 +33,31 @@ Flipper::Flipper(QDockWidget* parent, RisWidget* rw, const QString& flipperName)
     m_rw(rw),
     m_flipperName(flipperName),
     m_alwaysStoreImagesInRam(true),
-    m_frameIndex(0)
+    m_frameIndex(0),
+    m_nextFrameTimer(new QTimer(this)),
+    m_isPlaying(false),
+    m_fpsLimit(std::numeric_limits<float>::max()),
+    m_spfLimit(0),
+    m_prevFrameShowDelta(0)
 {
     setupUi(this);
+    // TODO: implement loading of images as needed when possible and remove the following hide() call
+    m_keepInRamCheckbox->hide();
+    // Prevent playback button from changing size and causing relayout when button text is changed.  The button text is
+    // initially (scrubbing), which is the longest string it needs to accomodate.
+    int w{m_playbackButton->width()};
+    if(w > 0)
+    {
+        m_playbackButton->setMinimumWidth(w);
+        m_playbackButton->setMaximumWidth(w);
+    }
+    m_playbackButton->setText("Play");
+    m_fpsLimitValidator = new QDoubleValidator(m_fpsLimitEdit);
+    m_fpsLimitValidator->setRange(0.01, std::numeric_limits<float>::max());
+    m_fpsLimitEdit->setValidator(m_fpsLimitValidator);
+    fpsLimitEdited(m_fpsLimitEdit->text());
+    m_nextFrameTimer->setSingleShot(true);
+    connect(m_nextFrameTimer, &QTimer::timeout, this, &Flipper::incrementFrameIndex);
 }
 
 Flipper::~Flipper()
@@ -54,10 +76,8 @@ void Flipper::setFlipperName(const QString& flipperName)
     {
         if(m_rw->hasFlipper(flipperName))
         {
-            std::ostringstream o;
-            o << "Flipper::setFlipperName(const QString& flipperName): ";
-            o << "A flipper with the name \"" << flipperName.toStdString() << "\" already exists.";
-            throw RisWidgetException(o.str());
+            throw RisWidgetException(QString("Flipper::setFlipperName(const QString& flipperName): A flipper with the "
+                                             "name \"%1\" already exists.").arg(flipperName));
         }
         QString oldName = m_flipperName;
         m_flipperName = flipperName;
@@ -82,10 +102,30 @@ int Flipper::getFrameCount() const
 
 void Flipper::setFrameIndex(int frameIndex)
 {
+    if(frameIndex != m_frameIndex)
+    {
+        if(frameIndex < 0 || frameIndex >= getFrameCount())
+        {
+            QString e("Flipper::setFrameIndex(int frameIndex): The value supplied for frameIndex, "
+                      "%1, is not in the valid range [0, %2].");
+            throw RisWidgetException(e.arg(frameIndex).arg(std::max(getFrameCount() - 1, 0)));
+        }
+        m_frameIndex = frameIndex;
+        propagateFrameIndexChange();
+    }
 }
 
 void Flipper::incrementFrameIndex()
 {
+    if(m_frames.size() > 1)
+    {
+        ++m_frameIndex;
+        if(m_frameIndex >= m_frames.size())
+        {
+            m_frameIndex = 0;
+        }
+        propagateFrameIndexChange();
+    }
 }
 
 void Flipper::renameButtonClicked()
@@ -102,16 +142,64 @@ void Flipper::alwaysStoreImagesInRamToggled(bool alwaysStoreImagesInRam)
     }
 }
 
-void Flipper::playbackButtonClicked()
+void Flipper::playbackButtonClicked(bool checked)
 {
+    if(checked)
+    {
+        m_isPlaying = true;
+        m_playbackButton->setText("Stop");
+        updateNextFrameTimer();
+    }
+    else
+    {
+        m_nextFrameTimer->stop();
+        m_isPlaying = false;
+        m_playbackButton->setText("Play");
+    }
 }
 
 void Flipper::frameIndexSliderPressed()
 {
+    if(m_isPlaying)
+    {
+        m_nextFrameTimer->stop();
+        m_playbackButton->setText("(scrubbing)");
+        m_wasPlayingBeforeSliderDrag = true;
+        m_isPlaying = false;
+    }
+    else
+    {
+        m_wasPlayingBeforeSliderDrag = false;
+    }
 }
 
 void Flipper::frameIndexSliderReleased()
 {
+    if(m_wasPlayingBeforeSliderDrag)
+    {
+        m_playbackButton->setText("Stop");
+        m_isPlaying = true;
+        updateNextFrameTimer();
+    }
+    else
+    {
+        m_playbackButton->setText("Play");
+    }
+}
+
+void Flipper::fpsLimitEdited(QString fpsLimitQStr)
+{
+    bool converted{false};
+    float fpsLimit{fpsLimitQStr.toFloat(&converted)};
+    if(converted && m_fpsLimit != fpsLimit)
+    {
+        m_fpsLimit = fpsLimit;
+        // QTimer accepts interval in milliseconds as int, meaning that it can not accept an interval greater than the
+        // largest int value milliseconds, or largest int value / 1000 seconds
+        m_spfLimit = (m_fpsLimit == 0) ? std::numeric_limits<int>::max() / 1000.0f
+                                       : 1.0f / m_fpsLimit;
+        updateNextFrameTimer();
+    }
 }
 
 void Flipper::dragEnterEvent(QDragEnterEvent* event)
@@ -133,6 +221,7 @@ void Flipper::dropEvent(QDropEvent* event)
 {
     const QMimeData* md{event->mimeData()};
     bool accept{false};
+    bool hadNoFrames{m_frames.empty()};
 
     if(md->hasImage())
     {
@@ -187,7 +276,39 @@ void Flipper::dropEvent(QDropEvent* event)
     if(accept)
     {
         event->acceptProposedAction();
+        if(hadNoFrames)
+        {
+            // Show the first frame if we had no frames before the drag and drop operation
+            propagateFrameIndexChange();
+        }
     }
+}
+
+void Flipper::updateNextFrameTimer()
+{
+    if(m_isPlaying)
+    {
+        float elapsed{m_nextFrameTimer->isActive() ?
+                      std::max(1000.0f * (m_nextFrameTimer->interval() - m_nextFrameTimer->remainingTime()), 0.0f) :
+                      0.0f};
+        float nextFrameWait{std::max(m_spfLimit - elapsed - m_prevFrameShowDelta, 0.0f)};
+        m_nextFrameTimer->start(static_cast<int>(nextFrameWait * 1000));
+    }
+}
+
+void Flipper::propagateFrameIndexChange()
+{
+    Frame& frame{*m_frames[m_frameIndex]};
+    m_frameListbox->setCurrentRow(m_frameIndex);
+    m_frameIndexSlider->setValue(m_frameIndex);
+    m_frameIndexSpinner->setValue(m_frameIndex);
+    std::chrono::steady_clock::time_point preShowTs(std::chrono::steady_clock::now());
+    m_rw->showImage(frame.data.get(), frame.size);
+    std::chrono::steady_clock::time_point postShowTs(std::chrono::steady_clock::now());
+    std::chrono::duration<float> showDelta(std::chrono::duration_cast<std::chrono::duration<float>>(postShowTs - preShowTs));
+    m_prevFrameShowDelta = showDelta.count();
+    updateNextFrameTimer();
+    frameIndexChanged(this, m_frameIndex);
 }
 
 void Flipper::propagateFrameCountChange()
@@ -200,8 +321,9 @@ void Flipper::propagateFrameCountChange()
         m_frameIndexLabel->setEnabled(enable);
         m_frameIndexSpinner->setEnabled(enable);
     }
-    int m{static_cast<int>(m_frames.size())};
+    int m{std::max(getFrameCount() - 1, 0)};
     m_frameIndexSpinner->setMaximum(m);
     m_frameIndexSlider->setMaximum(m);
-    frameCountChanged(this, m);
+    m_frameIndexSlider->setTickInterval(1);
+    frameCountChanged(this, static_cast<int>(m_frames.size()));
 }

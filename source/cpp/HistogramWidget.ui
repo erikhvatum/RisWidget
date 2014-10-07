@@ -6,14 +6,17 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1007</width>
-    <height>480</height>
+    <width>911</width>
+    <height>572</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="spacing">
+    <number>0</number>
+   </property>
    <item>
     <layout class="QHBoxLayout" name="m_topHorizontalLayout">
      <item>
@@ -280,33 +283,62 @@
    <item>
     <layout class="QHBoxLayout" name="m_bottomHorizontalLayout">
      <item>
-      <widget class="QSlider" name="m_gtpGammaGammaSlider">
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
-       <property name="minimum">
-        <number>0</number>
-       </property>
-       <property name="maximum">
-        <number>1000000000</number>
-       </property>
-       <property name="pageStep">
-        <number>10000</number>
-       </property>
-       <property name="value">
-        <number>666666667</number>
-       </property>
-       <property name="orientation">
-        <enum>Qt::Vertical</enum>
-       </property>
-      </widget>
+      <layout class="QVBoxLayout" name="m_bottomLeftVerticalLayout">
+       <item>
+        <widget class="QSlider" name="m_gtpGammaGammaSlider">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="minimum">
+          <number>0</number>
+         </property>
+         <property name="maximum">
+          <number>1000000000</number>
+         </property>
+         <property name="pageStep">
+          <number>10000</number>
+         </property>
+         <property name="value">
+          <number>666666667</number>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="m_gtpGammaGammaSliderLabel">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>γγ</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+         <property name="buddy">
+          <cstring>m_gtpGammaGammaSlider</cstring>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </item>
      <item>
-      <layout class="QVBoxLayout" name="m_bottomLeftVerticalLayout">
+      <layout class="QVBoxLayout" name="m_bottomMidVerticalLayout">
+       <property name="spacing">
+        <number>0</number>
+       </property>
        <item>
         <widget class="QSlider" name="m_gtpMaxSlider">
          <property name="enabled">
           <bool>false</bool>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
          </property>
          <property name="maximum">
           <number>65535</number>
@@ -316,6 +348,28 @@
          </property>
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QFrame" name="m_histogramFrame">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>60</height>
+          </size>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::StyledPanel</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Sunken</enum>
          </property>
         </widget>
        </item>
@@ -347,26 +401,46 @@
       </layout>
      </item>
      <item>
-      <widget class="QSlider" name="m_gtpGammaSlider">
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
-       <property name="minimum">
-        <number>0</number>
-       </property>
-       <property name="maximum">
-        <number>1000000000</number>
-       </property>
-       <property name="pageStep">
-        <number>10000</number>
-       </property>
-       <property name="value">
-        <number>666666667</number>
-       </property>
-       <property name="orientation">
-        <enum>Qt::Vertical</enum>
-       </property>
-      </widget>
+      <layout class="QVBoxLayout" name="m_bottomRightVerticalLayout">
+       <item>
+        <widget class="QSlider" name="m_gtpGammaSlider">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="minimum">
+          <number>0</number>
+         </property>
+         <property name="maximum">
+          <number>1000000000</number>
+         </property>
+         <property name="pageStep">
+          <number>10000</number>
+         </property>
+         <property name="value">
+          <number>666666667</number>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="m_gtpGammaSliderLabel">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>γ</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+         <property name="buddy">
+          <cstring>m_gtpGammaSlider</cstring>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </item>
     </layout>
    </item>
@@ -374,7 +448,6 @@
  </widget>
  <tabstops>
   <tabstop>m_gtpGammaGammaEdit</tabstop>
-  <tabstop>m_gtpGammaGammaSlider</tabstop>
   <tabstop>m_gtpEnableCheckBox</tabstop>
   <tabstop>m_gtpAutoMinMaxCheckBox</tabstop>
   <tabstop>m_gtpMinEdit</tabstop>

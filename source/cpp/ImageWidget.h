@@ -87,8 +87,8 @@ protected:
     ImageData m_imageData;
     bool m_highlightPointer;
 
-    virtual void makeView(bool doAddWidget = true) override;
-    virtual View* instantiateView() override;
+    virtual void makeView(bool doAddWidget = true, QWidget* parent = nullptr) override;
+    virtual View* instantiateView(QWidget* parent) override;
     void updateImageSizeAndData(const QSize& imageSize, const ImageData& imageData);
     virtual void resizeEventInView(QResizeEvent* ev) override;
     void updateScrollerRanges();

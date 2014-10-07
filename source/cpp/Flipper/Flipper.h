@@ -72,12 +72,23 @@ protected:
     bool m_alwaysStoreImagesInRam;
     int m_frameIndex;
     Frames m_frames;
+    QTimer* m_nextFrameTimer;
+    QDoubleValidator* m_fpsLimitValidator;
+    bool m_isPlaying;
+    bool m_wasPlayingBeforeSliderDrag;
+    // Max frames per second
+    float m_fpsLimit;
+    // Min seconds per frame
+    float m_spfLimit;
+    float m_prevFrameShowDelta;
 
     void dragEnterEvent(QDragEnterEvent* event);
     void dragMoveEvent(QDragMoveEvent* event);
     void dragLeaveEvent(QDragLeaveEvent* event);
     void dropEvent(QDropEvent* event);
 
+    void updateNextFrameTimer();
+    void propagateFrameIndexChange();
     void propagateFrameCountChange();
 
 signals:
@@ -99,8 +110,9 @@ public slots:
 protected slots:
     void renameButtonClicked();
     void alwaysStoreImagesInRamToggled(bool alwaysStoreImagesInRam);
-    void playbackButtonClicked();
+    void playbackButtonClicked(bool checked);
     void frameIndexSliderPressed();
     void frameIndexSliderReleased();
+    void fpsLimitEdited(QString fpsLimitQStr);
 };
 
