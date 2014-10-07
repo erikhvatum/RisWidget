@@ -63,6 +63,7 @@
 #include <future>
 #include <limits>
 #include <list>
+#include <map>
 #include <memory>
 #ifdef _DEBUG
  #undef _DEBUG

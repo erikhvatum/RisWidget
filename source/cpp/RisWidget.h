@@ -23,8 +23,7 @@
 #pragma once
 
 #include "Common.h"
-#include "Flipper/DiskFlipper.h"
-#include "Flipper/RamFlipper.h"
+#include "Flipper/Flipper.h"
 #include "HistogramWidget.h"
 #include "ImageWidget.h"
 #include "Renderer.h"
@@ -58,6 +57,9 @@ public:
 
     ImageWidget* imageWidget();
     HistogramWidget* histogramWidget();
+    bool hasFlipper(const QString& flipperName) const;
+    Flipper* getFlipper(const QString& flipperName);
+    QVector<QString> getFlipperNames() const;
 
     void showCheckerPattern(int width, bool filterTexture=false);
     void risImageAcquired(PyObject* stream, PyObject* image);
@@ -104,6 +106,9 @@ protected:
     QScopedPointer<QActionGroup> m_openClDevicesGroup;
     QVector<QAction*> m_actionsOpenClDevices;
 
+    uint64_t m_nextFlipperId;
+    std::map<QString, Flipper*> m_flippers;
+
     std::shared_ptr<Renderer> m_renderer;
     QPointer<QThread> m_rendererThread;
     PyObject* m_numpyModule;
@@ -140,10 +145,11 @@ public slots:
     // Presents Open File dialog.  Supports images as well as numpy data files.
     void loadFile();
     void clearCanvasSlot();
-    RamFlipper* makeRamFlipper();
-    DiskFlipper* makeDiskFlipper();
+    Flipper* makeFlipper();
 
 protected slots:
+    void flipperNameChanged(Flipper* flipper, QString oldName);
+    void flipperClosing(Flipper* flipper);
     void openClDeviceListChangedSlot(QVector<QString> openClDeviceList);
     void currentOpenClDeviceListIndexChangedSlot(int currentOpenClDeviceListIndex);
     void imageViewZoomComboCustomValueEntered();

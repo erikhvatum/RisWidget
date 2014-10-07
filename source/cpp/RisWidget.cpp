@@ -41,6 +41,7 @@ RisWidget::RisWidget(QString windowTitle_,
                      QWidget* parent,
                      Qt::WindowFlags flags)
   : QMainWindow(parent, flags),
+    m_nextFlipperId(0),
     m_showStatusBarPixelInfo(true),
     m_showStatusBarFps(false),
     m_previousFrameTimestampValid(false)
@@ -148,8 +149,7 @@ void RisWidget::makeToolBars()
     m_imageViewToolBar->addSeparator();
     m_imageViewToolBar->addAction(m_actionHighlightImagePixelUnderMouse);
     m_imageViewToolBar->addSeparator();
-    m_imageViewToolBar->addAction(m_actionMakeRamFlipper);
-    m_imageViewToolBar->addAction(m_actionMakeDiskFlipper);
+    m_imageViewToolBar->addAction(m_actionMakeFlipper);
 }
 
 void RisWidget::makeViews()
@@ -553,23 +553,96 @@ void RisWidget::clearCanvasSlot()
     m_histogramWidget->updateImageLoaded(false);
 }
 
-RamFlipper* RisWidget::makeRamFlipper()
+bool RisWidget::hasFlipper(const QString& flipperName) const
 {
-    QDockWidget* dw{new QDockWidget("RAM Flip Book", this)};
+    return m_flippers.find(flipperName) != m_flippers.end();
+}
+
+Flipper* RisWidget::getFlipper(const QString& flipperName)
+{
+    auto flipIt = m_flippers.find(flipperName);
+    if(flipIt == m_flippers.end())
+    {
+        std::ostringstream o;
+        o << "RisWidget::getFlipper(const QString& flipperName): Failed to find flipper with the name specified (\"";
+        o << flipperName.toStdString() << "\").";
+        throw RisWidgetException(o.str());
+    }
+    return flipIt->second;
+}
+
+QVector<QString> RisWidget::getFlipperNames() const
+{
+    QVector<QString> flipperNames;
+    for(std::map<QString, Flipper*>::const_iterator flipIt{m_flippers.begin()}; flipIt != m_flippers.end(); ++flipIt)
+    {
+        flipperNames.append(flipIt->first);
+    }
+    return flipperNames;
+}
+
+Flipper* RisWidget::makeFlipper()
+{
+    uint64_t flipperId;
+    // It is possible, if somewhat pathological, for the user to specify integer names that would conflict with the
+    // default naming scheme.  The following loop skips to the first non-conflicting integer in this case.
+    do
+    {
+        flipperId = m_nextFlipperId++;
+    } while(m_flippers.find(QString::number(flipperId)) != m_flippers.end());
+
+    QDockWidget* dw{new QDockWidget(QString("Flipbook (%1)").arg(flipperId), this)};
     dw->setAttribute(Qt::WA_DeleteOnClose, true);
     dw->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
-    RamFlipper* flipper{new RamFlipper(dw)};
+    Flipper* flipper{new Flipper(dw, this, QString::number(flipperId))};
+    m_flippers[QString::number(flipperId)] = flipper;
+    connect(flipper, &Flipper::flipperNameChanged, this, &RisWidget::flipperNameChanged);
+    connect(flipper, &Flipper::closing, this, &RisWidget::flipperClosing);
     dw->setWidget(flipper);
     addDockWidget(Qt::RightDockWidgetArea, dw);
     return flipper;
 }
 
-DiskFlipper* RisWidget::makeDiskFlipper()
+void RisWidget::flipperNameChanged(Flipper* flipper, QString oldName)
 {
-//  DiskFlipper* flipper{new DiskFlipper(this)};
-//  flipper->show();
-//  return flipper;
-    return nullptr;
+    QString newName{flipper->getFlipperName()};
+#ifdef DEBUG
+    auto flipIt = m_flippers.find(oldName);
+    if(flipIt == m_flippers.end())
+    {
+        throw RisWidgetException("RisWidget::flipperNameChanged(Flipper* flipper, QString oldName): Failed to find flipper with name "
+                                 "specified by oldName argument.");
+    }
+    flipIt = m_flippers.find(newName);
+    if(flipIt != m_flippers.end())
+    {
+        throw RisWidgetException("RisWidget::flipperNameChanged(Flipper* flipper, QString oldName): A Flipper with the new name already "
+                                 "exists.");
+    }
+    if(flipIt->second != flipper)
+    {
+        throw RisWidgetException("RisWidget::flipperNameChanged(Flipper* flipper, QString oldName): m_flippers[oldName] != flipper.");
+    }
+#endif
+    m_flippers.erase(oldName);
+    m_flippers[newName] = flipper;
+}
+
+void RisWidget::flipperClosing(Flipper* flipper)
+{
+    QString flipperName{flipper->getFlipperName()};
+    auto flipIt = m_flippers.find(flipperName);
+    if(flipIt == m_flippers.end())
+    {
+        throw RisWidgetException("RisWidget::flipperDestroyed(QObject* flipperQObj): m_flippers does not seem to contain the Flipper "
+                                 "being destroyed.");
+    }
+    m_flippers.erase(flipIt);
+    disconnect(flipper, &Flipper::flipperNameChanged, this, &RisWidget::flipperNameChanged);
+    disconnect(flipper, &Flipper::closing, this, &RisWidget::flipperClosing);
+    // NB: Because Flipper's Qt::WA_DeleteOnClose attribute is set to true, flipper will be automatically deallocated,
+    // and we must not delete flipper manually
+    std::cerr << "flipper \"" << flipperName.toStdString() << "\" destroyed.\n";
 }
 
 void RisWidget::imageViewPointerMovedToDifferentPixel(bool isOnPixel, QPoint pixelCoord, GLushort pixelValue)
@@ -779,7 +852,7 @@ void RisWidget::dropEvent(QDropEvent* event)
         const GLubyte* rgbItE{rgbIt + rgbImage.width() * rgbImage.height() * 3};
         for(GLushort* gsIt{gsImage.data()}; rgbIt != rgbItE; ++gsIt, rgbIt += 3)
         {
-            *gsIt = GLushort(256) * static_cast<GLushort>(0.2126f * rgbIt[0] + 0.7152f * rgbIt[1] + 0.0722 * rgbIt[2]);
+            *gsIt = GLushort(256) * static_cast<GLushort>(0.2126f * rgbIt[0] + 0.7152f * rgbIt[1] + 0.0722f * rgbIt[2]);
         }
         showImage(gsImage.data(), rgbImage.size());
     }

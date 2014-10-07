@@ -37,6 +37,7 @@ if(ENABLE_CL_PROFILING)
 endif()
 
 qt5_wrap_ui(UI_HEADERS Flipper/Flipper.ui
+                       Flipper/RenameFlipper.ui
                        HistogramWidget.ui
                        ImageWidget.ui
                        RisWidget.ui
@@ -45,9 +46,8 @@ qt5_wrap_ui(UI_HEADERS Flipper/Flipper.ui
 qt5_add_resources(UI_RESOURCES RisWidget.qrc)
 
 set(SOURCES RisWidget.cpp
-            Flipper/DiskFlipper.cpp
             Flipper/Flipper.cpp
-            Flipper/RamFlipper.cpp
+            Flipper/RenameFlipper.cpp
             GilStateScopeOperators.cpp
             GlslProg.cpp
             GlxFunctions.c

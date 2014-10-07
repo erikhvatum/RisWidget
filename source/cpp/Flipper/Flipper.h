@@ -27,29 +27,78 @@
 #include "Common.h"
 #include "ui_Flipper.h"
 
+class RisWidget;
+
 class Flipper
   : public QWidget,
     protected Ui::Flipper
 {
     Q_OBJECT;
+    Q_PROPERTY(QString flipperName
+                   READ getFlipperName
+                   WRITE setFlipperName
+                   NOTIFY flipperNameChanged);
+    Q_PROPERTY(int frameIndex
+                   READ getFrameIndex
+                   WRITE setFrameIndex
+                   NOTIFY frameIndexChanged);
+    Q_PROPERTY(int frameCount
+                   READ getFrameCount
+                   NOTIFY frameCountChanged);
 
 public:
-    explicit Flipper(QDockWidget* parent);
+    Flipper(QDockWidget* parent, RisWidget* rw, const QString& flipperName);
     virtual ~Flipper();
 
+    QString getFlipperName() const;
     int getFrameIndex() const;
+    int getFrameCount() const;
 
-private:
+protected:
+    struct Frame
+    {
+        QString name;
+        bool isFile;
+        QSize size;
+        std::unique_ptr<GLushort[]> data;
+    };
+    typedef std::shared_ptr<Frame> FramePtr;
+    typedef std::vector<FramePtr> Frames;
+
+    QDockWidget* m_dw;
+    RisWidget* m_rw;
+
+    QString m_flipperName;
+    bool m_alwaysStoreImagesInRam;
     int m_frameIndex;
+    Frames m_frames;
+
+    void dragEnterEvent(QDragEnterEvent* event);
+    void dragMoveEvent(QDragMoveEvent* event);
+    void dragLeaveEvent(QDragLeaveEvent* event);
+    void dropEvent(QDropEvent* event);
+
+    void propagateFrameCountChange();
 
 signals:
-    void frameIndexChanged(int frameIndex);
+    // Emitted during Flipper destruction.  QObject offers a similar signal, "destroyed", but this signal is emitted
+    // from QObject's destructor.  By the time QObject's destructor is called, our destructor has executed and our
+    // member variables, such as m_flipperName, are gone.  However, we need to access this member variable when
+    // responding to Flipper close events, and so it is necessary to emit from our own destructor as its first order of
+    // business.
+    void closing(Flipper* flipper);
+    void flipperNameChanged(Flipper* flipper, QString oldName);
+    void frameIndexChanged(Flipper* flipper, int frameIndex);
+    void frameCountChanged(Flipper* flipper, int frameCount);
 
 public slots:
+    void setFlipperName(const QString& flipperName);
     void setFrameIndex(int frameIndex);
     void incrementFrameIndex();
 
 protected slots:
+    void renameButtonClicked();
+    void alwaysStoreImagesInRamToggled(bool alwaysStoreImagesInRam);
     void playbackButtonClicked();
     void frameIndexSliderPressed();
     void frameIndexSliderReleased();

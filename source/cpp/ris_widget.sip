@@ -51,6 +51,9 @@ public:
 
     ImageWidget* imageWidget();
     HistogramWidget* histogramWidget();
+    bool hasFlipper(const QString& flipperName) const;
+    Flipper* getFlipper(const QString& flipperName);
+    QVector<QString> getFlipperNames();
 
     void showCheckerPattern(int width) /ReleaseGIL/;
 %Docstring
@@ -140,8 +143,7 @@ public slots:
 %Docstring
     If an image is currently displayed, it is cleared and replaced with nothing.
 %End
-    RamFlipper* makeRamFlipper();
-    DiskFlipper* makeDiskFlipper();
+    Flipper* makeFlipper();
 };
 
 
@@ -232,34 +234,6 @@ public:
 
 
 
-class DiskFlipper
-  : public Flipper /NoDefaultCtors/
-{
-%TypeHeaderCode
-#include "Flipper/DiskFlipper.h"
-%End
-
-public:
-    virtual ~DiskFlipper();
-};
-
-
-
-
-class RamFlipper
-  : public Flipper /NoDefaultCtors/
-{
-%TypeHeaderCode
-#include "Flipper/RamFlipper.h"
-%End
-
-public:
-    virtual ~RamFlipper();
-};
-
-
-
-
 class Flipper
   : public QWidget /NoDefaultCtors/
 {
@@ -270,12 +244,23 @@ class Flipper
 public:
     virtual ~Flipper();
 
+    QString getFlipperName() const;
     int getFrameIndex() const;
 
 signals:
+    void closing(Flipper* flipper);
+%Docstring
+    Emitted during Flipper destruction.  QObject offers a similar signal, "destroyed", but this signal is emitted
+    from QObject's destructor.  By the time QObject's destructor is called, our destructor has executed and our
+    member variables, such as m_flipperName, are gone.  However, we need to access this member variable when
+    responding to Flipper close events, and so it is necessary to emit from our own destructor as its first order of
+    business.
+%End
+    void flipperNameChanged(QString flipperName);
     void frameIndexChanged(int frameIndex);
 
 public slots:
+    void setFlipperName(const QString& flipperName);
     void setFrameIndex(int frameIndex);
     void incrementFrameIndex();
 

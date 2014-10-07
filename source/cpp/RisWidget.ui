@@ -76,6 +76,17 @@
    </attribute>
    <widget class="HistogramWidget" name="m_histogramWidget"/>
   </widget>
+  <widget class="QToolBar" name="toolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+  </widget>
   <action name="m_actionQuit">
    <property name="text">
     <string>Quit</string>
@@ -182,20 +193,12 @@
     <string>Show current frames per second in status bar.</string>
    </property>
   </action>
-  <action name="m_actionMakeRamFlipper">
+  <action name="m_actionMakeFlipper">
    <property name="text">
-    <string>Make RAM Flipper</string>
+    <string>Make Flipbook</string>
    </property>
    <property name="toolTip">
-    <string>Make an image flipbook widget that keeps its images in memory</string>
-   </property>
-  </action>
-  <action name="m_actionMakeDiskFlipper">
-   <property name="text">
-    <string>Make Disk Flipper</string>
-   </property>
-   <property name="toolTip">
-    <string>Make an image flipbook widget loads images from disk as needed in order to minimize RAM usage</string>
+    <string>Make an image flipbook window</string>
    </property>
   </action>
  </widget>
@@ -344,26 +347,10 @@
    </hints>
   </connection>
   <connection>
-   <sender>m_actionMakeRamFlipper</sender>
+   <sender>m_actionMakeFlipper</sender>
    <signal>triggered()</signal>
    <receiver>RisWidget</receiver>
-   <slot>makeRamFlipper()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>507</x>
-     <y>400</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>m_actionMakeDiskFlipper</sender>
-   <signal>triggered()</signal>
-   <receiver>RisWidget</receiver>
-   <slot>makeDiskFlipper()</slot>
+   <slot>makeFlipper()</slot>
    <hints>
     <hint type="sourcelabel">
      <x>-1</x>
@@ -384,7 +371,6 @@
   <slot>clearCanvasSlot()</slot>
   <slot>statusBarPixelInfoToggled(bool)</slot>
   <slot>statusBarFpsToggled(bool)</slot>
-  <slot>makeDiskFlipper()</slot>
-  <slot>makeRamFlipper()</slot>
+  <slot>makeFlipper()</slot>
  </slots>
 </ui>

@@ -22,14 +22,30 @@
 // 
 // Authors: Erik Hvatum
 
-#include "../Common.h"
-#include "RamFlipper.h"
+#pragma once
 
-RamFlipper::RamFlipper(QDockWidget* parent)
-  : Flipper(parent)
-{
-}
+#include "Common.h"
+#include "ui_RenameFlipper.h"
 
-RamFlipper::~RamFlipper()
+class Flipper;
+class RisWidget;
+
+class RenameFlipper
+  : public QDialog,
+    private Ui::RenameFlipper
 {
-}
+public:
+    RenameFlipper(QWidget* parent, Flipper* flipper, RisWidget* rw);
+
+public slots:
+    virtual void done(int r);
+
+private slots:
+    // Used to update name field if name is changed by some other method while this dialog is displayed (through the
+    // Python API, for example)
+    void flipperNameChanged(Flipper* flipper, QString oldName);
+
+private:
+    Flipper* m_flipper;
+    RisWidget* m_rw;
+};
