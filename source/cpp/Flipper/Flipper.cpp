@@ -41,6 +41,7 @@ Flipper::Flipper(QDockWidget* parent, RisWidget* rw, const QString& flipperName)
     m_prevFrameShowDelta(0)
 {
     setupUi(this);
+    m_loadingGroupbox->hide();
     // TODO: implement loading of images as needed when possible and remove the following hide() call
     m_keepInRamCheckbox->hide();
     // Prevent playback button from changing size and causing relayout when button text is changed.  The button text is

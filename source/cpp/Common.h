@@ -95,6 +95,7 @@
 // Note: QPointers act as weak references to QObject derived class instances.  See here:
 // http://qt-project.org/doc/qt-5/qpointer.html
 #include <QPointer>
+#include <QtConcurrent>
 #include <QtCore>
 #include <QtWidgets>
 

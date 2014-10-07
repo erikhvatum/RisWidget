@@ -70,6 +70,7 @@ set(LIBRARIES ${OPENGL_LIBRARIES}
               ${FREEIMAGEPLUS_LIBRARY}
               ${PYTHON_LIBRARY}
               ${OPENCL_LIBRARIES}
+              Qt5::Concurrent
               Qt5::Core
               Qt5::Gui
               Qt5::OpenGL
