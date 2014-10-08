@@ -299,7 +299,7 @@ void Flipper::updateNextFrameTimer()
 
 void Flipper::propagateFrameIndexChange()
 {
-    Frame& frame{*m_frames[m_frameIndex]};
+    Frame& frame(*m_frames[m_frameIndex]);
     m_frameListbox->setCurrentRow(m_frameIndex);
     m_frameIndexSlider->setValue(m_frameIndex);
     m_frameIndexSpinner->setValue(m_frameIndex);
