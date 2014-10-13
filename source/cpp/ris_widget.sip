@@ -86,6 +86,8 @@ public:
     GLuint getHistogramBinCount();
     void setHistogramBinCount(GLuint histogramBinCount);
 
+    Flipper* showImagesInNewFlipper(PyObject* images) /HoldGIL/;
+
     void setGtpEnabled(bool gtpEnabled);
 %Docstring
     Note: call this method only from the thread with which its bound instance is associated.

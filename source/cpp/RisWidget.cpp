@@ -59,7 +59,7 @@ RisWidget::RisWidget(QString windowTitle_,
             Py_Exit(-1);
         }
 #endif
-        GilLocker gilLocker;
+        GilLocker gilLock;
         do_import_array();
         oneTimeInitDone = true;
     }
@@ -75,7 +75,7 @@ RisWidget::RisWidget(QString windowTitle_,
     updateStatusBarFpsPresence();
 
     {
-        GilLocker gilLocker;
+        GilLocker gilLock;
         m_numpyModule = PyImport_ImportModule("numpy");
         if(PyErr_Occurred() != nullptr)
         {
@@ -102,7 +102,7 @@ RisWidget::RisWidget(QString windowTitle_,
 
 RisWidget::~RisWidget()
 {
-    GilLocker gilLocker;
+    GilLocker gilLock;
     Py_XDECREF(m_numpyLoadFunction);
     Py_XDECREF(m_numpyModule);
 }
@@ -369,7 +369,7 @@ void RisWidget::showImageFromNpyFile(const std::string& npyFileName)
 
 PyObject* RisWidget::getCurrentImage()
 {
-    GilLocker gilLocker;
+    GilLocker gilLock;
     ImageData imageData;
     QSize imageSize;
     m_renderer->getImageDataAndSize(imageData, imageSize);
@@ -416,7 +416,7 @@ PyObject* RisWidget::getCurrentImage()
 
 PyObject* RisWidget::getHistogram()
 {
-    GilLocker gilLocker;
+    GilLocker gilLock;
     std::shared_ptr<LockedRef<const HistogramData>> histogramData(m_renderer->getHistogram());
     PyObject* ret;
     npy_intp size{static_cast<npy_intp>(histogramData->ref().size())};
@@ -457,6 +457,12 @@ GLuint RisWidget::getHistogramBinCount() const
 void RisWidget::setHistogramBinCount(GLuint histogramBinCount)
 {
     m_renderer->setHistogramBinCount(histogramBinCount);
+}
+
+Flipper* RisWidget::showImagesInNewFlipper(PyObject* images)
+{
+    Flipper* flipper{makeFlipper()};
+    return flipper;
 }
 
 void RisWidget::setGtpEnabled(bool gtpEnabled)

@@ -71,6 +71,8 @@ public:
     GLuint getHistogramBinCount() const;
     void setHistogramBinCount(GLuint histogramBinCount);
 
+    Flipper* showImagesInNewFlipper(PyObject* images);
+
     // setGtp* calls must originate from the thread owning the associated instance
     void setGtpEnabled(bool gtpEnabled);
     void setGtpAutoMinMax(bool gtpAutoMinMax);

@@ -27,6 +27,25 @@
 #include "RenameFlipper.h"
 #include "RisWidget.h"
 
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#define PY_ARRAY_UNIQUE_SYMBOL RisWidget_ARRAY_API
+#define NO_IMPORT_ARRAY
+#include <numpy/arrayobject.h>
+
+Flipper::Frame::Frame(const Type& type_)
+  : type(type_),
+    py_data(nullptr)
+{
+}
+
+Flipper::Frame::~Frame()
+{
+    if(py_data != nullptr)
+    {
+        GilLocker gilLock;
+    }
+}
+
 Flipper::Flipper(QDockWidget* parent, RisWidget* rw, const QString& flipperName)
   : QWidget(parent),
     m_dw(parent),
@@ -232,7 +251,7 @@ void Flipper::dropEvent(QDropEvent* event)
         QImage rgbImage(md->imageData().value<QImage>().convertToFormat(QImage::Format_RGB888));
         FramePtr frame(new Frame);
         frame->name = md->hasUrls() ? md->urls()[0].toString() : QString::number(m_frames.size());
-        frame->isFile = false;
+        frame->type = Frame::Type::File;
         frame->size = rgbImage.size();
         frame->data.reset(new GLushort[rgbImage.width() * rgbImage.height()]);
         const GLubyte* rgbIt{rgbImage.bits()};

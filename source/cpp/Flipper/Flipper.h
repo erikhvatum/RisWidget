@@ -57,10 +57,19 @@ public:
 protected:
     struct Frame
     {
+        enum class Type
+        {
+            File,
+            Data,
+            PyData
+        };
+        explicit Frame(const Type& type_);
+        ~Frame();
+        Type type;
         QString name;
-        bool isFile;
         QSize size;
         std::unique_ptr<GLushort[]> data;
+        PyObject* py_data;
     };
     typedef std::shared_ptr<Frame> FramePtr;
     typedef std::vector<FramePtr> Frames;
