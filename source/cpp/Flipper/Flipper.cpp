@@ -249,7 +249,7 @@ void Flipper::dropEvent(QDropEvent* event)
         // for example, on OS X when an image is dragged from Firefox.
         accept = true;
         QImage rgbImage(md->imageData().value<QImage>().convertToFormat(QImage::Format_RGB888));
-        FramePtr frame(new Frame);
+        FramePtr frame(new Frame(Frame::Type::Data));
         frame->name = md->hasUrls() ? md->urls()[0].toString() : QString::number(m_frames.size());
         frame->type = Frame::Type::File;
         frame->size = rgbImage.size();
@@ -276,9 +276,8 @@ void Flipper::dropEvent(QDropEvent* event)
                 if(image.load(fnstdstr.c_str()) && image.convertToUINT16())
                 {
                     accept = true;
-                    FramePtr frame(new Frame);
+                    FramePtr frame(new Frame(Frame::Type::File));
                     frame->name = fn;
-                    frame->isFile = true;
                     frame->data.reset(new GLushort[image.getWidth() * image.getHeight()]);
                     frame->size.setWidth(image.getWidth());
                     frame->size.setHeight(image.getHeight());

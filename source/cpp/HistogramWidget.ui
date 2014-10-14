@@ -15,7 +15,7 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <property name="spacing">
-    <number>0</number>
+    <number>1</number>
    </property>
    <item>
     <layout class="QHBoxLayout" name="m_topHorizontalLayout">
@@ -327,7 +327,7 @@
      <item>
       <layout class="QVBoxLayout" name="m_bottomMidVerticalLayout">
        <property name="spacing">
-        <number>0</number>
+        <number>1</number>
        </property>
        <item>
         <widget class="QSlider" name="m_gtpMaxSlider">
