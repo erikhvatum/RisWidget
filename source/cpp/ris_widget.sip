@@ -51,9 +51,16 @@ public:
 
     ImageWidget* imageWidget();
     HistogramWidget* histogramWidget();
+
     bool hasFlipper(const QString& flipperName) const;
     Flipper* getFlipper(const QString& flipperName);
-    QVector<QString> getFlipperNames();
+    QVector<QString> getFlipperNames() const;
+    Flipper* showImagesInNewFlipper(PyObject* images) /HoldGIL/;
+%Docstring
+    Create new Flipper containing one or more image.  Note that references to supplied images are retained when
+    possible (references are kept to images supplied as 2D, C order, contiguous, uint16 numpy arrays; data requiring
+    any sort of typecast or rearrangement is copied).
+%End
 
     void showCheckerPattern(int width) /ReleaseGIL/;
 %Docstring
@@ -62,8 +69,6 @@ public:
     0: a one pixel black image is shown.
     1: a one pixel white image is shown.
 %End
-
-    void risImageAcquired(PyObject* stream, PyObject* image) /HoldGIL/;
 
     void showImage(PyObject* image) /HoldGIL/;
 %Docstring
@@ -85,8 +90,6 @@ public:
 
     GLuint getHistogramBinCount();
     void setHistogramBinCount(GLuint histogramBinCount);
-
-    Flipper* showImagesInNewFlipper(PyObject* images) /HoldGIL/;
 
     void setGtpEnabled(bool gtpEnabled);
 %Docstring
@@ -248,6 +251,13 @@ public:
 
     QString getFlipperName() const;
     int getFrameIndex() const;
+
+    void append(PyObject* images) /HoldGIL/;
+%Docstring
+    Add one or more image to Flipper (images are appended to end of Flipper's image list). Note that references 
+    to supplied images are retained when possible (references are kept to images supplied as 2D, C order,
+    contiguous, uint16 numpy arrays; data requiring any sort of typecast or rearrangement is copied).
+%End
 
 signals:
     void closing(Flipper* flipper);

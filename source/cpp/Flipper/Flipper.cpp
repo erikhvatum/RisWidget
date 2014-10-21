@@ -43,6 +43,7 @@ Flipper::Frame::~Frame()
     if(py_data != nullptr)
     {
         GilLocker gilLock;
+        Py_DECREF(py_data);
     }
 }
 
@@ -118,6 +119,107 @@ int Flipper::getFrameIndex() const
 int Flipper::getFrameCount() const
 {
     return static_cast<int>(m_frames.size());
+}
+
+void Flipper::append(PyObject* images)
+{
+    bool hadNoFrames{m_frames.empty()};
+    bool addedFrame{false};
+    GilLocker gilLock;
+
+    if(images == Py_None)
+    {
+        // Noop
+    }
+    else
+    {
+        PyArrayObject* imageao = reinterpret_cast<PyArrayObject*>(PyArray_FromAny(images, PyArray_DescrFromType(NPY_USHORT),
+                                                                                  2, 2, NPY_ARRAY_CARRAY_RO, nullptr));
+        if(imageao != nullptr)
+        {
+            // The images argument contains a single iterable that either is or is convertable to a 2d numpy uint16
+            // array.  Note that we do not decref imageao here - that happens in Frame's destructor.
+            FramePtr frame(new Frame(Frame::Type::PyData));
+            npy_intp* shape = PyArray_DIMS(imageao);
+            frame->py_data = (PyObject*)imageao;
+            frame->size.setWidth(shape[1]);
+            frame->size.setHeight(shape[0]);
+            m_frames.push_back(frame);
+            m_frameListbox->addItem(frame->name);
+            addedFrame = true;
+        }
+        else
+        {
+            // Clear ValueError exception raised by failed PyArray_FromAny call above
+            PyErr_Clear();
+            // The images argument is either an iterable of things convertable to 2d numpy uint16 arrays or something
+            // we don't support
+            bool ok{true};
+            Frames addFrames;
+            PyObject* it{PyObject_GetIter(images)};
+            if(it == nullptr)
+            {
+                // images is neither convertable to a 2d uint16 numpy array, nor is it iterable.  We don't know how to
+                // access its elements or determine size, preventing us from supporting whatever it is.
+                PyErr_Clear();
+                throw RisWidgetException("Flipper::append(PyObject* images): Failed to make iterator for images argument.  "
+                                         "The images argument must be either a single image (anything convertable to a 2d "
+                                         "uint16 numpy array) or some sort of sequence of images.");
+            }
+            // images is iterable.  Attempt to get references to / copies of top level elements, each of which should be
+            // convertable to 2d uint16 numpy array.
+            std::size_t listIdx{0};
+            std::string err;
+            while(PyObject* image = PyIter_Next(it))
+            {
+                imageao = reinterpret_cast<PyArrayObject*>(PyArray_FromAny(image, PyArray_DescrFromType(NPY_USHORT),
+                                                                           2, 2, NPY_ARRAY_CARRAY_RO, nullptr));
+                if(imageao == nullptr)
+                {
+                    err = QString("Flipper::append(PyObject* images): Failed to convert element %1 of images argument "
+                                  "to 2d uint16 numpy array.").arg(listIdx).toStdString();
+                }
+                else
+                {
+                    FramePtr frame(new Frame(Frame::Type::PyData));
+                    frame->name = QString("Frame %1").arg(m_frames.size() + addFrames.size());
+                    frame->py_data = (PyObject*)imageao;
+                    addFrames.push_back(frame);
+                }
+                Py_DECREF(image);
+                ++listIdx;
+                if(!err.empty())
+                {
+                    break;
+                }
+            }
+            Py_DECREF(it);
+            if(!err.empty())
+            {
+                throw RisWidgetException(err);
+            }
+            if(!addFrames.empty())
+            {
+                addedFrame = true;
+                m_frames.reserve(m_frames.size() + addFrames.size());
+                for(FramePtr& frame : addFrames)
+                {
+                    m_frames.push_back(frame);
+                    m_frameListbox->addItem(frame->name);
+                }
+            }
+        }
+    }
+
+    if(addedFrame)
+    {
+        propagateFrameCountChange();
+        if(hadNoFrames)
+        {
+            // Show the first frame if we had no frames
+            propagateFrameIndexChange();
+        }
+    }
 }
 
 void Flipper::setFrameIndex(int frameIndex)
@@ -247,22 +349,13 @@ void Flipper::dropEvent(QDropEvent* event)
     {
         // Raw image data is preferred in the case where both image data and source URL are present.  This is the case,
         // for example, on OS X when an image is dragged from Firefox.
-        accept = true;
         QImage rgbImage(md->imageData().value<QImage>().convertToFormat(QImage::Format_RGB888));
         FramePtr frame(new Frame(Frame::Type::Data));
         frame->name = md->hasUrls() ? md->urls()[0].toString() : QString::number(m_frames.size());
-        frame->type = Frame::Type::File;
-        frame->size = rgbImage.size();
-        frame->data.reset(new GLushort[rgbImage.width() * rgbImage.height()]);
-        const GLubyte* rgbIt{rgbImage.bits()};
-        const GLubyte* rgbItE{rgbIt + rgbImage.width() * rgbImage.height() * 3};
-        for(GLushort* gsIt{frame->data.get()}; rgbIt != rgbItE; ++gsIt, rgbIt += 3)
-        {
-            *gsIt = GLushort(256) * static_cast<GLushort>(0.2126f * rgbIt[0] + 0.7152f * rgbIt[1] + 0.0722f * rgbIt[2]);
-        }
+        loadImage(md->imageData().value<QImage>(), frame->data, frame->size);
+        accept = true;
         m_frames.push_back(frame);
         m_frameListbox->addItem(frame->name);
-        propagateFrameCountChange();
     }
     else if(md->hasUrls())
     {
@@ -273,20 +366,17 @@ void Flipper::dropEvent(QDropEvent* event)
                 QString fn(url.toLocalFile());
                 fipImage image;
                 std::string fnstdstr(fn.toStdString());
-                if(image.load(fnstdstr.c_str()) && image.convertToUINT16())
+                try
                 {
-                    accept = true;
                     FramePtr frame(new Frame(Frame::Type::File));
                     frame->name = fn;
-                    frame->data.reset(new GLushort[image.getWidth() * image.getHeight()]);
-                    frame->size.setWidth(image.getWidth());
-                    frame->size.setHeight(image.getHeight());
-                    memcpy(reinterpret_cast<void*>(frame->data.get()),
-                           reinterpret_cast<const void*>(image.accessPixels()),
-                           image.getWidth() * image.getHeight() * 2);
+                    loadImage(fnstdstr, frame->data, frame->size);
+                    accept = true;
                     m_frames.push_back(frame);
                     m_frameListbox->addItem(frame->name);
-                    propagateFrameCountChange();
+                }
+                catch(const std::string& e)
+                {
                 }
             }
         }
@@ -295,6 +385,7 @@ void Flipper::dropEvent(QDropEvent* event)
     if(accept)
     {
         event->acceptProposedAction();
+        propagateFrameCountChange();
         if(hadNoFrames)
         {
             // Show the first frame if we had no frames before the drag and drop operation
@@ -322,7 +413,22 @@ void Flipper::propagateFrameIndexChange()
     m_frameIndexSlider->setValue(m_frameIndex);
     m_frameIndexSpinner->setValue(m_frameIndex);
     std::chrono::steady_clock::time_point preShowTs(std::chrono::steady_clock::now());
-    m_rw->showImage(frame.data.get(), frame.size);
+    if(frame.data.empty())
+    {
+        if(frame.type == Frame::Type::PyData)
+        {
+            m_rw->showImage(frame.py_data);
+        }
+        else
+        {
+            throw RisWidgetException("Flipper::propagateFrameIndexChange(): "
+                                     "On-demand load/conversion is currently only supported for numpy arrays.");
+        }
+    }
+    else
+    {
+        m_rw->showImage(frame.data.data(), frame.size);
+    }
     std::chrono::steady_clock::time_point postShowTs(std::chrono::steady_clock::now());
     std::chrono::duration<float> showDelta(std::chrono::duration_cast<std::chrono::duration<float>>(postShowTs - preShowTs));
     m_prevFrameShowDelta = showDelta.count();

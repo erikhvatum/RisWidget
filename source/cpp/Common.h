@@ -103,5 +103,28 @@
 #include "LockedRef.h"
 #include "RisWidgetException.h"
 
+template<typename T>
+bool caseInsensitiveEndsWith(const T& s, const T& ending)
+{
+    bool ret{false};
+    auto sLen = s.length();
+    auto endingLen = ending.length();
+    if(endingLen <= sLen)
+    {
+        ret = true;
+        for ( typename T::const_iterator si(s.begin() + sLen - endingLen), ei(ending.begin());
+              si != s.end();
+              ++si, ++ei )
+        {
+            if(std::tolower(*si) != *ei)
+            {
+                ret = false;
+                break;
+            }
+        }
+    }
+    return ret;
+}
+
 #endif
 #endif

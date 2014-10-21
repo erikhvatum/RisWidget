@@ -24,6 +24,7 @@
 
 #include "Common.h"
 #include "ImageDrawProg.h"
+#include "Image.h"
 #include "HistoDrawProg.h"
 
 class View;
@@ -33,9 +34,6 @@ class ImageWidget;
 class HistogramView;
 class HistogramWidget;
 
-// Note that QVector<> does implicit sharing with reference counting and copy-on-write:
-// http://qt-project.org/doc/qt-5/qvector.html#QVector-4
-typedef QVector<GLushort> ImageData;
 typedef std::vector<GLuint> HistogramData;
 
 // In terms of the first example in the "detailed description" section of "http://qt-project.org/doc/qt-5/qthread.html",

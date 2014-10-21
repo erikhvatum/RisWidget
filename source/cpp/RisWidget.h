@@ -25,9 +25,11 @@
 #include "Common.h"
 #include "Flipper/Flipper.h"
 #include "HistogramWidget.h"
+#include "Image.h"
 #include "ImageWidget.h"
-#include "Renderer.h"
 #include "ui_RisWidget.h"
+
+class Renderer;
 
 // Unless otherwise noted, all non-inherited RisWidget public functions are meant to be called strictly from the thread
 // with which that RisWidget instance is associated (ie, "the GUI thread", or alternately: the thread to which the
@@ -57,21 +59,19 @@ public:
 
     ImageWidget* imageWidget();
     HistogramWidget* histogramWidget();
+
     bool hasFlipper(const QString& flipperName) const;
     Flipper* getFlipper(const QString& flipperName);
     QVector<QString> getFlipperNames() const;
+    Flipper* showImagesInNewFlipper(PyObject* images);
 
     void showCheckerPattern(int width, bool filterTexture=false);
-    void risImageAcquired(PyObject* stream, PyObject* image);
     void showImage(const GLushort* imageDataRaw, const QSize& imageSize, bool filterTexture=true);
     void showImage(PyObject* image, bool filterTexture=true);
-    void showImageFromNpyFile(const std::string& npyFileName);
     PyObject* getCurrentImage();
     PyObject* getHistogram();
     GLuint getHistogramBinCount() const;
     void setHistogramBinCount(GLuint histogramBinCount);
-
-    Flipper* showImagesInNewFlipper(PyObject* images);
 
     // setGtp* calls must originate from the thread owning the associated instance
     void setGtpEnabled(bool gtpEnabled);
@@ -114,7 +114,7 @@ protected:
     std::shared_ptr<Renderer> m_renderer;
     QPointer<QThread> m_rendererThread;
     PyObject* m_numpyModule;
-    PyObject* m_numpyLoadFunction;
+//  PyObject* m_numpyLoadFunction;
 
     bool m_showStatusBarPixelInfo;
     bool m_showStatusBarFps;

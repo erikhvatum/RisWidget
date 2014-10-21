@@ -22,6 +22,7 @@
 
 #include "Common.h"
 #include "ImageWidget.h"
+#include "Renderer.h"
 
 const std::vector<GLfloat> ImageWidget::sm_zoomPresets{10.0f, 5.0f, 2.0f, 1.5f, 1.0f, 0.75f, 0.5f, 0.25f, 0.10f};
 const std::uint8_t ImageWidget::sm_defaultZoomPreset{4};

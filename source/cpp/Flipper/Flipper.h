@@ -25,6 +25,7 @@
 #pragma once
 
 #include "Common.h"
+#include "Image.h"
 #include "ui_Flipper.h"
 
 class RisWidget;
@@ -54,6 +55,8 @@ public:
     int getFrameIndex() const;
     int getFrameCount() const;
 
+    void append(PyObject* images);
+
 protected:
     struct Frame
     {
@@ -68,7 +71,7 @@ protected:
         Type type;
         QString name;
         QSize size;
-        std::unique_ptr<GLushort[]> data;
+        ImageData data;
         PyObject* py_data;
     };
     typedef std::shared_ptr<Frame> FramePtr;

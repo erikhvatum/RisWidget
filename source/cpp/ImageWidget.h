@@ -23,11 +23,12 @@
 #pragma once
 
 #include "Common.h"
+#include "Image.h"
 #include "ImageView.h"
-#include "Renderer.h"
 #include "ui_ImageWidget.h"
 #include "ViewWidget.h"
 
+class Renderer;
 class RisWidget;
 
 // Click-zooming jumps between preset values until the preset value range is exceeded; thereafter, each click scales

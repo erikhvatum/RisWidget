@@ -54,6 +54,7 @@ set(SOURCES RisWidget.cpp
             HistoDrawProg.cpp
             HistogramWidget.cpp
             HistogramView.cpp
+            Image.cpp
             ImageDrawProg.cpp
             ImageWidget.cpp
             ImageWidgetViewScroller.cpp

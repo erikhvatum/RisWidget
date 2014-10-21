@@ -22,6 +22,7 @@
 
 #include "Common.h"
 #include "GilStateScopeOperators.h"
+#include "Renderer.h"
 #include "RisWidget.h"
 #include "ShowCheckerDialog.h"
 
@@ -83,7 +84,7 @@ RisWidget::RisWidget(QString windowTitle_,
             Py_FatalError("Failed to import Python numpy module.  This program requires numpy.");
         }
         PyObject* loadpystr{PyUnicode_FromString("load")};
-        m_numpyLoadFunction = PyObject_GetAttr(m_numpyModule, loadpystr);
+        g_numpyLoadFunction = PyObject_GetAttr(m_numpyModule, loadpystr);
         Py_XDECREF(loadpystr);
         if(PyErr_Occurred() != nullptr)
         {
@@ -91,6 +92,8 @@ RisWidget::RisWidget(QString windowTitle_,
             Py_FatalError("Imported numpy, but failed to get the numpy.load(..) function.  Your numpy installation is probably broken.");
         }
     }
+
+    initFreeImageErrorHandler();
 
     setAcceptDrops(true);
 
@@ -103,7 +106,7 @@ RisWidget::RisWidget(QString windowTitle_,
 RisWidget::~RisWidget()
 {
     GilLocker gilLock;
-    Py_XDECREF(m_numpyLoadFunction);
+    Py_XDECREF(g_numpyLoadFunction);
     Py_XDECREF(m_numpyModule);
 }
 
@@ -286,11 +289,6 @@ void RisWidget::showCheckerPattern(int width, bool filterTexture)
     m_imageWidget->updateImageSizeAndData(imageSize, imageData);
 }
 
-void RisWidget::risImageAcquired(PyObject* /*stream*/, PyObject* image)
-{
-    showImage(image);
-}
-
 void RisWidget::showImage(const GLushort* imageDataRaw, const QSize& imageSize, bool filterTexture)
 {
     if(imageDataRaw == nullptr)
@@ -323,48 +321,17 @@ void RisWidget::showImage(const GLushort* imageDataRaw, const QSize& imageSize, 
 
 void RisWidget::showImage(PyObject* image, bool filterTexture)
 {
-    PyArrayObject* imageao = reinterpret_cast<PyArrayObject*>(PyArray_FromAny(image, PyArray_DescrFromType(NPY_USHORT),
-                                                                              2, 2, NPY_ARRAY_CARRAY_RO, nullptr));
-    if(imageao == nullptr)
+    ImageData imageData;
+    QSize imageSize;
+    loadImage(image, imageData, imageSize);
+    if(imageData.empty())
     {
-        throw RisWidgetException("RisWidget::showImage(PyObject* image): image argument must be an "
-                                 "array-like object convertable to a 2d uint16 numpy array.");
-    }
-    npy_intp* shape = PyArray_DIMS(imageao);
-    showImage(reinterpret_cast<const GLushort*>(PyArray_DATA(imageao)), QSize(shape[1], shape[0]), filterTexture);
-    Py_DECREF(imageao);
-}
-
-void RisWidget::showImageFromNpyFile(const std::string& npyFileName)
-{
-    GilLocker gilLock;
-    PyObject* fnpystr = PyUnicode_FromString(npyFileName.c_str());
-    PyObject* image = PyObject_CallFunctionObjArgs(m_numpyLoadFunction, fnpystr, nullptr);
-    if(image == nullptr)
-    {
-        PyObject *ptype(nullptr), *pvalue(nullptr), *ptraceback(nullptr);
-        PyErr_Fetch(&ptype, &pvalue, &ptraceback);
-        if(ptype != nullptr && pvalue != nullptr)
-        {
-            PyErr_NormalizeException(&ptype, &pvalue, &ptraceback);
-            PyObject* e{PyObject_Str(pvalue)};
-            QMessageBox::warning(this, "Failed to Open File", PyUnicode_AsUTF8(e));
-            Py_DECREF(e);
-        }
-        else
-        {
-            QMessageBox::warning(this, "Failed to Open File", "(Failed to retrieve error information.)");
-        }
-        Py_XDECREF(ptype);
-        Py_XDECREF(pvalue);
-        Py_XDECREF(ptraceback);
+        clearCanvasSlot();
     }
     else
     {
-        showImage(image);
+        showImage(imageData.data(), imageSize, filterTexture);
     }
-    Py_XDECREF(fnpystr);
-    Py_XDECREF(image);
 }
 
 PyObject* RisWidget::getCurrentImage()
@@ -459,12 +426,6 @@ void RisWidget::setHistogramBinCount(GLuint histogramBinCount)
     m_renderer->setHistogramBinCount(histogramBinCount);
 }
 
-Flipper* RisWidget::showImagesInNewFlipper(PyObject* images)
-{
-    Flipper* flipper{makeFlipper()};
-    return flipper;
-}
-
 void RisWidget::setGtpEnabled(bool gtpEnabled)
 {
     m_histogramWidget->setGtpEnabled(gtpEnabled);
@@ -545,10 +506,23 @@ QString RisWidget::formatZoom(const GLfloat& z)
 
 void RisWidget::loadFile()
 {
-    QString fnqstr(QFileDialog::getOpenFileName(this, "Open Image or Numpy Array File", QString(), "Numpy Array Files (*.npy)"));
+    QString fnqstr(QFileDialog::getOpenFileName(this, "Open Image or Numpy Array File", QString(), "Images and Numpy Array Files (*.png *.tif *.tiff *.jpg *.jpeg *.gif *.npy);;Any Files (*)"));
     if(!fnqstr.isNull())
     {
-        showImageFromNpyFile(fnqstr.toStdString());
+        ImageData imageData;
+        QSize imageSize;
+        try
+        {
+            loadImage(fnqstr.toStdString(), imageData, imageSize);
+        }
+        catch(const std::string& e)
+        {
+            QMessageBox::warning(this, "Failed to Open File", e.c_str());
+        }
+        if(!imageData.empty())
+        {
+            showImage(imageData.data(), imageSize);
+        }
     }
 }
 
@@ -648,6 +622,13 @@ void RisWidget::flipperClosing(Flipper* flipper)
     disconnect(flipper, &Flipper::closing, this, &RisWidget::flipperClosing);
     // NB: Because Flipper's Qt::WA_DeleteOnClose attribute is set to true, flipper will be automatically deallocated,
     // and we must not delete flipper manually
+}
+
+Flipper* RisWidget::showImagesInNewFlipper(PyObject* images)
+{
+    Flipper* flipper{makeFlipper()};
+    flipper->append(images);
+    return flipper;
 }
 
 void RisWidget::imageViewPointerMovedToDifferentPixel(bool isOnPixel, QPoint pixelCoord, GLushort pixelValue)
@@ -844,22 +825,14 @@ void RisWidget::dragLeaveEvent(QDragLeaveEvent* event)
 void RisWidget::dropEvent(QDropEvent* event)
 {
     const QMimeData* md{event->mimeData()};
-    bool accept{false};
+    ImageData imageData;
+    QSize imageSize;
 
     if(md->hasImage())
     {
         // Raw image data is preferred in the case where both image data and source URL are present.  This is the case,
         // for example, on OS X when an image is dragged from Firefox.
-        accept = true;
-        QImage rgbImage(md->imageData().value<QImage>().convertToFormat(QImage::Format_RGB888));
-        std::vector<GLushort> gsImage(rgbImage.width() * rgbImage.height(), 0);
-        const GLubyte* rgbIt{rgbImage.bits()};
-        const GLubyte* rgbItE{rgbIt + rgbImage.width() * rgbImage.height() * 3};
-        for(GLushort* gsIt{gsImage.data()}; rgbIt != rgbItE; ++gsIt, rgbIt += 3)
-        {
-            *gsIt = GLushort(256) * static_cast<GLushort>(0.2126f * rgbIt[0] + 0.7152f * rgbIt[1] + 0.0722f * rgbIt[2]);
-        }
-        showImage(gsImage.data(), rgbImage.size());
+        loadImage(md->imageData().value<QImage>(), imageData, imageSize);
     }
     else if(md->hasUrls())
     {
@@ -867,26 +840,19 @@ void RisWidget::dropEvent(QDropEvent* event)
         if(url.isLocalFile())
         {
             QString fn(url.toLocalFile());
-            if(fn.endsWith(".npy", Qt::CaseInsensitive))
+            try
             {
-                accept = true;
-                showImageFromNpyFile(fn.toStdString());
+                loadImage(fn.toStdString(), imageData, imageSize);
             }
-            else
+            catch(const std::string& e)
             {
-                fipImage image;
-                std::string fnstdstr(fn.toStdString());
-                if(image.load(fnstdstr.c_str()) && image.convertToUINT16())
-                {
-                    accept = true;
-                    showImage((GLushort*)image.accessPixels(), QSize(image.getWidth(), image.getHeight()));
-                }
             }
         }
     }
 
-    if(accept)
+    if(!imageData.empty())
     {
+        showImage(imageData.data(), imageSize);
         event->acceptProposedAction();
     }
 }
