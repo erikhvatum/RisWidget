@@ -154,7 +154,6 @@ void Flipper::append(PyObject* images)
             PyErr_Clear();
             // The images argument is either an iterable of things convertable to 2d numpy uint16 arrays or something
             // we don't support
-            bool ok{true};
             Frames addFrames;
             PyObject* it{PyObject_GetIter(images)};
             if(it == nullptr)

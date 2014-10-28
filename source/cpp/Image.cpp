@@ -92,11 +92,11 @@ void loadImage(PyObject* image, ImageData& imageData, QSize& imageSize)
 
 void loadImage(const std::string& fileName, ImageData& imageData, QSize& imageSize)
 {
-    std::string err;
-
     if(caseInsensitiveEndsWith(fileName, std::string(".npy")))
     {
         // File appears to be a numpy array
+        std::string err;
+
         GilLocker gilLock;
         PyObject* fnpystr = PyUnicode_FromString(fileName.c_str());
         PyObject* image = PyObject_CallFunctionObjArgs(g_numpyLoadFunction, fnpystr, nullptr);
@@ -132,22 +132,39 @@ void loadImage(const std::string& fileName, ImageData& imageData, QSize& imageSi
         }
         Py_XDECREF(fnpystr);
         Py_XDECREF(image);
+
+        if(!err.empty())
+        {
+            throw err;
+        }
     }
     else
     {
-        // File does not appear to be a numpy array.  Attempt to open it with freeimage.
+        // File does not appear to be a numpy array; attempt to open it with FreeImage.  FreeImage does not call its
+        // error notification callback or throw an exception if fipImage::load(..) fails for a mundane reason (file
+        // doesn't exist, file permission error, file format not understood), so we have to do some extra checking upon
+        // failure in order to provide error info in mundane failure modes other than "unknown freeimage oops
+        // happened. burst into flames now?"
         fipImage image;
-        if(image.load(fileName.c_str()) && image.convertToUINT16() && image.flipVertical())
+        if(image.load(fileName.c_str()))
         {
+            if(!image.convertToUINT16())
+            {
+                throw std::string("Failed to convert image to grayscale uint16.");
+            }
+            if(!image.flipVertical())
+            {
+                throw std::string("Failed to flip image.");
+            }
             imageSize.setWidth(image.getWidth());
             imageSize.setHeight(image.getHeight());
             imageData.resize(imageSize.width() * imageSize.height());
             memcpy(imageData.data(), image.accessPixels(), imageSize.width() * imageSize.height() * 2);
         }
-    }
-
-    if(!err.empty())
-    {
-        throw err;
+        else
+        {
+            QFile f(fileName.c_str());
+            QFile::exists(<#const QString &fileName#>)
+        }
     }
 }
