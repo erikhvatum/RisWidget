@@ -143,18 +143,18 @@ void loadImage(const std::string& fileName, ImageData& imageData, QSize& imageSi
         // File does not appear to be a numpy array; attempt to open it with FreeImage.  FreeImage does not call its
         // error notification callback or throw an exception if fipImage::load(..) fails for a mundane reason (file
         // doesn't exist, file permission error, file format not understood), so we have to do some extra checking upon
-        // failure in order to provide error info in mundane failure modes other than "unknown freeimage oops
-        // happened. burst into flames now?"
+        // failure in order to provide error info other than "unknown freeimage oops happened, bursting into flames now"
+        // in mundane failure modes
         fipImage image;
         if(image.load(fileName.c_str()))
         {
             if(!image.convertToUINT16())
             {
-                throw std::string("Failed to convert image to grayscale uint16.");
+                throw std::string("Failed to convert \"") + fileName + "\" to grayscale uint16.";
             }
             if(!image.flipVertical())
             {
-                throw std::string("Failed to flip image.");
+                throw std::string("Failed to flip \"") + fileName + "\".";
             }
             imageSize.setWidth(image.getWidth());
             imageSize.setHeight(image.getHeight());
@@ -164,7 +164,20 @@ void loadImage(const std::string& fileName, ImageData& imageData, QSize& imageSi
         else
         {
             QFile f(fileName.c_str());
-            QFile::exists(<#const QString &fileName#>)
+            if(!f.exists())
+            {
+                throw std::string("\"") + fileName + "\" does not exist or is in an inaccessible directory.";
+            }
+            if(!f.open(QIODevice::ReadOnly))
+            {
+                throw std::string("\"") + fileName + "\" exists but can not be opened.";
+            }
+            f.close();
+            if(fipImage::identifyFIF(fileName.c_str()) == FIF_UNKNOWN)
+            {
+                throw std::string("FreeImage failed to recognize the format of \"") + fileName + "\".";
+            }
+            throw std::string("Failed to open\"") + fileName + "\" for unknown reasons.";
         }
     }
 }

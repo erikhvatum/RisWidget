@@ -207,6 +207,7 @@
 				<F N="source/cpp/Flipper/RenameFlipper.cpp"/>
 				<F N="source/cpp/Flipper/RenameFlipper.h"/>
 			</Folder>
+			<F N="source/cpp/cl.hpp"/>
 			<F N="source/cpp/CMakeLists.txt"/>
 			<F N="source/cpp/Common.cpp"/>
 			<F N="source/cpp/Common.h"/>
@@ -237,16 +238,17 @@
 			<F N="source/cpp/LockedRef.h"/>
 			<F N="source/cpp/Renderer.cpp"/>
 			<F N="source/cpp/Renderer.h"/>
+			<F N="source/cpp/ris_widget.sip"/>
 			<F N="source/cpp/RisWidget.cpp"/>
 			<F N="source/cpp/RisWidget.h"/>
 			<F N="source/cpp/RisWidget.pro"/>
 			<F N="source/cpp/RisWidget.qrc"/>
 			<F N="source/cpp/RisWidget.ui"/>
 			<F N="source/cpp/RisWidget.vcxproj"/>
-			<F N="source/cpp/RisWidgetException.cpp"/>
-			<F N="source/cpp/RisWidgetException.h"/>
 			<F N="source/cpp/RisWidget_debug.pro"/>
 			<F N="source/cpp/RisWidget_standalone.pro"/>
+			<F N="source/cpp/RisWidgetException.cpp"/>
+			<F N="source/cpp/RisWidgetException.h"/>
 			<F N="source/cpp/ShowCheckerDialog.cpp"/>
 			<F N="source/cpp/ShowCheckerDialog.h"/>
 			<F N="source/cpp/ShowCheckerDialog.ui"/>
@@ -254,8 +256,7 @@
 			<F N="source/cpp/View.h"/>
 			<F N="source/cpp/ViewWidget.cpp"/>
 			<F N="source/cpp/ViewWidget.h"/>
-			<F N="source/cpp/cl.hpp"/>
-			<F N="source/cpp/ris_widget.sip"/>
+			<F N="source/cpp/YosemiteDragAndDropFormatFix.mm"/>
 		</Folder>
 		<Folder
 			Name="gpu"

@@ -77,6 +77,16 @@ set(LIBRARIES ${OPENGL_LIBRARIES}
               Qt5::OpenGL
               Qt5::Widgets)
 
+if(APPLE)
+    find_library(FOUNDATION Foundation)
+    if(NOT FOUNDATION)
+        message(FATAL_ERROR "Foundation not found.")
+    endif()
+    list(APPEND SOURCES YosemiteDragAndDropFormatFix.mm)
+    list(APPEND LIBRARIES ${FOUNDATION}
+                          objc)
+endif()
+
 if(AS_PYTHON_MODULE)
     add_library(ris_widget_gui STATIC ${SOURCES})
     set_target_properties(ris_widget_gui PROPERTIES COMPILE_OPTIONS "${_RIS_WIDGET_GUI_DEFS}")

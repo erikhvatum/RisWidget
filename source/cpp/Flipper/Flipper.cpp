@@ -338,6 +338,10 @@ void Flipper::dragLeaveEvent(QDragLeaveEvent* event)
     event->accept();
 }
 
+#if defined(__APPLE__) || defined(__MACOSX)
+void deref_yosemite_annoying_useless_path_ref_string(const std::string& useless_shit_from_apple, std::string& useful_fpath_for_you);
+#endif
+
 void Flipper::dropEvent(QDropEvent* event)
 {
     const QMimeData* md{event->mimeData()};
@@ -362,9 +366,30 @@ void Flipper::dropEvent(QDropEvent* event)
         {
             if(url.isLocalFile())
             {
-                QString fn(url.toLocalFile());
                 fipImage image;
+#if defined(__APPLE__) || defined(__MACOSX)
+                std::string fnstdstr;
+                QString fn;
+                {
+                    std::string fn_possibly_broken(url.url().toStdString());
+                    static const std::string look_for_brokenness("file:///.file/id=");
+                    std::string s = fn_possibly_broken.substr(0, look_for_brokenness.length());
+                    if ( fn_possibly_broken.length() > look_for_brokenness.length()
+                      && fn_possibly_broken.substr(0, look_for_brokenness.length()) == look_for_brokenness )
+                    {
+                        deref_yosemite_annoying_useless_path_ref_string(fn_possibly_broken, fnstdstr);
+                        fn = fnstdstr.c_str();
+                    }
+                    else
+                    {
+                        fn = url.toLocalFile();
+                        fnstdstr = fn.toStdString();
+                    }
+                }
+#else
+                QString fn(url.toLocalFile());
                 std::string fnstdstr(fn.toStdString());
+#endif
                 try
                 {
                     FramePtr frame(new Frame(Frame::Type::File));

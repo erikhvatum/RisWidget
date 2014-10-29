@@ -822,6 +822,10 @@ void RisWidget::dragLeaveEvent(QDragLeaveEvent* event)
     event->accept();
 }
 
+#if defined(__APPLE__) || defined(__MACOSX)
+void deref_yosemite_annoying_useless_path_ref_string(const std::string& useless_shit_from_apple, std::string& useful_fpath_for_you);
+#endif
+
 void RisWidget::dropEvent(QDropEvent* event)
 {
     const QMimeData* md{event->mimeData()};
@@ -839,13 +843,32 @@ void RisWidget::dropEvent(QDropEvent* event)
         QUrl url(md->urls()[0]);
         if(url.isLocalFile())
         {
-            QString fn(url.toLocalFile());
+#if defined(__APPLE__) || defined(__MACOSX)
+            std::string fn;
+            {
+                std::string fn_possibly_broken(url.url().toStdString());
+                static const std::string look_for_brokenness("file:///.file/id=");
+                std::string s = fn_possibly_broken.substr(0, look_for_brokenness.length());
+                if ( fn_possibly_broken.length() > look_for_brokenness.length()
+                  && fn_possibly_broken.substr(0, look_for_brokenness.length()) == look_for_brokenness )
+                {
+                    deref_yosemite_annoying_useless_path_ref_string(fn_possibly_broken, fn);
+                }
+                else
+                {
+                    fn = url.toLocalFile().toStdString();
+                }
+            }
+#else
+            std::string fn(url.toLocalFile().toStdString());
+#endif
             try
             {
-                loadImage(fn.toStdString(), imageData, imageSize);
+                loadImage(fn, imageData, imageSize);
             }
             catch(const std::string& e)
             {
+                QMessageBox::warning(this, "RisWidget Failed to Load Image File", e.c_str());
             }
         }
     }
