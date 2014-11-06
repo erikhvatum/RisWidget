@@ -68,6 +68,7 @@ set(SOURCES RisWidget.cpp
             ${UI_RESOURCES})
 
 set(LIBRARIES ${OPENGL_LIBRARIES}
+              ${FREEIMAGE_LIBRARY}
               ${FREEIMAGEPLUS_LIBRARY}
               ${PYTHON_LIBRARY}
               ${OPENCL_LIBRARIES}
@@ -104,9 +105,12 @@ if(AS_PYTHON_MODULE)
 
     get_target_property(_PYTHON_MODULE_LOCATION python_module__ris_widget LOCATION)
     if(WIN32)
+        string(REPLACE "/" "\\" _PYTHON_MODULE_LOCATION ${_PYTHON_MODULE_LOCATION})
+        string(REPLACE "/" "\\" _PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR})
         add_custom_command(TARGET python_module__ris_widget
                            POST_BUILD
-                           COMMAND copy /Y ${_PYTHON_MODULE_LOCATION} "${PROJECT_SOURCE_DIR}/_ris_widget.pyd")
+                           COMMAND copy /Y ${_PYTHON_MODULE_LOCATION} "${_PROJECT_SOURCE_DIR}\\_ris_widget.pyd")
+        unset(_PROJECT_SOURCE_DIR)
     else()
         add_custom_command(TARGET python_module__ris_widget
                            POST_BUILD

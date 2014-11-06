@@ -36,6 +36,7 @@
 #pragma GCC diagnostic pop
 
 #include <atomic>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #define __CL_ENABLE_EXCEPTIONS
