@@ -251,6 +251,7 @@ public:
 
     QString getFlipperName() const;
     int getFrameIndex() const;
+    int getFrameCount() const;
 
     void append(PyObject* images) /HoldGIL/;
 %Docstring
@@ -268,8 +269,9 @@ signals:
     responding to Flipper close events, and so it is necessary to emit from our own destructor as its first order of
     business.
 %End
-    void flipperNameChanged(QString flipperName);
-    void frameIndexChanged(int frameIndex);
+    void flipperNameChanged(Flipper* flipper, QString oldName);
+    void frameIndexChanged(Flipper* flipper, int frameIndex);
+    void frameCountChanged(Flipper* flipper, int frameCount);
 
 public slots:
     void setFlipperName(const QString& flipperName);
