@@ -101,7 +101,7 @@ class RisWidget(QtOpenGL.QGLWidget):
     def _initHistoCalcProg(self):
         self.histoCalcProg = ShaderProgram(
             self.context(),
-            [('histogramCalc.glslc', GL.GL_COMPUTE_SHADER)],
+            [('gpu/histogramCalc.glslc', GL.GL_COMPUTE_SHADER)],
             [
                 'binCount',
                 'invocationRegionSize'
