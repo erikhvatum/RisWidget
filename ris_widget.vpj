@@ -197,96 +197,26 @@
 	</Config>
 	<Files>
 		<Folder
-			Name="cpp"
-			Filters="">
-			<Folder
-				Name="Flipper"
-				Filters="">
-				<F N="source/cpp/Flipper/Flipper.cpp"/>
-				<F N="source/cpp/Flipper/Flipper.h"/>
-				<F N="source/cpp/Flipper/RenameFlipper.cpp"/>
-				<F N="source/cpp/Flipper/RenameFlipper.h"/>
-			</Folder>
-			<F N="source/cpp/cl.hpp"/>
-			<F N="source/cpp/CMakeLists.txt"/>
-			<F N="source/cpp/Common.cpp"/>
-			<F N="source/cpp/Common.h"/>
-			<F N="source/cpp/GilStateScopeOperators.cpp"/>
-			<F N="source/cpp/GilStateScopeOperators.h"/>
-			<F N="source/cpp/GlslProg.cpp"/>
-			<F N="source/cpp/GlslProg.h"/>
-			<F N="source/cpp/GlxFunctions.c"/>
-			<F N="source/cpp/GlxFunctions.h"/>
-			<F N="source/cpp/HistoDrawProg.cpp"/>
-			<F N="source/cpp/HistoDrawProg.h"/>
-			<F N="source/cpp/HistogramView.cpp"/>
-			<F N="source/cpp/HistogramView.h"/>
-			<F N="source/cpp/HistogramWidget.cpp"/>
-			<F N="source/cpp/HistogramWidget.h"/>
-			<F N="source/cpp/HistogramWidget.ui"/>
-			<F N="source/cpp/Image.cpp"/>
-			<F N="source/cpp/Image.h"/>
-			<F N="source/cpp/ImageDrawProg.cpp"/>
-			<F N="source/cpp/ImageDrawProg.h"/>
-			<F N="source/cpp/ImageView.cpp"/>
-			<F N="source/cpp/ImageView.h"/>
-			<F N="source/cpp/ImageWidget.cpp"/>
-			<F N="source/cpp/ImageWidget.h"/>
-			<F N="source/cpp/ImageWidget.ui"/>
-			<F N="source/cpp/ImageWidgetViewScroller.cpp"/>
-			<F N="source/cpp/ImageWidgetViewScroller.h"/>
-			<F N="source/cpp/LockedRef.h"/>
-			<F N="source/cpp/Renderer.cpp"/>
-			<F N="source/cpp/Renderer.h"/>
-			<F N="source/cpp/ris_widget.sip"/>
-			<F N="source/cpp/RisWidget.cpp"/>
-			<F N="source/cpp/RisWidget.h"/>
-			<F N="source/cpp/RisWidget.pro"/>
-			<F N="source/cpp/RisWidget.qrc"/>
-			<F N="source/cpp/RisWidget.ui"/>
-			<F N="source/cpp/RisWidget.vcxproj"/>
-			<F N="source/cpp/RisWidget_debug.pro"/>
-			<F N="source/cpp/RisWidget_standalone.pro"/>
-			<F N="source/cpp/RisWidgetException.cpp"/>
-			<F N="source/cpp/RisWidgetException.h"/>
-			<F N="source/cpp/ShowCheckerDialog.cpp"/>
-			<F N="source/cpp/ShowCheckerDialog.h"/>
-			<F N="source/cpp/ShowCheckerDialog.ui"/>
-			<F N="source/cpp/View.cpp"/>
-			<F N="source/cpp/View.h"/>
-			<F N="source/cpp/ViewWidget.cpp"/>
-			<F N="source/cpp/ViewWidget.h"/>
-			<F N="source/cpp/YosemiteDragAndDropFormatFix.mm"/>
-		</Folder>
-		<Folder
 			Name="gpu"
 			Filters="">
-			<F N="source/gpu/histogram.cl"/>
-			<F N="source/gpu/histogram.glslf"/>
-			<F N="source/gpu/histogram.glslv"/>
-			<F N="source/gpu/image.glslf"/>
-			<F N="source/gpu/image.glslv"/>
+			<F N="gpu/histogram.glslf"/>
+			<F N="gpu/histogram.glslv"/>
+			<F N="gpu/histogramCalc.glslc"/>
+			<F N="gpu/histogramConsolidate.glslc"/>
+			<F N="gpu/panel.glslf"/>
+			<F N="gpu/panel.glslv"/>
 		</Folder>
-		<Folder
-			Name="py"
-			Filters="">
-			<F N="source/py/__init__.py"/>
-			<F N="source/py/flipbook.py"/>
-		</Folder>
-		<Folder
-			Name="cmake_modules"
-			Filters="">
-			<F N="cmake_modules/FindFreeImage.cmake"/>
-			<F N="cmake_modules/FindFreeImagePlus.cmake"/>
-			<F N="cmake_modules/FindGLM.cmake"/>
-			<F N="cmake_modules/FindOpenCL.cmake"/>
-			<F N="cmake_modules/FindPyQt5.cmake"/>
-			<F N="cmake_modules/FindSIP.cmake"/>
-			<F N="cmake_modules/FindSIP.py"/>
-			<F N="cmake_modules/SIPMacros.cmake"/>
-		</Folder>
-		<F N="CMakeLists.txt"/>
+		<F N="__init__.py"/>
 		<F N="LICENSE"/>
+		<F N="loop_cache_sink_stream.py"/>
+		<F N="micro_manager_snapstream.py"/>
 		<F N="README.md"/>
+		<F N="ris.py"/>
+		<F N="ris_exceptions.py"/>
+		<F N="ris_widget.py"/>
+		<F N="ris_widget_exceptions.py"/>
+		<F N="shader_program.py"/>
+		<F N="size.py"/>
+		<F N="transformations.py"/>
 	</Files>
 </Project>
