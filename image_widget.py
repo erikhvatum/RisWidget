@@ -34,14 +34,14 @@ class ImageWidgetScroller(Qt.QAbstractScrollArea):
 class ImageWidget(Qt.QOpenGLWidget):
     def __init__(self, parent):
         super().__init__(parent)
-        format = Qt.QSurfaceFormat()
-        format.setRenderableType(Qt.QSurfaceFormat.OpenGL)
-        format.setVersion(4, 1)
-        format.setProfile(Qt.QSurfaceFormat.CoreProfile)
-        format.setSwapBehavior(Qt.QSurfaceFormat.DoubleBuffer)
-        format.setStereo(False)
-        format.setSwapInterval(1)
-        self.setFormat(format)
+#       format = Qt.QSurfaceFormat()
+#       format.setRenderableType(Qt.QSurfaceFormat.OpenGL)
+#       format.setVersion(4, 1)
+#       format.setProfile(Qt.QSurfaceFormat.CoreProfile)
+#       format.setSwapBehavior(Qt.QSurfaceFormat.DoubleBuffer)
+#       format.setStereo(False)
+#       format.setSwapInterval(1)
+#       self.setFormat(format)
 
     def initializeGL(self):
         pass

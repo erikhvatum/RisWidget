@@ -26,6 +26,8 @@ from PyQt5 import Qt
 import numpy
 import pyagg
 
+from . import image_widget
+
 class RisWidget(Qt.QMainWindow):
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0)):
         super().__init__(parent, window_flags)
@@ -43,4 +45,12 @@ class RisWidget(Qt.QMainWindow):
         pass
 
     def _init_views(self):
-        pass
+        self.image_widget = image_widget.ImageWidget(self)
+        self.setCentralWidget(self.image_widget)
+
+if __name__ == '__main__':
+    import sys
+    app = Qt.QApplication(sys.argv)
+    rw = RisWidget()
+    rw.show()
+    app.exec_()
