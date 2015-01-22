@@ -22,41 +22,36 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-import threading
+import enum
+from PyQt5 import Qt
+import sys
+
+class ImageWidgetScroller(Qt.QAbstractScrollArea):
+    scroll_contents_by = Qt.pyqtSignal(int, int)
+    def scrollContentsBy(dx, dy):
+        scroll_contents_by.emit(dx, dy)
+
+class ImageWidget(Qt.QOpenGLWidget):
+    def __init__(self, parent):
+        super().__init__(parent)
+        format = Qt.QSurfaceFormat()
+        format.setRenderableType(Qt.QSurfaceFormat.OpenGL)
+        format.setVersion(4, 1)
+        format.setProfile(Qt.QSurfaceFormat.CoreProfile)
+        format.setSwapBehavior(Qt.QSurfaceFormat.DoubleBuffer)
+        format.setStereo(False)
+        format.setSwapInterval(1)
+        self.setFormat(format)
+
+    def initializeGL(self):
+        pass
+
+    def paintGL(self):
+        pass
+
+    def resizeGL(self, resize_event):
+        pass
 
 
-from ris_widget.ris import Ris
+#def make_image_widget_in_scroller(parent):
 
-class MicroManagerSnapStream(Ris):
-    def __init__(self, mmc):
-        super().__init__()
-        self.mmc = mmc
-        self.wantStopLock = threading.Lock()
-        with self.wantStopLock:
-            self.wantStop = True
-
-    def _doStart(self):
-        with self.wantStopLock:
-            self.wantStop = False
-        self.acquire()
-
-    def _doStop(self):
-        with self.wantStopLock:
-            self.wantStop = True
-
-    def _doAcquire(self):
-        wantStop = None
-        with self.wantStopLock:
-            wantStop = self.wantStop
-        if not wantStop:
-            self.mmc.snapImage()
-
-        with self.wantStopLock:
-            wantStop = self.wantStop
-        if not wantStop:
-            image = self.mmc.getImage()
-            self._signalImageAcquired(image)
-
-    def _imageAcquired(self, image):
-        super()._imageAcquired(image)
-        self.acquire()

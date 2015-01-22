@@ -196,27 +196,11 @@
 		</List>
 	</Config>
 	<Files>
-		<Folder
-			Name="gpu"
-			Filters="">
-			<F N="gpu/histogram.glslf"/>
-			<F N="gpu/histogram.glslv"/>
-			<F N="gpu/histogramCalc.glslc"/>
-			<F N="gpu/histogramConsolidate.glslc"/>
-			<F N="gpu/panel.glslf"/>
-			<F N="gpu/panel.glslv"/>
-		</Folder>
 		<F N="__init__.py"/>
+		<F N="agg_widget.py"/>
+		<F N="image_widget.py"/>
 		<F N="LICENSE"/>
-		<F N="loop_cache_sink_stream.py"/>
-		<F N="micro_manager_snapstream.py"/>
 		<F N="README.md"/>
-		<F N="ris.py"/>
-		<F N="ris_exceptions.py"/>
 		<F N="ris_widget.py"/>
-		<F N="ris_widget_exceptions.py"/>
-		<F N="shader_program.py"/>
-		<F N="size.py"/>
-		<F N="transformations.py"/>
 	</Files>
 </Project>
