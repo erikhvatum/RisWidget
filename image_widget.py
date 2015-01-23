@@ -34,22 +34,30 @@ class ImageWidgetScroller(Qt.QAbstractScrollArea):
 class ImageWidget(Qt.QOpenGLWidget):
     def __init__(self, parent):
         super().__init__(parent)
-#       format = Qt.QSurfaceFormat()
-#       format.setRenderableType(Qt.QSurfaceFormat.OpenGL)
-#       format.setVersion(4, 1)
-#       format.setProfile(Qt.QSurfaceFormat.CoreProfile)
-#       format.setSwapBehavior(Qt.QSurfaceFormat.DoubleBuffer)
-#       format.setStereo(False)
-#       format.setSwapInterval(1)
-#       self.setFormat(format)
+        format = Qt.QSurfaceFormat()
+        format.setRenderableType(Qt.QSurfaceFormat.OpenGL)
+        format.setVersion(2, 1)
+        format.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
+        format.setSwapBehavior(Qt.QSurfaceFormat.DoubleBuffer)
+        format.setStereo(False)
+        format.setSwapInterval(1)
+        self.setFormat(format)
 
     def initializeGL(self):
-        pass
+        # PyQt5 provides access to OpenGL functions up to OpenGL 2.0, but we have made a 2.1
+        # context.  QOpenGLContext.versionFunctions(..) will, by default, attempt to return
+        # a wrapper around QOpenGLFunctions2_1, which will fail, as there is no
+        # PyQt5._QOpenGLFunctions_2_1 implementation.  Therefore, we explicitly request 2.0
+        # functions, and any 2.1 calls that we want to make can not occur through self.glfs.
+        vp = Qt.QOpenGLVersionProfile()
+        vp.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
+        vp.setVersion(2, 0)
+        self.glfs = self.context().versionFunctions(vp)
 
     def paintGL(self):
         pass
 
-    def resizeGL(self, resize_event):
+    def resizeGL(self, x, y):
         pass
 
 
