@@ -27,9 +27,15 @@ from PyQt5 import Qt
 import sys
 
 class ImageWidgetScroller(Qt.QAbstractScrollArea):
-    scroll_contents_by = Qt.pyqtSignal(int, int)
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setFrameShape(Qt.QFrame.StyledPanel)
+        self.setFrameShadow(Qt.QFrame.Raised)
+        self.image_widget = ImageWidget(self)
+        self.setViewport(self.image_widget)
+
     def scrollContentsBy(dx, dy):
-        scroll_contents_by.emit(dx, dy)
+        self.image_widget.scroll_contents_by(dx, dy)
 
 class ImageWidget(Qt.QOpenGLWidget):
     def __init__(self, parent):
@@ -60,6 +66,5 @@ class ImageWidget(Qt.QOpenGLWidget):
     def resizeGL(self, x, y):
         pass
 
-
-#def make_image_widget_in_scroller(parent):
-
+    def scroll_contents_by(self, dx, dy):
+        pass
