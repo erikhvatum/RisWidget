@@ -198,6 +198,7 @@
 	<Files>
 		<F N="__init__.py"/>
 		<F N="agg_widget.py"/>
+		<F N="image.py"/>
 		<F N="image_widget.py"/>
 		<F N="LICENSE"/>
 		<F N="README.md"/>

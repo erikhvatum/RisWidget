@@ -48,6 +48,7 @@ class ImageWidget(Qt.QOpenGLWidget):
         format.setStereo(False)
         format.setSwapInterval(1)
         self.setFormat(format)
+        self._image = image
 
     def initializeGL(self):
         # PyQt5 provides access to OpenGL functions up to OpenGL 2.0, but we have made a 2.1
@@ -68,3 +69,11 @@ class ImageWidget(Qt.QOpenGLWidget):
 
     def scroll_contents_by(self, dx, dy):
         pass
+
+    @property
+    def image(self):
+        return self._image
+
+    @image.setter
+    def image(self, image):
+
