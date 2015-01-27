@@ -27,7 +27,6 @@ from pyagg import fast_hist
 from PyQt5 import Qt
 
 class Image:
-#   @profile
     def __init__(self, image_data, force_dtype, name):
         self._name = name
 
@@ -60,7 +59,7 @@ class Image:
 
     @property
     def dtype(self):
-        return self._dtype
+        return self._data.dtype.type
 
     @property
     def data(self):

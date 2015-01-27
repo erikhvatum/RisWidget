@@ -27,7 +27,7 @@ import numpy
 import pyagg
 
 from . import image_widget
-from . import image.Image as Image
+from .image import Image
 
 class RisWidget(Qt.QMainWindow):
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0)):
