@@ -203,6 +203,7 @@
 		<F N="image_widget_fragment_shader_gray.glsl"/>
 		<F N="image_widget_fragment_shader_rgb.glsl"/>
 		<F N="image_widget_vertex_shader.glsl"/>
+		<F N="../launch_riswidget_for_debugging.py"/>
 		<F N="LICENSE"/>
 		<F N="README.md"/>
 		<F N="ris_widget.py"/>

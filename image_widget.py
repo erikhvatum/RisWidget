@@ -71,17 +71,29 @@ class ImageWidget(Qt.QOpenGLWidget):
         self._glsl_prog_g = None
         self._glsl_prog_rgb = None
         self._tex = None
+        self._quad_buffer = None
+        self._mvp = Qt.QMatrix4x4()
 
-    def _build_shader_prog(self, prog_n, desc, vert_fn, frag_fn):
+    def _build_shader_prog(self, desc, vert_fn, frag_fn):
         source_dpath = Path(__file__).parent
-        setattr(self, prog_n, Qt.QOpenGLShaderProgram(self))
-        prog = getattr(self, prog_n)
+        prog = Qt.QOpenGLShaderProgram(self)
         if not prog.addShaderFromSourceFile(Qt.QOpenGLShader.Vertex, str(source_dpath / vert_fn)):
             raise RuntimeError('Failed to compile vertex shader "{}" for ImageWidget {} shader program.'.format(vert_fn, desc))
         if not prog.addShaderFromSourceFile(Qt.QOpenGLShader.Fragment, str(source_dpath / frag_fn)):
             raise RuntimeError('Failed to compile fragment shader "{}" for ImageWidget {} shader program.'.format(frag_fn, desc))
         if not prog.link():
             raise RuntimeError('Failed to link ImageWidget {} program.'.format(desc))
+        return prog
+
+    def _make_quad_buffer(self):
+        quad = numpy.array([1.1, -1.1,
+                            -1.1, -1.1,
+                            -1.1, 1.1,
+                            1.1, 1.1], dtype=numpy.float32)
+        self._quad_buffer = Qt.QOpenGLBuffer(Qt.QOpenGLBuffer.VertexBuffer)
+        self._quad_buffer.create()
+        self._quad_buffer.setUsagePattern(Qt.QOpenGLBuffer.StaticDraw)
+        self._quad_buffer.allocate(ctypes.c_void_p(quad.ctypes.data), quad.nbytes)
 
     def initializeGL(self):
         # PyQt5 provides access to OpenGL functions up to OpenGL 2.0, but we have made a 2.1
@@ -98,15 +110,32 @@ class ImageWidget(Qt.QOpenGLWidget):
         if not self._glfs.initializeOpenGLFunctions():
             raise RuntimeError('Failed to initialize OpenGL function bundle.')
         self._glfs.glClearColor(0,0,0,1)
-        self._build_shader_prog('_glsl_prog_g', 'grayscale',
-                                  'image_widget_vertex_shader.glsl',
-                                  'image_widget_fragment_shader_gray.glsl')
-        self._build_shader_prog('_glsl_prog_rgb', 'rgb',
-                                  'image_widget_vertex_shader.glsl',
-                                  'image_widget_fragment_shader_rgb.glsl')
+        self._glfs.glClearDepth(1)
+        self._glsl_prog_g = self._build_shader_prog('grayscale',
+                                                    'image_widget_vertex_shader.glsl',
+                                                    'image_widget_fragment_shader_gray.glsl')
+        self._glsl_prog_rgb = self._build_shader_prog('rgb',
+                                                      'image_widget_vertex_shader.glsl',
+                                                      'image_widget_fragment_shader_rgb.glsl')
+        self._make_quad_buffer()
 
     def paintGL(self):
         self._glfs.glClear(self._glfs.GL_COLOR_BUFFER_BIT | self._glfs.GL_DEPTH_BUFFER_BIT)
+        if self._image is not None:
+            prog = self._glsl_prog_g if self._image.type in ('g', 'ga') else self._glsl_prog_rgb
+            prog.bind()
+            self._quad_buffer.bind()
+            self._tex.bind()
+            vert_coord_loc = prog.attributeLocation('vert_coord')
+            prog.enableAttributeArray(vert_coord_loc)
+            prog.setAttributeBuffer(vert_coord_loc, self._glfs.GL_FLOAT, 0, 2, 0)
+            prog.setUniformValue('tex', 0)
+            prog.setUniformValue('mvp', self._mvp)
+            self._glfs.glEnableClientState(self._glfs.GL_VERTEX_ARRAY)
+            self._glfs.glDrawArrays(self._glfs.GL_TRIANGLE_FAN, 0, 4)
+            self._tex.release()
+            self._quad_buffer.release()
+            prog.release()
 
     def resizeGL(self, x, y):
         pass
@@ -139,10 +168,12 @@ class ImageWidget(Qt.QOpenGLWidget):
                 self._tex.bind()
                 pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
                 pixel_transfer_opts.setAlignment(1)
+                print('sending data')
                 self._tex.setData(ImageWidget._IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT[image.type],
                                   ImageWidget._NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[image.dtype],
                                   ctypes.c_void_p(image.data.ctypes.data),
                                   pixel_transfer_opts)
+                print('sent data')
                 self._tex.release()
                 self._image = image
                 self._aspect_ratio = image.size.width() / image.size.height()

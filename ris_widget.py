@@ -47,9 +47,11 @@ class RisWidget(Qt.QMainWindow):
         pass
 
     def _init_views(self):
-        self.image_widget_scroller = image_widget.ImageWidgetScroller(self)
-        self.image_widget = self.image_widget_scroller.image_widget
-        self.setCentralWidget(self.image_widget_scroller)
+#       self.image_widget_scroller = image_widget.ImageWidgetScroller(self)
+#       self.image_widget = self.image_widget_scroller.image_widget
+#       self.setCentralWidget(self.image_widget_scroller)
+        self.image_widget = image_widget.ImageWidget(self)
+        self.setCentralWidget(self.image_widget)
 
     def show_image(self, image_data, force_dtype=None, name=None):
         """show_image(self, image_data, force_dtype=None):
