@@ -25,7 +25,6 @@
 import numpy
 from pathlib import Path
 from PyQt5 import Qt
-import sip
 import sys
 
 class ImageWidgetScroller(Qt.QAbstractScrollArea):
@@ -73,6 +72,7 @@ class ImageWidget(Qt.QOpenGLWidget):
         self._tex = None
         self._quad_buffer = None
         self._mvp = Qt.QMatrix4x4()
+        self._frag_to_tex = Qt.QMatrix3x3()
 
     def _build_shader_prog(self, desc, vert_fn, frag_fn):
         source_dpath = Path(__file__).parent
@@ -97,7 +97,7 @@ class ImageWidget(Qt.QOpenGLWidget):
         self._quad_buffer.create()
         self._quad_buffer.bind()
         self._quad_buffer.setUsagePattern(Qt.QOpenGLBuffer.StaticDraw)
-        self._quad_buffer.allocate(sip.voidptr(quad.ctypes.data), quad.nbytes)
+        self._quad_buffer.allocate(quad.ctypes.data, quad.nbytes)
 
     def initializeGL(self):
         # PyQt5 provides access to OpenGL functions up to OpenGL 2.0, but we have made a 2.1
@@ -121,29 +121,28 @@ class ImageWidget(Qt.QOpenGLWidget):
         self._glsl_prog_rgb = self._build_shader_prog('rgb',
                                                       'image_widget_vertex_shader.glsl',
                                                       'image_widget_fragment_shader_rgb.glsl')
-        self._glsl_prog_g.bind()
         self._make_quad_buffer()
-        self._glsl_prog_g.release()
 
     def paintGL(self):
         self._glfs.glClear(self._glfs.GL_COLOR_BUFFER_BIT | self._glfs.GL_DEPTH_BUFFER_BIT)
-        if 1:#self._image is not None:
-#           prog = self._glsl_prog_g if self._image.type in ('g', 'ga') else self._glsl_prog_rgb
-            prog = self._glsl_prog_g
+        if self._image is not None:
+            prog = self._glsl_prog_g if self._image.type in ('g', 'ga') else self._glsl_prog_rgb
             prog.bind()
             self._quad_buffer.bind()
-#           self._tex.bind()
+            self._tex.bind()
             vert_coord_loc = prog.attributeLocation('vert_coord')
-#           prog.enableAttributeArray(vert_coord_loc)
             quad_vao_binder = Qt.QOpenGLVertexArrayObject.Binder(self._quad_vao)
-            self._glfs.glEnableVertexAttribArray(vert_coord_loc)
-            self._glfs.glVertexAttribPointer(vert_coord_loc, 2, self._glfs.GL_FLOAT, False, 0, 0)
-#           prog.setAttributeBuffer(vert_coord_loc, self._glfs.GL_FLOAT, 0, 2, 0)
-#           prog.setUniformValue('tex', 0)
-#           prog.setUniformValue('mvp', self._mvp)
+            prog.enableAttributeArray(vert_coord_loc)
+            prog.setAttributeBuffer(vert_coord_loc, self._glfs.GL_FLOAT, 0, 2, 0)
+            prog.setUniformValue('tex', 0)
+            self._frag_to_tex.setToIdentity()
+            self._frag_to_tex[0,0] = 1/self._image.size.width()
+            self._frag_to_tex[1,1] = 1/self._image.size.height()
+            prog.setUniformValue('frag_to_tex', self._frag_to_tex)
+            prog.setUniformValue('mvp', self._mvp)
             self._glfs.glEnableClientState(self._glfs.GL_VERTEX_ARRAY)
             self._glfs.glDrawArrays(self._glfs.GL_TRIANGLE_FAN, 0, 4)
-#           self._tex.release()
+            self._tex.release()
             self._quad_buffer.release()
             prog.release()
 
@@ -178,15 +177,13 @@ class ImageWidget(Qt.QOpenGLWidget):
                 self._tex.bind()
                 pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
                 pixel_transfer_opts.setAlignment(1)
-#               self._glfs.glPixelStorei(self._glfs.GL_UNPACK_ALIGNMENT, 1)
-                print('sending data')
                 self._tex.setData(ImageWidget._IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT[image.type],
                                   ImageWidget._NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[image.dtype],
-                                  sip.voidptr(image.data.ctypes.data),
+                                  image.data.ctypes.data,
                                   pixel_transfer_opts)
-                print('sent data')
                 self._tex.release()
                 self._image = image
                 self._aspect_ratio = image.size.width() / image.size.height()
+                self.update()
         finally:
             self.doneCurrent()
