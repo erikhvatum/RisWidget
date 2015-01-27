@@ -23,10 +23,11 @@
 // 
 // Authors: Erik Hvatum <ice.rikh@gmail.com> 
 
-uniform mat4 mvp;
+// uniform mat4 mvp;
 attribute vec2 vert_coord;
 
 void main()
 {
-    gl_Position = mvp * vec4(vert_coord, 0.5, 1.0);
+//  gl_Position = mvp * vec4(vert_coord, 0.5, 1.0);
+    gl_Position = vec4(vert_coord, 0.5, 1.0);
 }

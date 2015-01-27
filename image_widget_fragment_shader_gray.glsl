@@ -24,26 +24,27 @@
 // 
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-uniform sampler2D tex;
+// uniform sampler2D tex;
 // 2D homogeneous transformation matrix for transforming gl_FragCoord viewport coordinates into image texture
 // coordinates
-uniform mat3 frag_to_tex;
+// uniform mat3 frag_to_tex;
 
 void main()
 {
-    vec3 tex_coord_h = frag_to_tex * vec3(gl_FragCoord.x, gl_FragCoord.y, gl_FragCoord.w);
-    vec2 tex_coord = tex_coord_h.xy / tex_coord_h.z;
-
-    // Render nothing if fragment coordinate is outside of texture. This should only happen for a display row or column
-    // at the edge of the quad.
-    if(tex_coord.x < 0 || tex_coord.x >= 1)
-    {
-        discard;
-    }
-    if(tex_coord.y < 0 || tex_coord.y >= 1)
-    {
-        discard;
-    }
-
-    gl_FragColor = vec4(texture2D(tex, tex_coord).rrr, 1);
+//  vec3 tex_coord_h = frag_to_tex * vec3(gl_FragCoord.x, gl_FragCoord.y, gl_FragCoord.w);
+//  vec2 tex_coord = tex_coord_h.xy / tex_coord_h.z;
+// 
+//  // Render nothing if fragment coordinate is outside of texture. This should only happen for a display row or column
+//  // at the edge of the quad.
+//  if(tex_coord.x < 0 || tex_coord.x >= 1)
+//  {
+//      discard;
+//  }
+//  if(tex_coord.y < 0 || tex_coord.y >= 1)
+//  {
+//      discard;
+//  }
+// 
+//  gl_FragColor = vec4(texture2D(tex, tex_coord).rrr, 1);
+    gl_FragColor = vec4(1,0,0,1);
 }
