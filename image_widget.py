@@ -166,13 +166,13 @@ class ImageWidget(Qt.QOpenGLWidget):
                     self._tex.allocateStorage()
                 self._tex.setMinMagFilters(Qt.QOpenGLTexture.LinearMipMapLinear, Qt.QOpenGLTexture.Nearest)
                 self._tex.bind()
-                pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
-                pixel_transfer_opts.setAlignment(1)
+#               pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
+#               pixel_transfer_opts.setAlignment(1)
+                self._glfs.glPixelStorei(self._glfs.GL_UNPACK_ALIGNMENT, 1)
                 print('sending data')
                 self._tex.setData(ImageWidget._IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT[image.type],
                                   ImageWidget._NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[image.dtype],
-                                  ctypes.c_void_p(image.data.ctypes.data),
-                                  pixel_transfer_opts)
+                                  ctypes.c_void_p(image.data.ctypes.data))
                 print('sent data')
                 self._tex.release()
                 self._image = image
