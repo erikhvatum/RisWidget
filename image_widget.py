@@ -28,11 +28,11 @@ from PyQt5 import Qt
 import sys
 
 class ImageWidgetScroller(Qt.QAbstractScrollArea):
-    def __init__(self, parent):
+    def __init__(self, parent, qsurface_format):
         super().__init__(parent)
         self.setFrameShape(Qt.QFrame.StyledPanel)
         self.setFrameShadow(Qt.QFrame.Raised)
-        self.image_widget = ImageWidget(self)
+        self.image_widget = ImageWidget(self, qsurface_format)
         self.setViewport(self.image_widget)
 
     def scrollContentsBy(dx, dy):
@@ -54,16 +54,9 @@ class ImageWidget(Qt.QOpenGLWidget):
         'rgb' : Qt.QOpenGLTexture.RGB,
         'rgba': Qt.QOpenGLTexture.RGBA}
 
-    def __init__(self, parent):
+    def __init__(self, parent, qsurface_format):
         super().__init__(parent)
-        format = Qt.QSurfaceFormat()
-        format.setRenderableType(Qt.QSurfaceFormat.OpenGL)
-        format.setVersion(2, 1)
-        format.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
-        format.setSwapBehavior(Qt.QSurfaceFormat.DoubleBuffer)
-        format.setStereo(False)
-        format.setSwapInterval(1)
-        self.setFormat(format)
+        self.setFormat(qsurface_format)
         self._image = None
         self._aspect_ratio = None
         self._glfs = None

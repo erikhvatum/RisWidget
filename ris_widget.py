@@ -48,14 +48,22 @@ class RisWidget(Qt.QMainWindow):
         pass
 
     def _init_views(self):
-#       self.image_widget_scroller = image_widget.ImageWidgetScroller(self)
+        qsurface_format = Qt.QSurfaceFormat()
+        qsurface_format.setRenderableType(Qt.QSurfaceFormat.OpenGL)
+        qsurface_format.setVersion(2, 1)
+        qsurface_format.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
+        qsurface_format.setSwapBehavior(Qt.QSurfaceFormat.DoubleBuffer)
+        qsurface_format.setStereo(False)
+        qsurface_format.setSwapInterval(1)
+#       self.image_widget_scroller = image_widget.ImageWidgetScroller(self, qsurface_format)
 #       self.image_widget = self.image_widget_scroller.image_widget
 #       self.setCentralWidget(self.image_widget_scroller)
-        self.image_widget = image_widget.ImageWidget(self)
+        self.image_widget = image_widget.ImageWidget(self, qsurface_format)
         self.setCentralWidget(self.image_widget)
         self.histogram_dock_widget = Qt.QDockWidget('Histogram', self)
-        self.histogram_widget = histogram_widget.HistogramWidget(self.histogram_dock_widget)
-        self.histogram_dock_widget.setWidget(self.histogram_widget)
+        self.histogram_container_widget = histogram_widget.HistogramContainerWidget(self.histogram_dock_widget, qsurface_format)
+        self.histogram_widget = self.histogram_container_widget.histogram_widget
+        self.histogram_dock_widget.setWidget(self.histogram_container_widget)
         self.histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
         self.histogram_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
         self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self.histogram_dock_widget)
