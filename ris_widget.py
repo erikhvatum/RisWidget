@@ -27,6 +27,7 @@ import numpy
 import pyagg
 
 from . import image_widget
+from . import histogram_widget
 from .image import Image
 
 class RisWidget(Qt.QMainWindow):
@@ -52,6 +53,12 @@ class RisWidget(Qt.QMainWindow):
 #       self.setCentralWidget(self.image_widget_scroller)
         self.image_widget = image_widget.ImageWidget(self)
         self.setCentralWidget(self.image_widget)
+        self.histogram_dock_widget = Qt.QDockWidget('Histogram', self)
+        self.histogram_widget = histogram_widget.HistogramWidget(self.histogram_dock_widget)
+        self.histogram_dock_widget.setWidget(self.histogram_widget)
+        self.histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
+        self.histogram_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
+        self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self.histogram_dock_widget)
 
     def show_image(self, image_data, force_dtype=None, name=None):
         """show_image(self, image_data, force_dtype=None):

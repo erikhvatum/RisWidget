@@ -28,6 +28,15 @@ uniform sampler2D tex;
 // 2D homogeneous transformation matrix for transforming gl_FragCoord viewport coordinates into image texture
 // coordinates
 uniform mat3 frag_to_tex;
+uniform float intensity_rescale_min;
+uniform float intensity_rescale_range;
+uniform float gamma;
+
+float transform_intensity(float intensity)
+{
+    return gamma == 1 ? clamp((intensity - intensity_rescale_min) / intensity_rescale_range, 0, 1) :
+                        pow(clamp((intensity - intensity_rescale_min) / intensity_rescale_range, 0, 1), gamma);
+}
 
 void main()
 {
@@ -45,6 +54,7 @@ void main()
         discard;
     }
 
-    gl_FragColor = vec4(texture2D(tex, tex_coord).rrr, 1);
-//  gl_FragColor = vec4(1,0,0,1);
+    float transformed = transform_intensity(texture2D(tex, tex_coord).r);
+
+    gl_FragColor = vec4(transformed, transformed, transformed, 1);
 }

@@ -196,13 +196,20 @@
 		</List>
 	</Config>
 	<Files>
+		<Folder
+			Name="shaders"
+			Filters="">
+			<F N="shaders/image_widget_fragment_shader_g.glsl"/>
+			<F N="shaders/image_widget_fragment_shader_ga.glsl"/>
+			<F N="shaders/image_widget_fragment_shader_rgb.glsl"/>
+			<F N="shaders/image_widget_fragment_shader_rgba.glsl"/>
+			<F N="shaders/image_widget_vertex_shader.glsl"/>
+		</Folder>
 		<F N="__init__.py"/>
 		<F N="agg_widget.py"/>
+		<F N="histogram_widget.py"/>
 		<F N="image.py"/>
 		<F N="image_widget.py"/>
-		<F N="image_widget_fragment_shader_gray.glsl"/>
-		<F N="image_widget_fragment_shader_rgb.glsl"/>
-		<F N="image_widget_vertex_shader.glsl"/>
 		<F N="../launch_riswidget_for_debugging.py"/>
 		<F N="LICENSE"/>
 		<F N="README.md"/>

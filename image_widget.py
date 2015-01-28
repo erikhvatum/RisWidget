@@ -45,9 +45,9 @@ class ImageWidget(Qt.QOpenGLWidget):
         numpy.float32: Qt.QOpenGLTexture.Float32}
     _IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT = {
         'g'   : Qt.QOpenGLTexture.R32F,
-        'ga'  : Qt.QOpenGLTexture.R32F,
+        'ga'  : Qt.QOpenGLTexture.RG32F,
         'rgb' : Qt.QOpenGLTexture.RGB32F,
-        'rgba': Qt.QOpenGLTexture.RGB32F}
+        'rgba': Qt.QOpenGLTexture.RGBA32F}
     _IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT = {
         'g'   : Qt.QOpenGLTexture.Red,
         'ga'  : Qt.QOpenGLTexture.RG,
@@ -68,14 +68,17 @@ class ImageWidget(Qt.QOpenGLWidget):
         self._aspect_ratio = None
         self._glfs = None
         self._glsl_prog_g = None
+        self._glsl_prog_ga = None
         self._glsl_prog_rgb = None
+        self._glsl_prog_rgba = None
+        self._image_type_to_glsl_prog = None
         self._tex = None
         self._quad_buffer = None
         self._mvp = Qt.QMatrix4x4()
         self._frag_to_tex = Qt.QMatrix3x3()
 
     def _build_shader_prog(self, desc, vert_fn, frag_fn):
-        source_dpath = Path(__file__).parent
+        source_dpath = Path(__file__).parent / 'shaders'
         prog = Qt.QOpenGLShaderProgram(self)
         if not prog.addShaderFromSourceFile(Qt.QOpenGLShader.Vertex, str(source_dpath / vert_fn)):
             raise RuntimeError('Failed to compile vertex shader "{}" for ImageWidget {} shader program.'.format(vert_fn, desc))
@@ -115,18 +118,28 @@ class ImageWidget(Qt.QOpenGLWidget):
             raise RuntimeError('Failed to initialize OpenGL function bundle.')
         self._glfs.glClearColor(0,0,0,1)
         self._glfs.glClearDepth(1)
-        self._glsl_prog_g = self._build_shader_prog('grayscale',
+        self._glsl_prog_g = self._build_shader_prog('g',
                                                     'image_widget_vertex_shader.glsl',
-                                                    'image_widget_fragment_shader_gray.glsl')
+                                                    'image_widget_fragment_shader_g.glsl')
+        self._glsl_prog_ga = self._build_shader_prog('ga',
+                                                     'image_widget_vertex_shader.glsl',
+                                                     'image_widget_fragment_shader_ga.glsl')
         self._glsl_prog_rgb = self._build_shader_prog('rgb',
                                                       'image_widget_vertex_shader.glsl',
                                                       'image_widget_fragment_shader_rgb.glsl')
+        self._glsl_prog_rgba = self._build_shader_prog('rgba',
+                                                       'image_widget_vertex_shader.glsl',
+                                                       'image_widget_fragment_shader_rgba.glsl')
+        self._image_type_to_glsl_prog = {'g'   : self._glsl_prog_g,
+                                         'ga'  : self._glsl_prog_ga,
+                                         'rgb' : self._glsl_prog_rgb,
+                                         'rgba': self._glsl_prog_rgba}
         self._make_quad_buffer()
 
     def paintGL(self):
         self._glfs.glClear(self._glfs.GL_COLOR_BUFFER_BIT | self._glfs.GL_DEPTH_BUFFER_BIT)
         if self._image is not None:
-            prog = self._glsl_prog_g if self._image.type in ('g', 'ga') else self._glsl_prog_rgb
+            prog = self._image_type_to_glsl_prog[self._image.type]
             prog.bind()
             self._quad_buffer.bind()
             self._tex.bind()
