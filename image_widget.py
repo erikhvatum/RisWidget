@@ -78,7 +78,7 @@ class ImageWidget(Qt.QOpenGLWidget):
         if not prog.addShaderFromSourceFile(Qt.QOpenGLShader.Fragment, str(source_dpath / frag_fn)):
             raise RuntimeError('Failed to compile fragment shader "{}" for ImageWidget {} shader program.'.format(frag_fn, desc))
         if not prog.link():
-            raise RuntimeError('Failed to link ImageWidget {} program.'.format(desc))
+            raise RuntimeError('Failed to link ImageWidget {} shader program.'.format(desc))
         return prog
 
     def _make_quad_buffer(self):

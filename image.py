@@ -27,15 +27,12 @@ from pyagg import fast_hist
 from PyQt5 import Qt
 
 class Image:
-    def __init__(self, image_data, force_dtype, name):
+    def __init__(self, image_data, name):
         self._name = name
 
-        if force_dtype is None:
-            self._data = numpy.asarray(image_data, order='c')
-            if self._data.dtype not in (numpy.uint8, numpy.uint16, numpy.float32):
-                self._data = self._data.astype(numpy.float32)
-        else:
-            self._data = numpy.asarray(image_data, order='c', dtype=force_dtype)
+        self._data = numpy.asarray(image_data, order='c')
+        if self._data.dtype not in (numpy.uint8, numpy.uint16, numpy.float32):
+            self._data = self._data.astype(numpy.float32)
 
         if self._data.ndim == 2:
             self._type = 'g'
@@ -52,6 +49,7 @@ class Image:
         else:
             raise ValueError('image_data argument must be a 2D (grayscale) or 3D (grayscale with alpha, rgb, or rgba) iterable.')
         self._size = Qt.QSize(self._data.shape[1], self._data.shape[0])
+        self._is_grayscale = self._type in ('g', 'ga')
 
     @property
     def type(self):
@@ -80,3 +78,7 @@ class Image:
     @property
     def size(self):
         return self._size
+
+    @property
+    def is_grayscale(self):
+        return self._is_grayscale
