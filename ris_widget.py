@@ -46,7 +46,8 @@ class RisWidget(Qt.QMainWindow):
         self._init_actions()
         self._init_toolbars()
         self._init_views()
-        self._next_unnamed_image_idx = 0
+        self._next_image_idx = 0
+        self.auto_window_title_enabled = True
 
     def _init_actions(self):
         pass
@@ -95,27 +96,31 @@ class RisWidget(Qt.QMainWindow):
         color channel and each container of N scalars representing a pixel.  For N of 2, image_data[:,:,0] represents grayscale
         intensity, while image_data[:,:,1] represents alpha intensity (transparency).  For N of 3, image_data[:,:,0] is red, image_data[:,:,1]
         is green, and image_data[:,:,2] is blue.  For N of 4, the situation is the same as for N of 3, with the addition of
-        alpha intensity as image_data[:,:,3].
-
-        A name may be associated with an image by assigning image data as described above in a tuple along with the desired
-        image name.  For example, riswidget.image = (numpy.random.rand(600,800), 'this is random data')."""
-        return self._image.data
+        alpha intensity as image_data[:,:,3]."""
+        return None if self._image is None else self._image.data
 
     @image.setter
     def image(self, image_data):
-        if len(image_data) == 2 and type(image_data[2]) == str:
-            image = Image(image_data[0], image_data[1])
-        else:
-            image = Image(image_data, str(self._next_unnamed_image_idx))
-            self._next_unnamed_image_idx += 1
+        image = Image(image_data, str(self._next_image_idx))
+        self._next_image_idx += 1
         self.image_widget.image = image
         self.histogram_widget.image = image
         self._image = image
+        if self.auto_window_title_enabled:
+            self.setWindowTitle('RisWidget ({})'.format(image.name))
 
     @property
     def image_name(self):
         if self._image is not None:
             return self._image.name
+
+    @image_name.setter
+    def image_name(self, name):
+        if self._image is None:
+            raise ValueError('No current image to rename (assign image data to the .image property before assigning a name to the .image_name property).')
+        self._image.name = name
+        if self.auto_window_title_enabled:
+            self.setWindowTitle('RisWidget ({})'.format(image.name))
 
 if __name__ == '__main__':
     import sys

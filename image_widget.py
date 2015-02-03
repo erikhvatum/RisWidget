@@ -22,10 +22,9 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+from .canvas_widget import CanvasWidget
 import numpy
-from pathlib import Path
 from PyQt5 import Qt
-import sys
 
 class ImageWidgetScroller(Qt.QAbstractScrollArea):
     def __init__(self, parent, qsurface_format):
@@ -38,7 +37,7 @@ class ImageWidgetScroller(Qt.QAbstractScrollArea):
     def scrollContentsBy(dx, dy):
         self.image_widget.scroll_contents_by(dx, dy)
 
-class ImageWidget(Qt.QOpenGLWidget):
+class ImageWidget(CanvasWidget):
     _NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
         numpy.uint8  : Qt.QOpenGLTexture.UInt8,
         numpy.uint16 : Qt.QOpenGLTexture.UInt16,
@@ -55,60 +54,21 @@ class ImageWidget(Qt.QOpenGLWidget):
         'rgba': Qt.QOpenGLTexture.RGBA}
 
     def __init__(self, parent, qsurface_format):
-        super().__init__(parent)
+        super().__init__(parent, qsurface_format)
         self.setFormat(qsurface_format)
         self._image = None
         self._aspect_ratio = None
-        self._glfs = None
         self._glsl_prog_g = None
         self._glsl_prog_ga = None
         self._glsl_prog_rgb = None
         self._glsl_prog_rgba = None
         self._image_type_to_glsl_prog = None
         self._tex = None
-        self._quad_buffer = None
-        self._mvp = Qt.QMatrix4x4()
         self._frag_to_tex = Qt.QMatrix3x3()
-
-    def _build_shader_prog(self, desc, vert_fn, frag_fn):
-        source_dpath = Path(__file__).parent / 'shaders'
-        prog = Qt.QOpenGLShaderProgram(self)
-        if not prog.addShaderFromSourceFile(Qt.QOpenGLShader.Vertex, str(source_dpath / vert_fn)):
-            raise RuntimeError('Failed to compile vertex shader "{}" for ImageWidget {} shader program.'.format(vert_fn, desc))
-        if not prog.addShaderFromSourceFile(Qt.QOpenGLShader.Fragment, str(source_dpath / frag_fn)):
-            raise RuntimeError('Failed to compile fragment shader "{}" for ImageWidget {} shader program.'.format(frag_fn, desc))
-        if not prog.link():
-            raise RuntimeError('Failed to link ImageWidget {} shader program.'.format(desc))
-        return prog
-
-    def _make_quad_buffer(self):
-        self._quad_vao = Qt.QOpenGLVertexArrayObject()
-        self._quad_vao.create()
-        quad_vao_binder = Qt.QOpenGLVertexArrayObject.Binder(self._quad_vao)
-        quad = numpy.array([1.1, -1.1,
-                            -1.1, -1.1,
-                            -1.1, 1.1,
-                            1.1, 1.1], dtype=numpy.float32)
-        self._quad_buffer = Qt.QOpenGLBuffer(Qt.QOpenGLBuffer.VertexBuffer)
-        self._quad_buffer.create()
-        self._quad_buffer.bind()
-        self._quad_buffer.setUsagePattern(Qt.QOpenGLBuffer.StaticDraw)
-        self._quad_buffer.allocate(quad.ctypes.data, quad.nbytes)
+        self.setMinimumSize(Qt.QSize(100,100))
 
     def initializeGL(self):
-        # PyQt5 provides access to OpenGL functions up to OpenGL 2.0, but we have made a 2.1
-        # context.  QOpenGLContext.versionFunctions(..) will, by default, attempt to return
-        # a wrapper around QOpenGLFunctions2_1, which will fail, as there is no
-        # PyQt5._QOpenGLFunctions_2_1 implementation.  Therefore, we explicitly request 2.0
-        # functions, and any 2.1 calls that we want to make can not occur through self.glfs.
-        vp = Qt.QOpenGLVersionProfile()
-        vp.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
-        vp.setVersion(2, 0)
-        self._glfs = self.context().versionFunctions(vp)
-        if not self._glfs:
-            raise RuntimeError('Failed to retrieve OpenGL function bundle.')
-        if not self._glfs.initializeOpenGLFunctions():
-            raise RuntimeError('Failed to initialize OpenGL function bundle.')
+        self._init_glfs()
         self._glfs.glClearColor(0,0,0,1)
         self._glfs.glClearDepth(1)
         self._glsl_prog_g = self._build_shader_prog('g',
