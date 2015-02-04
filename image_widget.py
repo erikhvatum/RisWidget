@@ -23,21 +23,38 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from .canvas_widget import CanvasWidget
+import math
 import numpy
 from PyQt5 import Qt
 
 class ImageWidgetScroller(Qt.QAbstractScrollArea):
+    # It is necessary to derive this class rather than using QAbstractScrollArea directly (which would
+    # be consistent with how we make the frame and container dialog for HistogramWidget) because
+    # scrollContentsBy is a virtual function that must be overridden, not a signal that can be
+    # connected to any arbitrary function (such as ImageWidget._scroll_contents_by).
     def __init__(self, parent, qsurface_format):
         super().__init__(parent)
         self.setFrameShape(Qt.QFrame.StyledPanel)
         self.setFrameShadow(Qt.QFrame.Raised)
         self.image_widget = ImageWidget(self, qsurface_format)
-        self.setViewport(self.image_widget)
+        # If we did self.setViewport(self.image_widget) as the docs suggest, ImageWidgetScroller would
+        # intercept all events destined for image_widget (such as: paint, move, mouse click, etc).  That
+        # would allow tricky things like putting a widget with no scrolling knowledge in a scroller and
+        # effecting scrolling by modifying paint events before feeding them to the contained widget,
+        # and similarly offsetting incoming mouse clicks.  However, ImageWidget is kept apprised of scroll
+        # position and can handle its own events.
+        self.setLayout(Qt.QHBoxLayout())
+        self.layout().addWidget(self.image_widget)
 
-    def scrollContentsBy(dx, dy):
-        self.image_widget.scroll_contents_by(dx, dy)
+    def scrollContentsBy(self, dx, dy):
+        self.image_widget._scroll_contents_by(dx, dy)
 
 class ImageWidget(CanvasWidget):
+    _ZOOM_PRESETS = numpy.array((10, 5, 2, 1.5, 1, .75, .5, .25, .1))
+    _ZOOM_MIN_MAX = (.01, 10000.0)
+    _ZOOM_DEFAULT_PRESET_IDX = 4
+    _ZOOM_CLICK_SCALE_FACTOR = .25
+
     _NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
         numpy.uint8  : Qt.QOpenGLTexture.UInt8,
         numpy.uint16 : Qt.QOpenGLTexture.UInt16,
@@ -53,9 +70,9 @@ class ImageWidget(CanvasWidget):
         'rgb' : Qt.QOpenGLTexture.RGB,
         'rgba': Qt.QOpenGLTexture.RGBA}
 
-    def __init__(self, parent, qsurface_format):
-        super().__init__(parent, qsurface_format)
-        self.setFormat(qsurface_format)
+    def __init__(self, scroller, qsurface_format):
+        super().__init__(scroller, qsurface_format)
+        self._scroller = scroller
         self._image = None
         self._aspect_ratio = None
         self._glsl_prog_g = None
@@ -66,8 +83,13 @@ class ImageWidget(CanvasWidget):
         self._tex = None
         self._frag_to_tex = Qt.QMatrix3x3()
         self.setMinimumSize(Qt.QSize(100,100))
+        self._zoom_idx = self._ZOOM_DEFAULT_PRESET_IDX
+        self._custom_zoom = 0
+        self._zoom_to_fit = False
+        self._pan = Qt.QPoint()
 
     def initializeGL(self):
+        print('initializeGL')
         self._init_glfs()
         self._glfs.glClearColor(0,0,0,1)
         self._glfs.glClearDepth(1)
@@ -90,6 +112,7 @@ class ImageWidget(CanvasWidget):
         self._make_quad_buffer()
 
     def paintGL(self):
+        print('paintGL')
         self._glfs.glClear(self._glfs.GL_COLOR_BUFFER_BIT | self._glfs.GL_DEPTH_BUFFER_BIT)
         if self._image is not None:
             prog = self._image_type_to_glsl_prog[self._image.type]
@@ -113,10 +136,53 @@ class ImageWidget(CanvasWidget):
             prog.release()
 
     def resizeGL(self, x, y):
-        pass
+        print('w, h: {}, {}'.format(x, y))
+        self._update_scroller_ranges()
 
-    def scroll_contents_by(self, dx, dy):
-        pass
+    def _scroll_contents_by(self, dx, dy):
+        self._pan.setX(self._scroller.horizontalScrollBar().value())
+        self._pan.setY(self._scroller.verticalScrollBar().value())
+        self.update()
+
+    def _update_scroller_ranges(self):
+        if self._zoom_to_fit:
+            self.scroller.horizontalScrollBar().setRange(0,0)
+            self.scroller.verticalScrollBar().setRange(0,0)
+        else:
+            z = self._custom_zoom if self._zoom_idx == -1 else self._ZOOM_PRESETS[self._zoom_idx]
+            def do_axis(i, w, s, x):
+                i *= z
+                r = math.ceil(i - w)
+                r = 0 if r <= 0 else r / 2
+                if x:
+                    s.setRange(-math.floor(r), math.ceil(r))
+                else:
+                    s.setRange(-math.ceil(r), math.floor(r))
+                s.setPageStep(w)
+            im_sz = Qt.QSize() if self._image is None else self._image.size
+            v_sz = self.size()
+            do_axis(im_sz.width(), v_sz.width(), self._scroller.horizontalScrollBar(), True)
+            do_axis(im_sz.height(), v_sz.height(), self._scroller.verticalScrollBar(), False)
+
+    @property
+    def zoom_to_fit(self):
+        return self._zoom_to_fit
+
+    @zoom_to_fit.setter
+    def zoom_to_fit(self, zoom_to_fit):
+        self._zoom_to_fit = zoom_to_fit
+        self._update_scroller_ranges()
+        update()
+
+    @property
+    def custom_zoom(self):
+        return self._custom_zoom
+
+    @custom_zoom.setter
+    def custom_zoom(self, custom_zoom):
+        self._custom_zoom = custom_zoom
+        self._zoom_idx = -1
+        self.update()
 
     @property
     def image(self):
@@ -150,6 +216,7 @@ class ImageWidget(CanvasWidget):
                 self._tex.release()
                 self._image = image
                 self._aspect_ratio = image.size.width() / image.size.height()
-                self.update()
+            self._update_scroller_ranges()
+            self.update()
         finally:
             self.doneCurrent()

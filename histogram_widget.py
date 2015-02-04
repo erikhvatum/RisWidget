@@ -26,6 +26,9 @@ from .canvas_widget import CanvasWidget
 import numpy
 from PyQt5 import Qt
 
+class ScalarProp:
+    self._add_
+
 class HistogramWidget(CanvasWidget):
     _NUMPY_DTYPE_TO_LIMITS_AND_QUANT = {
         numpy.uint8  : (0, 256, 'd'),
@@ -55,6 +58,7 @@ class HistogramWidget(CanvasWidget):
     def __init__(self, parent, qsurface_format):
         super().__init__(parent, qsurface_format)
         self._image = None
+        self._scalar_props = {}
         self._make_control_widgets_pane()
 
     def _make_control_widgets_pane(self):
@@ -62,32 +66,39 @@ class HistogramWidget(CanvasWidget):
         layout = Qt.QGridLayout()
         self._control_widgets_pane.setLayout(layout)
         row_ref = [0]
-        self._add_scalar_prop_widgets('gamma_gamma', layout, row_ref, name_in_label='\u03b3\u03b3')
+        self._add_scalar_prop('gamma_gamma', layout, row_ref, name_in_label='\u03b3\u03b3')
         self._gamma_transform_checkbox = Qt.QCheckBox('Enable gamma transform')
         layout.addWidget(self._gamma_transform_checkbox, row_ref[0], 0, 1, -1)
         row_ref[0] += 1
         self._channel_control_widgets = []
-        self._add_scalar_prop_widgets('gamma', layout, row_ref, name_in_label='\u03b3')
-        self._add_scalar_prop_widgets('gamma', layout, row_ref, channel_name='red', name_in_label='\u03b3')
-        self._add_scalar_prop_widgets('gamma', layout, row_ref, channel_name='green', name_in_label='\u03b3')
-        self._add_scalar_prop_widgets('gamma', layout, row_ref, channel_name='blue', name_in_label='\u03b3')
-        self._add_scalar_prop_widgets('min', layout, row_ref)
-        self._add_scalar_prop_widgets('max', layout, row_ref)
-        self._add_scalar_prop_widgets('min', layout, row_ref, channel_name='red')
-        self._add_scalar_prop_widgets('max', layout, row_ref, channel_name='red')
-        self._add_scalar_prop_widgets('min', layout, row_ref, channel_name='green')
-        self._add_scalar_prop_widgets('max', layout, row_ref, channel_name='green')
-        self._add_scalar_prop_widgets('min', layout, row_ref, channel_name='blue')
-        self._add_scalar_prop_widgets('max', layout, row_ref, channel_name='blue')
+        self._add_scalar_prop('gamma', layout, row_ref, name_in_label='\u03b3')
+        self._add_scalar_prop('gamma', layout, row_ref, channel_name='red', name_in_label='\u03b3')
+        self._add_scalar_prop('gamma', layout, row_ref, channel_name='green', name_in_label='\u03b3')
+        self._add_scalar_prop('gamma', layout, row_ref, channel_name='blue', name_in_label='\u03b3')
+        self._add_scalar_prop('min', layout, row_ref)
+        self._add_scalar_prop('max', layout, row_ref)
+        self._add_scalar_prop('min', layout, row_ref, channel_name='red')
+        self._add_scalar_prop('max', layout, row_ref, channel_name='red')
+        self._add_scalar_prop('min', layout, row_ref, channel_name='green')
+        self._add_scalar_prop('max', layout, row_ref, channel_name='green')
+        self._add_scalar_prop('min', layout, row_ref, channel_name='blue')
+        self._add_scalar_prop('max', layout, row_ref, channel_name='blue')
         self._channel_control_widgets_visible = True
 
-    def _add_scalar_prop_widgets(self, name, layout, row_ref, channel_name=None, name_in_label=None):
+    def _add_scalar_prop(self, name, layout, row_ref, channel_name=None, name_in_label=None):
         attr_stem_str = '_' + name + '_'
         label_str = ''
 
-        if channel_name is not None:
+        if channel_name is None:
+            prop_str = name
+        else:
+            prop_str = channel_name + '_' + name
             attr_stem_str += channel_name + '_'
             label_str = channel_name.title() + ' '
+
+        if prop_str in self._scalar_props:
+            raise RuntimeError('Duplicate scalar property name...')
+        self._scalar_props[prop_str] = 1
 
         if name_in_label is None:
             label_str += name if label_str else name.title()
@@ -108,6 +119,13 @@ class HistogramWidget(CanvasWidget):
         setattr(self, attr_stem_str+'edit', edit)
         if channel_name is not None:
             self._channel_control_widgets += [label, slider, edit]
+
+    def __getattr__(self, name):
+        try:
+            return self._scalar_props[name]
+        except KeyError:
+            pass
+        raise AttributeError(name)
 
     def initializeGL(self):
         self._init_glfs()

@@ -48,6 +48,7 @@ class RisWidget(Qt.QMainWindow):
         self._init_views()
         self._next_image_idx = 0
         self.auto_window_title_enabled = True
+        self._image = None
 
     def _init_actions(self):
         pass
@@ -63,11 +64,11 @@ class RisWidget(Qt.QMainWindow):
         qsurface_format.setSwapBehavior(Qt.QSurfaceFormat.DoubleBuffer)
         qsurface_format.setStereo(False)
         qsurface_format.setSwapInterval(1)
-#       self.image_widget_scroller = image_widget.ImageWidgetScroller(self, qsurface_format)
-#       self.image_widget = self.image_widget_scroller.image_widget
-#       self.setCentralWidget(self.image_widget_scroller)
-        self.image_widget = image_widget.ImageWidget(self, qsurface_format)
-        self.setCentralWidget(self.image_widget)
+        self.image_widget_scroller = image_widget.ImageWidgetScroller(self, qsurface_format)
+        self.image_widget = self.image_widget_scroller.image_widget
+        self.setCentralWidget(self.image_widget_scroller)
+#       self.image_widget = image_widget.ImageWidget(self, qsurface_format)
+#       self.setCentralWidget(self.image_widget)
         self._histogram_dock_widget = Qt.QDockWidget('Histogram', self)
         self.histogram_widget, self._histogram_container_widget = histogram_widget.HistogramWidget.make_histogram_and_container_widgets(self._histogram_dock_widget, qsurface_format)
         self._histogram_dock_widget.setWidget(self._histogram_container_widget)
