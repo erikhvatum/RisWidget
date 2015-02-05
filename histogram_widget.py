@@ -49,6 +49,21 @@ class ScalarProp:
         ScalarProp.next_grid_row += 1
         self.values = {}
 
+    def __get__(self, histogram_widget, objtype=None):
+        if histogram_widget is None:
+            return self
+        return self.values[histogram_widget]
+
+    def __set__(self, histogram_widget, gamma):
+        if histogram_widget is None:
+            raise AttributeError("Can't set instance attribute of class.")
+        if gamma is None:
+            raise ValueError('None is not a valid {} value.'.format(self.name))
+        if gamma < self.RANGE[0] or gamma > self.RANGE[1]:
+            raise ValueError('Value supplied for {} must be in the range [{}, {}].'.format(self.name, self.RANGE[0], self.RANGE[1]))
+        widgets = self.widgets[histogram_widget]
+        widgets.slider.setValue(self._value_to_slider_raw(gamma))
+
     def instantiate(self, histogram_widget, layout):
         label_str = '' if self.channel_name is None else self.channel_name.title() + ' '
         if self.name_in_label is None:
@@ -103,21 +118,6 @@ class GammaProp(ScalarProp):
 
     def __init__(self, scalar_props, name, name_in_label=None, channel_name=None):
         super().__init__(scalar_props, name, name_in_label, channel_name)
-
-    def __get__(self, histogram_widget, objtype=None):
-        if histogram_widget is None:
-            return self
-        return self.values[histogram_widget]
-
-    def __set__(self, histogram_widget, gamma):
-        if histogram_widget is None:
-            raise AttributeError("Can't set instance attribute of class.")
-        if gamma is None:
-            raise ValueError('None is not a valid {} value.'.format(self.name))
-        if gamma < GammaProp.RANGE[0] or gamma > GammaProp.RANGE[1]:
-            raise ValueError('Value supplied for {} must be in the range [{}, {}].'.format(self.name, GammaProp.RANGE[0], GammaProp.RANGE[1]))
-        widgets = self.widgets[histogram_widget]
-        widgets.slider.setValue(self._value_to_slider_raw(gamma))
 
     def _slider_raw_to_value(self, raw):
         value = float(raw)
