@@ -72,6 +72,7 @@ class ImageWidget(CanvasWidget):
 
     def __init__(self, scroller, qsurface_format):
         super().__init__(scroller, qsurface_format)
+        self.histogram_widget = None
         self._scroller = scroller
         self._image = None
         self._aspect_ratio = None
@@ -89,7 +90,7 @@ class ImageWidget(CanvasWidget):
         self._pan = Qt.QPoint()
 
     def initializeGL(self):
-        print('initializeGL')
+#       print('initializeGL')
         self._init_glfs()
         self._glfs.glClearColor(0,0,0,1)
         self._glfs.glClearDepth(1)
@@ -112,7 +113,7 @@ class ImageWidget(CanvasWidget):
         self._make_quad_buffer()
 
     def paintGL(self):
-        print('paintGL')
+#       print('paintGL')
         self._glfs.glClear(self._glfs.GL_COLOR_BUFFER_BIT | self._glfs.GL_DEPTH_BUFFER_BIT)
         if self._image is not None:
             prog = self._image_type_to_glsl_prog[self._image.type]
@@ -129,6 +130,14 @@ class ImageWidget(CanvasWidget):
             self._frag_to_tex[1,1] = 1/self._image.size.height()
             prog.setUniformValue('frag_to_tex', self._frag_to_tex)
             prog.setUniformValue('mvp', self._mvp)
+            if self._image.is_grayscale:
+                prog.setUniformValue('gamma', self.histogram_widget.gamma)
+                prog.setUniformValue('intensity_rescale_min', 0)
+                prog.setUniformValue('intensity_rescale_range', 1)
+            else:
+                prog.setUniformValue('gammas', self.histogram_widget.gamma_red, self.histogram_widget.gamma_green, self.histogram_widget.gamma_blue)
+                prog.setUniformValue('intensity_rescale_mins', 0, 0, 0)
+                prog.setUniformValue('intensity_rescale_ranges', 1, 1, 1)
             self._glfs.glEnableClientState(self._glfs.GL_VERTEX_ARRAY)
             self._glfs.glDrawArrays(self._glfs.GL_TRIANGLE_FAN, 0, 4)
             self._tex.release()
@@ -136,7 +145,7 @@ class ImageWidget(CanvasWidget):
             prog.release()
 
     def resizeGL(self, x, y):
-        print('w, h: {}, {}'.format(x, y))
+#       print('w, h: {}, {}'.format(x, y))
         self._update_scroller_ranges()
 
     def _scroll_contents_by(self, dx, dy):

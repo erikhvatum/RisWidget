@@ -23,22 +23,31 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from .canvas_widget import CanvasWidget
-import collections
+import math
 import numpy
 from PyQt5 import Qt
 
-ScalarPropWidgets = collections.namedtuple('ScalarPropWidgets', ['label', 'slider', 'edit'])
+class ScalarPropWidgets:
+    def __init__(self, label, slider, edit, edit_validator):
+        self.label = label
+        self.slider = slider
+        self.edit = edit
+        self.edit_validator = edit_validator
 
 class ScalarProp:
-    def __init__(self, row, name, name_in_label=None, channel_name=None):
-        self.row = row
+    next_grid_row = 0
+
+    def __init__(self, scalar_props, name, name_in_label=None, channel_name=None):
         self.name = name
         self.name_in_label = name_in_label
         self.channel_name = channel_name
-        HistogramWidget._scalar_props.append(self)
+        scalar_props.append(self)
         self.widgets = {}
+        self.grid_row = ScalarProp.next_grid_row
+        ScalarProp.next_grid_row += 1
+        self.values = {}
 
-    def instantiate(self, histogram_widget, layout, row_ref):
+    def instantiate(self, histogram_widget, layout):
         label_str = '' if self.channel_name is None else self.channel_name.title() + ' '
 
         if self.name_in_label is None:
@@ -49,26 +58,97 @@ class ScalarProp:
 
         label = Qt.QLabel(label_str)
         slider = Qt.QSlider(Qt.Qt.Horizontal)
-        slider.setRange(0, 1048576)
+        label.setBuddy(slider)
         edit = Qt.QLineEdit()
-        layout.addWidget(label, row_ref[0], 0, Qt.Qt.AlignRight)
-        layout.addWidget(slider, row_ref[0], 1)
-        layout.addWidget(edit, row_ref[0], 2)
-        row_ref[0] += 1
-        self.widgets[histogram_widget] = ScalarPropWidgets(label, slider
+        layout.addWidget(label, self.grid_row, 0, Qt.Qt.AlignRight)
+        layout.addWidget(slider, self.grid_row, 1)
+        layout.addWidget(edit, self.grid_row, 2)
+        self.widgets[histogram_widget] = ScalarPropWidgets(label, slider, edit, None)
 
-        setattr(self, attr_stem_str+'label', label)
-        setattr(self, attr_stem_str+'slider', slider)
-        setattr(self, attr_stem_str+'edit', edit)
-#       if channel_name is not None:
-#           self._channel_control_widgets += [label, slider, edit]
-
+        if self.channel_name is not None:
+            histogram_widget._channel_control_widgets += [label, slider, edit]
 
 class GammaProp(ScalarProp):
-    def __get__(self, obj, objtype=None):
-        if obj is None:
+    SLIDER_RAW_RANGE = (0, 1.0e9)
+    SLIDER_RAW_RANGE_WIDTH = SLIDER_RAW_RANGE[1] - SLIDER_RAW_RANGE[0]
+    EXP2_RANGE = (-4, 2)
+    EXP2_RANGE_WIDTH = EXP2_RANGE[1] - EXP2_RANGE[0]
+    RANGE = tuple(map(lambda x:2**x, EXP2_RANGE))
+
+    def __init__(self, scalar_props, name, name_in_label=None, channel_name=None):
+        super().__init__(scalar_props, name, name_in_label, channel_name)
+
+    def instantiate(self, histogram_widget, layout):
+        super().instantiate(histogram_widget, layout)
+        self.values[histogram_widget] = None
+        widgets = self.widgets[histogram_widget]
+        widgets.edit_validator = Qt.QDoubleValidator(GammaProp.RANGE[0], GammaProp.RANGE[1], 6, histogram_widget)
+        widgets.edit.setValidator(widgets.edit_validator)
+        widgets.slider.setRange(*GammaProp.SLIDER_RAW_RANGE)
+        widgets.slider.valueChanged.connect(lambda raw: self._on_slider_value_changed(histogram_widget, raw))
+        widgets.edit.editingFinished.connect(lambda: self._on_edit_changed(histogram_widget))
+
+    def __get__(self, histogram_widget, objtype=None):
+        if histogram_widget is None:
             return self
-        return self.val
+        return self.values[histogram_widget]
+
+    def __set__(self, histogram_widget, gamma):
+        if histogram_widget is None:
+            raise AttributeError("Can't set instance attribute of class.")
+        if gamma is None:
+            raise ValueError('None is not a valid {} value.'.format(self.name))
+        if gamma < GammaProp.RANGE[0] or gamma > GammaProp.RANGE[1]:
+            raise ValueError('Value supplied for {} must be in the range [{}, {}].'.format(self.name, GammaProp.RANGE[0], GammaProp.RANGE[1]))
+        widgets = self.widgets[histogram_widget]
+        widgets.slider.setValue(self._gamma_to_slider_raw(gamma))
+
+    def _slider_raw_to_gamma(self, raw):
+        v = float(raw)
+        # Transform raw integer into linear floating point range (with gamma being 2 to the power of the linear value)
+        v -= GammaProp.SLIDER_RAW_RANGE[0]
+        v /= GammaProp.SLIDER_RAW_RANGE_WIDTH
+        v *= GammaProp.EXP2_RANGE_WIDTH
+        v += GammaProp.EXP2_RANGE[0]
+        # Transform to logarithmic scale
+        return 2**v
+
+    def _gamma_to_slider_raw(self, gamma):
+        # Transform gamma into linear floating point range
+        v = math.log2(gamma)
+        # Transform float into raw integer range
+        v -= GammaProp.EXP2_RANGE[0]
+        v /= GammaProp.EXP2_RANGE_WIDTH
+        v *= GammaProp.SLIDER_RAW_RANGE_WIDTH
+        v += GammaProp.SLIDER_RAW_RANGE[0]
+        return int(v)
+
+    def _on_slider_value_changed(self, histogram_widget, raw):
+        gamma = self._slider_raw_to_gamma(raw)
+        self.values[histogram_widget] = gamma
+        widgets = self.widgets[histogram_widget]
+        widgets.edit.setText('{:.6}'.format(gamma))
+        if histogram_widget._image is not None:
+            if self.name == 'gamma_gamma':
+                # Refresh the histogram when gamma scale (ie gamma gamma) changes
+                histogram_widget.update()
+            elif self.name == 'gamma':
+                if histogram_widget._image.is_grayscale:
+                    histogram_widget.gamma_or_min_max_changed.emit()
+                else:
+                    histogram_widget.gamma_red = gamma
+                    histogram_widget.gamma_green = gamma
+                    histogram_widget.gamma_blue = gamma
+            elif not histogram_widget._image.is_grayscale:
+                histogram_widget.gamma_or_min_max_changed.emit()
+
+    def _on_edit_changed(self, histogram_widget):
+        widgets = self.widgets[histogram_widget]
+        try:
+            gamma = float(widgets.edit.text())
+        except ValueError:
+            return
+        widgets.slider.setValue(self._gamma_to_slider_raw(gamma))
 
 class HistogramWidget(CanvasWidget):
     _NUMPY_DTYPE_TO_LIMITS_AND_QUANT = {
@@ -76,6 +156,14 @@ class HistogramWidget(CanvasWidget):
         numpy.uint16 : (0, 65535, 'd'),
         numpy.float32: (0, 1, 'c')}
     _scalar_props = []
+
+    gamma_or_min_max_changed = Qt.pyqtSignal()
+
+    gamma_gamma = GammaProp(_scalar_props, 'gamma_gamma', '\u03b3\u03b3')
+    gamma = GammaProp(_scalar_props, 'gamma', '\u03b3')
+    gamma_red = GammaProp(_scalar_props, 'gamma', '\u03b3', 'red')
+    gamma_green = GammaProp(_scalar_props, 'gamma', '\u03b3', 'green')
+    gamma_blue = GammaProp(_scalar_props, 'gamma', '\u03b3', 'blue')
 
     @classmethod
     def make_histogram_and_container_widgets(cls, parent, qsurface_format):
@@ -100,67 +188,23 @@ class HistogramWidget(CanvasWidget):
     def __init__(self, parent, qsurface_format):
         super().__init__(parent, qsurface_format)
         self._image = None
-        self._scalar_props = {}
         self._make_control_widgets_pane()
 
     def _make_control_widgets_pane(self):
         self._control_widgets_pane = Qt.QWidget(self)
         layout = Qt.QGridLayout()
         self._control_widgets_pane.setLayout(layout)
-        row_ref = [0]
-        self._add_scalar_prop('gamma_gamma', layout, row_ref, name_in_label='\u03b3\u03b3')
-        self._gamma_transform_checkbox = Qt.QCheckBox('Enable gamma transform')
-        layout.addWidget(self._gamma_transform_checkbox, row_ref[0], 0, 1, -1)
-        row_ref[0] += 1
         self._channel_control_widgets = []
-        self._add_scalar_prop('gamma', layout, row_ref, name_in_label='\u03b3')
-#       self._add_scalar_prop('gamma', layout, row_ref, channel_name='red', name_in_label='\u03b3')
-#       self._add_scalar_prop('gamma', layout, row_ref, channel_name='green', name_in_label='\u03b3')
-#       self._add_scalar_prop('gamma', layout, row_ref, channel_name='blue', name_in_label='\u03b3')
-        self._add_scalar_prop('min', layout, row_ref)
-        self._add_scalar_prop('max', layout, row_ref)
-#       self._add_scalar_prop('min', layout, row_ref, channel_name='red')
-#       self._add_scalar_prop('max', layout, row_ref, channel_name='red')
-#       self._add_scalar_prop('min', layout, row_ref, channel_name='green')
-#       self._add_scalar_prop('max', layout, row_ref, channel_name='green')
-#       self._add_scalar_prop('min', layout, row_ref, channel_name='blue')
-#       self._add_scalar_prop('max', layout, row_ref, channel_name='blue')
         self._channel_control_widgets_visible = True
-
-    def _add_scalar_prop(self, name, layout, row_ref, channel_name=None, name_in_label=None):
-        attr_stem_str = '_' + name + '_'
-        label_str = ''
-
-        if channel_name is None:
-            prop_str = name
-        else:
-            prop_str = channel_name + '_' + name
-            attr_stem_str += channel_name + '_'
-            label_str = channel_name.title() + ' '
-
-        if prop_str in self._scalar_props:
-            raise RuntimeError('Duplicate scalar property name...')
-        self._scalar_props[prop_str] = 1
-
-        if name_in_label is None:
-            label_str += name if label_str else name.title()
-        else:
-            label_str += name_in_label
-        label_str += ':'
-
-        label = Qt.QLabel(label_str)
-        slider = Qt.QSlider(Qt.Qt.Horizontal)
-        slider.setRange(0, 1048576)
-        edit = Qt.QLineEdit()
-        layout.addWidget(label, row_ref[0], 0, Qt.Qt.AlignRight)
-        layout.addWidget(slider, row_ref[0], 1)
-        layout.addWidget(edit, row_ref[0], 2)
-        row_ref[0] += 1
-        setattr(self, attr_stem_str+'label', label)
-        setattr(self, attr_stem_str+'slider', slider)
-        setattr(self, attr_stem_str+'edit', edit)
-#       if channel_name is not None:
-#           self._channel_control_widgets += [label, slider, edit]
+        for scalar_prop in HistogramWidget._scalar_props:
+            scalar_prop.instantiate(self, layout)
+        self.gamma_gamma = 1
+        self.gamma = 1
+        self.gamma_red = 1
+        self.gamma_green = 1
+        self.gamma_blue = 1
+#       self._gamma_transform_checkbox = Qt.QCheckBox('Enable gamma transform')
+#       layout.addWidget(self._gamma_transform_checkbox, row_ref[0], 0, 1, -1)
 
     def initializeGL(self):
         self._init_glfs()
@@ -184,20 +228,28 @@ class HistogramWidget(CanvasWidget):
     def resizeGL(self, x, y):
         pass
 
-    def _on_image_changed(image):
-#       if image is None or image.is_grayscale:
-#           self.channel_control_widgets_visible = False
-#       else:
-#           self.channel_control_widgets_visible = True
+    def _on_image_changed(self, image):
+        if image is None or image.is_grayscale:
+            self.channel_control_widgets_visible = False
+        else:
+            self.channel_control_widgets_visible = True
         self.update()
 
-#   @property
-#   def channel_control_widgets_visible(self):
-#       return self._channel_control_widgets_visible
-#
-#   @channel_control_widgets_visible.setter
-#   def channel_control_widgets_visible(self, visible):
-#       if visible != self._channel_control_widgets_visible:
-#           self._channel_control_widgets_visible = visible
-#           for widget in self._channel_control_widgets:
-#               widget.setVisible(visible)
+    def _notify_scalar_prop_change(self, scalar_prop_name):
+        if self._image is not None:
+            if scalar_prop_name == 'gamma_gamma':
+                # Refresh the histogram when gamma scale (ie gamma gamma) changes
+                    self.update()
+            elif scalar_prop_name in ('gamma', 'min', 'max') or not self._image.is_grayscale:
+                self.gamma_or_min_max_changed.emit()
+
+    @property
+    def channel_control_widgets_visible(self):
+        return self._channel_control_widgets_visible
+
+    @channel_control_widgets_visible.setter
+    def channel_control_widgets_visible(self, visible):
+        if visible != self._channel_control_widgets_visible:
+            self._channel_control_widgets_visible = visible
+            for widget in self._channel_control_widgets:
+                widget.setVisible(visible)

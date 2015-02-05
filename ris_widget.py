@@ -77,10 +77,12 @@ class RisWidget(Qt.QMainWindow):
         self.setCentralWidget(self.image_widget_scroller)
         self._histogram_dock_widget = Qt.QDockWidget('Histogram', self)
         self.histogram_widget, self._histogram_container_widget = histogram_widget.HistogramWidget.make_histogram_and_container_widgets(self._histogram_dock_widget, qsurface_format)
+        self.image_widget.histogram_widget = self.histogram_widget
         self._histogram_dock_widget.setWidget(self._histogram_container_widget)
         self._histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
         self._histogram_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
         self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self._histogram_dock_widget)
+        self.histogram_widget.gamma_or_min_max_changed.connect(self.image_widget.update)
 
     @property
     def image(self):
