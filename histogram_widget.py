@@ -23,17 +23,59 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from .canvas_widget import CanvasWidget
+import collections
 import numpy
 from PyQt5 import Qt
 
+ScalarPropWidgets = collections.namedtuple('ScalarPropWidgets', ['label', 'slider', 'edit'])
+
 class ScalarProp:
-    self._add_
+    def __init__(self, row, name, name_in_label=None, channel_name=None):
+        self.row = row
+        self.name = name
+        self.name_in_label = name_in_label
+        self.channel_name = channel_name
+        HistogramWidget._scalar_props.append(self)
+        self.widgets = {}
+
+    def instantiate(self, histogram_widget, layout, row_ref):
+        label_str = '' if self.channel_name is None else self.channel_name.title() + ' '
+
+        if self.name_in_label is None:
+            label_str += self.name if label_str else self.name.title()
+        else:
+            label_str += self.name_in_label
+        label_str += ':'
+
+        label = Qt.QLabel(label_str)
+        slider = Qt.QSlider(Qt.Qt.Horizontal)
+        slider.setRange(0, 1048576)
+        edit = Qt.QLineEdit()
+        layout.addWidget(label, row_ref[0], 0, Qt.Qt.AlignRight)
+        layout.addWidget(slider, row_ref[0], 1)
+        layout.addWidget(edit, row_ref[0], 2)
+        row_ref[0] += 1
+        self.widgets[histogram_widget] = ScalarPropWidgets(label, slider
+
+        setattr(self, attr_stem_str+'label', label)
+        setattr(self, attr_stem_str+'slider', slider)
+        setattr(self, attr_stem_str+'edit', edit)
+#       if channel_name is not None:
+#           self._channel_control_widgets += [label, slider, edit]
+
+
+class GammaProp(ScalarProp):
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+        return self.val
 
 class HistogramWidget(CanvasWidget):
     _NUMPY_DTYPE_TO_LIMITS_AND_QUANT = {
         numpy.uint8  : (0, 256, 'd'),
         numpy.uint16 : (0, 65535, 'd'),
         numpy.float32: (0, 1, 'c')}
+    _scalar_props = []
 
     @classmethod
     def make_histogram_and_container_widgets(cls, parent, qsurface_format):
@@ -72,17 +114,17 @@ class HistogramWidget(CanvasWidget):
         row_ref[0] += 1
         self._channel_control_widgets = []
         self._add_scalar_prop('gamma', layout, row_ref, name_in_label='\u03b3')
-        self._add_scalar_prop('gamma', layout, row_ref, channel_name='red', name_in_label='\u03b3')
-        self._add_scalar_prop('gamma', layout, row_ref, channel_name='green', name_in_label='\u03b3')
-        self._add_scalar_prop('gamma', layout, row_ref, channel_name='blue', name_in_label='\u03b3')
+#       self._add_scalar_prop('gamma', layout, row_ref, channel_name='red', name_in_label='\u03b3')
+#       self._add_scalar_prop('gamma', layout, row_ref, channel_name='green', name_in_label='\u03b3')
+#       self._add_scalar_prop('gamma', layout, row_ref, channel_name='blue', name_in_label='\u03b3')
         self._add_scalar_prop('min', layout, row_ref)
         self._add_scalar_prop('max', layout, row_ref)
-        self._add_scalar_prop('min', layout, row_ref, channel_name='red')
-        self._add_scalar_prop('max', layout, row_ref, channel_name='red')
-        self._add_scalar_prop('min', layout, row_ref, channel_name='green')
-        self._add_scalar_prop('max', layout, row_ref, channel_name='green')
-        self._add_scalar_prop('min', layout, row_ref, channel_name='blue')
-        self._add_scalar_prop('max', layout, row_ref, channel_name='blue')
+#       self._add_scalar_prop('min', layout, row_ref, channel_name='red')
+#       self._add_scalar_prop('max', layout, row_ref, channel_name='red')
+#       self._add_scalar_prop('min', layout, row_ref, channel_name='green')
+#       self._add_scalar_prop('max', layout, row_ref, channel_name='green')
+#       self._add_scalar_prop('min', layout, row_ref, channel_name='blue')
+#       self._add_scalar_prop('max', layout, row_ref, channel_name='blue')
         self._channel_control_widgets_visible = True
 
     def _add_scalar_prop(self, name, layout, row_ref, channel_name=None, name_in_label=None):
@@ -117,15 +159,8 @@ class HistogramWidget(CanvasWidget):
         setattr(self, attr_stem_str+'label', label)
         setattr(self, attr_stem_str+'slider', slider)
         setattr(self, attr_stem_str+'edit', edit)
-        if channel_name is not None:
-            self._channel_control_widgets += [label, slider, edit]
-
-    def __getattr__(self, name):
-        try:
-            return self._scalar_props[name]
-        except KeyError:
-            pass
-        raise AttributeError(name)
+#       if channel_name is not None:
+#           self._channel_control_widgets += [label, slider, edit]
 
     def initializeGL(self):
         self._init_glfs()
@@ -149,25 +184,20 @@ class HistogramWidget(CanvasWidget):
     def resizeGL(self, x, y):
         pass
 
-    @property
-    def channel_control_widgets_visible(self):
-        return self._channel_control_widgets_visible
-
-    @channel_control_widgets_visible.setter
-    def channel_control_widgets_visible(self, visible):
-        if visible != self._channel_control_widgets_visible:
-            self._channel_control_widgets_visible = visible
-            for widget in self._channel_control_widgets:
-                widget.setVisible(visible)
-
-    @property
-    def image(self):
-        return self._image
-
-    @image.setter
-    def image(self, image):
-        if image is None or image.is_grayscale:
-            self.channel_control_widgets_visible = False
-        else:
-            self.channel_control_widgets_visible = True
+    def _on_image_changed(image):
+#       if image is None or image.is_grayscale:
+#           self.channel_control_widgets_visible = False
+#       else:
+#           self.channel_control_widgets_visible = True
         self.update()
+
+#   @property
+#   def channel_control_widgets_visible(self):
+#       return self._channel_control_widgets_visible
+#
+#   @channel_control_widgets_visible.setter
+#   def channel_control_widgets_visible(self, visible):
+#       if visible != self._channel_control_widgets_visible:
+#           self._channel_control_widgets_visible = visible
+#           for widget in self._channel_control_widgets:
+#               widget.setVisible(visible)

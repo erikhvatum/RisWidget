@@ -164,32 +164,7 @@ class ImageWidget(CanvasWidget):
             do_axis(im_sz.width(), v_sz.width(), self._scroller.horizontalScrollBar(), True)
             do_axis(im_sz.height(), v_sz.height(), self._scroller.verticalScrollBar(), False)
 
-    @property
-    def zoom_to_fit(self):
-        return self._zoom_to_fit
-
-    @zoom_to_fit.setter
-    def zoom_to_fit(self, zoom_to_fit):
-        self._zoom_to_fit = zoom_to_fit
-        self._update_scroller_ranges()
-        update()
-
-    @property
-    def custom_zoom(self):
-        return self._custom_zoom
-
-    @custom_zoom.setter
-    def custom_zoom(self, custom_zoom):
-        self._custom_zoom = custom_zoom
-        self._zoom_idx = -1
-        self.update()
-
-    @property
-    def image(self):
-        return self._image
-
-    @image.setter
-    def image(self, image):
+    def _on_image_changed(self, image):
         try:
             self.makeCurrent()
             if self._image is not None and (image is None or self._image.size != image.size):
@@ -220,3 +195,23 @@ class ImageWidget(CanvasWidget):
             self.update()
         finally:
             self.doneCurrent()
+
+    @property
+    def zoom_to_fit(self):
+        return self._zoom_to_fit
+
+    @zoom_to_fit.setter
+    def zoom_to_fit(self, zoom_to_fit):
+        self._zoom_to_fit = zoom_to_fit
+        self._update_scroller_ranges()
+        update()
+
+    @property
+    def custom_zoom(self):
+        return self._custom_zoom
+
+    @custom_zoom.setter
+    def custom_zoom(self, custom_zoom):
+        self._custom_zoom = custom_zoom
+        self._zoom_idx = -1
+        self.update()

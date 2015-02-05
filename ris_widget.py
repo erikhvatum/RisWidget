@@ -32,6 +32,14 @@ from . import histogram_widget
 from .image import Image
 
 class RisWidget(Qt.QMainWindow):
+    # The image_changed signal is emitted when a new value is successfully assigned to the
+    # RisWidget.image property
+    image_changed = Qt.pyqtSignal()
+    # image_name_changed is emitted when a new value is successfully assigned to the RisWidget.image_name
+    # property (assignment to RisWidget.image implies an image name change, but does not result in
+    # image_name_changed signal emission).
+    image_name_changed = Qt.pyqtSignal(str)
+
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0)):
         super().__init__(parent, window_flags)
         if sys.platform == 'darwin': # workaround for https://bugreports.qt.io/browse/QTBUG-44230
@@ -67,8 +75,6 @@ class RisWidget(Qt.QMainWindow):
         self.image_widget_scroller = image_widget.ImageWidgetScroller(self, qsurface_format)
         self.image_widget = self.image_widget_scroller.image_widget
         self.setCentralWidget(self.image_widget_scroller)
-#       self.image_widget = image_widget.ImageWidget(self, qsurface_format)
-#       self.setCentralWidget(self.image_widget)
         self._histogram_dock_widget = Qt.QDockWidget('Histogram', self)
         self.histogram_widget, self._histogram_container_widget = histogram_widget.HistogramWidget.make_histogram_and_container_widgets(self._histogram_dock_widget, qsurface_format)
         self._histogram_dock_widget.setWidget(self._histogram_container_widget)
@@ -102,13 +108,19 @@ class RisWidget(Qt.QMainWindow):
 
     @image.setter
     def image(self, image_data):
-        image = Image(image_data, str(self._next_image_idx))
-        self._next_image_idx += 1
-        self.image_widget.image = image
-        self.histogram_widget.image = image
-        self._image = image
+        if image_data is None:
+            image = None
+            new_title = 'RisWidget'
+        else:
+            image = Image(image_data, str(self._next_image_idx))
+            self._next_image_idx += 1
+            self._image = image
+            new_title = 'RisWidget ({})'.format(image.name)
+        self.image_widget._on_image_changed(image)
+        self.histogram_widget._on_image_changed(image)
         if self.auto_window_title_enabled:
-            self.setWindowTitle('RisWidget ({})'.format(image.name))
+            self.setWindowTitle(new_title)
+        self.image_changed.emit()
 
     @property
     def image_name(self):
@@ -122,6 +134,7 @@ class RisWidget(Qt.QMainWindow):
         self._image.name = name
         if self.auto_window_title_enabled:
             self.setWindowTitle('RisWidget ({})'.format(image.name))
+        self.image_name_changed.emit(image.name)
 
 if __name__ == '__main__':
     import sys
