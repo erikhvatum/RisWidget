@@ -135,7 +135,7 @@ class GammaProp(ScalarProp):
             elif self.name == 'gamma':
                 if histogram_widget._image.is_grayscale:
                     histogram_widget.gamma_or_min_max_changed.emit()
-                else:
+                elif self.channel_name is None:
                     histogram_widget.gamma_red = gamma
                     histogram_widget.gamma_green = gamma
                     histogram_widget.gamma_blue = gamma
@@ -233,15 +233,8 @@ class HistogramWidget(CanvasWidget):
             self.channel_control_widgets_visible = False
         else:
             self.channel_control_widgets_visible = True
+        self._image = image
         self.update()
-
-    def _notify_scalar_prop_change(self, scalar_prop_name):
-        if self._image is not None:
-            if scalar_prop_name == 'gamma_gamma':
-                # Refresh the histogram when gamma scale (ie gamma gamma) changes
-                    self.update()
-            elif scalar_prop_name in ('gamma', 'min', 'max') or not self._image.is_grayscale:
-                self.gamma_or_min_max_changed.emit()
 
     @property
     def channel_control_widgets_visible(self):
