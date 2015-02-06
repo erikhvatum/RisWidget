@@ -31,8 +31,10 @@ class Image:
         self._name = name
 
         self._data = numpy.asarray(image_data, order='c')
-        if self._data.dtype not in (numpy.uint8, numpy.uint16, numpy.float32):
+        dt = self._data.dtype
+        if dt not in (numpy.uint8, numpy.uint16, numpy.float32):
             self._data = self._data.astype(numpy.float32)
+            dt = numpy.float32
 
         if self._data.ndim == 2:
             self._type = 'g'
@@ -50,6 +52,13 @@ class Image:
             raise ValueError('image_data argument must be a 2D (grayscale) or 3D (grayscale with alpha, rgb, or rgba) iterable.')
         self._size = Qt.QSize(self._data.shape[1], self._data.shape[0])
         self._is_grayscale = self._type in ('g', 'ga')
+
+        if dt == numpy.uint8:
+            self._range = (0, 255)
+        elif dt == numpy.uint16:
+            self._range = (0, 65535)
+        else:
+            self._range = tuple(self._min_max)
 
     @property
     def type(self):
@@ -74,6 +83,10 @@ class Image:
     @property
     def min_max(self):
         return self._min_max
+
+    @property
+    def range(self):
+        return self._range
 
     @property
     def size(self):

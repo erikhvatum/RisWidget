@@ -59,10 +59,11 @@ class ScalarProp:
             raise AttributeError("Can't set instance attribute of class.")
         if gamma is None:
             raise ValueError('None is not a valid {} value.'.format(self.name))
-        if gamma < self.RANGE[0] or gamma > self.RANGE[1]:
-            raise ValueError('Value supplied for {} must be in the range [{}, {}].'.format(self.name, self.RANGE[0], self.RANGE[1]))
+        range_ = self._get_range(histogram_widget)
+        if gamma < range_[0] or gamma > range_[1]:
+            raise ValueError('Value supplied for {} must be in the range [{}, {}].'.format(self.name, range_[0], range_[1]))
         widgets = self.widgets[histogram_widget]
-        widgets.slider.setValue(self._value_to_slider_raw(gamma))
+        widgets.slider.setValue(self._value_to_slider_raw(gamma, histogram_widget))
 
     def instantiate(self, histogram_widget, layout):
         label_str = '' if self.channel_name is None else self.channel_name.title() + ' '
@@ -84,19 +85,23 @@ class ScalarProp:
         if self.channel_name is not None:
             histogram_widget._channel_control_widgets += [label, slider, edit]
         self.values[histogram_widget] = None
-        edit_validator = Qt.QDoubleValidator(self.RANGE[0], self.RANGE[1], 6, histogram_widget)
+        range_ = self._get_range(histogram_widget)
+        edit_validator = Qt.QDoubleValidator(range_[0], range_[1], 6, histogram_widget)
         slider.setRange(*self.SLIDER_RAW_RANGE)
         slider.valueChanged.connect(lambda raw: self._on_slider_value_changed(histogram_widget, raw))
         edit.editingFinished.connect(lambda: self._on_edit_changed(histogram_widget))
 
-    def _slider_raw_to_value(self, raw):
+    def _slider_raw_to_value(self, raw, histogram_widget):
         raise NotImplementedError('Pure virtual method called.')
 
-    def _value_to_slider_raw(self, value):
+    def _value_to_slider_raw(self, value, histogram_widget):
+        raise NotImplementedError('Pure virtual method called.')
+
+    def _get_range(self, histogram_widget):
         raise NotImplementedError('Pure virtual method called.')
 
     def _on_slider_value_changed(self, histogram_widget, raw):
-        value = self._slider_raw_to_value(raw)
+        value = self._slider_raw_to_value(raw, histogram_widget)
         self.values[histogram_widget] = value
         self._on_value_changed(histogram_widget, value)
 
@@ -106,7 +111,7 @@ class ScalarProp:
             value = float(widgets.edit.text())
         except ValueError:
             return
-        widgets.slider.setValue(self._value_to_slider_raw(value))
+        widgets.slider.setValue(self._value_to_slider_raw(value, histogram_widget))
 
     def _on_value_changed(self, histogram_widget, value):
         pass
@@ -116,10 +121,7 @@ class GammaProp(ScalarProp):
     EXP2_RANGE_WIDTH = EXP2_RANGE[1] - EXP2_RANGE[0]
     RANGE = tuple(map(lambda x:2**x, EXP2_RANGE))
 
-    def __init__(self, scalar_props, name, name_in_label=None, channel_name=None):
-        super().__init__(scalar_props, name, name_in_label, channel_name)
-
-    def _slider_raw_to_value(self, raw):
+    def _slider_raw_to_value(self, raw, histogram_widget):
         value = float(raw)
         # Transform raw integer into linear floating point range (with gamma being 2 to the power of the linear value)
         value -= GammaProp.SLIDER_RAW_RANGE[0]
@@ -129,7 +131,7 @@ class GammaProp(ScalarProp):
         # Transform to logarithmic scale
         return 2**value
 
-    def _value_to_slider_raw(self, value):
+    def _value_to_slider_raw(self, value, histogram_widget):
         # Transform value into linear floating point range
         raw = math.log2(value)
         # Transform float into raw integer range
@@ -139,6 +141,9 @@ class GammaProp(ScalarProp):
         raw += GammaProp.SLIDER_RAW_RANGE[0]
         return int(raw)
 
+    def _get_range(self, histogram_widget):
+        return GammaProp.RANGE
+
     def _on_value_changed(self, histogram_widget, value):
         widgets = self.widgets[histogram_widget]
         widgets.edit.setText('{:.6}'.format(value))
@@ -146,13 +151,56 @@ class GammaProp(ScalarProp):
             if self.name == 'gamma_gamma':
                 # Refresh the histogram when gamma scale (ie gamma gamma) changes
                 histogram_widget.update()
-            elif self.name == 'gamma' and self.channel_name is None:
+            elif self.channel_name is None:
                 if histogram_widget._image.is_grayscale:
                     histogram_widget.gamma_or_min_max_changed.emit()
                 else:
                     histogram_widget.gamma_red = value
                     histogram_widget.gamma_green = value
                     histogram_widget.gamma_blue = value
+            elif not histogram_widget._image.is_grayscale:
+                histogram_widget.gamma_or_min_max_changed.emit()
+
+class MinMaxProp(ScalarProp):
+    def _slider_raw_to_value(self, raw, histogram_widget):
+        range_ = self._get_range(histogram_widget)
+        value = float(raw)
+        value -= MinMaxProp.SLIDER_RAW_RANGE[0]
+        value /= MinMaxProp.SLIDER_RAW_RANGE_WIDTH
+        value *= range_[1] - range_[0]
+        value += range_[0]
+        return value
+
+    def _value_to_slider_raw(self, value, histogram_widget):
+        range_ = self._get_range(histogram_widget)
+        raw = value - range_[0]
+        raw /= range_[1] - range_[0]
+        raw *= MinMaxProp.SLIDER_RAW_RANGE_WIDTH
+        raw += MinMaxProp.SLIDER_RAW_RANGE[0]
+        return int(raw)
+
+    def _get_range(self, histogram_widget):
+        if histogram_widget._image is None:
+            return (0, 1)
+        else:
+            return histogram_widget._image.range
+
+    def _on_value_changed(self, histogram_widget, value):
+        widgets = self.widgets[histogram_widget]
+        widgets.edit.setText('{:.6}'.format(value))
+        if histogram_widget._image is not None:
+            if self.channel_name is None:
+                if histogram_widget._image.is_grayscale:
+                    histogram_widget.gamma_or_min_max_changed.emit()
+                else:
+                    if self.name == 'min':
+                        histogram_widget.min_red = value
+                        histogram_widget.min_green = value
+                        histogram_widget.min_blue = value
+                    else:
+                        histogram_widget.max_red = value
+                        histogram_widget.max_green = value
+                        histogram_widget.max_blue = value
             elif not histogram_widget._image.is_grayscale:
                 histogram_widget.gamma_or_min_max_changed.emit()
 
@@ -170,6 +218,14 @@ class HistogramWidget(CanvasWidget):
     gamma_red = GammaProp(_scalar_props, 'gamma', '\u03b3', 'red')
     gamma_green = GammaProp(_scalar_props, 'gamma', '\u03b3', 'green')
     gamma_blue = GammaProp(_scalar_props, 'gamma', '\u03b3', 'blue')
+    max = MinMaxProp(_scalar_props, 'max')
+    min = MinMaxProp(_scalar_props, 'min')
+    max_red = MinMaxProp(_scalar_props, 'max', channel_name='red')
+    min_red = MinMaxProp(_scalar_props, 'min', channel_name='red')
+    max_green = MinMaxProp(_scalar_props, 'max', channel_name='green')
+    min_green = MinMaxProp(_scalar_props, 'min', channel_name='green')
+    max_blue = MinMaxProp(_scalar_props, 'max', channel_name='blue')
+    min_blue = MinMaxProp(_scalar_props, 'min', channel_name='blue')
 
     @classmethod
     def make_histogram_and_container_widgets(cls, parent, qsurface_format):
@@ -209,6 +265,14 @@ class HistogramWidget(CanvasWidget):
         self.gamma_red = 1
         self.gamma_green = 1
         self.gamma_blue = 1
+        self.min = 0
+        self.max = 1
+        self.min_red = 0
+        self.max_red = 1
+        self.min_green = 0
+        self.max_green = 1
+        self.min_blue = 0
+        self.max_blue = 1
 #       self._gamma_transform_checkbox = Qt.QCheckBox('Enable gamma transform')
 #       layout.addWidget(self._gamma_transform_checkbox, row_ref[0], 0, 1, -1)
 

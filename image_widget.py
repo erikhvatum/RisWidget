@@ -132,12 +132,17 @@ class ImageWidget(CanvasWidget):
             prog.setUniformValue('mvp', self._mvp)
             if self._image.is_grayscale:
                 prog.setUniformValue('gamma', self.histogram_widget.gamma)
-                prog.setUniformValue('intensity_rescale_min', 0)
-                prog.setUniformValue('intensity_rescale_range', 1)
+                min_max = numpy.array((self.histogram_widget.min, self.histogram_widget.max))
+                self._normalize_min_max(min_max)
+                prog.setUniformValue('intensity_rescale_min', min_max[0])
+                prog.setUniformValue('intensity_rescale_range', min_max[1] - min_max[0])
             else:
                 prog.setUniformValue('gammas', self.histogram_widget.gamma_red, self.histogram_widget.gamma_green, self.histogram_widget.gamma_blue)
-                prog.setUniformValue('intensity_rescale_mins', 0, 0, 0)
-                prog.setUniformValue('intensity_rescale_ranges', 1, 1, 1)
+                min_max = numpy.array(((self.histogram_widget.min_red, self.histogram_widget.min_green, self.histogram_widget.min_blue),
+                                       (self.histogram_widget.max_red, self.histogram_widget.max_green, self.histogram_widget.max_blue)))
+                self._normalize_min_max(min_max)
+                prog.setUniformValue('intensity_rescale_mins', *min_max[0])
+                prog.setUniformValue('intensity_rescale_ranges', *(min_max[1]-min_max[0]))
             self._glfs.glEnableClientState(self._glfs.GL_VERTEX_ARRAY)
             self._glfs.glDrawArrays(self._glfs.GL_TRIANGLE_FAN, 0, 4)
             self._tex.release()
@@ -204,6 +209,11 @@ class ImageWidget(CanvasWidget):
             self.update()
         finally:
             self.doneCurrent()
+
+    def _normalize_min_max(self, min_max):
+        r = self._image.range
+        min_max -= r[0]
+        min_max /= r[1] - r[0]
 
     @property
     def zoom_to_fit(self):
