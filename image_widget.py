@@ -131,18 +131,29 @@ class ImageWidget(CanvasWidget):
             prog.setUniformValue('frag_to_tex', self._frag_to_tex)
             prog.setUniformValue('mvp', self._mvp)
             if self._image.is_grayscale:
-                prog.setUniformValue('gamma', self.histogram_widget.gamma)
-                min_max = numpy.array((self.histogram_widget.min, self.histogram_widget.max))
+                if self.histogram_widget.rescale_enabled:
+                    gamma = self.histogram_widget.gamma
+                    min_max = numpy.array((self.histogram_widget.min, self.histogram_widget.max))
+                else:
+                    gamma = 1
+                    min_max = self._image.range
+                prog.setUniformValue('gamma', gamma)
                 self._normalize_min_max(min_max)
                 prog.setUniformValue('intensity_rescale_min', min_max[0])
                 prog.setUniformValue('intensity_rescale_range', min_max[1] - min_max[0])
             else:
-                prog.setUniformValue('gammas', self.histogram_widget.gamma_red, self.histogram_widget.gamma_green, self.histogram_widget.gamma_blue)
-                min_max = numpy.array(((self.histogram_widget.min_red, self.histogram_widget.min_green, self.histogram_widget.min_blue),
-                                       (self.histogram_widget.max_red, self.histogram_widget.max_green, self.histogram_widget.max_blue)))
-                self._normalize_min_max(min_max)
-                prog.setUniformValue('intensity_rescale_mins', *min_max[0])
-                prog.setUniformValue('intensity_rescale_ranges', *(min_max[1]-min_max[0]))
+                if self.histogram_widget.rescale_enabled:
+                    gammas = (self.histogram_widget.gamma_red, self.histogram_widget.gamma_green, self.histogram_widget.gamma_blue)
+                    min_maxs = numpy.array(((self.histogram_widget.min_red, self.histogram_widget.min_green, self.histogram_widget.min_blue),
+                                            (self.histogram_widget.max_red, self.histogram_widget.max_green, self.histogram_widget.max_blue)))
+                else:
+                    gammas = (1,1,1)
+                    min_max = self._image.range
+                    min_maxs = numpy.array((min_max,)*3).T
+                prog.setUniformValue('gammas', *gammas)
+                self._normalize_min_max(min_maxs)
+                prog.setUniformValue('intensity_rescale_mins', *min_maxs[0])
+                prog.setUniformValue('intensity_rescale_ranges', *(min_maxs[1]-min_maxs[0]))
             self._glfs.glEnableClientState(self._glfs.GL_VERTEX_ARRAY)
             self._glfs.glDrawArrays(self._glfs.GL_TRIANGLE_FAN, 0, 4)
             self._tex.release()
@@ -211,9 +222,10 @@ class ImageWidget(CanvasWidget):
             self.doneCurrent()
 
     def _normalize_min_max(self, min_max):
-        r = self._image.range
-        min_max -= r[0]
-        min_max /= r[1] - r[0]
+        if self._image.dtype != numpy.float32:
+            r = self._image.range
+            min_max -= r[0]
+            min_max /= r[1] - r[0]
 
     @property
     def zoom_to_fit(self):

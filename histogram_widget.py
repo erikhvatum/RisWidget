@@ -284,7 +284,17 @@ class HistogramWidget(CanvasWidget):
         self.max_green = 1
         self.min_blue = 0
         self.max_blue = 1
-#       self._gamma_transform_checkbox = Qt.QCheckBox('Enable gamma transform')
+        hlayout = Qt.QHBoxLayout()
+        layout.addLayout(hlayout, ScalarProp.next_grid_row, 0, 1, -1)
+        self._rescale_checkbox = Qt.QCheckBox('Rescale image')
+        self._rescale_checkbox.setTristate(False)
+        self._rescale_checkbox.setChecked(True)
+        self._rescale_enabled = True
+        self._rescale_checkbox.toggled.connect(self._on_rescale_checkbox_toggled)
+        hlayout.addWidget(self._rescale_checkbox)
+        hlayout.addItem(Qt.QSpacerItem(0, 0, Qt.QSizePolicy.MinimumExpanding, Qt.QSizePolicy.MinimumExpanding))
+        self._mouseover_info_label = Qt.QLabel()
+        hlayout.addWidget(self._mouseover_info_label)
 #       layout.addWidget(self._gamma_transform_checkbox, row_ref[0], 0, 1, -1)
 
     def initializeGL(self):
@@ -325,6 +335,9 @@ class HistogramWidget(CanvasWidget):
                 for min_max_prop in self._min_max_props.values():
                     min_max_prop.propagate_slider_value(self)
 
+    def _on_rescale_checkbox_toggled(self, checked):
+        self.rescale_enabled = checked
+
     @property
     def channel_control_widgets_visible(self):
         return self._channel_control_widgets_visible
@@ -335,3 +348,16 @@ class HistogramWidget(CanvasWidget):
             self._channel_control_widgets_visible = visible
             for widget in self._channel_control_widgets:
                 widget.setVisible(visible)
+
+    @property
+    def rescale_enabled(self):
+        return self._rescale_enabled
+
+    @rescale_enabled.setter
+    def rescale_enabled(self, rescale_enabled):
+        if self._rescale_enabled != rescale_enabled:
+            self._rescale_enabled = rescale_enabled
+            if self._rescale_checkbox.isChecked() != rescale_enabled:
+                self._rescale_checkbox.setChecked(rescale_enabled)
+            if self._image is not None:
+                self.gamma_or_min_max_changed.emit()
