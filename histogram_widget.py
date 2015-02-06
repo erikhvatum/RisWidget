@@ -205,10 +205,6 @@ class MinMaxProp(ScalarProp):
                 histogram_widget.gamma_or_min_max_changed.emit()
 
 class HistogramWidget(CanvasWidget):
-    _NUMPY_DTYPE_TO_LIMITS_AND_QUANT = {
-        numpy.uint8  : (0, 256, 'd'),
-        numpy.uint16 : (0, 65535, 'd'),
-        numpy.float32: (0, 1, 'c')}
     _scalar_props = []
 
     gamma_or_min_max_changed = Qt.pyqtSignal()
