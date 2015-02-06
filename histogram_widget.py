@@ -54,16 +54,17 @@ class ScalarProp:
             return self
         return self.values[histogram_widget]
 
-    def __set__(self, histogram_widget, gamma):
+    def __set__(self, histogram_widget, value):
         if histogram_widget is None:
             raise AttributeError("Can't set instance attribute of class.")
-        if gamma is None:
+        if value is None:
             raise ValueError('None is not a valid {} value.'.format(self.name))
         range_ = self._get_range(histogram_widget)
-        if gamma < range_[0] or gamma > range_[1]:
+        if value < range_[0] or value > range_[1]:
             raise ValueError('Value supplied for {} must be in the range [{}, {}].'.format(self.name, range_[0], range_[1]))
         widgets = self.widgets[histogram_widget]
-        widgets.slider.setValue(self._value_to_slider_raw(gamma, histogram_widget))
+        self.values[histogram_widget] = value
+        widgets.slider.setValue(self._value_to_slider_raw(value, histogram_widget))
 
     def instantiate(self, histogram_widget, layout):
         label_str = '' if self.channel_name is None else self.channel_name.title() + ' '
@@ -90,6 +91,12 @@ class ScalarProp:
         slider.setRange(*self.SLIDER_RAW_RANGE)
         slider.valueChanged.connect(lambda raw: self._on_slider_value_changed(histogram_widget, raw))
         edit.editingFinished.connect(lambda: self._on_edit_changed(histogram_widget))
+
+    def propagate_slider_value(self, histogram_widget):
+        widgets = self.widgets[histogram_widget]
+        value = self._slider_raw_to_value(widgets.slider.value(), histogram_widget)
+        widgets.edit.setText('{:.6}'.format(value))
+        self.values[histogram_widget] = value
 
     def _slider_raw_to_value(self, raw, histogram_widget):
         raise NotImplementedError('Pure virtual method called.')
@@ -162,6 +169,13 @@ class GammaProp(ScalarProp):
                 histogram_widget.gamma_or_min_max_changed.emit()
 
 class MinMaxProp(ScalarProp):
+    def __init__(self, scalar_props, min_max_props, name, name_in_label=None, channel_name=None):
+        super().__init__(scalar_props, name, name_in_label, channel_name)
+        attr_name = name
+        if channel_name is not None:
+            attr_name += '_' + channel_name
+        min_max_props[attr_name] = self
+
     def _slider_raw_to_value(self, raw, histogram_widget):
         range_ = self._get_range(histogram_widget)
         value = float(raw)
@@ -206,6 +220,7 @@ class MinMaxProp(ScalarProp):
 
 class HistogramWidget(CanvasWidget):
     _scalar_props = []
+    _min_max_props = {}
 
     gamma_or_min_max_changed = Qt.pyqtSignal()
 
@@ -214,14 +229,14 @@ class HistogramWidget(CanvasWidget):
     gamma_red = GammaProp(_scalar_props, 'gamma', '\u03b3', 'red')
     gamma_green = GammaProp(_scalar_props, 'gamma', '\u03b3', 'green')
     gamma_blue = GammaProp(_scalar_props, 'gamma', '\u03b3', 'blue')
-    max = MinMaxProp(_scalar_props, 'max')
-    min = MinMaxProp(_scalar_props, 'min')
-    max_red = MinMaxProp(_scalar_props, 'max', channel_name='red')
-    min_red = MinMaxProp(_scalar_props, 'min', channel_name='red')
-    max_green = MinMaxProp(_scalar_props, 'max', channel_name='green')
-    min_green = MinMaxProp(_scalar_props, 'min', channel_name='green')
-    max_blue = MinMaxProp(_scalar_props, 'max', channel_name='blue')
-    min_blue = MinMaxProp(_scalar_props, 'min', channel_name='blue')
+    max = MinMaxProp(_scalar_props, _min_max_props, 'max')
+    min = MinMaxProp(_scalar_props, _min_max_props, 'min')
+    max_red = MinMaxProp(_scalar_props, _min_max_props, 'max', channel_name='red')
+    min_red = MinMaxProp(_scalar_props, _min_max_props, 'min', channel_name='red')
+    max_green = MinMaxProp(_scalar_props, _min_max_props, 'max', channel_name='green')
+    min_green = MinMaxProp(_scalar_props, _min_max_props, 'min', channel_name='green')
+    max_blue = MinMaxProp(_scalar_props, _min_max_props, 'max', channel_name='blue')
+    min_blue = MinMaxProp(_scalar_props, _min_max_props, 'min', channel_name='blue')
 
     @classmethod
     def make_histogram_and_container_widgets(cls, parent, qsurface_format):
@@ -299,8 +314,16 @@ class HistogramWidget(CanvasWidget):
             self.channel_control_widgets_visible = False
         else:
             self.channel_control_widgets_visible = True
+        range_changed = (self._image is None or image is None) or self._image.range != image.range
         self._image = image
         self.update()
+        if range_changed:
+            if image is None or image.is_grayscale:
+                self._min_max_props['max'].propagate_slider_value(self)
+                self._min_max_props['min'].propagate_slider_value(self)
+            else:
+                for min_max_prop in self._min_max_props.values():
+                    min_max_prop.propagate_slider_value(self)
 
     @property
     def channel_control_widgets_visible(self):
