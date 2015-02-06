@@ -176,11 +176,18 @@ class MinMaxProp(ScalarProp):
             attr_name += '_' + channel_name
         min_max_props[attr_name] = self
 
+    def instantiate(self, histogram_widget, layout):
+        super().instantiate(histogram_widget, layout)
+        if self.name == 'min':
+            self.widgets[histogram_widget].slider.setInvertedAppearance(True)
+
     def _slider_raw_to_value(self, raw, histogram_widget):
         range_ = self._get_range(histogram_widget)
         value = float(raw)
         value -= MinMaxProp.SLIDER_RAW_RANGE[0]
         value /= MinMaxProp.SLIDER_RAW_RANGE_WIDTH
+        if self.name == 'min':
+            value = 1 - value
         value *= range_[1] - range_[0]
         value += range_[0]
         return value
@@ -189,6 +196,8 @@ class MinMaxProp(ScalarProp):
         range_ = self._get_range(histogram_widget)
         raw = value - range_[0]
         raw /= range_[1] - range_[0]
+        if self.name == 'min':
+            raw = 1 - raw
         raw *= MinMaxProp.SLIDER_RAW_RANGE_WIDTH
         raw += MinMaxProp.SLIDER_RAW_RANGE[0]
         return int(raw)
@@ -200,6 +209,14 @@ class MinMaxProp(ScalarProp):
             return histogram_widget._image.range
 
     def _on_value_changed(self, histogram_widget, value):
+        if not histogram_widget.allow_inversion:
+            is_min = self.name == 'min'
+            anti_attr = 'max' if is_min else 'min'
+            if self.channel_name is not None:
+                anti_attr += '_' + self.channel_name
+            anti_val = getattr(histogram_widget, anti_attr)
+            if is_min and value > anti_val or not is_min and value < anti_val:
+                setattr(histogram_widget, anti_attr, value)
         widgets = self.widgets[histogram_widget]
         widgets.edit.setText('{:.6}'.format(value))
         if histogram_widget._image is not None:
@@ -269,6 +286,7 @@ class HistogramWidget(CanvasWidget):
         self._control_widgets_pane.setLayout(layout)
         self._channel_control_widgets = []
         self._channel_control_widgets_visible = True
+        self._allow_inversion = True
         for scalar_prop in HistogramWidget._scalar_props:
             scalar_prop.instantiate(self, layout)
         self.gamma_gamma = 1
@@ -292,6 +310,12 @@ class HistogramWidget(CanvasWidget):
         self._rescale_enabled = True
         self._rescale_checkbox.toggled.connect(self._on_rescale_checkbox_toggled)
         hlayout.addWidget(self._rescale_checkbox)
+        self._allow_inversion_checkbox = Qt.QCheckBox('Allow inversion')
+        self._allow_inversion_checkbox.setTristate(False)
+        self._allow_inversion_checkbox.setChecked(False)
+        self._allow_inversion_checkbox.toggled.connect(self._on_allow_inversion_checkbox_toggled)
+        self._allow_inversion = False
+        hlayout.addWidget(self._allow_inversion_checkbox)
         hlayout.addItem(Qt.QSpacerItem(0, 0, Qt.QSizePolicy.MinimumExpanding, Qt.QSizePolicy.MinimumExpanding))
         self._mouseover_info_label = Qt.QLabel()
         hlayout.addWidget(self._mouseover_info_label)
@@ -334,9 +358,13 @@ class HistogramWidget(CanvasWidget):
             else:
                 for min_max_prop in self._min_max_props.values():
                     min_max_prop.propagate_slider_value(self)
+        self._correct_inversion()
 
     def _on_rescale_checkbox_toggled(self, checked):
         self.rescale_enabled = checked
+
+    def _on_allow_inversion_checkbox_toggled(self, checked):
+        self.allow_inversion = checked
 
     @property
     def channel_control_widgets_visible(self):
@@ -361,3 +389,27 @@ class HistogramWidget(CanvasWidget):
                 self._rescale_checkbox.setChecked(rescale_enabled)
             if self._image is not None:
                 self.gamma_or_min_max_changed.emit()
+
+    def _correct_inversion(self):
+        if not self._allow_inversion:
+            if self.max < self.min:
+                self.max = self.min
+            if self._image is not None and not self._image.is_grayscale:
+                if self.max_red < self.min_red:
+                    self.max_red = self.min_red
+                if self.max_green < self.min_green:
+                    self.max_green = self.min_green
+                if self.max_blue < self.min_blue:
+                    self.max_blue = self.min_blue
+
+    @property
+    def allow_inversion(self):
+        return self._allow_inversion
+
+    @allow_inversion.setter
+    def allow_inversion(self, allow_inversion):
+        if self._allow_inversion != allow_inversion:
+            self._allow_inversion = allow_inversion
+            if self._allow_inversion_checkbox.isChecked() != allow_inversion:
+                self._allow_inversion_checkbox.setChecked(allow_inversion)
+            self._correct_inversion()
