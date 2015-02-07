@@ -371,6 +371,18 @@ class HistogramWidget(CanvasWidget):
             txt = '                          '
         self._mouseover_info_label.setText(txt)
 
+    def _correct_inversion(self):
+        if not self._allow_inversion:
+            if self.max < self.min:
+                self.max = self.min
+            if self._image is not None and not self._image.is_grayscale:
+                if self.max_red < self.min_red:
+                    self.max_red = self.min_red
+                if self.max_green < self.min_green:
+                    self.max_green = self.min_green
+                if self.max_blue < self.min_blue:
+                    self.max_blue = self.min_blue
+
     @property
     def channel_control_widgets_visible(self):
         return self._channel_control_widgets_visible
@@ -395,18 +407,6 @@ class HistogramWidget(CanvasWidget):
             if self._image is not None:
                 self.gamma_or_min_max_changed.emit()
 
-    def _correct_inversion(self):
-        if not self._allow_inversion:
-            if self.max < self.min:
-                self.max = self.min
-            if self._image is not None and not self._image.is_grayscale:
-                if self.max_red < self.min_red:
-                    self.max_red = self.min_red
-                if self.max_green < self.min_green:
-                    self.max_green = self.min_green
-                if self.max_blue < self.min_blue:
-                    self.max_blue = self.min_blue
-
     @property
     def allow_inversion(self):
         return self._allow_inversion
@@ -418,3 +418,8 @@ class HistogramWidget(CanvasWidget):
             if self._allow_inversion_checkbox.isChecked() != allow_inversion:
                 self._allow_inversion_checkbox.setChecked(allow_inversion)
             self._correct_inversion()
+
+    @property
+    def histogram(self):
+        if self._image is not None:
+            return self._image.histogram.copy()
