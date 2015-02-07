@@ -26,6 +26,7 @@ from .canvas_widget import CanvasWidget
 import math
 import numpy
 from PyQt5 import Qt
+import sys
 
 class ScalarPropWidgets:
     def __init__(self, label, slider, edit, edit_validator):
@@ -286,7 +287,7 @@ class HistogramWidget(CanvasWidget):
         self._control_widgets_pane.setLayout(layout)
         self._channel_control_widgets = []
         self._channel_control_widgets_visible = True
-        self._allow_inversion = True
+        self._allow_inversion = True # Set to True during initialization for convenience...
         for scalar_prop in HistogramWidget._scalar_props:
             scalar_prop.instantiate(self, layout)
         self.gamma_gamma = 1
@@ -314,12 +315,11 @@ class HistogramWidget(CanvasWidget):
         self._allow_inversion_checkbox.setTristate(False)
         self._allow_inversion_checkbox.setChecked(False)
         self._allow_inversion_checkbox.toggled.connect(self._on_allow_inversion_checkbox_toggled)
-        self._allow_inversion = False
+        self._allow_inversion = False # ... and, enough stuff has been initialized that this can now be set to False without trouble
         hlayout.addWidget(self._allow_inversion_checkbox)
         hlayout.addItem(Qt.QSpacerItem(0, 0, Qt.QSizePolicy.MinimumExpanding, Qt.QSizePolicy.MinimumExpanding))
         self._mouseover_info_label = Qt.QLabel()
         hlayout.addWidget(self._mouseover_info_label)
-#       layout.addWidget(self._gamma_transform_checkbox, row_ref[0], 0, 1, -1)
 
     def initializeGL(self):
         self._init_glfs()
@@ -365,6 +365,11 @@ class HistogramWidget(CanvasWidget):
 
     def _on_allow_inversion_checkbox_toggled(self, checked):
         self.allow_inversion = checked
+
+    def _on_request_mouseover_info_status_text_change(self, txt):
+        if sys.platform == 'darwin' and txt is None: # Workaround for gui cheese bug
+            txt = '                          '
+        self._mouseover_info_label.setText(txt)
 
     @property
     def channel_control_widgets_visible(self):

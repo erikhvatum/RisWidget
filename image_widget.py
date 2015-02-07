@@ -90,7 +90,6 @@ class ImageWidget(CanvasWidget):
         self._pan = Qt.QPoint()
 
     def initializeGL(self):
-#       print('initializeGL')
         self._init_glfs()
         self._glfs.glClearColor(0,0,0,1)
         self._glfs.glClearDepth(1)
@@ -113,7 +112,6 @@ class ImageWidget(CanvasWidget):
         self._make_quad_buffer()
 
     def paintGL(self):
-#       print('paintGL')
         self._glfs.glClear(self._glfs.GL_COLOR_BUFFER_BIT | self._glfs.GL_DEPTH_BUFFER_BIT)
         if self._image is not None:
             prog = self._image_type_to_glsl_prog[self._image.type]
@@ -161,8 +159,25 @@ class ImageWidget(CanvasWidget):
             prog.release()
 
     def resizeGL(self, x, y):
-#       print('w, h: {}, {}'.format(x, y))
         self._update_scroller_ranges()
+
+    def mouseMoveEvent(self, event):
+        if self._image is not None:
+            pos = event.pos()
+            x_in_image = pos.x() < self._image.size.width() and pos.x() >= 0
+            y_in_image = pos.y() < self._image.size.height() and pos.y() >= 0
+            mst = 'x:{} y:{} '.format(pos.x() if x_in_image else '-', pos.y() if y_in_image else '-')
+            image_type = self._image.type
+            vt = '(' + ' '.join((c + ':{}' for c in image_type)) + ')'
+            if x_in_image and y_in_image:
+                if len(image_type) == 1:
+                    vt = vt.format(self._image.data[pos.y(), pos.x()])
+                else:
+                    vt = vt.format(*self._image.data[pos.y(), pos.x()])
+                mst += vt
+            else:
+                mst += vt.format(*('-' * len(image_type)))
+            self.request_mouseover_info_status_text_change.emit(mst)
 
     def _scroll_contents_by(self, dx, dy):
         self._pan.setX(self._scroller.horizontalScrollBar().value())

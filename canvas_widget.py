@@ -43,12 +43,20 @@ class CanvasWidget(Qt.QOpenGLWidget):
         'rgb' : Qt.QOpenGLTexture.RGB,
         'rgba': Qt.QOpenGLTexture.RGBA}
 
+    request_mouseover_info_status_text_change = Qt.pyqtSignal(object)
+
     def __init__(self, parent, qsurface_format):
         super().__init__(parent)
         self.setFormat(qsurface_format)
+        self.setMouseTracking(True)
         self._glfs = None
         self._quad_buffer = None
         self._mvp = Qt.QMatrix4x4()
+
+    def event(self, event):
+        if event.type() == Qt.QEvent.Leave:
+            self.request_mouseover_info_status_text_change.emit(None)
+        return super().event(event)
 
     def _init_glfs(self):
         # PyQt5 provides access to OpenGL functions up to OpenGL 2.0, but we have made a 2.1

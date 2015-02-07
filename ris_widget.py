@@ -83,6 +83,8 @@ class RisWidget(Qt.QMainWindow):
         self._histogram_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
         self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self._histogram_dock_widget)
         self.histogram_widget.gamma_or_min_max_changed.connect(self.image_widget.update)
+        self.histogram_widget.request_mouseover_info_status_text_change.connect(self.histogram_widget._on_request_mouseover_info_status_text_change)
+        self.image_widget.request_mouseover_info_status_text_change.connect(self.histogram_widget._on_request_mouseover_info_status_text_change)
 
     @property
     def image(self):
