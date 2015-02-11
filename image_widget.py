@@ -38,15 +38,6 @@ class ImageWidgetScroller(Qt.QAbstractScrollArea):
         self.setFrameShadow(Qt.QFrame.Raised)
         self.image_widget = ImageWidget(self, qsurface_format)
         self.image_widget.show()
-#       self.setViewport(self.image_widget)
-        # If we did self.setViewport(self.image_widget) as the docs suggest, ImageWidgetScroller would
-        # intercept all events destined for image_widget (such as: paint, move, mouse click, etc).  That
-        # would allow tricky things like putting a widget with no scrolling knowledge in a scroller and
-        # effecting scrolling by modifying paint events before feeding them to the contained widget,
-        # and similarly offsetting incoming mouse clicks.  However, ImageWidget is kept apprised of scroll
-        # position and can handle its own events.
-#       self.setLayout(Qt.QHBoxLayout())
-#       self.layout().addWidget(self.image_widget)
 
     def scrollContentsBy(self, dx, dy):
         self.image_widget._scroll_contents_by(dx, dy)
@@ -56,10 +47,12 @@ class ImageWidgetScroller(Qt.QAbstractScrollArea):
         self.image_widget.setGeometry(0, 0, s.width(), s.height())
 
 class ImageWidget(CanvasWidget):
-    _ZOOM_PRESETS = numpy.array((10, 5, 2, 1.5, 1, .75, .5, .25, .1))
+    _ZOOM_PRESETS = numpy.array((10, 5, 2, 1.5, 1, .75, .5, .25, .1), dtype=numpy.float64)
     _ZOOM_MIN_MAX = (.01, 10000.0)
     _ZOOM_DEFAULT_PRESET_IDX = 4
     _ZOOM_CLICK_SCALE_FACTOR = .25
+
+    zoom_changed = Qt.pyqtSignal(int, float)
 
     def __init__(self, scroller, qsurface_format):
         super().__init__(scroller, qsurface_format)
@@ -73,9 +66,9 @@ class ImageWidget(CanvasWidget):
         self._glsl_prog_rgba = None
         self._image_type_to_glsl_prog = None
         self._tex = None
-        self._frag_to_tex = Qt.QMatrix3x3()
+        self._frag_to_tex = Qt.QTransform()
         self.setMinimumSize(Qt.QSize(100,100))
-        self._zoom_idx = self._ZOOM_DEFAULT_PRESET_IDX
+        self._zoom_preset_idx = self._ZOOM_DEFAULT_PRESET_IDX
         self._custom_zoom = 0
         self._zoom_to_fit = False
         self._pan = Qt.QPoint()
@@ -106,29 +99,29 @@ class ImageWidget(CanvasWidget):
         self._glfs.glClear(self._glfs.GL_COLOR_BUFFER_BIT | self._glfs.GL_DEPTH_BUFFER_BIT)
         if self._image is not None:
             view_size = self.size()
-            mvp = Qt.QMatrix4x4()
-            if True:# zoom_to_fit:
+            image_size = self._image.size
+            # Desired image rect in terms of Qt local widget coordinates is t applied to r
+            r = Qt.QPolygonF((Qt.QPointF(0, 0),
+                              Qt.QPointF(image_size.width(), 0),
+                              Qt.QPointF(image_size.width(), image_size.height()),
+                              Qt.QPointF(0, image_size.height())))
+            t = Qt.QTransform()
+            if self._zoom_to_fit:
                 view_aspect_ratio = view_size.width() / view_size.height()
-                correction_factor = self._image_aspect_ratio / view_aspect_ratio
-                if correction_factor <= 1:
-                    mvp.scale(correction_factor, 1, 1)
-                    zoom_factor = view_size.height() / self._image.size.height()
-                    self._frag_to_tex = numpy.array(((1,0,-(view_size.width() - zoom_factor * self._image.size.width()) / 2),
-                                                     (0,1,0),
-                                                     (0,0,1)))
+                image_to_view_ratio = self._image_aspect_ratio / view_aspect_ratio
+                if image_to_view_ratio <= 1:
+                    # Image is proportionally taller than the viewport and will be scaled such that the image
+                    # fills the viewport vertically and is centered horizontally
+                    zoom_factor = view_size.height() / image_size.height()
+                    t.translate((view_size.width() - zoom_factor*image_size.width()) / 2, 0)
                 else:
-                    mvp.scale(1, 1/correction_factor, 1)
-                    zoom_factor = view_size.width() / self._image.size.width()
-                    self._frag_to_tex = numpy.array(((1,0,0),
-                                                     (0,1,(view_size.height() - zoom_factor * self._image.size.height()) / 2),
-                                                     (0,0,1)))
-                self._frag_to_tex = numpy.dot(numpy.array(((1,0,0),
-                                                           (0,1,0),
-                                                           (0,0,zoom_factor))), self._frag_to_tex)
-            self._frag_to_tex = numpy.dot(numpy.array(((1/self._image.size.width(),0,0),
-                                                       (0,1/self._image.size.height(),0),
-                                                       (0,0,1))),
-                                                       numpy.dot(self._frag_to_tex, numpy.array(((1,0,0),(0,-1,self._image.size.height()*zoom_factor),(0,0,1)))))
+                    # Image is proportionally wider than the viewport and will be scaled such that the image
+                    # fills the viewport horizontally and is centered vertically
+                    zoom_factor = view_size.width() / image_size.width()
+                    t.translate(0, (view_size.height() - zoom_factor*image_size.height()) / 2)
+                t.scale(zoom_factor, zoom_factor)
+            if not Qt.QTransform.quadToSquare(t.map(r), self._frag_to_tex):
+                raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix.')
             prog = self._image_type_to_glsl_prog[self._image.type]
             prog.bind()
             self._quad_buffer.bind()
@@ -138,8 +131,7 @@ class ImageWidget(CanvasWidget):
             prog.enableAttributeArray(vert_coord_loc)
             prog.setAttributeBuffer(vert_coord_loc, self._glfs.GL_FLOAT, 0, 2, 0)
             prog.setUniformValue('tex', 0)
-            prog.setUniformValue('frag_to_tex', Qt.QMatrix3x3([float(f) for f in self._frag_to_tex.flatten()]))
-            prog.setUniformValue('mvp', mvp)
+            prog.setUniformValue('frag_to_tex', self._frag_to_tex)
             if self._image.is_grayscale:
                 if self.histogram_widget.rescale_enabled:
                     gamma = self.histogram_widget.gamma
@@ -198,10 +190,10 @@ class ImageWidget(CanvasWidget):
 
     def _update_scroller_ranges(self):
         if self._zoom_to_fit:
-            self.scroller.horizontalScrollBar().setRange(0,0)
-            self.scroller.verticalScrollBar().setRange(0,0)
+            self._scroller.horizontalScrollBar().setRange(0,0)
+            self._scroller.verticalScrollBar().setRange(0,0)
         else:
-            z = self._custom_zoom if self._zoom_idx == -1 else self._ZOOM_PRESETS[self._zoom_idx]
+            z = self._custom_zoom if self._zoom_preset_idx == -1 else self._ZOOM_PRESETS[self._zoom_preset_idx]
             def do_axis(i, w, s, x):
                 i *= z
                 r = math.ceil(i - w)
@@ -229,7 +221,7 @@ class ImageWidget(CanvasWidget):
                     self._tex.setFormat(desired_texture_format)
                     self._tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
                     self._tex.setAutoMipMapGenerationEnabled(True)
-                    self._tex.setSize(image.size.height(), image.size.width(), 1)
+                    self._tex.setSize(image.size.width(), image.size.height(), 1)
                     self._tex.setMipLevels(4)
                     self._tex.allocateStorage()
                 self._tex.setMinMagFilters(Qt.QOpenGLTexture.LinearMipMapLinear, Qt.QOpenGLTexture.Nearest)
@@ -262,7 +254,7 @@ class ImageWidget(CanvasWidget):
     def zoom_to_fit(self, zoom_to_fit):
         self._zoom_to_fit = zoom_to_fit
         self._update_scroller_ranges()
-        update()
+        self.update()
 
     @property
     def custom_zoom(self):
@@ -271,5 +263,19 @@ class ImageWidget(CanvasWidget):
     @custom_zoom.setter
     def custom_zoom(self, custom_zoom):
         self._custom_zoom = custom_zoom
-        self._zoom_idx = -1
+        self._zoom_preset_idx = -1
+        self._update_scroller_ranges()
+        self.zoom_changed.emit(self._zoom_preset_idx, self._custom_zoom)
+        self.update()
+
+    @property
+    def zoom_preset_idx(self):
+        return self._zoom_preset_idx
+
+    @zoom_preset_idx.setter
+    def zoom_preset_idx(self, idx):
+        if idx < 0 or idx >= ImageWidget._ZOOM_PRESETS.shape[0]:
+            raise ValueError('idx must be in the range [0, {}).'.format(ImageWidget._ZOOM_PRESETS.shape[0]))
+        self._update_scroller_ranges()
+        self.zoom_changed.emit(self._zoom_preset_idx, self._custom_zoom)
         self.update()
