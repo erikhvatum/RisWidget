@@ -27,30 +27,38 @@ from pyagg import fast_hist
 from PyQt5 import Qt
 
 class Image:
-    def __init__(self, image_data, name):
-        self._name = name
-
-        self._data = numpy.asarray(image_data, order='c')
-        dt = self._data.dtype
+    def __init__(self, data, name=None, is_twelve_bit=False):
+        self._data = numpy.asarray(data)
+        self._is_twelve_bit = is_twelve_bit
+        dt = self._data.dtype.type
         if dt not in (numpy.uint8, numpy.uint16, numpy.float32):
             self._data = self._data.astype(numpy.float32)
             dt = numpy.float32
 
         if self._data.ndim == 2:
+            self._data = numpy.asfortranarray(self._data)
             self._type = 'g'
-            self._histogram, self._min_max = fast_hist.histogram_and_min_max(self._data)
+            hret = fast_hist.histogram(self._data, self._is_twelve_bit)
+            self._histogram = hret.histogram
+            self._max_histogram_bin = hret.max_bin
         elif self._data.ndim == 3:
             self._type = {2: 'ga', 3: 'rgb', 4: 'rgba'}.get(self._data.shape[2])
             if self._type is None:
                 e = '3D iterable supplied for image_data argument must be either MxNx2 (grayscale with alpha), '
                 e+= 'MxNx3 (rgb), or MxNx4 (rgba).'
                 raise ValueError(e)
-            hmms = numpy.array([fast_hist.histogram_and_min_max(self._data[...,channel_idx]) for channel_idx in range(self._data.shape[2])])
-            self._histogram = numpy.vstack(hmms[:,0])
-            self._min_max = numpy.vstack(hmms[:,1])
+            bpe = self._data.itemsize
+            desired_strides = (self._data.shape[2]*bpe, self._data.shape[0]*self._data.shape[2]*bpe, bpe)
+            if desired_strides != self._data.strides:
+                d = self._data
+                self._data = numpy.ndarray(d.shape, strides=desired_strides, dtype=d.dtype.type)
+                self._data.flat = d.flat
+            hrets = [fast_hist.histogram(self._data[...,channel_idx], is_twelve_bit) for channel_idx in range(self._data.shape[2])]
+            self._histogram = numpy.vstack((hret.histogram for hret in hrets))
+            self._min_max = numpy.vstack(((hret.min_intensity, hret.max_intensity) for hret in hrets))
         else:
             raise ValueError('image_data argument must be a 2D (grayscale) or 3D (grayscale with alpha, rgb, or rgba) iterable.')
-        self._size = Qt.QSize(self._data.shape[1], self._data.shape[0])
+        self._size = Qt.QSize(self._data.shape[0], self._data.shape[1])
         self._is_grayscale = self._type in ('g', 'ga')
 
         if dt == numpy.uint8:
@@ -69,16 +77,20 @@ class Image:
         return self._data.dtype.type
 
     @property
+    def strides(self):
+        return self._data.strides
+
+    @property
     def data(self):
         return self._data
 
     @property
-    def name(self):
-        return self._name
-
-    @property
     def histogram(self):
         return self._histogram
+
+    @property
+    def max_histogram_bin(self):
+        return self._max_histogram_bin
 
     @property
     def min_max(self):
@@ -95,3 +107,7 @@ class Image:
     @property
     def is_grayscale(self):
         return self._is_grayscale
+
+    @property
+    def is_twelve_bit(self):
+        return self._is_twelve_bit

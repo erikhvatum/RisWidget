@@ -24,7 +24,6 @@
 //  
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-uniform mat4 mvp;
 uniform uint bin_count;
 uniform float bin_scale;
 uniform float gamma_gamma;

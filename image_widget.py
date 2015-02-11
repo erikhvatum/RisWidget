@@ -37,17 +37,23 @@ class ImageWidgetScroller(Qt.QAbstractScrollArea):
         self.setFrameShape(Qt.QFrame.StyledPanel)
         self.setFrameShadow(Qt.QFrame.Raised)
         self.image_widget = ImageWidget(self, qsurface_format)
+        self.image_widget.show()
+#       self.setViewport(self.image_widget)
         # If we did self.setViewport(self.image_widget) as the docs suggest, ImageWidgetScroller would
         # intercept all events destined for image_widget (such as: paint, move, mouse click, etc).  That
         # would allow tricky things like putting a widget with no scrolling knowledge in a scroller and
         # effecting scrolling by modifying paint events before feeding them to the contained widget,
         # and similarly offsetting incoming mouse clicks.  However, ImageWidget is kept apprised of scroll
         # position and can handle its own events.
-        self.setLayout(Qt.QHBoxLayout())
-        self.layout().addWidget(self.image_widget)
+#       self.setLayout(Qt.QHBoxLayout())
+#       self.layout().addWidget(self.image_widget)
 
     def scrollContentsBy(self, dx, dy):
         self.image_widget._scroll_contents_by(dx, dy)
+
+    def resizeEvent(self, event):
+        s = event.size()
+        self.image_widget.setGeometry(0, 0, s.width(), s.height())
 
 class ImageWidget(CanvasWidget):
     _ZOOM_PRESETS = numpy.array((10, 5, 2, 1.5, 1, .75, .5, .25, .1))
@@ -55,27 +61,12 @@ class ImageWidget(CanvasWidget):
     _ZOOM_DEFAULT_PRESET_IDX = 4
     _ZOOM_CLICK_SCALE_FACTOR = .25
 
-    _NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
-        numpy.uint8  : Qt.QOpenGLTexture.UInt8,
-        numpy.uint16 : Qt.QOpenGLTexture.UInt16,
-        numpy.float32: Qt.QOpenGLTexture.Float32}
-    _IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT = {
-        'g'   : Qt.QOpenGLTexture.R32F,
-        'ga'  : Qt.QOpenGLTexture.RG32F,
-        'rgb' : Qt.QOpenGLTexture.RGB32F,
-        'rgba': Qt.QOpenGLTexture.RGBA32F}
-    _IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT = {
-        'g'   : Qt.QOpenGLTexture.Red,
-        'ga'  : Qt.QOpenGLTexture.RG,
-        'rgb' : Qt.QOpenGLTexture.RGB,
-        'rgba': Qt.QOpenGLTexture.RGBA}
-
     def __init__(self, scroller, qsurface_format):
         super().__init__(scroller, qsurface_format)
         self.histogram_widget = None
         self._scroller = scroller
         self._image = None
-        self._aspect_ratio = None
+        self._image_aspect_ratio = None
         self._glsl_prog_g = None
         self._glsl_prog_ga = None
         self._glsl_prog_rgb = None
@@ -114,6 +105,30 @@ class ImageWidget(CanvasWidget):
     def paintGL(self):
         self._glfs.glClear(self._glfs.GL_COLOR_BUFFER_BIT | self._glfs.GL_DEPTH_BUFFER_BIT)
         if self._image is not None:
+            view_size = self.size()
+            mvp = Qt.QMatrix4x4()
+            if True:# zoom_to_fit:
+                view_aspect_ratio = view_size.width() / view_size.height()
+                correction_factor = self._image_aspect_ratio / view_aspect_ratio
+                if correction_factor <= 1:
+                    mvp.scale(correction_factor, 1, 1)
+                    zoom_factor = view_size.height() / self._image.size.height()
+                    self._frag_to_tex = numpy.array(((1,0,-(view_size.width() - zoom_factor * self._image.size.width()) / 2),
+                                                     (0,1,0),
+                                                     (0,0,1)))
+                else:
+                    mvp.scale(1, 1/correction_factor, 1)
+                    zoom_factor = view_size.width() / self._image.size.width()
+                    self._frag_to_tex = numpy.array(((1,0,0),
+                                                     (0,1,(view_size.height() - zoom_factor * self._image.size.height()) / 2),
+                                                     (0,0,1)))
+                self._frag_to_tex = numpy.dot(numpy.array(((1,0,0),
+                                                           (0,1,0),
+                                                           (0,0,zoom_factor))), self._frag_to_tex)
+            self._frag_to_tex = numpy.dot(numpy.array(((1/self._image.size.width(),0,0),
+                                                       (0,1/self._image.size.height(),0),
+                                                       (0,0,1))),
+                                                       numpy.dot(self._frag_to_tex, numpy.array(((1,0,0),(0,-1,self._image.size.height()*zoom_factor),(0,0,1)))))
             prog = self._image_type_to_glsl_prog[self._image.type]
             prog.bind()
             self._quad_buffer.bind()
@@ -123,11 +138,8 @@ class ImageWidget(CanvasWidget):
             prog.enableAttributeArray(vert_coord_loc)
             prog.setAttributeBuffer(vert_coord_loc, self._glfs.GL_FLOAT, 0, 2, 0)
             prog.setUniformValue('tex', 0)
-            self._frag_to_tex.setToIdentity()
-            self._frag_to_tex[0,0] = 1/self._image.size.width()
-            self._frag_to_tex[1,1] = 1/self._image.size.height()
-            prog.setUniformValue('frag_to_tex', self._frag_to_tex)
-            prog.setUniformValue('mvp', self._mvp)
+            prog.setUniformValue('frag_to_tex', Qt.QMatrix3x3([float(f) for f in self._frag_to_tex.flatten()]))
+            prog.setUniformValue('mvp', mvp)
             if self._image.is_grayscale:
                 if self.histogram_widget.rescale_enabled:
                     gamma = self.histogram_widget.gamma
@@ -217,7 +229,7 @@ class ImageWidget(CanvasWidget):
                     self._tex.setFormat(desired_texture_format)
                     self._tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
                     self._tex.setAutoMipMapGenerationEnabled(True)
-                    self._tex.setSize(image.size.width(), image.size.height(), 1)
+                    self._tex.setSize(image.size.height(), image.size.width(), 1)
                     self._tex.setMipLevels(4)
                     self._tex.allocateStorage()
                 self._tex.setMinMagFilters(Qt.QOpenGLTexture.LinearMipMapLinear, Qt.QOpenGLTexture.Nearest)
@@ -230,7 +242,7 @@ class ImageWidget(CanvasWidget):
                                   pixel_transfer_opts)
                 self._tex.release()
                 self._image = image
-                self._aspect_ratio = image.size.width() / image.size.height()
+                self._image_aspect_ratio = image.size.width() / image.size.height()
             self._update_scroller_ranges()
             self.update()
         finally:

@@ -35,10 +35,6 @@ class RisWidget(Qt.QMainWindow):
     # The image_changed signal is emitted when a new value is successfully assigned to the
     # RisWidget.image property
     image_changed = Qt.pyqtSignal()
-    # image_name_changed is emitted when a new value is successfully assigned to the RisWidget.image_name
-    # property (assignment to RisWidget.image implies an image name change, but does not result in
-    # image_name_changed signal emission).
-    image_name_changed = Qt.pyqtSignal(str)
 
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0)):
         super().__init__(parent, window_flags)
@@ -50,12 +46,10 @@ class RisWidget(Qt.QMainWindow):
             del hs
         if window_title is not None:
             self.setWindowTitle(window_title)
-            self.setAcceptDrops(True)
+        self.setAcceptDrops(True)
         self._init_actions()
         self._init_toolbars()
         self._init_views()
-        self._next_image_idx = 0
-        self.auto_window_title_enabled = True
         self._image = None
 
     def _init_actions(self):
@@ -87,12 +81,12 @@ class RisWidget(Qt.QMainWindow):
         self.image_widget.request_mouseover_info_status_text_change.connect(self.histogram_widget._on_request_mouseover_info_status_text_change)
 
     @property
-    def image(self):
-        """image property:
-        None, or a 2D (grayscale), or a 3D (grayscale with alpha, rgb, or rgba) iterable of floats or ints may be
-        assigned to or read from this property.  Assigning a 2D or 3D numpy array or buffer protocol object of the
-        dtype uint8, uint16, or uint32, in C order, avoids an intermediate copy operation, keeping a reference to supplied
-        data.  Assigning None clears the image and histogram views.
+    def image_data(self):
+        """image_data property:
+        The input assigned to this property may be None, in which case the current image and histogram views are cleared,
+        and otherwise must be convertable to a 2D or 3D numpy array of shape (w, h) or (w, h, c), respectively*.  2D input
+        is interpreted as grayscale.  3D input, depending on the value of c, is iterpreted as grayscale & alpha (c of 2),
+        red & blue & green (c of 3), or red & blue & green & alpha (c of 4).
 
         The following dtypes are directly supported (data of any other type is converted to 32-bit floating point,
         and an exception is thrown if conversion fails):
@@ -100,45 +94,31 @@ class RisWidget(Qt.QMainWindow):
         numpy.uint16
         numpy.float32
 
-        The following container layouts are supported (image data supplied in any other arrangement results in an exception):
-        * A container of rows, each of which is a container of scalars.  This is displayed as a grayscale image, with
-        each scalar representing a pixel.
-        * A container of rows, each of which is a container of N scalars, with each scalar representing the intensity of a
-        color channel and each container of N scalars representing a pixel.  For N of 2, image_data[:,:,0] represents grayscale
-        intensity, while image_data[:,:,1] represents alpha intensity (transparency).  For N of 3, image_data[:,:,0] is red, image_data[:,:,1]
-        is green, and image_data[:,:,2] is blue.  For N of 4, the situation is the same as for N of 3, with the addition of
-        alpha intensity as image_data[:,:,3]."""
+        Supplying a numpy array of one of the above types as input may avoid an intermediate copy step by allowing RisWidget
+        to keep a reference to the supplied array, allowing its data to be accessed directly.
+
+        
+        * IE, the iterable assigned to the image property is interpreted as an iterable of columns (image left to right), each
+        containing an iterable of rows (image top to bottom), each of which is either a grayscale intensity value or an
+        iterable of color channel intensity values (gray & alpha, or red & green & blue, or red & green & blue & alpha)."""
         return None if self._image is None else self._image.data
 
-    @image.setter
-    def image(self, image_data):
-        if image_data is None:
-            image = None
-            new_title = 'RisWidget'
-        else:
-            image = Image(image_data, str(self._next_image_idx))
-            self._next_image_idx += 1
-            self._image = image
-            new_title = 'RisWidget ({})'.format(image.name)
-        self.image_widget._on_image_changed(image)
-        self.histogram_widget._on_image_changed(image)
-        if self.auto_window_title_enabled:
-            self.setWindowTitle(new_title)
-        self.image_changed.emit()
+    @image_data.setter
+    def image_data(self, image_data):
+        self.image = Image(image_data)
 
     @property
-    def image_name(self):
-        if self._image is not None:
-            return self._image.name
+    def image(self):
+        return self._image
 
-    @image_name.setter
-    def image_name(self, name):
-        if self._image is None:
-            raise ValueError('No current image to rename (assign image data to the .image property before assigning a name to the .image_name property).')
-        self._image.name = name
-        if self.auto_window_title_enabled:
-            self.setWindowTitle('RisWidget ({})'.format(image.name))
-        self.image_name_changed.emit(image.name)
+    @image.setter
+    def image(self, image):
+        if image is not None and not issubclass(type(image), Image):
+            raise ValueError('The value assigned to the image property must either be derived from ris_widget.image.Image or must be None.  Did you mean to assign to the image_data property?')
+        self.image_widget._on_image_changed(image)
+        self.histogram_widget._on_image_changed(image)
+        self._image = image
+        self.image_changed.emit()
 
 if __name__ == '__main__':
     import sys

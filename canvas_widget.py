@@ -51,7 +51,6 @@ class CanvasWidget(Qt.QOpenGLWidget):
         self.setMouseTracking(True)
         self._glfs = None
         self._quad_buffer = None
-        self._mvp = Qt.QMatrix4x4()
 
     def event(self, event):
         if event.type() == Qt.QEvent.Leave:
