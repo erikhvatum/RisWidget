@@ -119,7 +119,16 @@ class ImageWidget(CanvasWidget):
                     # fills the viewport horizontally and is centered vertically
                     zoom_factor = view_size.width() / image_size.width()
                     t.translate(0, (view_size.height() - zoom_factor*image_size.height()) / 2)
-                t.scale(zoom_factor, zoom_factor)
+            else:
+                zoom_factor = self._custom_zoom if self._zoom_preset_idx == -1 else ImageWidget._ZOOM_PRESETS[self._zoom_preset_idx]
+                t.translate(-self._pan.x(), -(self._scroller.verticalScrollBar().maximum()-self._pan.y()))
+                centering = numpy.array((image_size.width(), image_size.height()), dtype=numpy.float64)
+                centering *= zoom_factor
+                centering = numpy.array((view_size.width(), view_size.height())) - centering
+                centering[centering < 0] = 0
+                centering /= 2
+                t.translate(*centering)
+            t.scale(zoom_factor, zoom_factor)
             if not Qt.QTransform.quadToSquare(t.map(r), self._frag_to_tex):
                 raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix.')
             prog = self._image_type_to_glsl_prog[self._image.type]
@@ -194,19 +203,17 @@ class ImageWidget(CanvasWidget):
             self._scroller.verticalScrollBar().setRange(0,0)
         else:
             z = self._custom_zoom if self._zoom_preset_idx == -1 else self._ZOOM_PRESETS[self._zoom_preset_idx]
-            def do_axis(i, w, s, x):
+            def do_axis(i, w, s):
                 i *= z
                 r = math.ceil(i - w)
-                r = 0 if r <= 0 else r / 2
-                if x:
-                    s.setRange(-math.floor(r), math.ceil(r))
-                else:
-                    s.setRange(-math.ceil(r), math.floor(r))
+                if r < 0:
+                    r = 0
+                s.setRange(0, r)
                 s.setPageStep(w)
             im_sz = Qt.QSize() if self._image is None else self._image.size
             v_sz = self.size()
-            do_axis(im_sz.width(), v_sz.width(), self._scroller.horizontalScrollBar(), True)
-            do_axis(im_sz.height(), v_sz.height(), self._scroller.verticalScrollBar(), False)
+            do_axis(im_sz.width(), v_sz.width(), self._scroller.horizontalScrollBar())
+            do_axis(im_sz.height(), v_sz.height(), self._scroller.verticalScrollBar())
 
     def _on_image_changed(self, image):
         try:
