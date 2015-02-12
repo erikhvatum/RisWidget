@@ -189,7 +189,8 @@ class ImageWidget(CanvasWidget):
     def _update_frag_to_tex(self):
         view_size = self.size()
         image_size = self._image.size
-        # Desired image rect in terms of Qt local widget coordinates is t applied to r
+        # Desired image rect in terms of Qt local widget coordinates will be t applied to r, once t is done
+        # cooking.
         r = Qt.QPolygonF((Qt.QPointF(0, 0),
                           Qt.QPointF(image_size.width(), 0),
                           Qt.QPointF(image_size.width(), image_size.height()),
@@ -218,6 +219,31 @@ class ImageWidget(CanvasWidget):
             centering /= 2
             t.translate(*centering)
         t.scale(zoom_factor, zoom_factor)
+        # t is now done cooking.  Applying t to r, which is done by t.map(r) in the following code, yields
+        # a rectangle in the pixel coordinate system with its origin at the top left of this ImageWidget instance.
+        # This rectangle may be thought of as a frame containing the entirety of the image.  Setting a higher zoom
+        # level expands the frame, stretching the image uniformly such that the edges of the image always touch
+        # the inside of the frame.  Likewise, zooming out shrinks the frame and image within.  This frame may extend
+        # beyond the ImageWidget, in which case only the portion of the image overlapping the ImageWidget will be
+        # displayed.  Additionally, the frame is centered in the ImageWidget along any dimension in which the frame is 
+        # smaller than the ImageWidget.
+        #
+        # So, t transforms the original-size image rect into a frame stretching and positioning our image as we
+        # would like it to be displayed in Qt's local coordinate system for our ImageWidget.  However, the all-important
+        # texture2D call in our fragment shader that is used to retrieve image data for display on the screen
+        # operates in a unit square coordinate system.  Our fragment shader receives local widget coordinates*
+        # as input, and from these local widget coordinates, must be able to determine which normalized (unit square)
+        # texture coordinates the local widget coordinates correspond to; our fragment shader does this is by applying the
+        # self._frag_to_tex transformation matrix to its inputs.  The Qt.QTransform.quadToSquare call below computes
+        # a matrix that transforms screen coordinates to the unit rect, which happens to be our desired normalized texture
+        # coordinate system, and stores the result in self._frag_to_tex.
+        # 
+        # * gl_FragCoord is used as input, but its coordinate system is flipped over the X axis and offset by .5 along
+        # X and -.5 along Y.  Furthermore, the trick of composing a flip over X into t by doing t.scale(1,-1)
+        # somewhere in the code above would cause Qt.QTransform.quadToSquare to fail.  The shader ignores the offset
+        # because texture offset also appears to be from center of pixel, meaning that images are displayed correctly
+        # at 100% zoom.  The implications for other zoom levels remain to be investigated in detail.  The shader compensates
+        # for the flip by setting the post-transformed texture coordinate y value to one minus its original value.
         if not Qt.QTransform.quadToSquare(t.map(r), self._frag_to_tex):
             raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix.')
 
