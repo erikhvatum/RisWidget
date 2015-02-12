@@ -98,39 +98,7 @@ class ImageWidget(CanvasWidget):
     def paintGL(self):
         self._glfs.glClear(self._glfs.GL_COLOR_BUFFER_BIT | self._glfs.GL_DEPTH_BUFFER_BIT)
         if self._image is not None:
-            view_size = self.size()
-            image_size = self._image.size
-            # Desired image rect in terms of Qt local widget coordinates is t applied to r
-            r = Qt.QPolygonF((Qt.QPointF(0, 0),
-                              Qt.QPointF(image_size.width(), 0),
-                              Qt.QPointF(image_size.width(), image_size.height()),
-                              Qt.QPointF(0, image_size.height())))
-            t = Qt.QTransform()
-            if self._zoom_to_fit:
-                view_aspect_ratio = view_size.width() / view_size.height()
-                image_to_view_ratio = self._image_aspect_ratio / view_aspect_ratio
-                if image_to_view_ratio <= 1:
-                    # Image is proportionally taller than the viewport and will be scaled such that the image
-                    # fills the viewport vertically and is centered horizontally
-                    zoom_factor = view_size.height() / image_size.height()
-                    t.translate((view_size.width() - zoom_factor*image_size.width()) / 2, 0)
-                else:
-                    # Image is proportionally wider than the viewport and will be scaled such that the image
-                    # fills the viewport horizontally and is centered vertically
-                    zoom_factor = view_size.width() / image_size.width()
-                    t.translate(0, (view_size.height() - zoom_factor*image_size.height()) / 2)
-            else:
-                zoom_factor = self._custom_zoom if self._zoom_preset_idx == -1 else ImageWidget._ZOOM_PRESETS[self._zoom_preset_idx]
-                t.translate(-self._pan.x(), -(self._scroller.verticalScrollBar().maximum()-self._pan.y()))
-                centering = numpy.array((image_size.width(), image_size.height()), dtype=numpy.float64)
-                centering *= zoom_factor
-                centering = numpy.array((view_size.width(), view_size.height())) - centering
-                centering[centering < 0] = 0
-                centering /= 2
-                t.translate(*centering)
-            t.scale(zoom_factor, zoom_factor)
-            if not Qt.QTransform.quadToSquare(t.map(r), self._frag_to_tex):
-                raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix.')
+            self._update_frag_to_tex()
             prog = self._image_type_to_glsl_prog[self._image.type]
             prog.bind()
             self._quad_buffer.bind()
@@ -214,6 +182,41 @@ class ImageWidget(CanvasWidget):
             v_sz = self.size()
             do_axis(im_sz.width(), v_sz.width(), self._scroller.horizontalScrollBar())
             do_axis(im_sz.height(), v_sz.height(), self._scroller.verticalScrollBar())
+
+    def _update_frag_to_tex(self):
+        view_size = self.size()
+        image_size = self._image.size
+        # Desired image rect in terms of Qt local widget coordinates is t applied to r
+        r = Qt.QPolygonF((Qt.QPointF(0, 0),
+                          Qt.QPointF(image_size.width(), 0),
+                          Qt.QPointF(image_size.width(), image_size.height()),
+                          Qt.QPointF(0, image_size.height())))
+        t = Qt.QTransform()
+        if self._zoom_to_fit:
+            view_aspect_ratio = view_size.width() / view_size.height()
+            image_to_view_ratio = self._image_aspect_ratio / view_aspect_ratio
+            if image_to_view_ratio <= 1:
+                # Image is proportionally taller than the viewport and will be scaled such that the image
+                # fills the viewport vertically and is centered horizontally
+                zoom_factor = view_size.height() / image_size.height()
+                t.translate((view_size.width() - zoom_factor*image_size.width()) / 2, 0)
+            else:
+                # Image is proportionally wider than the viewport and will be scaled such that the image
+                # fills the viewport horizontally and is centered vertically
+                zoom_factor = view_size.width() / image_size.width()
+                t.translate(0, (view_size.height() - zoom_factor*image_size.height()) / 2)
+        else:
+            zoom_factor = self._custom_zoom if self._zoom_preset_idx == -1 else ImageWidget._ZOOM_PRESETS[self._zoom_preset_idx]
+            t.translate(-self._pan.x(), -(self._scroller.verticalScrollBar().maximum()-self._pan.y()))
+            centering = numpy.array((image_size.width(), image_size.height()), dtype=numpy.float64)
+            centering *= zoom_factor
+            centering = numpy.array((view_size.width(), view_size.height())) - centering
+            centering[centering < 0] = 0
+            centering /= 2
+            t.translate(*centering)
+        t.scale(zoom_factor, zoom_factor)
+        if not Qt.QTransform.quadToSquare(t.map(r), self._frag_to_tex):
+            raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix.')
 
     def _on_image_changed(self, image):
         try:
