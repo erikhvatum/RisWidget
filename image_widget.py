@@ -98,7 +98,6 @@ class ImageWidget(CanvasWidget):
     def paintGL(self):
         self._glfs.glClear(self._glfs.GL_COLOR_BUFFER_BIT | self._glfs.GL_DEPTH_BUFFER_BIT)
         if self._image is not None:
-            self._update_frag_to_tex()
             prog = self._image_type_to_glsl_prog[self._image.type]
             prog.bind()
             self._quad_buffer.bind()
@@ -163,6 +162,8 @@ class ImageWidget(CanvasWidget):
     def _scroll_contents_by(self, dx, dy):
         self._pan.setX(self._scroller.horizontalScrollBar().value())
         self._pan.setY(self._scroller.verticalScrollBar().value())
+        if self._image is not None:
+            self._update_frag_to_tex()
         self.update()
 
     def _update_scroller_ranges(self):
@@ -182,6 +183,8 @@ class ImageWidget(CanvasWidget):
             v_sz = self.size()
             do_axis(im_sz.width(), v_sz.width(), self._scroller.horizontalScrollBar())
             do_axis(im_sz.height(), v_sz.height(), self._scroller.verticalScrollBar())
+        if self._image is not None:
+            self._update_frag_to_tex()
 
     def _update_frag_to_tex(self):
         view_size = self.size()
