@@ -220,7 +220,7 @@ class ImageWidget(CanvasWidget):
             gl_t = Qt.QTransform(t)
         else:
             zoom_factor = self._custom_zoom if self._zoom_preset_idx == -1 else ImageWidget._ZOOM_PRESETS[self._zoom_preset_idx]
-            gl_t = Qt.QTransform(t) # TODO: hunt down and destroy the badness that causes necessitates this fudge
+            gl_t = Qt.QTransform(t) # TODO: hunt down and destroy the badness that necessitates this fudge
             t.translate(-self._pan.x(), -self._pan.y())
             gl_t.translate(-self._pan.x(), -(self._scroller.verticalScrollBar().maximum()-self._pan.y())) # TODO: destroy this part of the fudge as well
             centering = numpy.array((image_size.width(), image_size.height()), dtype=numpy.float64)
