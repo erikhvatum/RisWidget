@@ -143,17 +143,20 @@ class ImageWidget(CanvasWidget):
 
     def mouseMoveEvent(self, event):
         if self._image is not None:
-            pos = event.pos()
-            x_in_image = pos.x() < self._image.size.width() and pos.x() >= 0
-            y_in_image = pos.y() < self._image.size.height() and pos.y() >= 0
-            mst = 'x:{} y:{} '.format(pos.x() if x_in_image else '-', pos.y() if y_in_image else '-')
+            pos = self._widget_to_image.map(Qt.QPointF(event.pos()))
+            image_size = self._image.size
+            pos.setX(math.floor(pos.x()))
+            pos.setY(math.floor(pos.y()))
+            x_in_image = pos.x() < image_size.width() and pos.x() >= 0
+            y_in_image = pos.y() < image_size.height() and pos.y() >= 0
+            mst = 'x:{} y:{} '.format(int(pos.x()) if x_in_image else '-', int(pos.y()) if y_in_image else '-')
             image_type = self._image.type
             vt = '(' + ' '.join((c + ':{}' for c in image_type)) + ')'
             if x_in_image and y_in_image:
                 if len(image_type) == 1:
-                    vt = vt.format(self._image.data[pos.y(), pos.x()])
+                    vt = vt.format(self._image.data[pos.x(), pos.y()])
                 else:
-                    vt = vt.format(*self._image.data[pos.y(), pos.x()])
+                    vt = vt.format(*self._image.data[pos.x(), pos.y()])
                 mst += vt
             else:
                 mst += vt.format(*('-' * len(image_type)))
@@ -189,8 +192,13 @@ class ImageWidget(CanvasWidget):
     def _update_frag_to_tex(self):
         view_size = self.size()
         image_size = self._image.size
-        # Desired image rect in terms of Qt local widget coordinates will be t applied to r, once t is done
+        # Desired image rect in terms of Qt local widget coordinates will be t applied to r, or t.map(r), once t is done
         # cooking.
+        # 
+        # TODO: try flipping the image before uploading it to opengl with the gl_FragCoord.y = gl_FragCoord.y - 1 fudge 
+        # removed from the fragment shader.  This may allow removal of the y scroller offset fudge, and this fudge breaks
+        # proper projection into local widget coordinates, requiring divergence of t and gl_t computation.  So, removing
+        # the offset fudge would allow removal of the gl_t fudge.
         r = Qt.QPolygonF((Qt.QPointF(0, 0),
                           Qt.QPointF(image_size.width(), 0),
                           Qt.QPointF(image_size.width(), image_size.height()),
@@ -209,16 +217,21 @@ class ImageWidget(CanvasWidget):
                 # fills the viewport horizontally and is centered vertically
                 zoom_factor = view_size.width() / image_size.width()
                 t.translate(0, (view_size.height() - zoom_factor*image_size.height()) / 2)
+            gl_t = Qt.QTransform(t)
         else:
             zoom_factor = self._custom_zoom if self._zoom_preset_idx == -1 else ImageWidget._ZOOM_PRESETS[self._zoom_preset_idx]
-            t.translate(-self._pan.x(), -(self._scroller.verticalScrollBar().maximum()-self._pan.y()))
+            gl_t = Qt.QTransform(t) # TODO: hunt down and destroy the badness that causes necessitates this fudge
+            t.translate(-self._pan.x(), -self._pan.y())
+            gl_t.translate(-self._pan.x(), -(self._scroller.verticalScrollBar().maximum()-self._pan.y())) # TODO: destroy this part of the fudge as well
             centering = numpy.array((image_size.width(), image_size.height()), dtype=numpy.float64)
             centering *= zoom_factor
             centering = numpy.array((view_size.width(), view_size.height())) - centering
             centering[centering < 0] = 0
             centering /= 2
             t.translate(*centering)
+            gl_t.translate(*centering)
         t.scale(zoom_factor, zoom_factor)
+        gl_t.scale(zoom_factor, zoom_factor)
         # t is now done cooking.  Applying t to r, which is done by t.map(r) in the following code, yields
         # a rectangle in the pixel coordinate system with its origin at the top left of this ImageWidget instance.
         # This rectangle may be thought of as a frame containing the entirety of the image.  Setting a higher zoom
@@ -238,14 +251,19 @@ class ImageWidget(CanvasWidget):
         # a matrix that transforms screen coordinates to the unit rect, which happens to be our desired normalized texture
         # coordinate system, and stores the result in self._frag_to_tex.
         # 
-        # * gl_FragCoord is used as input, but its coordinate system is flipped over the X axis and offset by .5 along
-        # X and -.5 along Y.  Furthermore, the trick of composing a flip over X into t by doing t.scale(1,-1)
-        # somewhere in the code above would cause Qt.QTransform.quadToSquare to fail.  The shader ignores the offset
-        # because texture offset also appears to be from center of pixel, meaning that images are displayed correctly
-        # at 100% zoom.  The implications for other zoom levels remain to be investigated in detail.  The shader compensates
-        # for the flip by setting the post-transformed texture coordinate y value to one minus its original value.
-        if not Qt.QTransform.quadToSquare(t.map(r), self._frag_to_tex):
+        # * gl_FragCoord is used as input, but its coordinate system is flipped over the X axis compared to Qt's coordinate
+        # system.  The trick of composing a flip over X into t by doing t.scale(1,-1) somewhere in the code above would cause
+        # Qt.QTransform.quadToSquare to fail.  The shader compensates for the flip by setting the post-transformed texture
+        # coordinate y value to one minus its original value.
+        if not Qt.QTransform.quadToSquare(gl_t.map(r), self._frag_to_tex):
             raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix.')
+        # Our transform projects from image coordinates to virtual image frame coordinates.  The virtual image frame
+        # coordinate system is the same as the local widget's coordinate system, and we receive mouse events in
+        # local image coordinates.  So, to project from mouse coordinates to image coordinates, we need only apply
+        # the inverse of the image to image frame transform to the mouse coordinates.
+        self._widget_to_image, succeeded = t.inverted()
+        if not succeeded:
+            raise RuntimeError('Failed to compute inverse of image coordinate to widget coordinate transformation matrix.')
 
     def _on_image_changed(self, image):
         try:
