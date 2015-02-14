@@ -56,6 +56,7 @@ class Image:
             hrets = [fast_hist.histogram(self._data[...,channel_idx], is_twelve_bit) for channel_idx in range(self._data.shape[2])]
             self._histogram = numpy.vstack((hret.histogram for hret in hrets))
             self._min_max = numpy.vstack(((hret.min_intensity, hret.max_intensity) for hret in hrets))
+            self._max_histogram_bin = numpy.hstack((hret.max_bin for hret in hrets))
         else:
             raise ValueError('image_data argument must be a 2D (grayscale) or 3D (grayscale with alpha, rgb, or rgba) iterable.')
         self._size = Qt.QSize(self._data.shape[0], self._data.shape[1])

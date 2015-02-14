@@ -22,4 +22,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 // 
-// Authors: Erik Hvatum <ice.rikh@gmail.com>
+// Authors: Erik Hvatum <ice.rikh@gmail.com> 
+
+uniform sampler1D tex;
+uniform vec2 inv_view_size;
+uniform float inv_max_bin_val;
+uniform float gamma_gamma;
+
+void main()
+{
+    float bin_value = texture1D(tex, gl_FragCoord.x * inv_view_size.x).r;
+    float bin_height = pow(bin_value, gamma_gamma) * inv_max_bin_val;
+    float intensity = 1.0f - clamp(floor((gl_FragCoord.y * inv_view_size.y) / bin_height), 0, 1);
+
+    gl_FragColor = vec4(intensity, intensity, intensity, intensity);
+}

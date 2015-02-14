@@ -50,6 +50,7 @@ class CanvasWidget(Qt.QOpenGLWidget):
         self.setFormat(qsurface_format)
         self.setMouseTracking(True)
         self._glfs = None
+        self._quad_vao = None
         self._quad_buffer = None
 
     def event(self, event):
@@ -83,7 +84,7 @@ class CanvasWidget(Qt.QOpenGLWidget):
             raise RuntimeError('Failed to link {} {} shader program.'.format(type(self).__name__, desc))
         return prog
 
-    def _make_quad_buffer(self):
+    def _make_quad_vao(self):
         self._quad_vao = Qt.QOpenGLVertexArrayObject()
         self._quad_vao.create()
         quad_vao_binder = Qt.QOpenGLVertexArrayObject.Binder(self._quad_vao)

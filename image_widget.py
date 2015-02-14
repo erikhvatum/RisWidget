@@ -93,7 +93,7 @@ class ImageWidget(CanvasWidget):
                                          'ga'  : self._glsl_prog_ga,
                                          'rgb' : self._glsl_prog_rgb,
                                          'rgba': self._glsl_prog_rgba}
-        self._make_quad_buffer()
+        self._make_quad_vao()
 
     def paintGL(self):
         self._glfs.glClear(self._glfs.GL_COLOR_BUFFER_BIT | self._glfs.GL_DEPTH_BUFFER_BIT)
@@ -281,7 +281,7 @@ class ImageWidget(CanvasWidget):
                     self._tex.setSize(image.size.width(), image.size.height(), 1)
                     self._tex.setMipLevels(4)
                     self._tex.allocateStorage()
-                self._tex.setMinMagFilters(Qt.QOpenGLTexture.LinearMipMapLinear, Qt.QOpenGLTexture.Nearest)
+                    self._tex.setMinMagFilters(Qt.QOpenGLTexture.LinearMipMapLinear, Qt.QOpenGLTexture.Nearest)
                 self._tex.bind()
                 pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
                 pixel_transfer_opts.setAlignment(1)

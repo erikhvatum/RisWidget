@@ -20,28 +20,13 @@
 // AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-//  
+// SOFTWARE. 
+//
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-uniform uint bin_count;
-uniform float bin_scale;
-uniform float gamma_gamma;
-uniform usamplerBuffer histogram;
-
-attribute float bin_index;
+attribute vec2 vert_coord;
 
 void main()
 {
-    float binValue = texelFetch(histogram, int(binIndex)).r;
-    // gl_Position = projectionModelViewMatrix * vec4((float(binIndex) / float(binCount) - 0.5) * 2.0,
-    // // (log(float(binValue)) / binScale - 0.5) * 2.0,
-    // // (float(binValue) / binScale - 0.5) * 2.0,
-    // (pow(float(binValue) / binScale, gammaGammaVal) - 0.5) * 2.0,
-    // 0.4,
-    // 1.0);
-    gl_Position = vec4((binIndex / binCount - 0.5f) * 2.0f,
-    (pow(binValue, gtpGammaGamma) / binScale - 0.5f) * 2.0f,
-    0.4,
-    1.0);
+    gl_Position = vec4(vert_coord, 0.5, 1.0);
 }

@@ -237,6 +237,8 @@ class MinMaxProp(ScalarProp):
                 histogram_widget.gamma_or_min_max_changed.emit()
 
 class HistogramWidget(CanvasWidget):
+    _MAX_BIN_COUNT = 1024
+
     _scalar_props = []
     _min_max_props = {}
 
@@ -279,6 +281,7 @@ class HistogramWidget(CanvasWidget):
     def __init__(self, parent, qsurface_format):
         super().__init__(parent, qsurface_format)
         self._image = None
+        self._tex = None
         self._make_control_widgets_pane()
 
     def _make_control_widgets_pane(self):
@@ -325,20 +328,39 @@ class HistogramWidget(CanvasWidget):
         self._init_glfs()
         self._glfs.glClearColor(0,0,0,1)
         self._glfs.glClearDepth(1)
-#       self._glsl_prog_g = self._build_shader_prog('g',
-#                                                   'histogram_widget_vertex_shader.glsl',
-#                                                   'histogram_widget_fragment_shader_g.glsl')
-#       self._glsl_prog_rgb = self._build_shader_prog('rgb',
-#                                                     'histogram_widget_vertex_shader.glsl',
-#                                                     'histogram_widget_fragment_shader_rgb.glsl')
-#       self._image_type_to_glsl_prog = {'g'   : self._glsl_prog_g,
-#                                        'ga'  : self._glsl_prog_ga,
-#                                        'rgb' : self._glsl_prog_rgb,
-#                                        'rgba': self._glsl_prog_rgba}
-        self._make_quad_buffer()
+        self._glsl_prog_g = self._build_shader_prog('g',
+                                                    'histogram_widget_vertex_shader.glsl',
+                                                    'histogram_widget_fragment_shader_g.glsl')
+        self._glsl_prog_rgb = self._build_shader_prog('rgb',
+                                                      'histogram_widget_vertex_shader.glsl',
+                                                      'histogram_widget_fragment_shader_rgb.glsl')
+        self._image_type_to_glsl_prog = {'g'   : self._glsl_prog_g,
+                                         'ga'  : self._glsl_prog_g,
+                                         'rgb' : self._glsl_prog_rgb,
+                                         'rgba': self._glsl_prog_rgb}
+        self._make_quad_vao()
 
     def paintGL(self):
-        pass
+        self._glfs.glClear(self._glfs.GL_COLOR_BUFFER_BIT | self._glfs.GL_DEPTH_BUFFER_BIT)
+        if self._image is not None:
+            if self._image.is_grayscale:
+                prog = self._image_type_to_glsl_prog[self._image.type]
+                prog.bind()
+                self._quad_buffer.bind()
+                self._tex.bind()
+                vert_coord_loc = prog.attributeLocation('vert_coord')
+                quad_vao_binder = Qt.QOpenGLVertexArrayObject.Binder(self._quad_vao)
+                prog.enableAttributeArray(vert_coord_loc)
+                prog.setAttributeBuffer(vert_coord_loc, self._glfs.GL_FLOAT, 0, 2, 0)
+                prog.setUniformValue('tex', 0)
+                prog.setUniformValue('inv_view_size', 1/self.size().width(), 1/self.size().height())
+                prog.setUniformValue('inv_max_bin_val', self._image.histogram[self._image.max_histogram_bin]**-self.gamma_gamma)
+                prog.setUniformValue('gamma_gamma', self.gamma_gamma)
+                self._glfs.glEnableClientState(self._glfs.GL_VERTEX_ARRAY)
+                self._glfs.glDrawArrays(self._glfs.GL_TRIANGLE_FAN, 0, 4)
+                self._tex.release()
+                self._quad_buffer.release()
+                prog.release()
 
     def resizeGL(self, x, y):
         pass
@@ -350,7 +372,6 @@ class HistogramWidget(CanvasWidget):
             self.channel_control_widgets_visible = True
         range_changed = (self._image is None or image is None) or self._image.range != image.range
         self._image = image
-        self.update()
         if range_changed:
             if image is None or image.is_grayscale:
                 self._min_max_props['max'].propagate_slider_value(self)
@@ -359,6 +380,43 @@ class HistogramWidget(CanvasWidget):
                 for min_max_prop in self._min_max_props.values():
                     min_max_prop.propagate_slider_value(self)
         self._correct_inversion()
+
+        try:
+            self.makeCurrent()
+            if self._image is not None and (image is None or self._image.histogram.shape != image.histogram.shape):
+                self._tex = None
+                self._image = None
+            if image is not None:
+                if self._tex is None:
+                    self._tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target1D)
+                    self._tex.setFormat(Qt.QOpenGLTexture.R32F)
+                    self._tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
+                    self._tex.setAutoMipMapGenerationEnabled(False)
+                    self._tex.setSize(self._image.histogram.nbytes / 4, 1, 1)
+                    self._tex.allocateStorage()
+                    # self._tex stores histogram bin counts, values that are intended to be addressed by element, without
+                    # interpolation.  GLSL 1.2 provides only 32-bit floating point 0-1 normalized addressing of texels,
+                    # which leaves 22 bits of integer indexing precision - plenty for our needs.
+                    self._tex.setMinMagFilters(Qt.QOpenGLTexture.Nearest, Qt.QOpenGLTexture.Nearest)
+                self._tex.bind()
+                pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
+                pixel_transfer_opts.setAlignment(1)
+                # This should work, but does not.
+#               self._tex.setData(Qt.QOpenGLTexture.Red,
+#                                 Qt.QOpenGLTexture.UInt32,
+#                                 image.histogram.ctypes.data,
+#                                 pixel_transfer_opts)
+                # So we do this, for now
+                foo = image.histogram.astype(numpy.float32)
+                self._tex.setData(Qt.QOpenGLTexture.Red,
+                                  Qt.QOpenGLTexture.Float32,
+                                  foo.ctypes.data,
+                                  pixel_transfer_opts)
+                self._tex.release()
+                self._image = image
+            self.update()
+        finally:
+            self.doneCurrent()
 
     def _on_rescale_checkbox_toggled(self, checked):
         self.rescale_enabled = checked
