@@ -394,9 +394,8 @@ class HistogramWidget(CanvasWidget):
                     self._tex.setAutoMipMapGenerationEnabled(False)
                     self._tex.setSize(self._image.histogram.nbytes / 4, 1, 1)
                     self._tex.allocateStorage()
-                    # self._tex stores histogram bin counts, values that are intended to be addressed by element, without
-                    # interpolation.  GLSL 1.2 provides only 32-bit floating point 0-1 normalized addressing of texels,
-                    # which leaves 22 bits of integer indexing precision - plenty for our needs.
+                    # self._tex stores histogram bin counts - values that are intended to be addressed by element without
+                    # interpolation.  Thus, Qt.QOpenGLTexture.Nearest filtering.
                     self._tex.setMinMagFilters(Qt.QOpenGLTexture.Nearest, Qt.QOpenGLTexture.Nearest)
                 self._tex.bind()
                 pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
