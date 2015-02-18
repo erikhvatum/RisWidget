@@ -96,47 +96,58 @@ class ImageWidget(CanvasWidget):
         self._make_quad_vao()
 
     def paintGL(self):
-        self._glfs.glClear(self._glfs.GL_COLOR_BUFFER_BIT | self._glfs.GL_DEPTH_BUFFER_BIT)
-        if self._image is not None:
-            prog = self._image_type_to_glsl_prog[self._image.type]
-            prog.bind()
-            self._quad_buffer.bind()
-            self._tex.bind()
-            vert_coord_loc = prog.attributeLocation('vert_coord')
-            quad_vao_binder = Qt.QOpenGLVertexArrayObject.Binder(self._quad_vao)
-            prog.enableAttributeArray(vert_coord_loc)
-            prog.setAttributeBuffer(vert_coord_loc, self._glfs.GL_FLOAT, 0, 2, 0)
-            prog.setUniformValue('tex', 0)
-            prog.setUniformValue('frag_to_tex', self._frag_to_tex)
-            if self._image.is_grayscale:
-                if self.histogram_widget.rescale_enabled:
-                    gamma = self.histogram_widget.gamma
-                    min_max = numpy.array((self.histogram_widget.min, self.histogram_widget.max))
+        p = Qt.QPainter(self)
+        p.beginNativePainting()
+        try:
+            self._glfs.glClear(self._glfs.GL_COLOR_BUFFER_BIT | self._glfs.GL_DEPTH_BUFFER_BIT)
+            if self._image is not None:
+                prog = self._image_type_to_glsl_prog[self._image.type]
+                prog.bind()
+                self._quad_buffer.bind()
+                self._tex.bind()
+                vert_coord_loc = prog.attributeLocation('vert_coord')
+                quad_vao_binder = Qt.QOpenGLVertexArrayObject.Binder(self._quad_vao)
+                prog.enableAttributeArray(vert_coord_loc)
+                prog.setAttributeBuffer(vert_coord_loc, self._glfs.GL_FLOAT, 0, 2, 0)
+                prog.setUniformValue('tex', 0)
+                prog.setUniformValue('frag_to_tex', self._frag_to_tex)
+                if self._image.is_grayscale:
+                    if self.histogram_widget.rescale_enabled:
+                        gamma = self.histogram_widget.gamma
+                        min_max = numpy.array((self.histogram_widget.min, self.histogram_widget.max))
+                    else:
+                        gamma = 1
+                        min_max = self._image.range
+                    prog.setUniformValue('gamma', gamma)
+                    self._normalize_min_max(min_max)
+                    prog.setUniformValue('intensity_rescale_min', min_max[0])
+                    prog.setUniformValue('intensity_rescale_range', min_max[1] - min_max[0])
                 else:
-                    gamma = 1
-                    min_max = self._image.range
-                prog.setUniformValue('gamma', gamma)
-                self._normalize_min_max(min_max)
-                prog.setUniformValue('intensity_rescale_min', min_max[0])
-                prog.setUniformValue('intensity_rescale_range', min_max[1] - min_max[0])
-            else:
-                if self.histogram_widget.rescale_enabled:
-                    gammas = (self.histogram_widget.gamma_red, self.histogram_widget.gamma_green, self.histogram_widget.gamma_blue)
-                    min_maxs = numpy.array(((self.histogram_widget.min_red, self.histogram_widget.min_green, self.histogram_widget.min_blue),
-                                            (self.histogram_widget.max_red, self.histogram_widget.max_green, self.histogram_widget.max_blue)))
-                else:
-                    gammas = (1,1,1)
-                    min_max = self._image.range
-                    min_maxs = numpy.array((min_max,)*3).T
-                prog.setUniformValue('gammas', *gammas)
-                self._normalize_min_max(min_maxs)
-                prog.setUniformValue('intensity_rescale_mins', *min_maxs[0])
-                prog.setUniformValue('intensity_rescale_ranges', *(min_maxs[1]-min_maxs[0]))
-            self._glfs.glEnableClientState(self._glfs.GL_VERTEX_ARRAY)
-            self._glfs.glDrawArrays(self._glfs.GL_TRIANGLE_FAN, 0, 4)
-            self._tex.release()
-            self._quad_buffer.release()
-            prog.release()
+                    if self.histogram_widget.rescale_enabled:
+                        gammas = (self.histogram_widget.gamma_red, self.histogram_widget.gamma_green, self.histogram_widget.gamma_blue)
+                        min_maxs = numpy.array(((self.histogram_widget.min_red, self.histogram_widget.min_green, self.histogram_widget.min_blue),
+                                                (self.histogram_widget.max_red, self.histogram_widget.max_green, self.histogram_widget.max_blue)))
+                    else:
+                        gammas = (1,1,1)
+                        min_max = self._image.range
+                        min_maxs = numpy.array((min_max,)*3).T
+                    prog.setUniformValue('gammas', *gammas)
+                    self._normalize_min_max(min_maxs)
+                    prog.setUniformValue('intensity_rescale_mins', *min_maxs[0])
+                    prog.setUniformValue('intensity_rescale_ranges', *(min_maxs[1]-min_maxs[0]))
+                self._glfs.glEnableClientState(self._glfs.GL_VERTEX_ARRAY)
+                self._glfs.glDrawArrays(self._glfs.GL_TRIANGLE_FAN, 0, 4)
+                self._tex.release()
+                self._quad_buffer.release()
+                prog.release()
+        finally:
+            p.endNativePainting()
+            p.setCompositionMode(Qt.QPainter.CompositionMode_SourceOver)
+            color = Qt.QColor(Qt.Qt.red)
+            color.setAlphaF(0.5)
+            brush = Qt.QBrush(color)
+            p.setBrush(brush)
+            p.drawRect(40,40,100,100)
 
     def resizeGL(self, x, y):
         self._update_scroller_ranges()

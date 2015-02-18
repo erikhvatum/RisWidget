@@ -91,6 +91,13 @@ class RisWidget(Qt.QMainWindow):
         qsurface_format.setSwapBehavior(Qt.QSurfaceFormat.DoubleBuffer)
         qsurface_format.setStereo(False)
         qsurface_format.setSwapInterval(1)
+        # Specifically enabling alpha channel is not sufficient for enabling QPainter composition modes that
+        # use destination alpha (ie, nothing drawn in CompositionMode_DestinationOver will be visible in
+        # a painGL widget).
+#       qsurface_format.setRedBufferSize(8)
+#       qsurface_format.setGreenBufferSize(8)
+#       qsurface_format.setBlueBufferSize(8)
+#       qsurface_format.setAlphaBufferSize(8)
         self.image_widget_scroller = image_widget.ImageWidgetScroller(self, qsurface_format)
         self.image_widget = self.image_widget_scroller.image_widget
         self.setCentralWidget(self.image_widget_scroller)

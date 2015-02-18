@@ -100,13 +100,13 @@ class ScalarProp:
         self.values[histogram_widget] = value
 
     def _slider_raw_to_value(self, raw, histogram_widget):
-        raise NotImplementedError('Pure virtual method called.')
+        raise NotImplementedError()
 
     def _value_to_slider_raw(self, value, histogram_widget):
-        raise NotImplementedError('Pure virtual method called.')
+        raise NotImplementedError()
 
     def _get_range(self, histogram_widget):
-        raise NotImplementedError('Pure virtual method called.')
+        raise NotImplementedError()
 
     def _on_slider_value_changed(self, histogram_widget, raw):
         value = self._slider_raw_to_value(raw, histogram_widget)
@@ -354,7 +354,11 @@ class HistogramWidget(CanvasWidget):
                 prog.setAttributeBuffer(vert_coord_loc, self._glfs.GL_FLOAT, 0, 2, 0)
                 prog.setUniformValue('tex', 0)
                 prog.setUniformValue('inv_view_size', 1/self.size().width(), 1/self.size().height())
-                prog.setUniformValue('inv_max_bin_val', self._image.histogram[self._image.max_histogram_bin]**-self.gamma_gamma)
+                if self._image.type == 'g':
+                    inv_max_bin_val = self._image.histogram[self._image.max_histogram_bin]**-self.gamma_gamma
+                else:
+                    inv_max_bin_val = self._image.histogram[0, self._image.max_histogram_bin[0]]**-self.gamma_gamma
+                prog.setUniformValue('inv_max_bin_val', inv_max_bin_val)
                 prog.setUniformValue('gamma_gamma', self.gamma_gamma)
                 self._glfs.glEnableClientState(self._glfs.GL_VERTEX_ARRAY)
                 self._glfs.glDrawArrays(self._glfs.GL_TRIANGLE_FAN, 0, 4)
@@ -395,22 +399,33 @@ class HistogramWidget(CanvasWidget):
                     self._tex.setSize(self._image.histogram.nbytes / 4, 1, 1)
                     self._tex.allocateStorage()
                     # self._tex stores histogram bin counts - values that are intended to be addressed by element without
-                    # interpolation.  Thus, Qt.QOpenGLTexture.Nearest filtering.
+                    # interpolation.  Thus, nearest neighbor for texture filtering.
                     self._tex.setMinMagFilters(Qt.QOpenGLTexture.Nearest, Qt.QOpenGLTexture.Nearest)
                 self._tex.bind()
                 pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
                 pixel_transfer_opts.setAlignment(1)
-                # This should work, but does not.
-#               self._tex.setData(Qt.QOpenGLTexture.Red,
-#                                 Qt.QOpenGLTexture.UInt32,
-#                                 image.histogram.ctypes.data,
-#                                 pixel_transfer_opts)
-                # So we do this, for now
-                foo = image.histogram.astype(numpy.float32)
-                self._tex.setData(Qt.QOpenGLTexture.Red,
-                                  Qt.QOpenGLTexture.Float32,
-                                  foo.ctypes.data,
-                                  pixel_transfer_opts)
+                if image.is_grayscale:
+                    # This should work, but does not, for reasons yet to be investigated.
+        #           self._tex.setData(Qt.QOpenGLTexture.Red,
+        #                             Qt.QOpenGLTexture.UInt32,
+        #                             image.histogram.ctypes.data,
+        #                             pixel_transfer_opts)
+                    # So we do this, for now
+                    if image.type == 'g':
+                        foo = image.histogram.astype(numpy.float32)
+                    else:
+                        foo = image.histogram[0].astype(numpy.float32)
+                    self._tex.setData(Qt.QOpenGLTexture.Red,
+                                      Qt.QOpenGLTexture.Float32,
+                                      foo.ctypes.data,
+                                      pixel_transfer_opts)
+                else:
+                    # personal time todo: per-channel RGB histogram support
+                    foo = numpy.sum(image.histogram, axis=0, dtype=numpy.float32)
+                    self._tex.setData(Qt.QOpenGLTexture.Red,
+                                      Qt.QOpenGLTexture.Float32,
+                                      foo.ctypes.data,
+                                      pixel_transfer_opts)
                 self._tex.release()
                 self._image = image
             self.update()
