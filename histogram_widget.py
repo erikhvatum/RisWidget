@@ -347,7 +347,7 @@ class HistogramWidget(CanvasWidget):
                 prog = self._image_type_to_glsl_prog[self._image.type]
                 prog.bind()
                 self._quad_buffer.bind()
-                self._tex.bind()
+                self._glfs.glBindTexture(self._glfs.GL_TEXTURE_1D, self._tex)
                 vert_coord_loc = prog.attributeLocation('vert_coord')
                 quad_vao_binder = Qt.QOpenGLVertexArrayObject.Binder(self._quad_vao)
                 prog.enableAttributeArray(vert_coord_loc)
@@ -355,14 +355,14 @@ class HistogramWidget(CanvasWidget):
                 prog.setUniformValue('tex', 0)
                 prog.setUniformValue('inv_view_size', 1/self.size().width(), 1/self.size().height())
                 if self._image.type == 'g':
-                    inv_max_bin_val = self._image.histogram[self._image.max_histogram_bin]**-self.gamma_gamma
+                    max_bin_val = self._image.histogram[self._image.max_histogram_bin]
                 else:
-                    inv_max_bin_val = self._image.histogram[0, self._image.max_histogram_bin[0]]**-self.gamma_gamma
-                prog.setUniformValue('inv_max_bin_val', inv_max_bin_val)
+                    max_bin_val = self._image.histogram[0, self._image.max_histogram_bin[0]]
+                inv_max_transformed_bin_val = max_bin_val**-self.gamma_gamma
+                prog.setUniformValue('inv_max_transformed_bin_val', inv_max_transformed_bin_val)
                 prog.setUniformValue('gamma_gamma', self.gamma_gamma)
                 self._glfs.glEnableClientState(self._glfs.GL_VERTEX_ARRAY)
                 self._glfs.glDrawArrays(self._glfs.GL_TRIANGLE_FAN, 0, 4)
-                self._tex.release()
                 self._quad_buffer.release()
                 prog.release()
 
@@ -388,45 +388,35 @@ class HistogramWidget(CanvasWidget):
         try:
             self.makeCurrent()
             if self._image is not None and (image is None or self._image.histogram.shape != image.histogram.shape):
-                self._tex = None
+                if self._tex is not None:
+                    self._glfs.glDeleteTextures(1, (self._tex,))
+                    self._tex = None
                 self._image = None
             if image is not None:
                 if self._tex is None:
-                    self._tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target1D)
-                    self._tex.setFormat(Qt.QOpenGLTexture.R32F)
-                    self._tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
-                    self._tex.setAutoMipMapGenerationEnabled(False)
-                    self._tex.setSize(self._image.histogram.nbytes / 4, 1, 1)
-                    self._tex.allocateStorage()
+                    self._tex = self._glfs.glGenTextures(1)
+                    self._glfs.glBindTexture(self._glfs.GL_TEXTURE_1D, self._tex)
+                    self._glfs.glTexParameteri(self._glfs.GL_TEXTURE_1D, self._glfs.GL_TEXTURE_WRAP_S, self._glfs.GL_CLAMP_TO_EDGE)
+                    self._glfs.glTexParameteri(self._glfs.GL_TEXTURE_1D, self._glfs.GL_TEXTURE_WRAP_T, self._glfs.GL_CLAMP_TO_EDGE)
                     # self._tex stores histogram bin counts - values that are intended to be addressed by element without
                     # interpolation.  Thus, nearest neighbor for texture filtering.
-                    self._tex.setMinMagFilters(Qt.QOpenGLTexture.Nearest, Qt.QOpenGLTexture.Nearest)
-                self._tex.bind()
-                pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
-                pixel_transfer_opts.setAlignment(1)
-                if image.is_grayscale:
-                    # This should work, but does not, for reasons yet to be investigated.
-        #           self._tex.setData(Qt.QOpenGLTexture.Red,
-        #                             Qt.QOpenGLTexture.UInt32,
-        #                             image.histogram.ctypes.data,
-        #                             pixel_transfer_opts)
-                    # So we do this, for now
-                    if image.type == 'g':
-                        foo = image.histogram.astype(numpy.float32)
-                    else:
-                        foo = image.histogram[0].astype(numpy.float32)
-                    self._tex.setData(Qt.QOpenGLTexture.Red,
-                                      Qt.QOpenGLTexture.Float32,
-                                      foo.ctypes.data,
-                                      pixel_transfer_opts)
+                    self._glfs.glTexParameteri(self._glfs.GL_TEXTURE_1D, self._glfs.GL_TEXTURE_MIN_FILTER, self._glfs.GL_NEAREST)
+                    self._glfs.glTexParameteri(self._glfs.GL_TEXTURE_1D, self._glfs.GL_TEXTURE_MAG_FILTER, self._glfs.GL_NEAREST)
                 else:
+                    self._glfs.glBindTexture(self._glfs.GL_TEXTURE_1D, self._tex)
+                self._glfs.glPixelStorei(self._glfs.GL_PACK_ALIGNMENT, 1)
+                self._glfs.glPixelStorei(self._glfs.GL_UNPACK_ALIGNMENT, 1)
+                if image.is_grayscale:
+                    if image.type == 'g':
+                        intensity_histogram = image.histogram
+                        max_bin_val = intensity_histogram[self._image.max_histogram_bin]
+                    else:
+                        intensity_histogram = image.histogram[0]
+                        max_bin_val = intensity_histogram[self._image.max_histogram_bin[0]]
+                    self._glfs.glTexImage1D(self._glfs.GL_TEXTURE_1D, 0, self._glfs.GL_LUMINANCE32UI_EXT, len(intensity_histogram), 0, self._glfs.GL_LUMINANCE_INTEGER_EXT, self._glfs.GL_UNSIGNED_INT, intensity_histogram.data)
+                else:
+                    pass
                     # personal time todo: per-channel RGB histogram support
-                    foo = numpy.sum(image.histogram, axis=0, dtype=numpy.float32)
-                    self._tex.setData(Qt.QOpenGLTexture.Red,
-                                      Qt.QOpenGLTexture.Float32,
-                                      foo.ctypes.data,
-                                      pixel_transfer_opts)
-                self._tex.release()
                 self._image = image
             self.update()
         finally:
