@@ -32,7 +32,7 @@ uniform float gamma_gamma;
 
 void main()
 {
-    float bin_value = texture1D(tex, gl_FragCoord.x * inv_view_size.x).r;
+    float bin_value = float(texture1D(tex, gl_FragCoord.x * inv_view_size.x).r);
     float bin_height = pow(bin_value, gamma_gamma) * inv_max_transformed_bin_val;
     float intensity = 1.0f - clamp(floor((gl_FragCoord.y * inv_view_size.y) / bin_height), 0, 1);
 
