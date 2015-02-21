@@ -72,12 +72,12 @@ class ImageWidget(CanvasWidget):
         self._custom_zoom = 0
         self._zoom_to_fit = False
         self._pan = Qt.QPoint()
-        self._gs = Qt.QGraphicsScene(self)
+#       self._gs = Qt.QGraphicsScene(self)
 #       c = Qt.QColor(Qt.Qt.red)
 #       c.setAlphaF(0.5)
 #       b = Qt.QBrush(c)
 #       self._gs.addRect(10, 10, 100, 100, Qt.QPen(Qt.Qt.blue), b)
-        self._gv = Qt.QGraphicsView(self._gs)
+#       self._gv = Qt.QGraphicsView(self._gs)
 #       self._gv.show()
 
     def initializeGL(self):
@@ -153,12 +153,12 @@ class ImageWidget(CanvasWidget):
 #           if self._image is not None:
 #               self._gv.render(p)
 #           p.setCompositionMode(Qt.QPainter.CompositionMode_SourceOver)
-            if hasattr(self, '_tmr'):
-                color = Qt.QColor(Qt.Qt.red)
-                color.setAlphaF(0.5)
-                brush = Qt.QBrush(color)
-                p.setBrush(brush)
-                p.drawRect(self._tmr.x()+5, self._tmr.y()+5, self._tmr.width()-10, self._tmr.height()-10)
+#           if hasattr(self, '_tmr'):
+#               color = Qt.QColor(Qt.Qt.red)
+#               color.setAlphaF(0.5)
+#               brush = Qt.QBrush(color)
+#               p.setBrush(brush)
+#               p.drawRect(self._tmr.x()+5, self._tmr.y()+5, self._tmr.width()-10, self._tmr.height()-10)
             p.end()
 
     def resizeGL(self, x, y):
@@ -287,13 +287,13 @@ class ImageWidget(CanvasWidget):
         self._widget_to_image, succeeded = t.inverted()
         if not succeeded:
             raise RuntimeError('Failed to compute inverse of image coordinate to widget coordinate transformation matrix.')
-        tmr_p = t.map(r)
-        tmr_tl = tmr_p.at(0)
-        tmr_br = tmr_p.at(2)
-        tmr = Qt.QRectF(tmr_tl.x(), tmr_tl.y(), tmr_br.x()-tmr_tl.x(), tmr_br.y()-tmr_tl.y())
-        self._tmr = tmr
-        self._gs.setSceneRect(tmr)
-        self._gv.resize(view_size)
+#       tmr_p = t.map(r)
+#       tmr_tl = tmr_p.at(0)
+#       tmr_br = tmr_p.at(2)
+#       tmr = Qt.QRectF(tmr_tl.x(), tmr_tl.y(), tmr_br.x()-tmr_tl.x(), tmr_br.y()-tmr_tl.y())
+#       self._tmr = tmr
+#       self._gs.setSceneRect(tmr)
+#       self._gv.resize(view_size)
 #       self._gs.setSceneRect(0,0,image_size.width(),image_size.height())
 #       self._gv.resize(image_size.width(),image_size.height())
 
