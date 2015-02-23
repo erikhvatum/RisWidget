@@ -53,6 +53,7 @@ class ImageWidget(CanvasWidget):
     _ZOOM_CLICK_SCALE_FACTOR = .25
 
     zoom_changed = Qt.pyqtSignal(int, float)
+    zoom_to_fit_changed = Qt.pyqtSignal(bool)
 
     def __init__(self, scroller, qsurface_format):
         super().__init__(scroller, qsurface_format)
@@ -343,6 +344,7 @@ class ImageWidget(CanvasWidget):
     def zoom_to_fit(self, zoom_to_fit):
         self._zoom_to_fit = zoom_to_fit
         self._update_scroller_ranges()
+        self.zoom_to_fit_changed.emit(self._zoom_to_fit)
         self.update()
 
     @property
@@ -351,6 +353,8 @@ class ImageWidget(CanvasWidget):
 
     @custom_zoom.setter
     def custom_zoom(self, custom_zoom):
+        if self._custom_zoom < ImageWidget._ZOOM_MIN_MAX[0] or self._custom_zoom > ImageWidget._ZOOM_MIN_MAX[1]:
+            raise ValueError('Value must be in the range [{}, {}].'.format(*ImageWidget._ZOOM_MIN_MAX))
         self._custom_zoom = custom_zoom
         self._zoom_preset_idx = -1
         self._update_scroller_ranges()
@@ -365,6 +369,8 @@ class ImageWidget(CanvasWidget):
     def zoom_preset_idx(self, idx):
         if idx < 0 or idx >= ImageWidget._ZOOM_PRESETS.shape[0]:
             raise ValueError('idx must be in the range [0, {}).'.format(ImageWidget._ZOOM_PRESETS.shape[0]))
+        self._zoom_preset_idx = idx
+        self._custom_zoom = 0
         self._update_scroller_ranges()
         self.zoom_changed.emit(self._zoom_preset_idx, self._custom_zoom)
         self.update()

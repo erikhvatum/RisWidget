@@ -81,7 +81,8 @@ class RisWidget(Qt.QMainWindow):
         self._image_view_zoom_combo.lineEdit().returnPressed.connect(self._image_view_zoom_combo_custom_value_entered)
         self.image_widget.zoom_changed.connect(self._image_view_zoom_changed)
         self._image_view_toolbar.addAction(self._image_view_zoom_to_fit_action)
-        self._image_view_zoom_to_fit_action.triggered[bool].connect(self._image_view_zoom_to_fit_toggled)
+        self._image_view_zoom_to_fit_action.triggered[bool].connect(self._image_view_zoom_to_fit_action_toggled)
+        self.image_widget.zoom_to_fit_changed.connect(self._image_view_zoom_to_fit_changed)
 
     def _init_views(self):
         qsurface_format = Qt.QSurfaceFormat()
@@ -154,15 +155,22 @@ class RisWidget(Qt.QMainWindow):
 
     def _image_view_zoom_changed(self, zoom_preset_idx, custom_zoom):
         assert zoom_preset_idx == -1 and custom_zoom != 0 or zoom_preset_idx != -1 and custom_zoom == 0, 'zoom_preset_idx XOR custom_zoom must be set.'
-        if zoom_preset_idx != -1:
-            self._image_view_zoom_combo.setCurrentIndex(zoom_preset_idx)
-        else:
+        if zoom_preset_idx == -1:
             self._image_view_zoom_combo.lineEdit().setText(self._format_zoom(custom_zoom * 100) + '%')
+        else:
+            self._image_view_zoom_combo.setCurrentIndex(zoom_preset_idx)
+
+    def _image_view_zoom_to_fit_changed(self, zoom_to_fit):
+        """Handle self.image_widget.zoom_to_fit property change."""
+        if zoom_to_fit != self._image_view_zoom_to_fit_action.isChecked():
+            self._image_view_zoom_to_fit_action.setChecked(zoom_to_fit)
+            self._image_view_zoom_combo.setEnabled(not zoom_to_fit)
 
     def _image_view_zoom_combo_changed(self, idx):
         self.image_widget.zoom_preset_idx = idx
 
-    def _image_view_zoom_to_fit_toggled(self, zoom_to_fit):
+    def _image_view_zoom_to_fit_action_toggled(self, zoom_to_fit):
+        """Change self._image_widget.zoom_to_fit property value in response to GUI manipulation."""
         self._image_view_zoom_combo.setEnabled(not zoom_to_fit)
         self.image_widget.zoom_to_fit = zoom_to_fit
 

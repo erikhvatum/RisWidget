@@ -413,7 +413,9 @@ class HistogramWidget(CanvasWidget):
                     else:
                         intensity_histogram = image.histogram[0]
                         max_bin_val = intensity_histogram[self._image.max_histogram_bin[0]]
-                    self._glfs.glTexImage1D(self._glfs.GL_TEXTURE_1D, 0, self._glfs.GL_LUMINANCE32UI_EXT, len(intensity_histogram), 0, self._glfs.GL_LUMINANCE_INTEGER_EXT, self._glfs.GL_UNSIGNED_INT, intensity_histogram.data)
+                    self._glfs.glTexImage1D(self._glfs.GL_TEXTURE_1D, 0, self._glfs.GL_LUMINANCE32UI_EXT,
+                                            len(intensity_histogram), 0, self._glfs.GL_LUMINANCE_INTEGER_EXT,
+                                            self._glfs.GL_UNSIGNED_INT, intensity_histogram.data)
                 else:
                     pass
                     # personal time todo: per-channel RGB histogram support
