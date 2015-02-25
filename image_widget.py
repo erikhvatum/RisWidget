@@ -27,25 +27,6 @@ import math
 import numpy
 from PyQt5 import Qt
 
-class ImageWidgetScroller(Qt.QAbstractScrollArea):
-    # It is necessary to derive this class rather than using QAbstractScrollArea directly (which would
-    # be consistent with how we make the frame and container dialog for HistogramWidget) because
-    # scrollContentsBy is a virtual function that must be overridden, not a signal that can be
-    # connected to any arbitrary function (such as ImageWidget._scroll_contents_by).
-    def __init__(self, parent, qsurface_format):
-        super().__init__(parent)
-        self.setFrameShape(Qt.QFrame.StyledPanel)
-        self.setFrameShadow(Qt.QFrame.Raised)
-        self.image_widget = ImageWidget(self, qsurface_format)
-        self.image_widget.show()
-
-    def scrollContentsBy(self, dx, dy):
-        self.image_widget._scroll_contents_by(dx, dy)
-
-    def resizeEvent(self, event):
-        s = event.size()
-        self.image_widget.setGeometry(0, 0, s.width(), s.height())
-
 class ImageWidget(CanvasWidget):
     _ZOOM_PRESETS = numpy.array((10, 5, 2, 1.5, 1, .75, .5, .25, .1), dtype=numpy.float64)
     _ZOOM_MIN_MAX = (.01, 10000.0)

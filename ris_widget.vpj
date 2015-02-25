@@ -209,7 +209,6 @@
 			<F N="shaders/image_widget_vertex_shader.glsl"/>
 		</Folder>
 		<F N="__init__.py"/>
-		<F N="canvas_widget.py"/>
 		<F N="histogram_widget.py"/>
 		<F N="image.py"/>
 		<F N="image_widget.py"/>
@@ -217,5 +216,6 @@
 		<F N="LICENSE"/>
 		<F N="README.md"/>
 		<F N="ris_widget.py"/>
+		<F N="canvas.py"/>
 	</Files>
 </Project>

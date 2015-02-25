@@ -27,6 +27,21 @@ from pathlib import Path
 from PyQt5 import Qt
 import sys
 
+NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
+        numpy.uint8  : Qt.QOpenGLTexture.UInt8,
+        numpy.uint16 : Qt.QOpenGLTexture.UInt16,
+        numpy.float32: Qt.QOpenGLTexture.Float32}
+IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT = {
+    'g'   : Qt.QOpenGLTexture.R32F,
+    'ga'  : Qt.QOpenGLTexture.RG32F,
+    'rgb' : Qt.QOpenGLTexture.RGB32F,
+    'rgba': Qt.QOpenGLTexture.RGBA32F}
+IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT = {
+    'g'   : Qt.QOpenGLTexture.Red,
+    'ga'  : Qt.QOpenGLTexture.RG,
+    'rgb' : Qt.QOpenGLTexture.RGB,
+    'rgba': Qt.QOpenGLTexture.RGBA}
+
 class _CanvasGLWidget(Qt.QOpenGLWidget):
     """In order to obtain a QGraphicsView instance that renders into an OpenGL 2.1
     compatibility context (OS X does not support OpenGL 3.0+ compatibility profile,
@@ -52,6 +67,7 @@ class _CanvasGLWidget(Qt.QOpenGLWidget):
     C++ contract."""
 
     _QSURFACE_FORMAT = None
+    gl_initializing = Qt.pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -63,75 +79,61 @@ class _CanvasGLWidget(Qt.QOpenGLWidget):
             qsurface_format.setSwapBehavior(Qt.QSurfaceFormat.DoubleBuffer)
             qsurface_format.setStereo(False)
             qsurface_format.setSwapInterval(1)
+            # Specifically enabling alpha channel is not sufficient for enabling QPainter composition modes that
+            # use destination alpha (ie, nothing drawn in CompositionMode_DestinationOver will be visible in
+            # a painGL widget).
+#           qsurface_format.setRedBufferSize(8)
+#           qsurface_format.setGreenBufferSize(8)
+#           qsurface_format.setBlueBufferSize(8)
+#           qsurface_format.setAlphaBufferSize(8)
             _CanvasGLWidget._QSURFACE_FORMAT = qsurface_format
         self.setFormat(_CanvasGLWidget._QSURFACE_FORMAT)
 
     def initializeGL(self):
         # PyQt5 provides access to OpenGL functions up to OpenGL 2.0, but we have made a 2.1
         # context.  QOpenGLContext.versionFunctions(..) will, by default, attempt to return
-        # a wrapper around QOpenGLFunctions2_1, which will fail, as there is no
-        # PyQt5._QOpenGLFunctions_2_1 implementation.  Therefore, we explicitly request 2.0
+        # a wrapper around QOpenGLFunctions2_1, which may fail, as there is not necessarily
+        # a PyQt5._QOpenGLFunctions_2_1 implementation.  Therefore, we explicitly request 2.0
         # functions, and any 2.1 calls that we want to make can not occur through self.glfs.
         vp = Qt.QOpenGLVersionProfile()
         vp.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
         vp.setVersion(2, 0)
-        self._glfs = self.context().versionFunctions(vp)
-        if not self._glfs:
+        self.glfs = self.context().versionFunctions(vp)
+        if not self.glfs:
             raise RuntimeError('Failed to retrieve OpenGL function bundle.')
-        if not self._glfs.initializeOpenGLFunctions():
+        if not self.glfs.initializeOpenGLFunctions():
             raise RuntimeError('Failed to initialize OpenGL function bundle.')
+        self.gl_initializing.emit()
 
     def paintGL(self):
         pass
 
-    def resizeGL(self, x, y):
+    def resizeGL(self, w, h):
         pass
 
 class CanvasWidget(Qt.QGraphicsView):
-    _NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
-        numpy.uint8  : Qt.QOpenGLTexture.UInt8,
-        numpy.uint16 : Qt.QOpenGLTexture.UInt16,
-        numpy.float32: Qt.QOpenGLTexture.Float32}
-    _IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT = {
-        'g'   : Qt.QOpenGLTexture.R32F,
-        'ga'  : Qt.QOpenGLTexture.RG32F,
-        'rgb' : Qt.QOpenGLTexture.RGB32F,
-        'rgba': Qt.QOpenGLTexture.RGBA32F}
-    _IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT = {
-        'g'   : Qt.QOpenGLTexture.Red,
-        'ga'  : Qt.QOpenGLTexture.RG,
-        'rgb' : Qt.QOpenGLTexture.RGB,
-        'rgba': Qt.QOpenGLTexture.RGBA}
+    def __init__(self, canvas_scene, parent=None):
+        super().__init__(canvas_scene, parent)
+#       self.setMouseTracking(True)
+        glw = _CanvasGLWidget()
+        glw.gl_initializing.connect(self._on_gl_initializing)
+        self.setViewport(glw)
 
-    request_mouseover_info_status_text_change = Qt.pyqtSignal(object)
+#   def event(self, event):
+#       if event.type() == Qt.QEvent.Leave:
+#           self.request_mouseover_info_status_text_change.emit(None)
+#       return super().event(event)
 
-    def __init__(self, parent, qsurface_format):
-        super().__init__(parent)
-        self.setFormat(qsurface_format)
-        self.setMouseTracking(True)
-        self._glfs = None
-        self._quad_vao = None
-        self._quad_buffer = None
+    def _on_gl_initializing(self):
+        self.glfs = self.viewport().glfs
 
-    def event(self, event):
-        if event.type() == Qt.QEvent.Leave:
-            self.request_mouseover_info_status_text_change.emit(None)
-        return super().event(event)
-
-    def _init_glfs(self):
-        # PyQt5 provides access to OpenGL functions up to OpenGL 2.0, but we have made a 2.1
-        # context.  QOpenGLContext.versionFunctions(..) will, by default, attempt to return
-        # a wrapper around QOpenGLFunctions2_1, which will fail, as there is no
-        # PyQt5._QOpenGLFunctions_2_1 implementation.  Therefore, we explicitly request 2.0
-        # functions, and any 2.1 calls that we want to make can not occur through self.glfs.
-        vp = Qt.QOpenGLVersionProfile()
-        vp.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
-        vp.setVersion(2, 0)
-        self._glfs = self.context().versionFunctions(vp)
-        if not self._glfs:
-            raise RuntimeError('Failed to retrieve OpenGL function bundle.')
-        if not self._glfs.initializeOpenGLFunctions():
-            raise RuntimeError('Failed to initialize OpenGL function bundle.')
+    def drawBackground(self, p, rect):
+        p.beginNativePainting()
+        gl = self.glfs
+        gl.glClearColor(0,0,0,1)
+        gl.glClearDepth(1)
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
+        p.endNativePainting()
 
     def _build_shader_prog(self, desc, vert_fn, frag_fn):
         source_dpath = Path(__file__).parent / 'shaders'
@@ -145,15 +147,25 @@ class CanvasWidget(Qt.QGraphicsView):
         return prog
 
     def _make_quad_vao(self):
-        self._quad_vao = Qt.QOpenGLVertexArrayObject()
-        self._quad_vao.create()
-        quad_vao_binder = Qt.QOpenGLVertexArrayObject.Binder(self._quad_vao)
+        self.quad_vao = Qt.QOpenGLVertexArrayObject()
+        self.quad_vao.create()
+        quad_vao_binder = Qt.QOpenGLVertexArrayObject.Binder(self.quad_vao)
         quad = numpy.array([1.1, -1.1,
                             -1.1, -1.1,
                             -1.1, 1.1,
                             1.1, 1.1], dtype=numpy.float32)
-        self._quad_buffer = Qt.QOpenGLBuffer(Qt.QOpenGLBuffer.VertexBuffer)
-        self._quad_buffer.create()
-        self._quad_buffer.bind()
-        self._quad_buffer.setUsagePattern(Qt.QOpenGLBuffer.StaticDraw)
-        self._quad_buffer.allocate(quad.ctypes.data, quad.nbytes)
+        self.quad_buffer = Qt.QOpenGLBuffer(Qt.QOpenGLBuffer.VertexBuffer)
+        self.quad_buffer.create()
+        self.quad_buffer.bind()
+        self.quad_buffer.setUsagePattern(Qt.QOpenGLBuffer.StaticDraw)
+        self.quad_buffer.allocate(quad.ctypes.data, quad.nbytes)
+
+class CanvasScene(Qt.QGraphicsScene):
+    request_mouseover_info_status_text_change = Qt.pyqtSignal(object)
+
+class CanvasGLObject(Qt.QGraphicsObject):
+    def __init__(self, canvas, graphics_item_parent=None):
+        super().__init__(graphics_item_parent)
+        self.canvas = canvas
+
+class CanvasImage(CanvasGLObject):
