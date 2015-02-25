@@ -27,7 +27,67 @@ from pathlib import Path
 from PyQt5 import Qt
 import sys
 
-class CanvasWidget(Qt.QOpenGLWidget):
+class _CanvasGLWidget(Qt.QOpenGLWidget):
+    """In order to obtain a QGraphicsView instance that renders into an OpenGL 2.1
+    compatibility context (OS X does not support OpenGL 3.0+ compatibility profile,
+    and Qt 5.4.1 QPainter support relies upon legacy calls, limiting us to 2.1 on
+    OS X and everywhere else as a practicality), I know of two supported methods:
+
+    * Call the static method Qt.QSurfaceFormat.setDefaultFormat(our_format).  All
+    widgets created thereafter will render into OpenGL 2.1 compat contexts.  That can
+    possibly be avoided, by attempting to stash and restore the value of
+    Qt.QSurfaceFormat.defaultFormat(), but this should must be done with care.  On
+    your particular platform, when does QGraphicsView read
+    Qt.QSurfaceFormat.defaultFormat()?  When you show() the widget?  During the next
+    iteration of the event loop after you show() the widget?  Also, you don't want
+    to interfere with intervening instantiation of a 3rd party widget (eg a,
+    matplotlib chart, which may want the software rasterizer).
+
+    * Make a QGLWidget (old-school) or QOpenGLWidget (new school) and feed it to
+    QGraphicsView's method setViewport.  _CanvasGLWidget is that QOpenGLWidget.
+    _CanvasGLWidget doesn't really do anything except set up an OpenGL context.
+    All relevant QEvents are filtered by the QGraphicsView-derived instance.
+    _CanvasGLWidget has paintGL and resizeGL methods only because PyQt5 verifies
+    that these exist in order to enforce the no-class-instances-with-pure-virtual-methods
+    C++ contract."""
+
+    _QSURFACE_FORMAT = None
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        if _CanvasGLWidget._QSURFACE_FORMAT is None:
+            qsurface_format = Qt.QSurfaceFormat()
+            qsurface_format.setRenderableType(Qt.QSurfaceFormat.OpenGL)
+            qsurface_format.setVersion(2, 1)
+            qsurface_format.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
+            qsurface_format.setSwapBehavior(Qt.QSurfaceFormat.DoubleBuffer)
+            qsurface_format.setStereo(False)
+            qsurface_format.setSwapInterval(1)
+            _CanvasGLWidget._QSURFACE_FORMAT = qsurface_format
+        self.setFormat(_CanvasGLWidget._QSURFACE_FORMAT)
+
+    def initializeGL(self):
+        # PyQt5 provides access to OpenGL functions up to OpenGL 2.0, but we have made a 2.1
+        # context.  QOpenGLContext.versionFunctions(..) will, by default, attempt to return
+        # a wrapper around QOpenGLFunctions2_1, which will fail, as there is no
+        # PyQt5._QOpenGLFunctions_2_1 implementation.  Therefore, we explicitly request 2.0
+        # functions, and any 2.1 calls that we want to make can not occur through self.glfs.
+        vp = Qt.QOpenGLVersionProfile()
+        vp.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
+        vp.setVersion(2, 0)
+        self._glfs = self.context().versionFunctions(vp)
+        if not self._glfs:
+            raise RuntimeError('Failed to retrieve OpenGL function bundle.')
+        if not self._glfs.initializeOpenGLFunctions():
+            raise RuntimeError('Failed to initialize OpenGL function bundle.')
+
+    def paintGL(self):
+        pass
+
+    def resizeGL(self, x, y):
+        pass
+
+class CanvasWidget(Qt.QGraphicsView):
     _NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
         numpy.uint8  : Qt.QOpenGLTexture.UInt8,
         numpy.uint16 : Qt.QOpenGLTexture.UInt16,
