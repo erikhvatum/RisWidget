@@ -22,15 +22,16 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+from contextlib import contextmanager
 import numpy
 from pathlib import Path
 from PyQt5 import Qt
 import sys
 
 NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
-        numpy.uint8  : Qt.QOpenGLTexture.UInt8,
-        numpy.uint16 : Qt.QOpenGLTexture.UInt16,
-        numpy.float32: Qt.QOpenGLTexture.Float32}
+    numpy.uint8  : Qt.QOpenGLTexture.UInt8,
+    numpy.uint16 : Qt.QOpenGLTexture.UInt16,
+    numpy.float32: Qt.QOpenGLTexture.Float32}
 IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT = {
     'g'   : Qt.QOpenGLTexture.R32F,
     'ga'  : Qt.QOpenGLTexture.RG32F,
@@ -106,10 +107,10 @@ class _CanvasGLWidget(Qt.QOpenGLWidget):
         self.gl_initializing.emit()
 
     def paintGL(self):
-        pass
+        print('paintGL(self)')
 
     def resizeGL(self, w, h):
-        pass
+        print('resizeGL(self, w, h)')
 
 class CanvasWidget(Qt.QGraphicsView):
     def __init__(self, canvas_scene, parent=None):
@@ -117,6 +118,7 @@ class CanvasWidget(Qt.QGraphicsView):
 #       self.setMouseTracking(True)
         glw = _CanvasGLWidget()
         glw.gl_initializing.connect(self._on_gl_initializing)
+        self._glw = glw
         self.setViewport(glw)
 
 #   def event(self, event):
@@ -126,14 +128,7 @@ class CanvasWidget(Qt.QGraphicsView):
 
     def _on_gl_initializing(self):
         self.glfs = self.viewport().glfs
-
-    def drawBackground(self, p, rect):
-        p.beginNativePainting()
-        gl = self.glfs
-        gl.glClearColor(0,0,0,1)
-        gl.glClearDepth(1)
-        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
-        p.endNativePainting()
+        self._make_quad_vao()
 
     def _build_shader_prog(self, desc, vert_fn, frag_fn):
         source_dpath = Path(__file__).parent / 'shaders'
@@ -157,15 +152,27 @@ class CanvasWidget(Qt.QGraphicsView):
         self.quad_buffer = Qt.QOpenGLBuffer(Qt.QOpenGLBuffer.VertexBuffer)
         self.quad_buffer.create()
         self.quad_buffer.bind()
-        self.quad_buffer.setUsagePattern(Qt.QOpenGLBuffer.StaticDraw)
-        self.quad_buffer.allocate(quad.ctypes.data, quad.nbytes)
+        try:
+            self.quad_buffer.setUsagePattern(Qt.QOpenGLBuffer.StaticDraw)
+            self.quad_buffer.allocate(quad.ctypes.data, quad.nbytes)
+        finally:
+            self.quad_buffer.release()
+
+    def drawBackground(self, p, rect):
+        p.beginNativePainting()
+        gl = self.glfs
+        gl.glClearColor(0,0,0,1)
+        gl.glClearDepth(1)
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
+        p.endNativePainting()
+
+@contextmanager
+def gl_context(canvas_widget):
+    canvas_widget.viewport().makeCurrent()
+    try:
+        yield
+    finally:
+        canvas_widget.viewport().doneCurrent()
 
 class CanvasScene(Qt.QGraphicsScene):
     request_mouseover_info_status_text_change = Qt.pyqtSignal(object)
-
-class CanvasGLObject(Qt.QGraphicsObject):
-    def __init__(self, canvas, graphics_item_parent=None):
-        super().__init__(graphics_item_parent)
-        self.canvas = canvas
-
-class CanvasImage(CanvasGLObject):
