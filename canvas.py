@@ -156,6 +156,8 @@ class CanvasWidget(Qt.QGraphicsView):
             self.quad_buffer.setUsagePattern(Qt.QOpenGLBuffer.StaticDraw)
             self.quad_buffer.allocate(quad.ctypes.data, quad.nbytes)
         finally:
+            # Note: the following release call is essential.  Without it, QPainter will never work for
+            # this widget again!
             self.quad_buffer.release()
 
     def drawBackground(self, p, rect):
