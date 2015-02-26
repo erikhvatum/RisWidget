@@ -48,6 +48,7 @@ class RisWidget(Qt.QMainWindow):
         if window_title is not None:
             self.setWindowTitle(window_title)
         self.setAcceptDrops(True)
+        self.gl_share = GLShare(self)
         self._init_views()
 #       self._init_actions()
 #       self._init_toolbars()
@@ -171,6 +172,38 @@ class RisWidget(Qt.QMainWindow):
 #           Qt.QMessageBox.information(self, self.windowTitle(), 'Please enter a number between {} and {}.'.format(*map(RisWidget._format_zoom, image_widget.ImageWidget._ZOOM_MIN_MAX)))
 #           self._image_view_zoom_combo.setFocus()
 #           self._image_view_zoom_combo.lineEdit().selectAll()
+
+class GLShare(Qt.QObject):
+    # TODO: this isn't going to work, and it turns out that context sharing is not to be generally relied upon (if context A
+    # is created and then instantiates a bunch of resources, and context B is subsequently created and set to share with A,
+    # whether B will see any of the resources previously created in A depends on the quality of your video driver)
+    """self.context is used for resource management purposes only (it is not used for draw
+    ing).  This allows QGraphicsItem-derived objects such as those representing the image and histogram, which
+    have various GL resources, be instantiated without concern for whether there is currently a view into
+    the scene owning the object and destroyed without concern for whether any views still exist or have
+    ever existed.  In model/view/controller terms, we prevent improper coupling between view from model by
+    storing model resources that otherwise must be associated with a view in a shared pool that is not associated
+    with any view."""
+    def __init__(self, parent):
+        super().__init__(parent)
+        qsurface_format = Qt.QSurfaceFormat()
+        qsurface_format.setRenderableType(Qt.QSurfaceFormat.OpenGL)
+        qsurface_format.setVersion(2, 1)
+        qsurface_format.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
+        qsurface_format.setSwapBehavior(Qt.QSurfaceFormat.DoubleBuffer)
+        qsurface_format.setStereo(False)
+        qsurface_format.setSwapInterval(1)
+        # Specifically enabling alpha channel is not sufficient for enabling QPainter composition modes that
+        # use destination alpha (ie, nothing drawn in CompositionMode_DestinationOver with a QPainter will be visible in
+        # a QOpenGLWidget).
+#       qsurface_format.setRedBufferSize(8)
+#       qsurface_format.setGreenBufferSize(8)
+#       qsurface_format.setBlueBufferSize(8)
+#       qsurface_format.setAlphaBufferSize(8)
+        self.context = Qt.QOpenGLContext(self)
+        self.context.setFormat(qsurface_format)
+        if not self.context.create():
+            raise RuntimeError('Failed to create shared OpenGL context.')
 
 if __name__ == '__main__':
     import sys
