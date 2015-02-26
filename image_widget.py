@@ -36,7 +36,7 @@ class ImageWidget(canvas.CanvasWidget):
     zoom_changed = Qt.pyqtSignal(int, float)
     zoom_to_fit_changed = Qt.pyqtSignal(bool)
 
-    def __init__(self, canvas_scene, parent=None):
+    def __init__(self, canvas_scene, parent):
         super().__init__(canvas_scene, parent)
         self.histogram_widget = None
         self._image = None
@@ -361,7 +361,6 @@ class ImageItem(Qt.QGraphicsItem):
         return Qt.QRectF() if self._image is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self._image.size))
 
     def paint(self, p, option, widget):
-        print('paint')
         if widget is None:
             print('image_widget.ImageItem.paint called with widget=None.')
         else:
@@ -379,7 +378,7 @@ class ImageItem(Qt.QGraphicsItem):
         self.update()
 
 class ImageScene(canvas.CanvasScene):
-    def __init__(self, parent=None):
+    def __init__(self, parent):
         super().__init__(parent)
         self.image_item = ImageItem()
         self.addItem(self.image_item)

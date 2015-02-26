@@ -113,7 +113,7 @@ class _CanvasGLWidget(Qt.QOpenGLWidget):
         print('resizeGL(self, w, h)')
 
 class CanvasWidget(Qt.QGraphicsView):
-    def __init__(self, canvas_scene, parent=None):
+    def __init__(self, canvas_scene, parent):
         super().__init__(canvas_scene, parent)
 #       self.setMouseTracking(True)
         glw = _CanvasGLWidget()

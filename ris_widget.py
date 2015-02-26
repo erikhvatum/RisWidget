@@ -27,9 +27,9 @@ import numpy
 import pyagg
 import sys
 
-from . import image_widget
-#from .histogram_widget import HistogramWidget
 from . import canvas
+from . import image_widget
+from . import histogram_widget
 from .image import Image
 
 class RisWidget(Qt.QMainWindow):
@@ -86,22 +86,20 @@ class RisWidget(Qt.QMainWindow):
         self.image_widget.zoom_to_fit_changed.connect(self._image_view_zoom_to_fit_changed)
 
     def _init_views(self):
-#       self.glw = canvas._CanvasGLWidget()
         self.image_scene = image_widget.ImageScene(self)
         self.image_widget = image_widget.ImageWidget(self.image_scene, self)
-#       self.image_scene.request_mouseover_info_status_text_change.connect()
-#       self.image_widget = image_widget.ImageWidget(self.image_scene, self)
         self.setCentralWidget(self.image_widget)
-#       self._histogram_dock_widget = Qt.QDockWidget('Histogram', self)
-#       self.histogram_widget, self._histogram_container_widget = histogram_widget.HistogramWidget.make_histogram_and_container_widgets(self._histogram_dock_widget, qsurface_format)
-#       self.image_widget.histogram_widget = self.histogram_widget
-#       self._histogram_dock_widget.setWidget(self._histogram_container_widget)
-#       self._histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
-#       self._histogram_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
-#       self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self._histogram_dock_widget)
-#       self.histogram_widget.gamma_or_min_max_changed.connect(self.image_widget.update)
-#       self.histogram_widget.request_mouseover_info_status_text_change.connect(self.histogram_widget._on_request_mouseover_info_status_text_change)
-#       self.image_widget.request_mouseover_info_status_text_change.connect(self.histogram_widget._on_request_mouseover_info_status_text_change)
+        self.histogram_scene = histogram_widget.HistogramScene(self)
+        self._histogram_dock_widget = Qt.QDockWidget('Histogram', self)
+        self.histogram_widget, self._histogram_container_widget = histogram_widget.HistogramWidget.make_histogram_and_container_widgets(self.histogram_scene, self._histogram_dock_widget)
+        self.image_widget.histogram_widget = self.histogram_widget
+        self._histogram_dock_widget.setWidget(self._histogram_container_widget)
+        self._histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
+        self._histogram_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
+        self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self._histogram_dock_widget)
+        self.histogram_widget.gamma_or_min_max_changed.connect(self.image_widget.update)
+        self.histogram_scene.request_mouseover_info_status_text_change.connect(self.histogram_widget._on_request_mouseover_info_status_text_change)
+        self.image_scene.request_mouseover_info_status_text_change.connect(self.histogram_widget._on_request_mouseover_info_status_text_change)
 
     @property
     def image_data(self):
@@ -139,7 +137,7 @@ class RisWidget(Qt.QMainWindow):
         if image is not None and not issubclass(type(image), Image):
             raise ValueError('The value assigned to the image property must either be derived from ris_widget.image.Image or must be None.  Did you mean to assign to the image_data property?')
         self.image_widget._on_image_changed(image)
-#       self.histogram_widget._on_image_changed(image)
+        self.histogram_widget._on_image_changed(image)
         self._image = image
         self.image_changed.emit()
 #

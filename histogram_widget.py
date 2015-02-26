@@ -259,7 +259,7 @@ class HistogramWidget(canvas.CanvasWidget):
     min_blue = MinMaxProp(_scalar_props, _min_max_props, 'min', channel_name='blue')
 
     @classmethod
-    def make_histogram_and_container_widgets(cls, parent, qsurface_format):
+    def make_histogram_and_container_widgets(cls, canvas_scene, parent):
         container = Qt.QWidget(parent)
         container.setLayout(Qt.QHBoxLayout())
         splitter = Qt.QSplitter()
@@ -271,15 +271,15 @@ class HistogramWidget(canvas.CanvasWidget):
         histogram_frame.setLayout(Qt.QHBoxLayout())
         histogram_frame.layout().setSpacing(0)
         histogram_frame.layout().setContentsMargins(Qt.QMargins(0,0,0,0))
-        histogram = cls(histogram_frame, qsurface_format)
+        histogram = cls(canvas_scene, parent)
         histogram_frame.layout().addWidget(histogram)
         splitter.addWidget(histogram._control_widgets_pane)
         splitter.addWidget(histogram_frame)
         histogram.channel_control_widgets_visible = False
         return (histogram, container)
 
-    def __init__(self, parent, qsurface_format):
-        super().__init__(parent, qsurface_format)
+    def __init__(self, canvas_scene, parent):
+        super().__init__(canvas_scene, parent)
         self._image = None
         self._tex = None
         self._make_control_widgets_pane()
@@ -380,6 +380,8 @@ class HistogramWidget(canvas.CanvasWidget):
                 for min_max_prop in self._min_max_props.values():
                     min_max_prop.propagate_slider_value(self)
         self._correct_inversion()
+
+        self.scene().histogram_item._on_image_changed(image)
 
 #       try:
 #           self.makeCurrent()
@@ -484,3 +486,39 @@ class HistogramWidget(canvas.CanvasWidget):
     def histogram(self):
         if self._image is not None:
             return self._image.histogram.copy()
+
+class HistogramItem(Qt.QGraphicsItem):
+    def __init__(self, graphics_item_parent=None):
+        super().__init__(graphics_item_parent)
+        self._image = None
+
+    def boundingRect(self):
+        # personal time todo: per-channel RGB histogram support
+        if self._image is not None and self._image.is_grayscale:
+            bin_count = self._image.histogram.shape[0] if self._image.type == 'g' else self._image.histogram.shape[1]
+            return Qt.QRectF(Qt.QPointF(), Qt.QSizeF(bin_count, 100))
+        else:
+            return Qt.QRectF()
+
+    def paint(self, p, option, widget):
+        print('HistogramItem.paint(..)')
+        if widget is None:
+            print('histogram_widget.HistogramItem.paint called with widget=None.')
+        else:
+            color = Qt.QColor(Qt.Qt.red)
+            color.setAlphaF(0.5)
+            brush = Qt.QBrush(color)
+            p.setBrush(brush)
+            p.drawRect(self.boundingRect())
+
+    def _on_image_changed(self, image):
+        if (self._image is None) != (image is not None):
+            self.prepareGeometryChange()
+        self._image = image
+        self.update()
+
+class HistogramScene(canvas.CanvasScene):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.histogram_item = HistogramItem()
+        self.addItem(self.histogram_item)
