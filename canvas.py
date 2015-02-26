@@ -89,6 +89,7 @@ class _CanvasGLWidget(Qt.QOpenGLWidget):
 #           qsurface_format.setAlphaBufferSize(8)
             _CanvasGLWidget._QSURFACE_FORMAT = qsurface_format
         self.setFormat(_CanvasGLWidget._QSURFACE_FORMAT)
+        self.view = None
 
     def initializeGL(self):
         # PyQt5 provides access to OpenGL functions up to OpenGL 2.0, but we have made a 2.1
@@ -112,14 +113,29 @@ class _CanvasGLWidget(Qt.QOpenGLWidget):
     def resizeGL(self, w, h):
         print('resizeGL(self, w, h)')
 
-class CanvasWidget(Qt.QGraphicsView):
+class CanvasView(Qt.QGraphicsView):
     def __init__(self, canvas_scene, parent):
         super().__init__(canvas_scene, parent)
 #       self.setMouseTracking(True)
         glw = _CanvasGLWidget()
+        glw.view = self
         glw.gl_initializing.connect(self._on_gl_initializing)
         self._glw = glw
         self.setViewport(glw)
+        self.destroyed.connect(self._release_view_resources)
+
+    def _release_view_resources(self):
+        """Delete, release, or otherwise destroy GL resources associated with this CanvasView instance."""
+        if self.scene() is not None and \
+           self.viewport() is not None and \
+           self.viewport().context() is not None and \
+           self.viewport().context().isValid():
+            with canvas_widget_gl_context(self):
+                self.quad_vao.destroy()
+                self.quad_buffer.destroy()
+                for item in self.scene().items():
+                    if issubclass(type(item), CanvasGLItem):
+                        item.release_resources_for_view(self)
 
 #   def event(self, event):
 #       if event.type() == Qt.QEvent.Leave:
@@ -129,17 +145,6 @@ class CanvasWidget(Qt.QGraphicsView):
     def _on_gl_initializing(self):
         self.glfs = self.viewport().glfs
         self._make_quad_vao()
-
-    def _build_shader_prog(self, desc, vert_fn, frag_fn):
-        source_dpath = Path(__file__).parent / 'shaders'
-        prog = Qt.QOpenGLShaderProgram(self)
-        if not prog.addShaderFromSourceFile(Qt.QOpenGLShader.Vertex, str(source_dpath / vert_fn)):
-            raise RuntimeError('Failed to compile vertex shader "{}" for {} {} shader program.'.format(vert_fn, type(self).__name__, desc))
-        if not prog.addShaderFromSourceFile(Qt.QOpenGLShader.Fragment, str(source_dpath / frag_fn)):
-            raise RuntimeError('Failed to compile fragment shader "{}" for {} {} shader program.'.format(frag_fn, type(self).__name__, desc))
-        if not prog.link():
-            raise RuntimeError('Failed to link {} {} shader program.'.format(type(self).__name__, desc))
-        return prog
 
     def _make_quad_vao(self):
         self.quad_vao = Qt.QOpenGLVertexArrayObject()
@@ -169,12 +174,59 @@ class CanvasWidget(Qt.QGraphicsView):
         p.endNativePainting()
 
 @contextmanager
-def gl_context(canvas_widget):
+def canvas_widget_gl_context(canvas_widget):
     canvas_widget.viewport().makeCurrent()
     try:
         yield
     finally:
         canvas_widget.viewport().doneCurrent()
 
+@contextmanager
+def native_painting(qpainter):
+    qpainter.beginNativePainting()
+    try:
+        yield
+    finally:
+        qpainter.endNativePainting()
+
+@contextmanager
+def bind(resource):
+    resource.bind()
+    try:
+        yield
+    finally:
+        resource.release()
+
 class CanvasScene(Qt.QGraphicsScene):
     request_mouseover_info_status_text_change = Qt.pyqtSignal(object)
+
+class CanvasGLItem(Qt.QGraphicsItem):
+    def __init__(self, parent_item=None):
+        super().__init__(parent_item)
+        self._view_resources = {}
+
+    def build_shader_prog(self, desc, vert_fn, frag_fn, canvas_view):
+        source_dpath = Path(__file__).parent / 'shaders'
+        prog = Qt.QOpenGLShaderProgram(canvas_view)
+        if not prog.addShaderFromSourceFile(Qt.QOpenGLShader.Vertex, str(source_dpath / vert_fn)):
+            raise RuntimeError('Failed to compile vertex shader "{}" for {} {} shader program.'.format(vert_fn, type(self).__name__, desc))
+        if not prog.addShaderFromSourceFile(Qt.QOpenGLShader.Fragment, str(source_dpath / frag_fn)):
+            raise RuntimeError('Failed to compile fragment shader "{}" for {} {} shader program.'.format(frag_fn, type(self).__name__, desc))
+        if not prog.link():
+            raise RuntimeError('Failed to link {} {} shader program.'.format(type(self).__name__, desc))
+        vrs = self._view_resources[canvas_view]
+        if 'progs' not in vrs:
+            vrs['progs'] = {desc : prog}
+        else:
+            vrs['progs'][desc] = prog
+
+    def release_resources_for_view(self, canvas_view):
+        for item in self.childItems():
+            if issubclass(type(item), CanvasGLItem):
+                item.release_resources_for_view(canvas_view)
+        if canvas_view in self._view_resources:
+            vrs = self._view_resources[canvas_view]
+            if 'progs' in vrs:
+                for prog in vrs['progs'].values():
+                    prog.removeAllShaders()
+            del self._view_resources[canvas_view]

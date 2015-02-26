@@ -28,8 +28,8 @@ import pyagg
 import sys
 
 from . import canvas
-from . import image_widget
-from . import histogram_widget
+from . import image_canvas
+from . import histogram_canvas
 from .image import Image
 
 class RisWidget(Qt.QMainWindow):
@@ -48,7 +48,6 @@ class RisWidget(Qt.QMainWindow):
         if window_title is not None:
             self.setWindowTitle(window_title)
         self.setAcceptDrops(True)
-        self.gl_share = GLShare(self)
         self._init_views()
 #       self._init_actions()
 #       self._init_toolbars()
@@ -76,31 +75,31 @@ class RisWidget(Qt.QMainWindow):
         self._image_view_zoom_combo.setInsertPolicy(Qt.QComboBox.NoInsert)
         self._image_view_zoom_combo.setDuplicatesEnabled(True)
         self._image_view_zoom_combo.setSizeAdjustPolicy(Qt.QComboBox.AdjustToContents)
-        for zoom in image_widget.ImageWidget._ZOOM_PRESETS:
+        for zoom in image_canvas.ImageView._ZOOM_PRESETS:
             self._image_view_zoom_combo.addItem(self._format_zoom(zoom * 100) + '%')
-        self._image_view_zoom_combo.setCurrentIndex(image_widget.ImageWidget._ZOOM_DEFAULT_PRESET_IDX)
+        self._image_view_zoom_combo.setCurrentIndex(image_canvas.ImageView._ZOOM_DEFAULT_PRESET_IDX)
         self._image_view_zoom_combo.activated[int].connect(self._image_view_zoom_combo_changed)
         self._image_view_zoom_combo.lineEdit().returnPressed.connect(self._image_view_zoom_combo_custom_value_entered)
-        self.image_widget.zoom_changed.connect(self._image_view_zoom_changed)
+        self.image_view.zoom_changed.connect(self._image_view_zoom_changed)
         self._image_view_toolbar.addAction(self._image_view_zoom_to_fit_action)
         self._image_view_zoom_to_fit_action.triggered[bool].connect(self._image_view_zoom_to_fit_action_toggled)
-        self.image_widget.zoom_to_fit_changed.connect(self._image_view_zoom_to_fit_changed)
+        self.image_view.zoom_to_fit_changed.connect(self._image_view_zoom_to_fit_changed)
 
     def _init_views(self):
-        self.image_scene = image_widget.ImageScene(self)
-        self.image_widget = image_widget.ImageWidget(self.image_scene, self)
-        self.setCentralWidget(self.image_widget)
-        self.histogram_scene = histogram_widget.HistogramScene(self)
+        self.image_scene = image_canvas.ImageScene(self)
+        self.image_view = image_canvas.ImageView(self.image_scene, self)
+        self.setCentralWidget(self.image_view)
+        self.histogram_scene = histogram_canvas.HistogramScene(self)
         self._histogram_dock_widget = Qt.QDockWidget('Histogram', self)
-        self.histogram_widget, self._histogram_container_widget = histogram_widget.HistogramWidget.make_histogram_and_container_widgets(self.histogram_scene, self._histogram_dock_widget)
-        self.image_widget.histogram_widget = self.histogram_widget
+        self.histogram_view, self._histogram_container_widget = histogram_canvas.HistogramView.make_histogram_and_container_widgets(self.histogram_scene, self._histogram_dock_widget)
+        self.image_view.histogram_view = self.histogram_view
         self._histogram_dock_widget.setWidget(self._histogram_container_widget)
         self._histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
         self._histogram_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
         self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self._histogram_dock_widget)
-        self.histogram_widget.gamma_or_min_max_changed.connect(self.image_widget.update)
-        self.histogram_scene.request_mouseover_info_status_text_change.connect(self.histogram_widget._on_request_mouseover_info_status_text_change)
-        self.image_scene.request_mouseover_info_status_text_change.connect(self.histogram_widget._on_request_mouseover_info_status_text_change)
+        self.histogram_view.gamma_or_min_max_changed.connect(self.image_view.update)
+        self.histogram_scene.request_mouseover_info_status_text_change.connect(self.histogram_view._on_request_mouseover_info_status_text_change)
+        self.image_scene.request_mouseover_info_status_text_change.connect(self.histogram_view._on_request_mouseover_info_status_text_change)
 
     @property
     def image_data(self):
@@ -137,8 +136,8 @@ class RisWidget(Qt.QMainWindow):
     def image(self, image):
         if image is not None and not issubclass(type(image), Image):
             raise ValueError('The value assigned to the image property must either be derived from ris_widget.image.Image or must be None.  Did you mean to assign to the image_data property?')
-        self.image_widget._on_image_changed(image)
-        self.histogram_widget._on_image_changed(image)
+        self.image_view._on_image_changed(image)
+        self.histogram_view._on_image_changed(image)
         self._image = image
         self.image_changed.emit()
 #
@@ -150,60 +149,28 @@ class RisWidget(Qt.QMainWindow):
 #           self._image_view_zoom_combo.setCurrentIndex(zoom_preset_idx)
 #
 #   def _image_view_zoom_to_fit_changed(self, zoom_to_fit):
-#       """Handle self.image_widget.zoom_to_fit property change."""
+#       """Handle self.image_view.zoom_to_fit property change."""
 #       if zoom_to_fit != self._image_view_zoom_to_fit_action.isChecked():
 #           self._image_view_zoom_to_fit_action.setChecked(zoom_to_fit)
 #           self._image_view_zoom_combo.setEnabled(not zoom_to_fit)
 #
 #   def _image_view_zoom_combo_changed(self, idx):
-#       self.image_widget.zoom_preset_idx = idx
+#       self.image_view.zoom_preset_idx = idx
 #
 #   def _image_view_zoom_to_fit_action_toggled(self, zoom_to_fit):
 #       """Change self._image_widget.zoom_to_fit property value in response to GUI manipulation."""
 #       self._image_view_zoom_combo.setEnabled(not zoom_to_fit)
-#       self.image_widget.zoom_to_fit = zoom_to_fit
+#       self.image_view.zoom_to_fit = zoom_to_fit
 #
 #   def _image_view_zoom_combo_custom_value_entered(self):
 #       txt = self._image_view_zoom_combo.lineEdit().text()
 #       scale_txt = txt[:txt.find('%')]
 #       try:
-#           self.image_widget.custom_zoom = float(scale_txt) * 0.01
+#           self.image_view.custom_zoom = float(scale_txt) * 0.01
 #       except ValueError:
-#           Qt.QMessageBox.information(self, self.windowTitle(), 'Please enter a number between {} and {}.'.format(*map(RisWidget._format_zoom, image_widget.ImageWidget._ZOOM_MIN_MAX)))
+#           Qt.QMessageBox.information(self, self.windowTitle(), 'Please enter a number between {} and {}.'.format(*map(RisWidget._format_zoom, image_view.ImageView._ZOOM_MIN_MAX)))
 #           self._image_view_zoom_combo.setFocus()
 #           self._image_view_zoom_combo.lineEdit().selectAll()
-
-class GLShare(Qt.QObject):
-    # TODO: this isn't going to work, and it turns out that context sharing is not to be generally relied upon (if context A
-    # is created and then instantiates a bunch of resources, and context B is subsequently created and set to share with A,
-    # whether B will see any of the resources previously created in A depends on the quality of your video driver)
-    """self.context is used for resource management purposes only (it is not used for draw
-    ing).  This allows QGraphicsItem-derived objects such as those representing the image and histogram, which
-    have various GL resources, be instantiated without concern for whether there is currently a view into
-    the scene owning the object and destroyed without concern for whether any views still exist or have
-    ever existed.  In model/view/controller terms, we prevent improper coupling between view from model by
-    storing model resources that otherwise must be associated with a view in a shared pool that is not associated
-    with any view."""
-    def __init__(self, parent):
-        super().__init__(parent)
-        qsurface_format = Qt.QSurfaceFormat()
-        qsurface_format.setRenderableType(Qt.QSurfaceFormat.OpenGL)
-        qsurface_format.setVersion(2, 1)
-        qsurface_format.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
-        qsurface_format.setSwapBehavior(Qt.QSurfaceFormat.DoubleBuffer)
-        qsurface_format.setStereo(False)
-        qsurface_format.setSwapInterval(1)
-        # Specifically enabling alpha channel is not sufficient for enabling QPainter composition modes that
-        # use destination alpha (ie, nothing drawn in CompositionMode_DestinationOver with a QPainter will be visible in
-        # a QOpenGLWidget).
-#       qsurface_format.setRedBufferSize(8)
-#       qsurface_format.setGreenBufferSize(8)
-#       qsurface_format.setBlueBufferSize(8)
-#       qsurface_format.setAlphaBufferSize(8)
-        self.context = Qt.QOpenGLContext(self)
-        self.context.setFormat(qsurface_format)
-        if not self.context.create():
-            raise RuntimeError('Failed to create shared OpenGL context.')
 
 if __name__ == '__main__':
     import sys
