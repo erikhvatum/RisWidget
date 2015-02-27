@@ -372,6 +372,7 @@ class HistogramView(canvas.CanvasView):
         else:
             self.channel_control_widgets_visible = True
         range_changed = (self._image is None or image is None) or self._image.range != image.range
+        self._image = image
         if range_changed:
             if image is None or image.is_grayscale:
                 self._min_max_props['max'].propagate_slider_value(self)
@@ -421,7 +422,6 @@ class HistogramView(canvas.CanvasView):
 #           self.update()
 #       finally:
 #           self.doneCurrent()
-        self._image = image
 
     def _on_rescale_checkbox_toggled(self, checked):
         self.rescale_enabled = checked
