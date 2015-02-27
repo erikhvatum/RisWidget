@@ -49,8 +49,8 @@ class RisWidget(Qt.QMainWindow):
             self.setWindowTitle(window_title)
         self.setAcceptDrops(True)
         self._init_views()
-#       self._init_actions()
-#       self._init_toolbars()
+        self._init_actions()
+        self._init_toolbars()
         self._image = None
 
     def _init_actions(self):
@@ -97,7 +97,7 @@ class RisWidget(Qt.QMainWindow):
         self._histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
         self._histogram_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
         self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self._histogram_dock_widget)
-        self.histogram_view.gamma_or_min_max_changed.connect(self.image_view.update)
+        self.histogram_view.gamma_or_min_max_changed.connect(self.image_scene.image_item.update)
         self.histogram_scene.request_mouseover_info_status_text_change.connect(self.histogram_view._on_request_mouseover_info_status_text_change)
         self.image_scene.request_mouseover_info_status_text_change.connect(self.histogram_view._on_request_mouseover_info_status_text_change)
 
@@ -140,37 +140,37 @@ class RisWidget(Qt.QMainWindow):
         self.histogram_view._on_image_changed(image)
         self._image = image
         self.image_changed.emit()
-#
-#   def _image_view_zoom_changed(self, zoom_preset_idx, custom_zoom):
-#       assert zoom_preset_idx == -1 and custom_zoom != 0 or zoom_preset_idx != -1 and custom_zoom == 0, 'zoom_preset_idx XOR custom_zoom must be set.'
-#       if zoom_preset_idx == -1:
-#           self._image_view_zoom_combo.lineEdit().setText(self._format_zoom(custom_zoom * 100) + '%')
-#       else:
-#           self._image_view_zoom_combo.setCurrentIndex(zoom_preset_idx)
-#
-#   def _image_view_zoom_to_fit_changed(self, zoom_to_fit):
-#       """Handle self.image_view.zoom_to_fit property change."""
-#       if zoom_to_fit != self._image_view_zoom_to_fit_action.isChecked():
-#           self._image_view_zoom_to_fit_action.setChecked(zoom_to_fit)
-#           self._image_view_zoom_combo.setEnabled(not zoom_to_fit)
-#
-#   def _image_view_zoom_combo_changed(self, idx):
-#       self.image_view.zoom_preset_idx = idx
-#
-#   def _image_view_zoom_to_fit_action_toggled(self, zoom_to_fit):
-#       """Change self._image_widget.zoom_to_fit property value in response to GUI manipulation."""
-#       self._image_view_zoom_combo.setEnabled(not zoom_to_fit)
-#       self.image_view.zoom_to_fit = zoom_to_fit
-#
-#   def _image_view_zoom_combo_custom_value_entered(self):
-#       txt = self._image_view_zoom_combo.lineEdit().text()
-#       scale_txt = txt[:txt.find('%')]
-#       try:
-#           self.image_view.custom_zoom = float(scale_txt) * 0.01
-#       except ValueError:
-#           Qt.QMessageBox.information(self, self.windowTitle(), 'Please enter a number between {} and {}.'.format(*map(RisWidget._format_zoom, image_view.ImageView._ZOOM_MIN_MAX)))
-#           self._image_view_zoom_combo.setFocus()
-#           self._image_view_zoom_combo.lineEdit().selectAll()
+
+    def _image_view_zoom_changed(self, zoom_preset_idx, custom_zoom):
+        assert zoom_preset_idx == -1 and custom_zoom != 0 or zoom_preset_idx != -1 and custom_zoom == 0, 'zoom_preset_idx XOR custom_zoom must be set.'
+        if zoom_preset_idx == -1:
+            self._image_view_zoom_combo.lineEdit().setText(self._format_zoom(custom_zoom * 100) + '%')
+        else:
+            self._image_view_zoom_combo.setCurrentIndex(zoom_preset_idx)
+
+    def _image_view_zoom_to_fit_changed(self, zoom_to_fit):
+        """Handle self.image_view.zoom_to_fit property change."""
+        if zoom_to_fit != self._image_view_zoom_to_fit_action.isChecked():
+            self._image_view_zoom_to_fit_action.setChecked(zoom_to_fit)
+            self._image_view_zoom_combo.setEnabled(not zoom_to_fit)
+
+    def _image_view_zoom_combo_changed(self, idx):
+        self.image_view.zoom_preset_idx = idx
+
+    def _image_view_zoom_to_fit_action_toggled(self, zoom_to_fit):
+        """Change self._image_widget.zoom_to_fit property value in response to GUI manipulation."""
+        self._image_view_zoom_combo.setEnabled(not zoom_to_fit)
+        self.image_view.zoom_to_fit = zoom_to_fit
+
+    def _image_view_zoom_combo_custom_value_entered(self):
+        txt = self._image_view_zoom_combo.lineEdit().text()
+        scale_txt = txt[:txt.find('%')]
+        try:
+            self.image_view.custom_zoom = float(scale_txt) * 0.01
+        except ValueError:
+            Qt.QMessageBox.information(self, self.windowTitle(), 'Please enter a number between {} and {}.'.format(*map(RisWidget._format_zoom, image_view.ImageView._ZOOM_MIN_MAX)))
+            self._image_view_zoom_combo.setFocus()
+            self._image_view_zoom_combo.lineEdit().selectAll()
 
 if __name__ == '__main__':
     import sys

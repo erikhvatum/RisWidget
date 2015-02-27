@@ -53,6 +53,7 @@ class ImageView(canvas.CanvasView):
         self._zoom_preset_idx = self._ZOOM_DEFAULT_PRESET_IDX
         self._custom_zoom = 0
         self._zoom_to_fit = False
+        self.setDragMode(Qt.QGraphicsView.ScrollHandDrag)
 
     def _on_image_changed(self, image):
         self.scene().image_item.on_image_changed(image)
@@ -64,9 +65,7 @@ class ImageView(canvas.CanvasView):
     @zoom_to_fit.setter
     def zoom_to_fit(self, zoom_to_fit):
         self._zoom_to_fit = zoom_to_fit
-#       self._update_scroller_ranges()
-        self.zoom_to_fit_changed.emit(self._zoom_to_fit)
-#       self.update()
+        self._zoom()
 
     @property
     def custom_zoom(self):
@@ -78,9 +77,7 @@ class ImageView(canvas.CanvasView):
             raise ValueError('Value must be in the range [{}, {}].'.format(*ImageView._ZOOM_MIN_MAX))
         self._custom_zoom = custom_zoom
         self._zoom_preset_idx = -1
-#       self._update_scroller_ranges()
-        self.zoom_changed.emit(self._zoom_preset_idx, self._custom_zoom)
-#       self.update()
+        self._zoom()
 
     @property
     def zoom_preset_idx(self):
@@ -92,9 +89,21 @@ class ImageView(canvas.CanvasView):
             raise ValueError('idx must be in the range [0, {}).'.format(ImageView._ZOOM_PRESETS.shape[0]))
         self._zoom_preset_idx = idx
         self._custom_zoom = 0
-#       self._update_scroller_ranges()
-        self.zoom_changed.emit(self._zoom_preset_idx, self._custom_zoom)
-#       self.update()
+        self._zoom()
+
+    def _zoom(self, zoom_to_fit_changed=False):
+        if self._zoom_to_fit:
+            self.fitInView(self.scene().image_item, Qt.Qt.KeepAspectRatio)
+        else:
+            zoom_factor = self._custom_zoom if self._zoom_preset_idx == -1 else ImageView._ZOOM_PRESETS[self._zoom_preset_idx]
+            old_transform = Qt.QTransform(self.transform())
+            self.resetTransform()
+            self.translate(old_transform.dx(), old_transform.dy())
+            self.scale(zoom_factor, zoom_factor)
+        if zoom_to_fit_changed:
+            self.zoom_to_fit_changed.emit(self._zoom_to_fit)
+        else:
+            self.zoom_changed.emit(self._zoom_preset_idx, self._custom_zoom)
 
 class ImageItem(canvas.CanvasGLItem):
     def __init__(self, graphics_item_parent=None):
@@ -121,7 +130,9 @@ class ImageItem(canvas.CanvasGLItem):
             desired_texture_format = canvas.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[image.type]
             view = widget.view
             with ExitStack() as stack:
+                print(p.viewTransformEnabled(), qtransform_to_numpy(p.transform()))
                 p.beginNativePainting()
+                print(p.viewTransformEnabled(), qtransform_to_numpy(p.transform()))
                 stack.callback(p.endNativePainting)
                 if view in self._view_resources:
                     vrs = self._view_resources[view]
@@ -244,3 +255,6 @@ class ImageScene(canvas.CanvasScene):
         super().__init__(parent)
         self.image_item = ImageItem()
         self.addItem(self.image_item)
+
+def qtransform_to_numpy(t):
+    return numpy.array(((t.m11(),t.m12(),t.m13()),(t.m21(),t.m22(),t.m23()),(t.m31(),t.m32(),t.m33())))
