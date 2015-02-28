@@ -126,7 +126,7 @@ class RisWidget(Qt.QMainWindow):
 
     @image_data.setter
     def image_data(self, image_data):
-        self.image = Image(image_data)
+        self.image = None if image_data is None else Image(image_data)
 
     @property
     def image(self):
@@ -136,6 +136,7 @@ class RisWidget(Qt.QMainWindow):
     def image(self, image):
         if image is not None and not issubclass(type(image), Image):
             raise ValueError('The value assigned to the image property must either be derived from ris_widget.image.Image or must be None.  Did you mean to assign to the image_data property?')
+        self.image_scene._on_image_changed(image)
         self.image_view._on_image_changed(image)
         self.histogram_view._on_image_changed(image)
         self._image = image

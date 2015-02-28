@@ -31,6 +31,7 @@ uniform mat3 frag_to_tex;
 uniform vec3 intensity_rescale_mins;
 uniform vec3 intensity_rescale_ranges;
 uniform vec3 gammas;
+uniform float viewport_height;
 
 vec3 transform_intensities(vec3 intensities)
 {
@@ -40,9 +41,8 @@ vec3 transform_intensities(vec3 intensities)
 
 void main()
 {
-    vec3 tex_coord_h = frag_to_tex * vec3(gl_FragCoord.x, gl_FragCoord.y, gl_FragCoord.w);
+    vec3 tex_coord_h = frag_to_tex * vec3(gl_FragCoord.x, viewport_height - gl_FragCoord.y, gl_FragCoord.w);
     vec2 tex_coord = tex_coord_h.xy / tex_coord_h.z;
-    tex_coord.y = 1.0 - tex_coord.y;
 
     // Render nothing if fragment coordinate is outside of texture. This should only happen for a display row or column
     // at the edge of the quad.

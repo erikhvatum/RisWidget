@@ -56,7 +56,14 @@ class ImageView(canvas.CanvasView):
         self.setDragMode(Qt.QGraphicsView.ScrollHandDrag)
 
     def _on_image_changed(self, image):
-        self.scene().image_item.on_image_changed(image)
+        if self._zoom_to_fit:
+            self.fitInView(self.scene().image_item, Qt.Qt.KeepAspectRatio)
+
+    def resizeEvent(self, event):
+        if self._zoom_to_fit:
+            self.fitInView(self.scene().image_item, Qt.Qt.KeepAspectRatio)
+        else:
+            super().resizeEvent(event)
 
     @property
     def zoom_to_fit(self):
@@ -114,14 +121,14 @@ class ImageItem(canvas.CanvasGLItem):
     def boundingRect(self):
         return Qt.QRectF() if self._image is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self._image.size))
 
-    def paint(self, p, option, widget):
+    def paint(self, qpainter, option, widget):
         if widget is None:
             print('WARNING: image_view.ImageItem.paint called with widget=None.  Ensure that view caching is disabled.')
         elif self._image is None:
             if widget.view in self._view_resources:
                 vrs = self._view_resources[widget.view]
                 if 'tex' in vrs:
-#                   with canvas.native_painting(p):
+#                   with canvas.native_painting(qpainter):
 #                       vrs['tex'].destroy()
                     vrs['tex'][0].destroy()
                     del vrs['tex']
@@ -130,10 +137,8 @@ class ImageItem(canvas.CanvasGLItem):
             desired_texture_format = canvas.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[image.type]
             view = widget.view
             with ExitStack() as stack:
-                print(p.viewTransformEnabled(), qtransform_to_numpy(p.transform()))
-                p.beginNativePainting()
-                print(p.viewTransformEnabled(), qtransform_to_numpy(p.transform()))
-                stack.callback(p.endNativePainting)
+                qpainter.beginNativePainting()
+                stack.callback(qpainter.endNativePainting)
                 if view in self._view_resources:
                     vrs = self._view_resources[view]
                 else:
@@ -192,18 +197,21 @@ class ImageItem(canvas.CanvasGLItem):
                 prog.setAttributeBuffer(vert_coord_loc, gl.GL_FLOAT, 0, 2, 0)
                 prog.setUniformValue('tex', 0)
                 frag_to_tex = Qt.QTransform()
-                frag_to_tex.scale(1/image.size.width(), 1/image.size.height())
+                frame = Qt.QPolygonF(view.mapFromScene(self.boundingRect()))
+                if not qpainter.transform().quadToSquare(frame, frag_to_tex):
+                    raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix.')
                 prog.setUniformValue('frag_to_tex', frag_to_tex)
+                prog.setUniformValue('viewport_height', float(widget.size().height()))
                 histogram_view = view.histogram_view
                 if self._image.is_grayscale:
                     if histogram_view.rescale_enabled:
                         gamma = histogram_view.gamma
-                        min_max = numpy.array((histogram_view.min, histogram_view.max))
+                        min_max = numpy.array((histogram_view.min, histogram_view.max), dtype=float)
+                        self._normalize_min_max(min_max)
                     else:
                         gamma = 1
-                        min_max = self._image.range
+                        min_max = numpy.array((0,1), dtype=float)
                     prog.setUniformValue('gamma', gamma)
-                    self._normalize_min_max(min_max)
                     prog.setUniformValue('intensity_rescale_min', min_max[0])
                     prog.setUniformValue('intensity_rescale_range', min_max[1] - min_max[0])
                 else:
@@ -222,12 +230,6 @@ class ImageItem(canvas.CanvasGLItem):
                 gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
                 gl.glDrawArrays(gl.GL_TRIANGLE_FAN, 0, 4)
                     
-#           color = Qt.QColor(Qt.Qt.blue)
-#           color.setAlphaF(0.5)
-#           brush = Qt.QBrush(color)
-#           p.setBrush(brush)
-#           p.drawRect(self.boundingRect())
-
     def on_image_changed(self, image):
         if self._image is None and image is not None or \
            self._image is not None and (image is None or self._image.size != image.size):
@@ -255,6 +257,18 @@ class ImageScene(canvas.CanvasScene):
         super().__init__(parent)
         self.image_item = ImageItem()
         self.addItem(self.image_item)
+        color = Qt.QColor(Qt.Qt.blue)
+        color.setAlphaF(0.5)
+        brush = Qt.QBrush(color)
+        color2 = Qt.QColor(Qt.Qt.green)
+        color2.setAlphaF(0.8)
+        pen = Qt.QPen(color2)
+        pen.setWidth(5)
+        self.foo_item = self.addRect(20,10,200,100,pen,brush)
 
-def qtransform_to_numpy(t):
-    return numpy.array(((t.m11(),t.m12(),t.m13()),(t.m21(),t.m22(),t.m23()),(t.m31(),t.m32(),t.m33())))
+    def _on_image_changed(self, image):
+        self.image_item.on_image_changed(image)
+        self.setSceneRect(self.image_item.boundingRect())
+
+#def qtransform_to_numpy(t):
+#   return numpy.array(((t.m11(),t.m12(),t.m13()),(t.m21(),t.m22(),t.m23()),(t.m31(),t.m32(),t.m33())))
