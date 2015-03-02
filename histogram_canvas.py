@@ -325,48 +325,6 @@ class HistogramView(canvas.CanvasView):
         self._mouseover_info_label = Qt.QLabel()
         hlayout.addWidget(self._mouseover_info_label)
 
-#   def initializeGL(self):
-#       self._init_glfs()
-#       self._glfs.glClearColor(0,0,0,1)
-#       self._glfs.glClearDepth(1)
-#       self._glsl_prog_g = self._build_shader_prog('g',
-#                                                   'histogram_widget_vertex_shader.glsl',
-#                                                   'histogram_widget_fragment_shader_g.glsl')
-#       self._glsl_prog_rgb = self._build_shader_prog('rgb',
-#                                                     'histogram_widget_vertex_shader.glsl',
-#                                                     'histogram_widget_fragment_shader_rgb.glsl')
-#       self._image_type_to_glsl_prog = {'g'   : self._glsl_prog_g,
-#                                        'ga'  : self._glsl_prog_g,
-#                                        'rgb' : self._glsl_prog_rgb,
-#                                        'rgba': self._glsl_prog_rgb}
-#       self._make_quad_vao()
-#
-#   def paintGL(self):
-#       self._glfs.glClear(self._glfs.GL_COLOR_BUFFER_BIT | self._glfs.GL_DEPTH_BUFFER_BIT)
-#       if self._image is not None:
-#           if self._image.is_grayscale:
-#               prog = self._image_type_to_glsl_prog[self._image.type]
-#               prog.bind()
-#               self._quad_buffer.bind()
-#               self._glfs.glBindTexture(self._glfs.GL_TEXTURE_1D, self._tex)
-#               vert_coord_loc = prog.attributeLocation('vert_coord')
-#               quad_vao_binder = Qt.QOpenGLVertexArrayObject.Binder(self._quad_vao)
-#               prog.enableAttributeArray(vert_coord_loc)
-#               prog.setAttributeBuffer(vert_coord_loc, self._glfs.GL_FLOAT, 0, 2, 0)
-#               prog.setUniformValue('tex', 0)
-#               prog.setUniformValue('inv_view_size', 1/self.size().width(), 1/self.size().height())
-#               if self._image.type == 'g':
-#                   max_bin_val = self._image.histogram[self._image.max_histogram_bin]
-#               else:
-#                   max_bin_val = self._image.histogram[0, self._image.max_histogram_bin[0]]
-#               inv_max_transformed_bin_val = max_bin_val**-self.gamma_gamma
-#               prog.setUniformValue('inv_max_transformed_bin_val', inv_max_transformed_bin_val)
-#               prog.setUniformValue('gamma_gamma', self.gamma_gamma)
-#               self._glfs.glEnableClientState(self._glfs.GL_VERTEX_ARRAY)
-#               self._glfs.glDrawArrays(self._glfs.GL_TRIANGLE_FAN, 0, 4)
-#               self._quad_buffer.release()
-#               prog.release()
-
     def _on_image_changed(self, image):
         if image is None or image.is_grayscale:
             self.channel_control_widgets_visible = False
@@ -384,45 +342,6 @@ class HistogramView(canvas.CanvasView):
         self._correct_inversion()
 
         self.scene().histogram_item.on_image_changed(image)
-
-#       try:
-#           self.makeCurrent()
-#           if self._image is not None and (image is None or self._image.histogram.shape != image.histogram.shape):
-#               if self._tex is not None:
-#                   self._glfs.glDeleteTextures(1, (self._tex,))
-#                   self._tex = None
-#               self._image = None
-#           if image is not None:
-#               if self._tex is None:
-#                   self._tex = self._glfs.glGenTextures(1)
-#                   self._glfs.glBindTexture(self._glfs.GL_TEXTURE_1D, self._tex)
-#                   self._glfs.glTexParameteri(self._glfs.GL_TEXTURE_1D, self._glfs.GL_TEXTURE_WRAP_S, self._glfs.GL_CLAMP_TO_EDGE)
-#                   self._glfs.glTexParameteri(self._glfs.GL_TEXTURE_1D, self._glfs.GL_TEXTURE_WRAP_T, self._glfs.GL_CLAMP_TO_EDGE)
-#                   # self._tex stores histogram bin counts - values that are intended to be addressed by element without
-#                   # interpolation.  Thus, nearest neighbor for texture filtering.
-#                   self._glfs.glTexParameteri(self._glfs.GL_TEXTURE_1D, self._glfs.GL_TEXTURE_MIN_FILTER, self._glfs.GL_NEAREST)
-#                   self._glfs.glTexParameteri(self._glfs.GL_TEXTURE_1D, self._glfs.GL_TEXTURE_MAG_FILTER, self._glfs.GL_NEAREST)
-#               else:
-#                   self._glfs.glBindTexture(self._glfs.GL_TEXTURE_1D, self._tex)
-#               self._glfs.glPixelStorei(self._glfs.GL_PACK_ALIGNMENT, 1)
-#               self._glfs.glPixelStorei(self._glfs.GL_UNPACK_ALIGNMENT, 1)
-#               if image.is_grayscale:
-#                   if image.type == 'g':
-#                       intensity_histogram = image.histogram
-#                       max_bin_val = intensity_histogram[self._image.max_histogram_bin]
-#                   else:
-#                       intensity_histogram = image.histogram[0]
-#                       max_bin_val = intensity_histogram[self._image.max_histogram_bin[0]]
-#                   self._glfs.glTexImage1D(self._glfs.GL_TEXTURE_1D, 0, self._glfs.GL_LUMINANCE32UI_EXT,
-#                                           len(intensity_histogram), 0, self._glfs.GL_LUMINANCE_INTEGER_EXT,
-#                                           self._glfs.GL_UNSIGNED_INT, intensity_histogram.data)
-#               else:
-#                   pass
-#                   # personal time todo: per-channel RGB histogram support
-#               self._image = image
-#           self.update()
-#       finally:
-#           self.doneCurrent()
 
     def _on_rescale_checkbox_toggled(self, checked):
         self.rescale_enabled = checked
