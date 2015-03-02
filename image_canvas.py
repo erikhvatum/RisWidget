@@ -242,8 +242,8 @@ class ImageItem(canvas.CanvasGLItem):
         if canvas_view in self._view_resources:
             vrs = self._view_resources[canvas_view]
             if 'tex' in vrs:
-                for tex in vrs['tex'].values():
-                    tex.destroy()
+                vrs['tex'][0].destroy()
+                del vrs['tex']
         super().release_resources_for_view(canvas_view)
 
     def _normalize_min_max(self, min_max):
@@ -257,14 +257,14 @@ class ImageScene(canvas.CanvasScene):
         super().__init__(parent)
         self.image_item = ImageItem()
         self.addItem(self.image_item)
-        color = Qt.QColor(Qt.Qt.blue)
-        color.setAlphaF(0.5)
-        brush = Qt.QBrush(color)
-        color2 = Qt.QColor(Qt.Qt.green)
-        color2.setAlphaF(0.8)
-        pen = Qt.QPen(color2)
-        pen.setWidth(5)
-        self.foo_item = self.addRect(20,10,200,100,pen,brush)
+#       color = Qt.QColor(Qt.Qt.blue)
+#       color.setAlphaF(0.5)
+#       brush = Qt.QBrush(color)
+#       color2 = Qt.QColor(Qt.Qt.green)
+#       color2.setAlphaF(0.8)
+#       pen = Qt.QPen(color2)
+#       pen.setWidth(5)
+#       self.foo_item = self.addRect(20,10,200,100,pen,brush)
 
     def _on_image_changed(self, image):
         self.image_item.on_image_changed(image)

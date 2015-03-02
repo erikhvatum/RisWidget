@@ -23,6 +23,7 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from . import canvas
+from contextlib import ExitStack
 import math
 import numpy
 from PyQt5 import Qt
@@ -382,7 +383,7 @@ class HistogramView(canvas.CanvasView):
                     min_max_prop.propagate_slider_value(self)
         self._correct_inversion()
 
-        self.scene().histogram_item._on_image_changed(image)
+        self.scene().histogram_item.on_image_changed(image)
 
 #       try:
 #           self.makeCurrent()
@@ -487,35 +488,126 @@ class HistogramView(canvas.CanvasView):
         if self._image is not None:
             return self._image.histogram.copy()
 
-class HistogramItem(Qt.QGraphicsItem):
+class HistogramItem(canvas.CanvasGLItem):
     def __init__(self, graphics_item_parent=None):
         super().__init__(graphics_item_parent)
         self._image = None
+        self._image_id = 0
 
     def boundingRect(self):
-        # personal time todo: per-channel RGB histogram support
-        if self._image is not None and self._image.is_grayscale:
-            bin_count = self._image.histogram.shape[0] if self._image.type == 'g' else self._image.histogram.shape[1]
-            return Qt.QRectF(Qt.QPointF(), Qt.QSizeF(bin_count, 100))
-        else:
-            return Qt.QRectF()
+        if self._image is not None:
+            if self._image.is_grayscale:
+                return Qt.QRectF(0,0,1,1)
+            else:
+                pass
+                # personal time todo: per-channel RGB histogram support
+        return Qt.QRectF()
 
-    def paint(self, p, option, widget):
-#       print('HistogramItem.paint(..)')
+    def paint(self, qpainter, option, widget):
         if widget is None:
-            print('histogram_view.HistogramItem.paint called with widget=None.')
+            print('WARNING: histogram_view.HistogramItem.paint called with widget=None.  Ensure that view caching is disabled.')
+        elif self._image is None:
+            if widget.view in self._view_resources:
+                self._del_tex()
         else:
-            color = Qt.QColor(Qt.Qt.red)
-            color.setAlphaF(0.5)
-            brush = Qt.QBrush(color)
-            p.setBrush(brush)
-            p.drawRect(self.boundingRect())
+            image = self._image
+            view = widget.view
+            gl = view.glfs
+            with ExitStack() as stack:
+                qpainter.beginNativePainting()
+                stack.callback(qpainter.endNativePainting)
+                if view in self._view_resources:
+                    vrs = self._view_resources[view]
+                else:
+                    self._view_resources[view] = vrs = {}
+                    self.build_shader_prog('g',
+                                           'histogram_widget_vertex_shader.glsl',
+                                           'histogram_widget_fragment_shader_g.glsl',
+                                           view)
+                    vrs['progs']['ga'] = vrs['progs']['g']
+                    self.build_shader_prog('rgb',
+                                           'histogram_widget_vertex_shader.glsl',
+                                           'histogram_widget_fragment_shader_rgb.glsl',
+                                           view)
+                    vrs['progs']['rgba'] = vrs['progs']['rgb']
+                desired_tex_width = image.histogram.shape[-1]
+                if 'tex' in vrs:
+                    tex, tex_image_id, tex_width = vrs['tex']
+                    if desired_tex_width != tex_width:
+                        self._del_tex()
+                if 'tex' not in vrs:
+                    tex = gl.glGenTextures(1)
+                    gl.glBindTexture(gl.GL_TEXTURE_1D, tex)
+                    stack.callback(lambda: gl.glBindTexture(gl.GL_TEXTURE_1D, 0))
+                    gl.glTexParameteri(gl.GL_TEXTURE_1D, gl.GL_TEXTURE_WRAP_S, gl.GL_CLAMP_TO_EDGE)
+                    gl.glTexParameteri(gl.GL_TEXTURE_1D, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE)
+                    # tex stores histogram bin counts - values that are intended to be addressed by element without
+                    # interpolation.  Thus, nearest neighbor for texture filtering.
+                    gl.glTexParameteri(gl.GL_TEXTURE_1D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
+                    gl.glTexParameteri(gl.GL_TEXTURE_1D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
+                    tex_image_id = -1
+                else:
+                    gl.glBindTexture(gl.GL_TEXTURE_1D, tex)
+                    stack.callback(lambda: gl.glBindTexture(gl.GL_TEXTURE_1D, 0))
+                if image.is_grayscale:
+                    if image.type == 'g':
+                        histogram = image.histogram
+                        max_bin_val = histogram[image.max_histogram_bin]
+                    else:
+                        histogram = image.histogram[0]
+                        max_bin_val = histogram[image.max_histogram_bin[0]]
+                    if tex_image_id != self._image_id:
+                        gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)
+                        gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
+                        gl.glTexImage1D(gl.GL_TEXTURE_1D, 0,
+                                        gl.GL_LUMINANCE32UI_EXT, desired_tex_width, 0,
+                                        gl.GL_LUMINANCE_INTEGER_EXT, gl.GL_UNSIGNED_INT,
+                                        histogram.data)
+                        vrs['tex'] = tex, self._image_id, desired_tex_width
+                    view.quad_buffer.bind()
+                    stack.callback(view.quad_buffer.release)
+                    view.quad_vao.bind()
+                    stack.callback(view.quad_vao.release)
+                    prog = vrs['progs'][image.type]
+                    prog.bind()
+                    stack.callback(prog.release)
+                    vert_coord_loc = prog.attributeLocation('vert_coord')
+                    prog.enableAttributeArray(vert_coord_loc)
+                    prog.setAttributeBuffer(vert_coord_loc, gl.GL_FLOAT, 0, 2, 0)
+                    prog.setUniformValue('tex', 0)
+                    prog.setUniformValue('inv_view_size', 1/widget.size().width(), 1/widget.size().height())
+                    inv_max_transformed_bin_val = max_bin_val**-view.gamma_gamma
+                    prog.setUniformValue('inv_max_transformed_bin_val', inv_max_transformed_bin_val)
+                    prog.setUniformValue('gamma_gamma', view.gamma_gamma)
+                    gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
+                    gl.glDrawArrays(gl.GL_TRIANGLE_FAN, 0, 4)
+                else:
+                    pass
+                    # personal time todo: per-channel RGB histogram support
+#           color = Qt.QColor(Qt.Qt.red)
+#           color.setAlphaF(0.5)
+#           brush = Qt.QBrush(color)
+#           qpainter.setBrush(brush)
+#           qpainter.drawRect(self.boundingRect())
 
-    def _on_image_changed(self, image):
-        if (self._image is None) != (image is not None):
+    def on_image_changed(self, image):
+        if (self._image is None) != (image is not None) or \
+           self._image is not None and image is not None and self._image.histogram.shape[-1] != image.histogram.shape[-1]:
             self.prepareGeometryChange()
         self._image = image
+        self._image_id += 1
         self.update()
+
+    def release_resources_for_view(self, canvas_view):
+        if canvas_view in self._view_resources:
+            if 'tex' in self._view_resources[canvas_view]:
+                self._del_tex()
+        super().release_resources_for_view(canvas_view)
+
+    def _del_tex(self):
+        vrs = self._view_resources[widget.view]
+        self.widget.view.glfs.glDeleteTextures(1, (vrs['tex'][0],))
+        del vrs['tex']
 
 class HistogramScene(canvas.CanvasScene):
     def __init__(self, parent):
