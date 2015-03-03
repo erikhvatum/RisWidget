@@ -298,12 +298,6 @@ class ImageItem(canvas.CanvasGLItem):
                 del vrs['tex']
         super().release_resources_for_view(canvas_view)
 
-    def _normalize_min_max(self, min_max):
-        if self._image.dtype != numpy.float32:
-            r = self._image.range
-            min_max -= r[0]
-            min_max /= r[1] - r[0]
-
 class ImageScene(canvas.CanvasScene):
     def __init__(self, parent):
         super().__init__(parent)

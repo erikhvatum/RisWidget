@@ -230,3 +230,8 @@ class CanvasGLItem(Qt.QGraphicsItem):
                 for prog in vrs['progs'].values():
                     prog.removeAllShaders()
             del self._view_resources[canvas_view]
+
+    def _normalize_min_max(self, min_max):
+        r = self._image.range
+        min_max -= r[0]
+        min_max /= r[1] - r[0]

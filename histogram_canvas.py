@@ -504,8 +504,14 @@ class HistogramItem(canvas.CanvasGLItem):
                     prog.setUniformValue('inv_view_size', 1/widget.size().width(), 1/widget.size().height())
                     inv_max_transformed_bin_val = max_bin_val**-view.gamma_gamma
                     prog.setUniformValue('inv_max_transformed_bin_val', inv_max_transformed_bin_val)
-                    prog.setUniformValue('gamma', view.gamma)
                     prog.setUniformValue('gamma_gamma', view.gamma_gamma)
+                    prog.setUniformValue('rescale_enabled', view.rescale_enabled)
+                    if view.rescale_enabled:
+                        prog.setUniformValue('gamma', view.gamma)
+                        min_max = numpy.array((view.min, view.max), dtype=float)
+                        self._normalize_min_max(min_max)
+                        prog.setUniformValue('intensity_rescale_min', min_max[0])
+                        prog.setUniformValue('intensity_rescale_range', min_max[1] - min_max[0])
                     gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
                     gl.glDrawArrays(gl.GL_TRIANGLE_FAN, 0, 4)
                 else:
