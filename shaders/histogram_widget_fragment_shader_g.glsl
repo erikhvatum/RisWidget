@@ -45,7 +45,7 @@ void main()
     {
         if(intensity > 0)
         {
-            outcolor.rb = vec2(0,0);
+            outcolor.rb = vec2(0.5,0.5);
         }
         else
         {
