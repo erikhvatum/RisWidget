@@ -64,8 +64,11 @@ class RisWidget(Qt.QMainWindow):
             return '{}'.format(int(zoom))
         else:
             txt = '{:.2f}'.format(zoom)
-            if txt[-1] == 0:
+            if txt[-2:] == '00':
+                return txt[:-3]
+            if txt[-1:] == '0':
                 return txt[:-1]
+            return txt
 
     def _init_toolbars(self):
         self._image_view_toolbar = self.addToolBar('View')
@@ -165,11 +168,13 @@ class RisWidget(Qt.QMainWindow):
 
     def _image_view_zoom_combo_custom_value_entered(self):
         txt = self._image_view_zoom_combo.lineEdit().text()
-        scale_txt = txt[:txt.find('%')]
+        percent_pos = txt.find('%')
+        scale_txt = txt if percent_pos == -1 else txt[:percent_pos]
         try:
             self.image_view.custom_zoom = float(scale_txt) * 0.01
         except ValueError:
-            Qt.QMessageBox.information(self, self.windowTitle(), 'Please enter a number between {} and {}.'.format(*map(RisWidget._format_zoom, image_view.ImageView._ZOOM_MIN_MAX)))
+            Qt.QMessageBox.information(self, self.windowTitle(), 'Please enter a number between {} and {}.'.format(self._format_zoom(image_canvas.ImageView._ZOOM_MIN_MAX[0] * 100),
+                                                                                                                   self._format_zoom(image_canvas.ImageView._ZOOM_MIN_MAX[1] * 100)))
             self._image_view_zoom_combo.setFocus()
             self._image_view_zoom_combo.lineEdit().selectAll()
 

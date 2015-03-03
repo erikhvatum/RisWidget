@@ -29,10 +29,10 @@ import numpy
 from PyQt5 import Qt
 
 class ImageView(canvas.CanvasView):
-    _ZOOM_PRESETS = numpy.array((10, 5, 2, 1.5, 1, .75, .5, .25, .1), dtype=numpy.float64)
-    _ZOOM_MIN_MAX = (.01, 10000.0)
-    _ZOOM_DEFAULT_PRESET_IDX = 4
-    _ZOOM_CLICK_SCALE_FACTOR = .25
+    _ZOOM_PRESETS = numpy.array((10, 8, 7, 6, 5, 4, 3, 2, 1.5, 1, .75, .6666666, .5, .333333, .25, .1), dtype=numpy.float64)
+    _ZOOM_MIN_MAX = (.001, 10000.0)
+    _ZOOM_DEFAULT_PRESET_IDX = 9
+    _ZOOM_INCREMENT_BEYOND_PRESETS_FACTOR = .25
 
     zoom_changed = Qt.pyqtSignal(int, float)
     zoom_to_fit_changed = Qt.pyqtSignal(bool)
@@ -65,6 +65,49 @@ class ImageView(canvas.CanvasView):
         else:
             super().resizeEvent(event)
 
+    def wheelEvent(self, event):
+        wheel_delta = event.angleDelta().y()
+        if wheel_delta != 0 and not self._zoom_to_fit:
+            zoom_in = wheel_delta > 0
+            switched_to_custom = False
+            if self._zoom_preset_idx != -1:
+                if zoom_in:
+                    if self._zoom_preset_idx == 0:
+                        self._zoom_preset_idx = -1
+                        self._custom_zoom = ImageView._ZOOM_PRESETS[0]
+                        switched_to_custom = True
+                    else:
+                        self._zoom_preset_idx -= 1
+                else:
+                    if self._zoom_preset_idx == ImageView._ZOOM_PRESETS.shape[0] - 1:
+                        self._zoom_preset_idx = -1
+                        self._custom_zoom = ImageView._ZOOM_PRESETS[-1]
+                        switched_to_custom = True
+                    else:
+                        self._zoom_preset_idx += 1
+            if self._zoom_preset_idx == -1:
+                self._custom_zoom *= (1 + ImageView._ZOOM_INCREMENT_BEYOND_PRESETS_FACTOR) if zoom_in else (1 - ImageView._ZOOM_INCREMENT_BEYOND_PRESETS_FACTOR)
+                if not switched_to_custom and self._custom_zoom <= ImageView._ZOOM_PRESETS[0] and self._custom_zoom >= ImageView._ZOOM_PRESETS[-1]:
+                    # Jump to nearest preset if we are re-entering preset range
+                    self._zoom_preset_idx = numpy.argmin(numpy.abs(ImageView._ZOOM_PRESETS - self._custom_zoom))
+                    self._custom_zoom = 0
+            if self._zoom_preset_idx == -1:
+                if zoom_in:
+                    if self._custom_zoom > ImageView._ZOOM_MIN_MAX[1]:
+                        self._custom_zoom = ImageView._ZOOM_MIN_MAX[1]
+                else:
+                    if self._custom_zoom < ImageView._ZOOM_MIN_MAX[0]:
+                        self._custom_zoom = ImageView._ZOOM_MIN_MAX[0]
+                desired_zoom = self._custom_zoom
+            else:
+                desired_zoom = self._ZOOM_PRESETS[self._zoom_preset_idx]
+            current_zoom = self.transform().m22()
+            scale_zoom = desired_zoom / current_zoom
+            self.setTransformationAnchor(Qt.QGraphicsView.AnchorUnderMouse)
+            self.scale(scale_zoom, scale_zoom)
+            self.setTransformationAnchor(Qt.QGraphicsView.AnchorViewCenter)
+            self.zoom_changed.emit(self._zoom_preset_idx, self._custom_zoom)
+
     @property
     def zoom_to_fit(self):
         return self._zoom_to_fit
@@ -80,7 +123,7 @@ class ImageView(canvas.CanvasView):
 
     @custom_zoom.setter
     def custom_zoom(self, custom_zoom):
-        if self._custom_zoom < ImageView._ZOOM_MIN_MAX[0] or self._custom_zoom > ImageView._ZOOM_MIN_MAX[1]:
+        if custom_zoom < ImageView._ZOOM_MIN_MAX[0] or custom_zoom > ImageView._ZOOM_MIN_MAX[1]:
             raise ValueError('Value must be in the range [{}, {}].'.format(*ImageView._ZOOM_MIN_MAX))
         self._custom_zoom = custom_zoom
         self._zoom_preset_idx = -1
@@ -257,18 +300,7 @@ class ImageScene(canvas.CanvasScene):
         super().__init__(parent)
         self.image_item = ImageItem()
         self.addItem(self.image_item)
-#       color = Qt.QColor(Qt.Qt.blue)
-#       color.setAlphaF(0.5)
-#       brush = Qt.QBrush(color)
-#       color2 = Qt.QColor(Qt.Qt.green)
-#       color2.setAlphaF(0.8)
-#       pen = Qt.QPen(color2)
-#       pen.setWidth(5)
-#       self.foo_item = self.addRect(20,10,200,100,pen,brush)
 
     def _on_image_changed(self, image):
         self.image_item.on_image_changed(image)
         self.setSceneRect(self.image_item.boundingRect())
-
-#def qtransform_to_numpy(t):
-#   return numpy.array(((t.m11(),t.m12(),t.m13()),(t.m21(),t.m22(),t.m23()),(t.m31(),t.m32(),t.m33())))
