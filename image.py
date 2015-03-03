@@ -27,7 +27,7 @@ from pyagg import fast_hist
 from PyQt5 import Qt
 
 class Image:
-    def __init__(self, data, name=None, is_twelve_bit=False):
+    def __init__(self, data, name=None, is_twelve_bit=False, float_range=None):
         self._data = numpy.asarray(data)
         self._is_twelve_bit = is_twelve_bit
         dt = self._data.dtype.type
@@ -62,12 +62,23 @@ class Image:
         self._size = Qt.QSize(self._data.shape[0], self._data.shape[1])
         self._is_grayscale = self._type in ('g', 'ga')
 
-        if dt == numpy.uint8:
-            self._range = (0, 255)
-        elif dt == numpy.uint16:
-            self._range = (0, 65535)
+        if dt == numpy.float32:
+            if float_range is None:
+                self._range = tuple(self._min_max)
+            else:
+                self._range = float_range
         else:
-            self._range = tuple(self._min_max)
+            if float_range is not None:
+                raise ValueError('float_range must not be specified for uint8 or uint16 images.')
+            if dt == numpy.uint8:
+                self._range = (0, 255)
+            elif dt == numpy.uint16:
+                if self._is_twelve_bit:
+                    self._range = (0, 4095)
+                else:
+                    self._range = (0, 65535)
+            else:
+                raise NotImplementedError('Support for another numpy dtype was added without implementing self._range calculation for it...')
 
     @property
     def type(self):
@@ -99,6 +110,10 @@ class Image:
 
     @property
     def range(self):
+        """The range of valid values that may be assigned to any channel of any pixel.  For 8-bit-per-channel integer images,
+        this is always [0,255], for 12-bit-per-channel integer images, [0,4095], for 16-bit-per-channel integer images, [0,65535].
+        For floating point images, this is min/max values for all channels of all pixels, unless specified with the float_range
+        argument to our __init__ function."""
         return self._range
 
     @property

@@ -325,6 +325,13 @@ class HistogramView(canvas.CanvasView):
         self._mouseover_info_label = Qt.QLabel()
         hlayout.addWidget(self._mouseover_info_label)
 
+    def resizeEvent(self, event):
+        # Make 1x1 rect (the histogram) in scene fill view
+        t = Qt.QTransform()
+        s = event.size()
+        t.scale(1/s.width(), 1/s.height())
+        self.setTransform(t, combine=False)
+
     def _on_image_changed(self, image):
         if image is None or image.is_grayscale:
             self.channel_control_widgets_visible = False
@@ -497,17 +504,13 @@ class HistogramItem(canvas.CanvasGLItem):
                     prog.setUniformValue('inv_view_size', 1/widget.size().width(), 1/widget.size().height())
                     inv_max_transformed_bin_val = max_bin_val**-view.gamma_gamma
                     prog.setUniformValue('inv_max_transformed_bin_val', inv_max_transformed_bin_val)
+                    prog.setUniformValue('gamma', view.gamma)
                     prog.setUniformValue('gamma_gamma', view.gamma_gamma)
                     gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
                     gl.glDrawArrays(gl.GL_TRIANGLE_FAN, 0, 4)
                 else:
                     pass
                     # personal time todo: per-channel RGB histogram support
-#           color = Qt.QColor(Qt.Qt.red)
-#           color.setAlphaF(0.5)
-#           brush = Qt.QBrush(color)
-#           qpainter.setBrush(brush)
-#           qpainter.drawRect(self.boundingRect())
 
     def on_image_changed(self, image):
         if (self._image is None) != (image is not None) or \
@@ -533,3 +536,4 @@ class HistogramScene(canvas.CanvasScene):
         super().__init__(parent)
         self.histogram_item = HistogramItem()
         self.addItem(self.histogram_item)
+        self.setSceneRect(0,0,1,1)

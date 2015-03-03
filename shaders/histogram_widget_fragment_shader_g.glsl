@@ -28,13 +28,30 @@
 uniform usampler1D tex;
 uniform vec2 inv_view_size;
 uniform float inv_max_transformed_bin_val;
+uniform float gamma;
 uniform float gamma_gamma;
 
 void main()
 {
-    float bin_value = float(texture1D(tex, gl_FragCoord.x * inv_view_size.x).r);
-    float bin_height = pow(bin_value, gamma_gamma) * inv_max_transformed_bin_val;
-    float intensity = 1.0f - clamp(floor((gl_FragCoord.y * inv_view_size.y) / bin_height), 0, 1);
+    vec2 unit_coord = gl_FragCoord.xy * inv_view_size;
 
-    gl_FragColor = vec4(intensity, intensity, intensity, intensity);
+    float bin_value = float(texture1D(tex, unit_coord.x).r);
+    float bin_height = pow(bin_value, gamma_gamma) * inv_max_transformed_bin_val;
+    float intensity = 1.0f - clamp(floor(unit_coord.y / bin_height), 0, 1);
+    vec4 outcolor = vec4(intensity, intensity , intensity, intensity);
+
+    float plot_y = floor(pow(unit_coord.x, gamma) / inv_view_size.y);
+    if(plot_y == floor(gl_FragCoord.y))
+    {
+        if(intensity > 0)
+        {
+            outcolor.rb = vec2(0,0);
+        }
+        else
+        {
+            outcolor.g = 1;
+        }
+    }
+
+    gl_FragColor = outcolor;
 }
