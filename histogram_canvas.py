@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2014 WUSTL ZPLAB
+# Copyright (c) 2014-2015 WUSTL ZPLAB
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -238,12 +238,16 @@ class MinMaxProp(ScalarProp):
                 histogram_view.gamma_or_min_max_changed.emit()
 
 class HistogramView(canvas.CanvasView):
-    _MAX_BIN_COUNT = 1024
+    """Unlike ImageScene & ImageView, HistogramScene and HistogramView use the Qt local widget coordinate
+    system; HistogramView's transformation matrix is always identity, whereas ImageView's transformation
+    matrix is modified to project the image at user-controlled zoom and offset.
+
+    This means that two HistogramViews should not share the same HistogramScene unless both HistogramViews
+    are always the same size."""
+    gamma_or_min_max_changed = Qt.pyqtSignal()
 
     _scalar_props = []
     _min_max_props = {}
-
-    gamma_or_min_max_changed = Qt.pyqtSignal()
 
     gamma_gamma = GammaProp(_scalar_props, 'gamma_gamma', '\u03b3\u03b3')
     gamma = GammaProp(_scalar_props, 'gamma', '\u03b3')
@@ -326,11 +330,9 @@ class HistogramView(canvas.CanvasView):
         hlayout.addWidget(self._mouseover_info_label)
 
     def resizeEvent(self, event):
-        # Make 1x1 rect (the histogram) in scene fill view
-        t = Qt.QTransform()
-        s = event.size()
-        t.scale(1/s.width(), 1/s.height())
-        self.setTransform(t, combine=False)
+        scene = self.scene()
+        size = self.viewport().size()
+        scene.histogram_item.set_bounding_rect(Qt.QRectF(0, 0, size.width(), size.height()))
 
     def _on_image_changed(self, image):
         if image is None or image.is_grayscale:
@@ -419,15 +421,15 @@ class HistogramItem(canvas.CanvasGLItem):
         super().__init__(graphics_item_parent)
         self._image = None
         self._image_id = 0
+        self._bounding_rect = Qt.QRectF()
 
     def boundingRect(self):
+        return Qt.QRectF() if self._image is None else self._bounding_rect
+
+    def set_bounding_rect(self, rect):
         if self._image is not None:
-            if self._image.is_grayscale:
-                return Qt.QRectF(0,0,1,1)
-            else:
-                pass
-                # personal time todo: per-channel RGB histogram support
-        return Qt.QRectF()
+            self.prepareGeometryChange()
+        self._bounding_rect = rect
 
     def paint(self, qpainter, option, widget):
         if widget is None:
@@ -537,9 +539,11 @@ class HistogramItem(canvas.CanvasGLItem):
         self.widget.view.glfs.glDeleteTextures(1, (vrs['tex'][0],))
         del vrs['tex']
 
+class GammaPlotItem(Qt.QGraphicsItem):
+    pass
+
 class HistogramScene(canvas.CanvasScene):
     def __init__(self, parent):
         super().__init__(parent)
         self.histogram_item = HistogramItem()
         self.addItem(self.histogram_item)
-        self.setSceneRect(0,0,1,1)

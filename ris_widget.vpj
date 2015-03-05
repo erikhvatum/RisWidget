@@ -208,14 +208,21 @@
 			<F N="shaders/image_widget_fragment_shader_rgba.glsl"/>
 			<F N="shaders/image_widget_vertex_shader.glsl"/>
 		</Folder>
+		<Folder
+			Name="cython"
+			Filters="">
+			<F N="cython/_ndimage_statistics.pyx"/>
+		</Folder>
 		<F N="__init__.py"/>
-		<F N="image.py"/>
-		<F N="../launch_riswidget_for_debugging.py"/>
-		<F N="LICENSE"/>
-		<F N="README.md"/>
-		<F N="ris_widget.py"/>
 		<F N="canvas.py"/>
 		<F N="histogram_canvas.py"/>
+		<F N="image.py"/>
 		<F N="image_canvas.py"/>
+		<F N="../launch_riswidget_for_debugging.py"/>
+		<F N="LICENSE"/>
+		<F N="ndimage_statistics.py"/>
+		<F N="README.md"/>
+		<F N="ris_widget.py"/>
+		<F N="setup.py"/>
 	</Files>
 </Project>

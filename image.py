@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2014 WUSTL ZPLAB
+# Copyright (c) 2014-2015 WUSTL ZPLAB
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,7 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 import numpy
-from pyagg import fast_hist
+from .ndimage_statistics import compute_ndimage_statistics
 from PyQt5 import Qt
 
 class Image:
@@ -38,9 +38,9 @@ class Image:
         if self._data.ndim == 2:
             self._data = numpy.asfortranarray(self._data)
             self._type = 'g'
-            hret = fast_hist.histogram(self._data, self._is_twelve_bit)
-            self._histogram = hret.histogram
-            self._max_histogram_bin = hret.max_bin
+            stats = compute_ndimage_statistics(self._data, self._is_twelve_bit)
+            self._histogram = stats.histogram
+            self._max_histogram_bin = stats.max_bin
         elif self._data.ndim == 3:
             self._type = {2: 'ga', 3: 'rgb', 4: 'rgba'}.get(self._data.shape[2])
             if self._type is None:
@@ -53,10 +53,10 @@ class Image:
                 d = self._data
                 self._data = numpy.ndarray(d.shape, strides=desired_strides, dtype=d.dtype.type)
                 self._data.flat = d.flat
-            hrets = [fast_hist.histogram(self._data[...,channel_idx], is_twelve_bit) for channel_idx in range(self._data.shape[2])]
-            self._histogram = numpy.vstack((hret.histogram for hret in hrets))
-            self._min_max = numpy.vstack(((hret.min_intensity, hret.max_intensity) for hret in hrets))
-            self._max_histogram_bin = numpy.hstack((hret.max_bin for hret in hrets))
+            statses = [compute_ndimage_statistics(self._data[...,channel_idx], is_twelve_bit) for channel_idx in range(self._data.shape[2])]
+            self._histogram = numpy.vstack((stats.histogram for stats in statses))
+            self._min_max = numpy.vstack(((stats.min_intensity, stats.max_intensity) for stats in statses))
+            self._max_histogram_bin = numpy.hstack((stats.max_bin for stats in statses))
         else:
             raise ValueError('image_data argument must be a 2D (grayscale) or 3D (grayscale with alpha, rgb, or rgba) iterable.')
         self._size = Qt.QSize(self._data.shape[0], self._data.shape[1])

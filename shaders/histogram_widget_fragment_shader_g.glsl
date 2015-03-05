@@ -28,40 +28,13 @@
 uniform usampler1D tex;
 uniform vec2 inv_view_size;
 uniform float inv_max_transformed_bin_val;
-uniform bool rescale_enabled;
-uniform float gamma;
 uniform float gamma_gamma;
-uniform float intensity_rescale_min;
-uniform float intensity_rescale_range;
 
 void main()
 {
-    vec2 unit_coord = gl_FragCoord.xy * inv_view_size;
-
-    float bin_value = float(texture1D(tex, unit_coord.x).r);
+    float bin_value = float(texture1D(tex, gl_FragCoord.x * inv_view_size.x).r);
     float bin_height = pow(bin_value, gamma_gamma) * inv_max_transformed_bin_val;
-    float intensity = 1.0f - clamp(floor(unit_coord.y / bin_height), 0, 1);
-    vec4 outcolor = vec4(intensity, intensity, intensity, intensity);
+    float intensity = 1.0f - clamp(floor((gl_FragCoord.y * inv_view_size.y) / bin_height), 0, 1);
 
-    if(rescale_enabled)
-    {
-        float plot_x = (unit_coord.x - intensity_rescale_min) / intensity_rescale_range;
-        if(plot_x >= 0 && plot_x <= 1)
-        {
-            float plot_y = floor(pow(plot_x, gamma) / inv_view_size.y);
-            if(plot_y == floor(gl_FragCoord.y))
-            {
-                if(intensity > 0)
-                {
-                    outcolor.rb = vec2(0.5f,0.5f);
-                }
-                else
-                {
-                    outcolor.g = 1;
-                }
-            }
-        }
-    }
-
-    gl_FragColor = outcolor;
+    gl_FragColor = vec4(intensity, intensity, intensity, intensity);
 }
