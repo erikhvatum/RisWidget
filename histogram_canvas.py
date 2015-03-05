@@ -244,177 +244,50 @@ class HistogramView(canvas.CanvasView):
 
     This means that two HistogramViews should not share the same HistogramScene unless both HistogramViews
     are always the same size."""
-    gamma_or_min_max_changed = Qt.pyqtSignal()
-
-    _scalar_props = []
-    _min_max_props = {}
-
-    gamma_gamma = GammaProp(_scalar_props, 'gamma_gamma', '\u03b3\u03b3')
-    gamma = GammaProp(_scalar_props, 'gamma', '\u03b3')
-    gamma_red = GammaProp(_scalar_props, 'gamma', '\u03b3', 'red')
-    gamma_green = GammaProp(_scalar_props, 'gamma', '\u03b3', 'green')
-    gamma_blue = GammaProp(_scalar_props, 'gamma', '\u03b3', 'blue')
-    max = MinMaxProp(_scalar_props, _min_max_props, 'max')
-    min = MinMaxProp(_scalar_props, _min_max_props, 'min')
-    max_red = MinMaxProp(_scalar_props, _min_max_props, 'max', channel_name='red')
-    min_red = MinMaxProp(_scalar_props, _min_max_props, 'min', channel_name='red')
-    max_green = MinMaxProp(_scalar_props, _min_max_props, 'max', channel_name='green')
-    min_green = MinMaxProp(_scalar_props, _min_max_props, 'min', channel_name='green')
-    max_blue = MinMaxProp(_scalar_props, _min_max_props, 'max', channel_name='blue')
-    min_blue = MinMaxProp(_scalar_props, _min_max_props, 'min', channel_name='blue')
 
     @classmethod
-    def make_histogram_and_container_widgets(cls, canvas_scene, parent):
-        container = Qt.QWidget(parent)
-        container.setLayout(Qt.QHBoxLayout())
-        splitter = Qt.QSplitter()
-        container.layout().addWidget(splitter)
-        histogram_frame = Qt.QFrame(splitter)
+    def make_histogram_view_and_frame(cls, scene, parent):
+        histogram_frame = Qt.QFrame(parent)
         histogram_frame.setMinimumSize(Qt.QSize(120, 60))
         histogram_frame.setFrameShape(Qt.QFrame.StyledPanel)
         histogram_frame.setFrameShadow(Qt.QFrame.Sunken)
         histogram_frame.setLayout(Qt.QHBoxLayout())
         histogram_frame.layout().setSpacing(0)
         histogram_frame.layout().setContentsMargins(Qt.QMargins(0,0,0,0))
-        histogram = cls(canvas_scene, parent)
-        histogram_frame.layout().addWidget(histogram)
-        splitter.addWidget(histogram._control_widgets_pane)
-        splitter.addWidget(histogram_frame)
-        histogram.channel_control_widgets_visible = False
-        return (histogram, container)
+        histogram_view = cls(scene, histogram_frame)
+        histogram_frame.layout().addWidget(histogram_view)
+        return (histogram_view, histogram_frame)
 
     def __init__(self, canvas_scene, parent):
         super().__init__(canvas_scene, parent)
-        self._image = None
-        self._tex = None
-        self._make_control_widgets_pane()
 
-    def _make_control_widgets_pane(self):
-        self._control_widgets_pane = Qt.QWidget(self)
-        layout = Qt.QGridLayout()
-        self._control_widgets_pane.setLayout(layout)
-        self._channel_control_widgets = []
-        self._channel_control_widgets_visible = True
+    def resizeEvent(self, event):
+        size = self.viewport().size()
+        self.scene().histogram_item._set_bounding_rect(Qt.QRectF(0, 0, size.width(), size.height()))
+
+class HistogramScene(canvas.CanvasScene):
+    gamma_or_min_max_changed = Qt.pyqtSignal()
+
+#   _scalar_props = []
+#   _min_max_props = {}
+
+#   max = MinMaxProp(_scalar_props, _min_max_props, 'max')
+#   min = MinMaxProp(_scalar_props, _min_max_props, 'min')
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.histogram_item = HistogramItem()
+        self.addItem(self.histogram_item)
+        self.gamma = 1.0
+        self.gamma_gamma = 1.0
+        self.rescale_enabled = True
         self._allow_inversion = True # Set to True during initialization for convenience...
         for scalar_prop in HistogramView._scalar_props:
             scalar_prop.instantiate(self, layout)
-        self.gamma_gamma = 1
-        self.gamma = 1
-        self.gamma_red = 1
-        self.gamma_green = 1
-        self.gamma_blue = 1
-        self.min = 0
-        self.max = 1
-        self.min_red = 0
-        self.max_red = 1
-        self.min_green = 0
-        self.max_green = 1
-        self.min_blue = 0
-        self.max_blue = 1
-        hlayout = Qt.QHBoxLayout()
-        layout.addLayout(hlayout, ScalarProp.next_grid_row, 0, 1, -1)
-        self._rescale_checkbox = Qt.QCheckBox('Rescale image')
-        self._rescale_checkbox.setTristate(False)
-        self._rescale_checkbox.setChecked(True)
-        self._rescale_enabled = True
-        self._rescale_checkbox.toggled.connect(self._on_rescale_checkbox_toggled)
-        hlayout.addWidget(self._rescale_checkbox)
-        self._allow_inversion_checkbox = Qt.QCheckBox('Allow inversion')
-        self._allow_inversion_checkbox.setTristate(False)
-        self._allow_inversion_checkbox.setChecked(False)
-        self._allow_inversion_checkbox.toggled.connect(self._on_allow_inversion_checkbox_toggled)
         self._allow_inversion = False # ... and, enough stuff has been initialized that this can now be set to False without trouble
-        hlayout.addWidget(self._allow_inversion_checkbox)
-        hlayout.addItem(Qt.QSpacerItem(0, 0, Qt.QSizePolicy.MinimumExpanding, Qt.QSizePolicy.MinimumExpanding))
-        self._mouseover_info_label = Qt.QLabel()
-        hlayout.addWidget(self._mouseover_info_label)
 
-    def resizeEvent(self, event):
-        scene = self.scene()
-        size = self.viewport().size()
-        scene.histogram_item.set_bounding_rect(Qt.QRectF(0, 0, size.width(), size.height()))
-
-    def _on_image_changed(self, image):
-        if image is None or image.is_grayscale:
-            self.channel_control_widgets_visible = False
-        else:
-            self.channel_control_widgets_visible = True
-        range_changed = (self._image is None or image is None) or self._image.range != image.range
-        self._image = image
-        if range_changed:
-            if image is None or image.is_grayscale:
-                self._min_max_props['max'].propagate_slider_value(self)
-                self._min_max_props['min'].propagate_slider_value(self)
-            else:
-                for min_max_prop in self._min_max_props.values():
-                    min_max_prop.propagate_slider_value(self)
-        self._correct_inversion()
-
-        self.scene().histogram_item.on_image_changed(image)
-
-    def _on_rescale_checkbox_toggled(self, checked):
-        self.rescale_enabled = checked
-
-    def _on_allow_inversion_checkbox_toggled(self, checked):
-        self.allow_inversion = checked
-
-    def _on_request_mouseover_info_status_text_change(self, txt):
-        if sys.platform == 'darwin' and txt is None: # Workaround for gui cheese bug
-            txt = '                          '
-        self._mouseover_info_label.setText(txt)
-
-    def _correct_inversion(self):
-        if not self._allow_inversion:
-            if self.max < self.min:
-                self.max = self.min
-            if self._image is not None and not self._image.is_grayscale:
-                if self.max_red < self.min_red:
-                    self.max_red = self.min_red
-                if self.max_green < self.min_green:
-                    self.max_green = self.min_green
-                if self.max_blue < self.min_blue:
-                    self.max_blue = self.min_blue
-
-    @property
-    def channel_control_widgets_visible(self):
-        return self._channel_control_widgets_visible
-
-    @channel_control_widgets_visible.setter
-    def channel_control_widgets_visible(self, visible):
-        if visible != self._channel_control_widgets_visible:
-            self._channel_control_widgets_visible = visible
-            for widget in self._channel_control_widgets:
-                widget.setVisible(visible)
-
-    @property
-    def rescale_enabled(self):
-        return self._rescale_enabled
-
-    @rescale_enabled.setter
-    def rescale_enabled(self, rescale_enabled):
-        if self._rescale_enabled != rescale_enabled:
-            self._rescale_enabled = rescale_enabled
-            if self._rescale_checkbox.isChecked() != rescale_enabled:
-                self._rescale_checkbox.setChecked(rescale_enabled)
-            if self._image is not None:
-                self.gamma_or_min_max_changed.emit()
-
-    @property
-    def allow_inversion(self):
-        return self._allow_inversion
-
-    @allow_inversion.setter
-    def allow_inversion(self, allow_inversion):
-        if self._allow_inversion != allow_inversion:
-            self._allow_inversion = allow_inversion
-            if self._allow_inversion_checkbox.isChecked() != allow_inversion:
-                self._allow_inversion_checkbox.setChecked(allow_inversion)
-            self._correct_inversion()
-
-    @property
-    def histogram(self):
-        if self._image is not None:
-            return self._image.histogram.copy()
+    def _on_image_changing(self, image):
+        self.histogram_item._on_image_changing(image)
 
 class HistogramItem(canvas.CanvasGLItem):
     def __init__(self, graphics_item_parent=None):
@@ -426,7 +299,7 @@ class HistogramItem(canvas.CanvasGLItem):
     def boundingRect(self):
         return Qt.QRectF() if self._image is None else self._bounding_rect
 
-    def set_bounding_rect(self, rect):
+    def _set_bounding_rect(self, rect):
         if self._image is not None:
             self.prepareGeometryChange()
         self._bounding_rect = rect
@@ -440,6 +313,7 @@ class HistogramItem(canvas.CanvasGLItem):
         else:
             image = self._image
             view = widget.view
+            scene = self.scene()
             gl = view.glfs
             with ExitStack() as stack:
                 qpainter.beginNativePainting()
@@ -448,15 +322,15 @@ class HistogramItem(canvas.CanvasGLItem):
                     vrs = self._view_resources[view]
                 else:
                     self._view_resources[view] = vrs = {}
-                    self.build_shader_prog('g',
-                                           'histogram_widget_vertex_shader.glsl',
-                                           'histogram_widget_fragment_shader_g.glsl',
-                                           view)
+                    self._build_shader_prog('g',
+                                            'histogram_widget_vertex_shader.glsl',
+                                            'histogram_widget_fragment_shader_g.glsl',
+                                            view)
                     vrs['progs']['ga'] = vrs['progs']['g']
-                    self.build_shader_prog('rgb',
-                                           'histogram_widget_vertex_shader.glsl',
-                                           'histogram_widget_fragment_shader_rgb.glsl',
-                                           view)
+                    self._build_shader_prog('rgb',
+                                            'histogram_widget_vertex_shader.glsl',
+                                            'histogram_widget_fragment_shader_rgb.glsl',
+                                            view)
                     vrs['progs']['rgba'] = vrs['progs']['rgb']
                 desired_tex_width = image.histogram.shape[-1]
                 if 'tex' in vrs:
@@ -504,13 +378,13 @@ class HistogramItem(canvas.CanvasGLItem):
                     prog.setAttributeBuffer(vert_coord_loc, gl.GL_FLOAT, 0, 2, 0)
                     prog.setUniformValue('tex', 0)
                     prog.setUniformValue('inv_view_size', 1/widget.size().width(), 1/widget.size().height())
-                    inv_max_transformed_bin_val = max_bin_val**-view.gamma_gamma
+                    inv_max_transformed_bin_val = max_bin_val**-scene.gamma_gamma
                     prog.setUniformValue('inv_max_transformed_bin_val', inv_max_transformed_bin_val)
-                    prog.setUniformValue('gamma_gamma', view.gamma_gamma)
-                    prog.setUniformValue('rescale_enabled', view.rescale_enabled)
-                    if view.rescale_enabled:
-                        prog.setUniformValue('gamma', view.gamma)
-                        min_max = numpy.array((view.min, view.max), dtype=float)
+                    prog.setUniformValue('gamma_gamma', scene.gamma_gamma)
+                    prog.setUniformValue('rescale_enabled', scene.rescale_enabled)
+                    if scene.rescale_enabled:
+                        prog.setUniformValue('gamma', scene.gamma)
+                        min_max = numpy.array((scene.min, scene.max), dtype=float)
                         self._normalize_min_max(min_max)
                         prog.setUniformValue('intensity_rescale_min', min_max[0])
                         prog.setUniformValue('intensity_rescale_range', min_max[1] - min_max[0])
@@ -520,7 +394,7 @@ class HistogramItem(canvas.CanvasGLItem):
                     pass
                     # personal time todo: per-channel RGB histogram support
 
-    def on_image_changed(self, image):
+    def _on_image_changing(self, image):
         if (self._image is None) != (image is not None) or \
            self._image is not None and image is not None and self._image.histogram.shape[-1] != image.histogram.shape[-1]:
             self.prepareGeometryChange()
@@ -528,11 +402,11 @@ class HistogramItem(canvas.CanvasGLItem):
         self._image_id += 1
         self.update()
 
-    def release_resources_for_view(self, canvas_view):
+    def _release_resources_for_view(self, canvas_view):
         if canvas_view in self._view_resources:
             if 'tex' in self._view_resources[canvas_view]:
                 self._del_tex()
-        super().release_resources_for_view(canvas_view)
+        super()._release_resources_for_view(canvas_view)
 
     def _del_tex(self):
         vrs = self._view_resources[widget.view]
@@ -542,8 +416,5 @@ class HistogramItem(canvas.CanvasGLItem):
 class GammaPlotItem(Qt.QGraphicsItem):
     pass
 
-class HistogramScene(canvas.CanvasScene):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.histogram_item = HistogramItem()
-        self.addItem(self.histogram_item)
+class MinItem(Qt.QGraphicsItem):
+

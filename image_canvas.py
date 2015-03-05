@@ -39,23 +39,14 @@ class ImageView(canvas.CanvasView):
 
     def __init__(self, canvas_scene, parent):
         super().__init__(canvas_scene, parent)
-        self.histogram_view = None
-        self._image = None
-        self._image_aspect_ratio = None
-        self._glsl_prog_g = None
-        self._glsl_prog_ga = None
-        self._glsl_prog_rgb = None
-        self._glsl_prog_rgba = None
-        self._image_type_to_glsl_prog = None
-        self._tex = None
-        self._frag_to_tex = Qt.QTransform()
+        self.histogram_scene = None
         self.setMinimumSize(Qt.QSize(100,100))
         self._zoom_preset_idx = self._ZOOM_DEFAULT_PRESET_IDX
         self._custom_zoom = 0
         self._zoom_to_fit = False
         self.setDragMode(Qt.QGraphicsView.ScrollHandDrag)
 
-    def _on_image_changed(self, image):
+    def _on_image_changing(self, image):
         if self._zoom_to_fit:
             self.fitInView(self.scene().image_item, Qt.Qt.KeepAspectRatio)
 
@@ -164,6 +155,33 @@ class ImageView(canvas.CanvasView):
         else:
             self.zoom_changed.emit(self._zoom_preset_idx, self._custom_zoom)
 
+class ImageScene(canvas.CanvasScene):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.image_item = ImageItem()
+        self.addItem(self.image_item)
+        self._histogram_scene = None
+
+    def _on_image_changing(self, image):
+        self.image_item._on_image_changing(image)
+        self.setSceneRect(self.image_item.boundingRect())
+        for view in self.views():
+            view._on_image_changing(image)
+
+    def _on_histogram_gamma_or_min_max_changed(self):
+        self.image_item.update()
+
+    @property
+    def histogram_scene(self):
+        return self._histogram_scene
+
+    @histogram_scene.setter
+    def histogram_scene(self, histogram_scene):
+        if self._histogram_scene is not None:
+            self._histogram_scene.gamma_or_min_max_changed.disconnect(self._on_histogram_gamma_or_min_max_changed)
+        histogram_scene.gamma_or_min_max_changed.connect(self._on_histogram_gamma_or_min_max_changed)
+        self._histogram_scene = histogram_scene
+
 class ImageItem(canvas.CanvasGLItem):
     def __init__(self, graphics_item_parent=None):
         super().__init__(graphics_item_parent)
@@ -180,8 +198,6 @@ class ImageItem(canvas.CanvasGLItem):
             if widget.view in self._view_resources:
                 vrs = self._view_resources[widget.view]
                 if 'tex' in vrs:
-#                   with canvas.native_painting(qpainter):
-#                       vrs['tex'].destroy()
                     vrs['tex'][0].destroy()
                     del vrs['tex']
         else:
@@ -195,22 +211,22 @@ class ImageItem(canvas.CanvasGLItem):
                     vrs = self._view_resources[view]
                 else:
                     self._view_resources[view] = vrs = {}
-                    self.build_shader_prog('g',
-                                           'image_widget_vertex_shader.glsl',
-                                           'image_widget_fragment_shader_g.glsl',
-                                           view)
-                    self.build_shader_prog('ga',
-                                           'image_widget_vertex_shader.glsl',
-                                           'image_widget_fragment_shader_ga.glsl',
-                                           view)
-                    self.build_shader_prog('rgb',
-                                           'image_widget_vertex_shader.glsl',
-                                           'image_widget_fragment_shader_rgb.glsl',
-                                           view)
-                    self.build_shader_prog('rgba',
-                                           'image_widget_vertex_shader.glsl',
-                                           'image_widget_fragment_shader_rgba.glsl',
-                                           view)
+                    self._build_shader_prog('g',
+                                            'image_widget_vertex_shader.glsl',
+                                            'image_widget_fragment_shader_g.glsl',
+                                            view)
+                    self._build_shader_prog('ga',
+                                            'image_widget_vertex_shader.glsl',
+                                            'image_widget_fragment_shader_ga.glsl',
+                                            view)
+                    self._build_shader_prog('rgb',
+                                            'image_widget_vertex_shader.glsl',
+                                            'image_widget_fragment_shader_rgb.glsl',
+                                            view)
+                    self._build_shader_prog('rgba',
+                                            'image_widget_vertex_shader.glsl',
+                                            'image_widget_fragment_shader_rgba.glsl',
+                                            view)
                 if 'tex' in vrs:
                     tex, tex_image_id = vrs['tex']
                     if image.size != Qt.QSize(tex.width(), tex.height()) or tex.format() != desired_texture_format:
@@ -254,11 +270,11 @@ class ImageItem(canvas.CanvasGLItem):
                     raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix.')
                 prog.setUniformValue('frag_to_tex', frag_to_tex)
                 prog.setUniformValue('viewport_height', float(widget.size().height()))
-                histogram_view = view.histogram_view
+                histogram_scene = view.scene().histogram_scene
                 if self._image.is_grayscale:
-                    if histogram_view.rescale_enabled:
-                        gamma = histogram_view.gamma
-                        min_max = numpy.array((histogram_view.min, histogram_view.max), dtype=float)
+                    if histogram_scene.rescale_enabled:
+                        gamma = histogram_scene.gamma
+                        min_max = numpy.array((histogram_scene.min, histogram_scene.max), dtype=float)
                         self._normalize_min_max(min_max)
                     else:
                         gamma = 1
@@ -267,10 +283,10 @@ class ImageItem(canvas.CanvasGLItem):
                     prog.setUniformValue('intensity_rescale_min', min_max[0])
                     prog.setUniformValue('intensity_rescale_range', min_max[1] - min_max[0])
                 else:
-                    if histogram_view.rescale_enabled:
-                        gammas = (histogram_view.gamma_red, histogram_view.gamma_green, histogram_view.gamma_blue)
-                        min_maxs = numpy.array(((histogram_view.min_red, histogram_view.min_green, histogram_view.min_blue),
-                                                (histogram_view.max_red, histogram_view.max_green, histogram_view.max_blue)))
+                    if histogram_scene.rescale_enabled:
+                        gammas = (histogram_scene.gamma_red, histogram_scene.gamma_green, histogram_scene.gamma_blue)
+                        min_maxs = numpy.array(((histogram_scene.min_red, histogram_scene.min_green, histogram_scene.min_blue),
+                                                (histogram_scene.max_red, histogram_scene.max_green, histogram_scene.max_blue)))
                     else:
                         gammas = (1,1,1)
                         min_max = self._image.range
@@ -282,7 +298,7 @@ class ImageItem(canvas.CanvasGLItem):
                 gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
                 gl.glDrawArrays(gl.GL_TRIANGLE_FAN, 0, 4)
                     
-    def on_image_changed(self, image):
+    def _on_image_changing(self, image):
         if self._image is None and image is not None or \
            self._image is not None and (image is None or self._image.size != image.size):
             self.prepareGeometryChange()
@@ -290,20 +306,10 @@ class ImageItem(canvas.CanvasGLItem):
         self._image_id += 1
         self.update()
 
-    def release_resources_for_view(self, canvas_view):
+    def _release_resources_for_view(self, canvas_view):
         if canvas_view in self._view_resources:
             vrs = self._view_resources[canvas_view]
             if 'tex' in vrs:
                 vrs['tex'][0].destroy()
                 del vrs['tex']
-        super().release_resources_for_view(canvas_view)
-
-class ImageScene(canvas.CanvasScene):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.image_item = ImageItem()
-        self.addItem(self.image_item)
-
-    def _on_image_changed(self, image):
-        self.image_item.on_image_changed(image)
-        self.setSceneRect(self.image_item.boundingRect())
+        super()._release_resources_for_view(canvas_view)

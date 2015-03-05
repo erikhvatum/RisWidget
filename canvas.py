@@ -205,7 +205,7 @@ class CanvasGLItem(Qt.QGraphicsItem):
         super().__init__(parent_item)
         self._view_resources = {}
 
-    def build_shader_prog(self, desc, vert_fn, frag_fn, canvas_view):
+    def _build_shader_prog(self, desc, vert_fn, frag_fn, canvas_view):
         source_dpath = Path(__file__).parent / 'shaders'
         prog = Qt.QOpenGLShaderProgram(canvas_view)
         if not prog.addShaderFromSourceFile(Qt.QOpenGLShader.Vertex, str(source_dpath / vert_fn)):
@@ -220,10 +220,10 @@ class CanvasGLItem(Qt.QGraphicsItem):
         else:
             vrs['progs'][desc] = prog
 
-    def release_resources_for_view(self, canvas_view):
+    def _release_resources_for_view(self, canvas_view):
         for item in self.childItems():
             if issubclass(type(item), CanvasGLItem):
-                item.release_resources_for_view(canvas_view)
+                item._release_resources_for_view(canvas_view)
         if canvas_view in self._view_resources:
             vrs = self._view_resources[canvas_view]
             if 'progs' in vrs:

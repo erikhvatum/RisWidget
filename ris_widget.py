@@ -33,9 +33,9 @@ from . import histogram_canvas
 from .image import Image
 
 class RisWidget(Qt.QMainWindow):
-    # The image_changed signal is emitted when a new value is successfully assigned to the
-    # RisWidget.image property
-    image_changed = Qt.pyqtSignal()
+    # The image_changed signal is emitted immediately after a new value is successfully assigned to the
+    # RisWidget_instance.image property
+    image_changed = Qt.pyqtSignal(Image)
 
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0)):
         super().__init__(parent, window_flags)
@@ -93,16 +93,14 @@ class RisWidget(Qt.QMainWindow):
         self.image_view = image_canvas.ImageView(self.image_scene, self)
         self.setCentralWidget(self.image_view)
         self.histogram_scene = histogram_canvas.HistogramScene(self)
+        self.image_scene.histogram_scene = self.histogram_scene
         self._histogram_dock_widget = Qt.QDockWidget('Histogram', self)
-        self.histogram_view, self._histogram_container_widget = histogram_canvas.HistogramView.make_histogram_and_container_widgets(self.histogram_scene, self._histogram_dock_widget)
-        self.image_view.histogram_view = self.histogram_view
-        self._histogram_dock_widget.setWidget(self._histogram_container_widget)
+        self.histogram_view, self._histogram_frame = histogram_canvas.HistogramView.make_histogram_view_and_frame(self.histogram_scene, self._histogram_dock_widget)
+        self.image_view.histogram_scene = self.histogram_scene
+        self._histogram_dock_widget.setWidget(self._histogram_frame)
         self._histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
         self._histogram_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
         self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self._histogram_dock_widget)
-        self.histogram_view.gamma_or_min_max_changed.connect(self.image_scene.image_item.update)
-        self.histogram_scene.request_mouseover_info_status_text_change.connect(self.histogram_view._on_request_mouseover_info_status_text_change)
-        self.image_scene.request_mouseover_info_status_text_change.connect(self.histogram_view._on_request_mouseover_info_status_text_change)
 
     @property
     def image_data(self):
@@ -139,11 +137,10 @@ class RisWidget(Qt.QMainWindow):
     def image(self, image):
         if image is not None and not issubclass(type(image), Image):
             raise ValueError('The value assigned to the image property must either be derived from ris_widget.image.Image or must be None.  Did you mean to assign to the image_data property?')
-        self.image_scene._on_image_changed(image)
-        self.image_view._on_image_changed(image)
-        self.histogram_view._on_image_changed(image)
+        self.histogram_scene._on_image_changing(image)
+        self.image_scene._on_image_changing(image)
         self._image = image
-        self.image_changed.emit()
+        self.image_changed.emit(image)
 
     def _image_view_zoom_changed(self, zoom_preset_idx, custom_zoom):
         assert zoom_preset_idx == -1 and custom_zoom != 0 or zoom_preset_idx != -1 and custom_zoom == 0, 'zoom_preset_idx XOR custom_zoom must be set.'
