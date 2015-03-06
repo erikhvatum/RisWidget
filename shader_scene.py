@@ -27,5 +27,6 @@ from PyQt5 import Qt
 class ShaderScene(Qt.QGraphicsScene):
     # The update_mouseover_info signal serves to relay mouseover info text change requests
     # from any items in the ShaderScene to every attached Viewport's ViewportOverlayScene's
-    # MouseoverTextItem.
+    # MouseoverTextItem (which is part of ViewportOverlayScene so that the text is view-relative
+    # rather than scaling with the shader item).
     update_mouseover_info = Qt.pyqtSignal(str)

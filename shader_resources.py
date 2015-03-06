@@ -22,7 +22,43 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+import numpy
 from PyQt5 import Qt
+
+NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
+    numpy.uint8  : Qt.QOpenGLTexture.UInt8,
+    numpy.uint16 : Qt.QOpenGLTexture.UInt16,
+    numpy.float32: Qt.QOpenGLTexture.Float32}
+IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT = {
+    'g'   : Qt.QOpenGLTexture.R32F,
+    'ga'  : Qt.QOpenGLTexture.RG32F,
+    'rgb' : Qt.QOpenGLTexture.RGB32F,
+    'rgba': Qt.QOpenGLTexture.RGBA32F}
+IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT = {
+    'g'   : Qt.QOpenGLTexture.Red,
+    'ga'  : Qt.QOpenGLTexture.RG,
+    'rgb' : Qt.QOpenGLTexture.RGB,
+    'rgba': Qt.QOpenGLTexture.RGBA}
+
+GL_QSURFACE_FORMAT = None
+
+def init_GL_QSURFACE_FORMAT():
+    global GL_QSURFACE_FORMAT
+    if GL_QSURFACE_FORMAT is None:
+        GL_QSURFACE_FORMAT = Qt.QSurfaceFormat()
+        GL_QSURFACE_FORMAT.setRenderableType(Qt.QSurfaceFormat.OpenGL)
+        GL_QSURFACE_FORMAT.setVersion(2, 1)
+        GL_QSURFACE_FORMAT.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
+        GL_QSURFACE_FORMAT.setSwapBehavior(Qt.QSurfaceFormat.DoubleBuffer)
+        GL_QSURFACE_FORMAT.setStereo(False)
+        GL_QSURFACE_FORMAT.setSwapInterval(1)
+        # Specifically enabling alpha channel is not sufficient for enabling QPainter composition modes that
+        # use destination alpha (ie, nothing drawn in CompositionMode_DestinationOver will be visible in
+        # a painGL widget).
+#       GL_QSURFACE_FORMAT.setRedBufferSize(8)
+#       GL_QSURFACE_FORMAT.setGreenBufferSize(8)
+#       GL_QSURFACE_FORMAT.setBlueBufferSize(8)
+#       GL_QSURFACE_FORMAT.setAlphaBufferSize(8)
 
 # GL is set to instance of QOpenGLFunctions_2_1 (or QOpenGLFunctions_2_0 for old PyQt5 versions) during
 # creation of first OpenGL widget.  QOpenGLFunctions_VER are obese namespaces containing all OpenGL
@@ -32,16 +68,22 @@ from PyQt5 import Qt
 GL = None
 
 def init_GL():
+    global GL
     if GL is None:
         context = Qt.QOpenGLContext.currentContext()
         if context is None:
             raise RuntimeError('No OpenGL context is current for this thread.')
-        vp = Qt.QOpenGLVersionProfile()
-        vp.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
         try:
-            vp.setVersion(2, 1)
-            GL = context.versionFunctions(vp)
+            GL = context.versionFunctions()
         except AttributeError:
+            # PyQt5 v5.4.0 and v5.4.1 provide access to OpenGL functions up to OpenGL 2.0, but we have made
+            # an OpenGL 2.1 context.  QOpenGLContext.versionFunctions(..) will, by default, attempt to return
+            # a wrapper around QOpenGLFunctions2_1, which has failed in the try block above.  Therefore,
+            # we fall back to explicitly requesting 2.0 functions.  We don't need any of the C GL 2.1
+            # constants or calls, anyway - these address non-square shader uniform transformation matrices and
+            # specification of sRGB texture formats, neither of which we use.
+            vp = Qt.QOpenGLVersionProfile()
+            vp.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
             vp.setVersion(2, 0)
             GL = context.versionFunctions(vp)
         if not GL:
