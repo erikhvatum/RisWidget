@@ -197,6 +197,11 @@
 	</Config>
 	<Files>
 		<Folder
+			Name="cython"
+			Filters="">
+			<F N="cython/_ndimage_statistics.pyx"/>
+		</Folder>
+		<Folder
 			Name="shaders"
 			Filters="">
 			<F N="shaders/histogram_widget_fragment_shader_g.glsl"/>
@@ -207,11 +212,6 @@
 			<F N="shaders/image_widget_fragment_shader_rgb.glsl"/>
 			<F N="shaders/image_widget_fragment_shader_rgba.glsl"/>
 			<F N="shaders/image_widget_vertex_shader.glsl"/>
-		</Folder>
-		<Folder
-			Name="cython"
-			Filters="">
-			<F N="cython/_ndimage_statistics.pyx"/>
 		</Folder>
 		<F N="__init__.py"/>
 		<F N="canvas.py"/>
@@ -224,5 +224,9 @@
 		<F N="README.md"/>
 		<F N="ris_widget.py"/>
 		<F N="setup.py"/>
+		<F N="shader_resources.py"/>
+		<F N="shader_scene.py"/>
+		<F N="viewport.py"/>
+		<F N="viewport_overlay_scene.py"/>
 	</Files>
 </Project>
