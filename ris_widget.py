@@ -24,13 +24,11 @@
 
 from PyQt5 import Qt
 import numpy
-import pyagg
 import sys
 
-from . import canvas
-from . import image_canvas
-from . import histogram_canvas
+from .histogram_view import HistogramView
 from .image import Image
+from .image_view import ImageView
 
 class RisWidget(Qt.QMainWindow):
     # The image_changed signal is emitted immediately after a new value is successfully assigned to the

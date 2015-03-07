@@ -215,18 +215,20 @@
 		</Folder>
 		<F N="__init__.py"/>
 		<F N="canvas.py"/>
-		<F N="histogram_canvas.py"/>
+		<F N="gl_resources.py"/>
+		<F N="histogram_scene.py"/>
+		<F N="histogram_view.py"/>
 		<F N="image.py"/>
-		<F N="image_canvas.py"/>
+		<F N="image_scene.py"/>
+		<F N="image_view.py"/>
 		<F N="../launch_riswidget_for_debugging.py"/>
 		<F N="LICENSE"/>
 		<F N="ndimage_statistics.py"/>
 		<F N="README.md"/>
 		<F N="ris_widget.py"/>
 		<F N="setup.py"/>
-		<F N="shader_resources.py"/>
 		<F N="shader_scene.py"/>
-		<F N="viewport.py"/>
-		<F N="viewport_overlay_scene.py"/>
+		<F N="shader_view.py"/>
+		<F N="shader_view_overlay_scene.py"/>
 	</Files>
 </Project>

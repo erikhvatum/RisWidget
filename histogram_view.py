@@ -22,11 +22,32 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+from .gl_resources import GL_QSURFACE_FORMAT, GL
+from .shader_scene import ShaderScene, ShaderItem
+from .shader_view import ShaderView
+from contextlib import ExitStack
+import math
+import numpy
 from PyQt5 import Qt
+import sys
 
-class ViewportOverlayScene(Qt.QGraphicsScene):
-    def _on_update_mouseover_info(html):
-        pass
+class HistogramView(ShaderView):
+    @classmethod
+    def make_histogram_view_and_frame(cls, scene, parent):
+        histogram_frame = Qt.QFrame(parent)
+        histogram_frame.setMinimumSize(Qt.QSize(120, 60))
+        histogram_frame.setFrameShape(Qt.QFrame.StyledPanel)
+        histogram_frame.setFrameShadow(Qt.QFrame.Sunken)
+        histogram_frame.setLayout(Qt.QHBoxLayout())
+        histogram_frame.layout().setSpacing(0)
+        histogram_frame.layout().setContentsMargins(Qt.QMargins(0,0,0,0))
+        histogram_view = cls(scene, histogram_frame)
+        histogram_frame.layout().addWidget(histogram_view)
+        return (histogram_view, histogram_frame)
 
-class ViewportOverlayItem(Qt.QGraphicsObject):
-    update_mouseover_info = Qt.pyqtSignal(str)
+    def __init__(self, shader_scene, parent):
+        super().__init__(shader_scene, parent)
+
+    def resizeEvent(self, event):
+        size = self.viewport().size()
+        self.scene().histogram_item._set_bounding_rect(Qt.QRectF(0, 0, size.width(), size.height()))

@@ -114,8 +114,8 @@ class _CanvasGLWidget(Qt.QOpenGLWidget):
         print('resizeGL(self, w, h)')
 
 class CanvasView(Qt.QGraphicsView):
-    def __init__(self, canvas_scene, parent):
-        super().__init__(canvas_scene, parent)
+    def __init__(self, shader_scene, parent):
+        super().__init__(shader_scene, parent)
 #       self.setMouseTracking(True)
         glw = _CanvasGLWidget()
         glw.view = self
@@ -203,33 +203,33 @@ class CanvasScene(Qt.QGraphicsScene):
 class CanvasGLItem(Qt.QGraphicsItem):
     def __init__(self, parent_item=None):
         super().__init__(parent_item)
-        self._view_resources = {}
+        self.view_resources = {}
 
-    def _build_shader_prog(self, desc, vert_fn, frag_fn, canvas_view):
+    def build_shader_prog(self, desc, vert_fn, frag_fn, shader_view):
         source_dpath = Path(__file__).parent / 'shaders'
-        prog = Qt.QOpenGLShaderProgram(canvas_view)
+        prog = Qt.QOpenGLShaderProgram(shader_view)
         if not prog.addShaderFromSourceFile(Qt.QOpenGLShader.Vertex, str(source_dpath / vert_fn)):
             raise RuntimeError('Failed to compile vertex shader "{}" for {} {} shader program.'.format(vert_fn, type(self).__name__, desc))
         if not prog.addShaderFromSourceFile(Qt.QOpenGLShader.Fragment, str(source_dpath / frag_fn)):
             raise RuntimeError('Failed to compile fragment shader "{}" for {} {} shader program.'.format(frag_fn, type(self).__name__, desc))
         if not prog.link():
             raise RuntimeError('Failed to link {} {} shader program.'.format(type(self).__name__, desc))
-        vrs = self._view_resources[canvas_view]
+        vrs = self.view_resources[shader_view]
         if 'progs' not in vrs:
             vrs['progs'] = {desc : prog}
         else:
             vrs['progs'][desc] = prog
 
-    def _release_resources_for_view(self, canvas_view):
+    def _release_resources_for_view(self, shader_view):
         for item in self.childItems():
             if issubclass(type(item), CanvasGLItem):
-                item._release_resources_for_view(canvas_view)
-        if canvas_view in self._view_resources:
-            vrs = self._view_resources[canvas_view]
+                item._release_resources_for_view(shader_view)
+        if shader_view in self.view_resources:
+            vrs = self.view_resources[shader_view]
             if 'progs' in vrs:
                 for prog in vrs['progs'].values():
                     prog.removeAllShaders()
-            del self._view_resources[canvas_view]
+            del self.view_resources[shader_view]
 
     def _normalize_min_max(self, min_max):
         r = self._image.range
