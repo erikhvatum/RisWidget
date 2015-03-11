@@ -22,13 +22,11 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from . import canvas
-from contextlib import ExitStack
-import math
+from .shader_view import ShaderView
 import numpy
 from PyQt5 import Qt
 
-class ImageView(canvas.CanvasView):
+class ImageView(ShaderView):
     _ZOOM_PRESETS = numpy.array((10, 8, 7, 6, 5, 4, 3, 2, 1.5, 1, .75, .6666666, .5, .333333, .25, .1), dtype=numpy.float64)
     _ZOOM_MIN_MAX = (.001, 10000.0)
     _ZOOM_DEFAULT_PRESET_IDX = 9
@@ -39,14 +37,13 @@ class ImageView(canvas.CanvasView):
 
     def __init__(self, shader_scene, parent):
         super().__init__(shader_scene, parent)
-        self.histogram_scene = None
         self.setMinimumSize(Qt.QSize(100,100))
         self._zoom_preset_idx = self._ZOOM_DEFAULT_PRESET_IDX
         self._custom_zoom = 0
         self._zoom_to_fit = False
         self.setDragMode(Qt.QGraphicsView.ScrollHandDrag)
 
-    def _on_image_changing(self, image):
+    def on_image_changing(self, image):
         if self._zoom_to_fit:
             self.fitInView(self.scene().image_item, Qt.Qt.KeepAspectRatio)
 

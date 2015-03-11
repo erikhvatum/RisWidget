@@ -72,10 +72,8 @@ _GL = None
 
 def GL():
     global _GL
-    print("GL", _GL)
     if _GL is None:
         context = Qt.QOpenGLContext.currentContext()
-        print("context", context)
         if context is not None:
             try:
                 _GL = context.versionFunctions()
@@ -95,25 +93,3 @@ def GL():
             if not _GL.initializeOpenGLFunctions():
                 raise RuntimeError('Failed to initialize OpenGL wrapper namespace.')
     return _GL
-
-# Minimal OpenGL entity wrappers for cases where the QOpenGL* version is not ideal for our
-# needs or does not exist.  For example, QOpenGLTexture does not support support GL_LUMINANCE32UI_EXT
-# as specified by GL_EXT_texture_integer, which is required for integer textures in OpenGL 2.1
-# (QOpenGLTexture does support GL_RGB*U/I formats, but these were introduced with OpenGL 3.0
-# and should not be relied upon in 2.1 contexts).
-
-class ShaderTexture:
-    def __init__(self, target, image_id):
-        self.texture_id = GL.glGenTextures(1)
-        self.target = target
-        self.image_id = image_id
-
-    def bind(self):
-        GL.glBindTexture(self.target, self.texture_id)
-
-    def release(self):
-        GL.glBindTexture(self.target, 0)
-
-    def free(self):
-        GL.glDeleteTextures(1, self.texture_id)
-        del self.texture_id

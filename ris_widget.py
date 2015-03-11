@@ -26,8 +26,10 @@ from PyQt5 import Qt
 import numpy
 import sys
 
+from .histogram_scene import HistogramScene
 from .histogram_view import HistogramView
 from .image import Image
+from .image_scene import ImageScene
 from .image_view import ImageView
 
 class RisWidget(Qt.QMainWindow):
@@ -76,9 +78,9 @@ class RisWidget(Qt.QMainWindow):
         self._image_view_zoom_combo.setInsertPolicy(Qt.QComboBox.NoInsert)
         self._image_view_zoom_combo.setDuplicatesEnabled(True)
         self._image_view_zoom_combo.setSizeAdjustPolicy(Qt.QComboBox.AdjustToContents)
-        for zoom in image_canvas.ImageView._ZOOM_PRESETS:
+        for zoom in ImageView._ZOOM_PRESETS:
             self._image_view_zoom_combo.addItem(self._format_zoom(zoom * 100) + '%')
-        self._image_view_zoom_combo.setCurrentIndex(image_canvas.ImageView._ZOOM_DEFAULT_PRESET_IDX)
+        self._image_view_zoom_combo.setCurrentIndex(ImageView._ZOOM_DEFAULT_PRESET_IDX)
         self._image_view_zoom_combo.activated[int].connect(self._image_view_zoom_combo_changed)
         self._image_view_zoom_combo.lineEdit().returnPressed.connect(self._image_view_zoom_combo_custom_value_entered)
         self.image_view.zoom_changed.connect(self._image_view_zoom_changed)
@@ -87,13 +89,13 @@ class RisWidget(Qt.QMainWindow):
         self.image_view.zoom_to_fit_changed.connect(self._image_view_zoom_to_fit_changed)
 
     def _init_views(self):
-        self.image_scene = image_canvas.ImageScene(self)
-        self.image_view = image_canvas.ImageView(self.image_scene, self)
+        self.image_scene = ImageScene(self)
+        self.image_view = ImageView(self.image_scene, self)
         self.setCentralWidget(self.image_view)
-        self.histogram_scene = histogram_canvas.HistogramScene(self)
+        self.histogram_scene = HistogramScene(self)
         self.image_scene.histogram_scene = self.histogram_scene
         self._histogram_dock_widget = Qt.QDockWidget('Histogram', self)
-        self.histogram_view, self._histogram_frame = histogram_canvas.HistogramView.make_histogram_view_and_frame(self.histogram_scene, self._histogram_dock_widget)
+        self.histogram_view, self._histogram_frame = HistogramView.make_histogram_view_and_frame(self.histogram_scene, self._histogram_dock_widget)
         self.image_view.histogram_scene = self.histogram_scene
         self._histogram_dock_widget.setWidget(self._histogram_frame)
         self._histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
@@ -135,8 +137,8 @@ class RisWidget(Qt.QMainWindow):
     def image(self, image):
         if image is not None and not issubclass(type(image), Image):
             raise ValueError('The value assigned to the image property must either be derived from ris_widget.image.Image or must be None.  Did you mean to assign to the image_data property?')
-        self.histogram_scene._on_image_changing(image)
-        self.image_scene._on_image_changing(image)
+        self.histogram_scene.on_image_changing(image)
+        self.image_scene.on_image_changing(image)
         self._image = image
         self.image_changed.emit(image)
 
@@ -168,8 +170,8 @@ class RisWidget(Qt.QMainWindow):
         try:
             self.image_view.custom_zoom = float(scale_txt) * 0.01
         except ValueError:
-            Qt.QMessageBox.information(self, self.windowTitle(), 'Please enter a number between {} and {}.'.format(self._format_zoom(image_canvas.ImageView._ZOOM_MIN_MAX[0] * 100),
-                                                                                                                   self._format_zoom(image_canvas.ImageView._ZOOM_MIN_MAX[1] * 100)))
+            Qt.QMessageBox.information(self, self.windowTitle(), 'Please enter a number between {} and {}.'.format(self._format_zoom(ImageView._ZOOM_MIN_MAX[0] * 100),
+                                                                                                                   self._format_zoom(ImageView._ZOOM_MIN_MAX[1] * 100)))
             self._image_view_zoom_combo.setFocus()
             self._image_view_zoom_combo.lineEdit().selectAll()
 

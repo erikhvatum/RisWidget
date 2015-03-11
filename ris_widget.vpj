@@ -214,7 +214,6 @@
 			<F N="shaders/image_widget_vertex_shader.glsl"/>
 		</Folder>
 		<F N="__init__.py"/>
-		<F N="canvas.py"/>
 		<F N="gl_resources.py"/>
 		<F N="histogram_scene.py"/>
 		<F N="histogram_view.py"/>

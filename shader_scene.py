@@ -22,6 +22,7 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+from .gl_resources import GL
 from pathlib import Path
 from PyQt5 import Qt
 
@@ -60,6 +61,8 @@ class ShaderItem(Qt.QGraphicsItem):
                 item.free_shader_view_resources(shader_view)
         if shader_view in self.view_resources:
             vrs = self.view_resources[shader_view]
+            if 'tex' in vrs:
+                vrs['tex'].destroy()
             if 'progs' in vrs:
                 for prog in vrs['progs'].values():
                     prog.removeAllShaders()
@@ -74,3 +77,23 @@ class ShaderItem(Qt.QGraphicsItem):
         r = self._image.range
         min_max -= r[0]
         min_max /= r[1] - r[0]
+
+class ShaderTexture:
+    """QOpenGLTexture does not support support GL_LUMINANCE*_EXT as specified by GL_EXT_texture_integer,
+    which is required for integer textures in OpenGL 2.1 (QOpenGLTexture does support GL_RGB*U/I formats,
+    but these were introduced with OpenGL 3.0 and should not be relied upon in 2.1 contexts).  So, in
+    cases where GL_LUMINANCE*_EXT format textures may be required, we use ShaderTexture rather than
+    QOpenGLTexture."""
+    def __init__(self, target):
+        self.texture_id = GL().glGenTextures(1)
+        self.target = target
+
+    def bind(self):
+        GL().glBindTexture(self.target, self.texture_id)
+
+    def release(self):
+        GL().glBindTexture(self.target, 0)
+
+    def free(self):
+        GL().glDeleteTextures(1, self.texture_id)
+        del self.texture_id

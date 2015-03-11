@@ -22,8 +22,9 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from PyQt5 import Qt
 from .gl_resources import GL_QSURFACE_FORMAT, GL
+import numpy
+from PyQt5 import Qt
 
 class ShaderView(Qt.QGraphicsView):
     def __init__(self, shader_scene, parent):
