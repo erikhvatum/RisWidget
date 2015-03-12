@@ -2,6 +2,7 @@
 #include <QPointer>
 #include <QtCore>
 #include <QtWidgets>
+#include "GS.h"
 #include "GV.h"
 #include "ImageWidget.h"
 
@@ -10,7 +11,7 @@ int main(int argc, char** argv)
     QApplication app(argc, argv);
     QMainWindow* mw(new QMainWindow);
     ImageWidget* iw(new ImageWidget(mw));
-    QGraphicsScene* gs(new QGraphicsScene);
+    GS* gs(new GS);
     QColor c = QColor(Qt::red);
     c.setAlphaF(0.5);
     QBrush b = QBrush(c);

@@ -22,8 +22,8 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-import numpy
 from .ndimage_statistics import compute_ndimage_statistics
+import numpy
 from PyQt5 import Qt
 
 class Image:

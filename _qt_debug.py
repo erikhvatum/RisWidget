@@ -22,29 +22,21 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+"""Stuff for Qt development and debugging.  RisWidget does not depend on this file;
+it is provided for developer use.  Feel free to delete it."""
+
 from PyQt5 import Qt
-from .shader_view import ShaderView
 
-class HistogramView(ShaderView):
-    @classmethod
-    def make_histogram_view_and_frame(cls, shader_scene, overlay_scene, parent):
-        histogram_frame = Qt.QFrame(parent)
-        histogram_frame.setMinimumSize(Qt.QSize(120, 60))
-        histogram_frame.setFrameShape(Qt.QFrame.StyledPanel)
-        histogram_frame.setFrameShadow(Qt.QFrame.Sunken)
-        histogram_frame.setLayout(Qt.QHBoxLayout())
-        histogram_frame.layout().setSpacing(0)
-        histogram_frame.layout().setContentsMargins(Qt.QMargins(0,0,0,0))
-        histogram_view = cls(shader_scene, overlay_scene, histogram_frame)
-        histogram_frame.layout().addWidget(histogram_view)
-        return (histogram_view, histogram_frame)
+_QEVENT_TYPE_ENUM_VALUE_TO_STRING = None
 
-    def __init__(self, shader_scene, overlay_scene, parent):
-        super().__init__(shader_scene, overlay_scene, parent)
-        self.resized.connect(self.on_resized)
-
-    def on_resized(self, size):
-        r = Qt.QRectF(0, 0, size.width(), size.height())
-        s = self.scene()
-        s.histogram_item._set_bounding_rect(r)
-        s.setSceneRect(r)
+def qevent_type_value_enum_string(qevent):
+    global _QEVENT_TYPE_ENUM_VALUE_TO_STRING
+    if _QEVENT_TYPE_ENUM_VALUE_TO_STRING is None:
+        _QEVENT_TYPE_ENUM_VALUE_TO_STRING = {}
+        for name, value in Qt.QEvent.__dict__.items():
+            if type(value) is Qt.QEvent.Type:
+                _QEVENT_TYPE_ENUM_VALUE_TO_STRING[value] = name
+    try:
+        return _QEVENT_TYPE_ENUM_VALUE_TO_STRING[qevent.type()]
+    except KeyError:
+        return 'UNKNOWN'

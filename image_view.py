@@ -35,23 +35,22 @@ class ImageView(ShaderView):
     zoom_changed = Qt.pyqtSignal(int, float)
     zoom_to_fit_changed = Qt.pyqtSignal(bool)
 
-    def __init__(self, shader_scene, parent):
-        super().__init__(shader_scene, parent)
+    def __init__(self, shader_scene, overlay_scene, parent):
+        super().__init__(shader_scene, overlay_scene, parent)
         self.setMinimumSize(Qt.QSize(100,100))
         self._zoom_preset_idx = self._ZOOM_DEFAULT_PRESET_IDX
         self._custom_zoom = 0
         self._zoom_to_fit = False
         self.setDragMode(Qt.QGraphicsView.ScrollHandDrag)
+        self.resized.connect(self.on_resized)
 
     def on_image_changing(self, image):
         if self._zoom_to_fit:
             self.fitInView(self.scene().image_item, Qt.Qt.KeepAspectRatio)
 
-    def resizeEvent(self, event):
+    def on_resized(self, size):
         if self._zoom_to_fit:
             self.fitInView(self.scene().image_item, Qt.Qt.KeepAspectRatio)
-        else:
-            super().resizeEvent(event)
 
     def wheelEvent(self, event):
         wheel_delta = event.angleDelta().y()

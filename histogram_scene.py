@@ -22,12 +22,12 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from .gl_resources import GL
-from .shader_scene import ShaderItem, ShaderScene, ShaderTexture
 from contextlib import ExitStack
+from .gl_resources import GL
 import math
 import numpy
 from PyQt5 import Qt
+from .shader_scene import ShaderItem, ShaderScene, ShaderTexture
 import sys
 
 class ScalarPropWidgets:

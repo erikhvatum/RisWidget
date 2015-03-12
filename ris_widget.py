@@ -31,6 +31,7 @@ from .histogram_view import HistogramView
 from .image import Image
 from .image_scene import ImageScene
 from .image_view import ImageView
+from .shader_view_overlay_scene import ShaderViewOverlayScene
 
 class RisWidget(Qt.QMainWindow):
     # The image_changed signal is emitted immediately after a new value is successfully assigned to the
@@ -48,7 +49,7 @@ class RisWidget(Qt.QMainWindow):
         if window_title is not None:
             self.setWindowTitle(window_title)
         self.setAcceptDrops(True)
-        self._init_views()
+        self._init_scenes_and_views()
         self._init_actions()
         self._init_toolbars()
         self._image = None
@@ -88,15 +89,16 @@ class RisWidget(Qt.QMainWindow):
         self._image_view_zoom_to_fit_action.triggered[bool].connect(self._image_view_zoom_to_fit_action_toggled)
         self.image_view.zoom_to_fit_changed.connect(self._image_view_zoom_to_fit_changed)
 
-    def _init_views(self):
+    def _init_scenes_and_views(self):
         self.image_scene = ImageScene(self)
-        self.image_view = ImageView(self.image_scene, self)
+        self.image_view_overlay_scene = ShaderViewOverlayScene(self.image_scene, self)
+        self.image_view = ImageView(self.image_scene, self.image_view_overlay_scene, self)
         self.setCentralWidget(self.image_view)
         self.histogram_scene = HistogramScene(self)
         self.image_scene.histogram_scene = self.histogram_scene
+        self.histogram_view_overlay_scene = ShaderViewOverlayScene(self.histogram_scene, self)
         self._histogram_dock_widget = Qt.QDockWidget('Histogram', self)
-        self.histogram_view, self._histogram_frame = HistogramView.make_histogram_view_and_frame(self.histogram_scene, self._histogram_dock_widget)
-        self.image_view.histogram_scene = self.histogram_scene
+        self.histogram_view, self._histogram_frame = HistogramView.make_histogram_view_and_frame(self.histogram_scene, self.histogram_view_overlay_scene, self._histogram_dock_widget)
         self._histogram_dock_widget.setWidget(self._histogram_frame)
         self._histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
         self._histogram_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)

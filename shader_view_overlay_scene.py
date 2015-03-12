@@ -25,8 +25,25 @@
 from PyQt5 import Qt
 
 class ShaderViewOverlayScene(Qt.QGraphicsScene):
-    def _on_update_mouseover_info(html):
-        pass
+    def __init__(self, shader_scene, parent):
+        super().__init__(parent)
+        self.shader_scene = shader_scene
+        self.mouseover_text_item = self.addText('')
+        self.shader_scene.update_mouseover_info_signal.connect(self.on_update_mouseover_info)
+        self.mouseover_text_item.setDefaultTextColor(Qt.QColor(Qt.Qt.white))
 
-#class ShaderViewOverlayItem(Qt.QGraphicsObject):
-#   update_mouseover_info = Qt.pyqtSignal(str)
+    def on_update_mouseover_info(self, string, is_html):
+        if is_html:
+            self.mouseover_text_item.setHtml(string)
+        else:
+            self.mouseover_text_item.setPlainText(string)
+
+    def eventFilter(self, watched, event):
+#       print(watched, type(event))
+        if watched is self.shader_scene and issubclass(type(event), (Qt.QGraphicsSceneEvent, Qt.QKeyEvent, Qt.QFocusEvent, Qt.QTimerEvent)) or type(event) is Qt.QEvent and event.type() is Qt.QEvent.MetaCall:
+#           if hasattr(event, 'screenPos') and issubclass(type(event), Qt.QGraphicsSceneEvent):
+#               event.setScenePos(event.widget().mapFromGlobal(event.screenPos()))
+#               print(event.screenPos(), event.widget().mapFromGlobal(event.screenPos()))
+            return self.event(event)
+        else:
+            return super().eventFilter(watched, event)

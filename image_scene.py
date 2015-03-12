@@ -22,13 +22,13 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from .gl_resources import GL, NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE, IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT, IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT
-from .shader_scene import ShaderScene, ShaderItem
-from .shader_view import ShaderView
 from contextlib import ExitStack
+from .gl_resources import GL, NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE, IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT, IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT
 import math
 import numpy
 from PyQt5 import Qt
+from .shader_scene import ShaderScene, ShaderItem
+from .shader_view import ShaderView
 import sys
 
 class ImageScene(ShaderScene):
@@ -44,7 +44,7 @@ class ImageScene(ShaderScene):
         for view in self.views():
             view.on_image_changing(image)
 
-    def _on_histogram_gamma_or_min_max_changed(self):
+    def on_histogram_gamma_or_min_max_changed(self):
         self.image_item.update()
 
     @property
@@ -54,14 +54,15 @@ class ImageScene(ShaderScene):
     @histogram_scene.setter
     def histogram_scene(self, histogram_scene):
         if self._histogram_scene is not None:
-            self._histogram_scene.gamma_or_min_max_changed.disconnect(self._on_histogram_gamma_or_min_max_changed)
-        histogram_scene.gamma_or_min_max_changed.connect(self._on_histogram_gamma_or_min_max_changed)
+            self._histogram_scene.gamma_or_min_max_changed.disconnect(self.on_histogram_gamma_or_min_max_changed)
+        histogram_scene.gamma_or_min_max_changed.connect(self.on_histogram_gamma_or_min_max_changed)
         self._histogram_scene = histogram_scene
-        self._on_histogram_gamma_or_min_max_changed()
+        self.on_histogram_gamma_or_min_max_changed()
 
 class ImageItem(ShaderItem):
     def __init__(self, graphics_item_parent=None):
         super().__init__(graphics_item_parent)
+        self.setAcceptHoverEvents(True)
         self._image = None
         self._image_id = 0
 
@@ -174,7 +175,30 @@ class ImageItem(ShaderItem):
                     prog.setUniformValue('intensity_rescale_ranges', *(min_maxs[1]-min_maxs[0]))
                 gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
                 gl.glDrawArrays(gl.GL_TRIANGLE_FAN, 0, 4)
-                    
+
+    def hoverMoveEvent(self, event):
+        if self._image is not None:
+            # NB: event.pos() is a QPointF, and one may call QPointF.toPoint(), as in the following line,
+            # to get a QPoint from it.  However, toPoint() rounds x and y coordinates to the nearest int,
+            # which would cause us to erroneously report mouse position as being over the pixel to the
+            # right and/or below if the view with the mouse cursor is zoomed in such that an image pixel
+            # occupies more than one screen pixel and the cursor is over the right and/or bottom half
+            # of a pixel.
+#           pos = event.pos().toPoint()
+            pos = Qt.QPoint(event.pos().x(), event.pos().y())
+            if Qt.QRect(Qt.QPoint(), self._image.size).contains(pos):
+                mst = 'x:{} y:{} '.format(pos.x(), pos.y())
+                image_type = self._image.type
+                vt = '(' + ' '.join((c + ':{}' for c in image_type)) + ')'
+                if len(image_type) == 1:
+                    vt = vt.format(self._image.data[pos.x(), pos.y()])
+                else:
+                    vt = vt.format(*self._image.data[pos.x(), pos.y()])
+                self.scene().update_mouseover_info(mst + vt, False, self)
+
+    def hoverLeaveEvent(self, event):
+        self.scene().clear_mouseover_info(self)
+
     def on_image_changing(self, image):
         if self._image is None and image is not None or \
            self._image is not None and (image is None or self._image.size != image.size):

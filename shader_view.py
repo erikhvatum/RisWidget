@@ -27,13 +27,24 @@ import numpy
 from PyQt5 import Qt
 
 class ShaderView(Qt.QGraphicsView):
-    def __init__(self, shader_scene, parent):
+    resized = Qt.pyqtSignal(Qt.QSize)
+
+    def __init__(self, shader_scene, overlay_scene, parent):
         super().__init__(shader_scene, parent)
+        self.overlay_scene = overlay_scene
         self.setMouseTracking(True)
         glw = _ShaderViewGLViewport(self)
-        self._glw = glw # It seems necessary to retain this reference
+        # It seems necessary to retain this reference.  It is available via self.viewport() after
+        # the setViewport call completes, suggesting that PyQt keeps a reference to it, but this 
+        # reference is evidentally weak or perhaps just a pointer.
+        self._glw = glw
         self.setViewport(glw)
         self.destroyed.connect(self._free_shader_view_resources)
+        self.overlay_scene.changed.connect(self._on_invalidate)
+
+    def _on_invalidate(self):
+#       print('ShaderView._on_invalidate')
+        self.scene().invalidate()
 
     def _free_shader_view_resources(self):
         """Delete, release, or otherwise destroy GL resources associated with this ShaderView instance."""
@@ -49,11 +60,6 @@ class ShaderView(Qt.QGraphicsView):
                             item.free_shader_view_resources(self)
                 finally:
                     viewport.doneCurrent()
-
-#   def event(self, event):
-#       if event.type() == Qt.QEvent.Leave:
-#           self.request_mouseover_info_status_text_change.emit(None)
-#       return super().event(event)
 
     def _on_gl_initializing(self):
         self._make_quad_vao()
@@ -77,6 +83,12 @@ class ShaderView(Qt.QGraphicsView):
             # this widget again!
             self.quad_buffer.release()
 
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        size = self.viewport().size()
+        self.overlay_scene.setSceneRect(0, 0, size.width(), size.height())
+        self.resized.emit(size)
+
     def drawBackground(self, p, rect):
         p.beginNativePainting()
         gl = GL()
@@ -84,6 +96,14 @@ class ShaderView(Qt.QGraphicsView):
         gl.glClearDepth(1)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         p.endNativePainting()
+
+    def drawForeground(self, p, rect):
+        p.save()
+        p.resetTransform()
+        try:
+            self.overlay_scene.render(p)
+        finally:
+            p.restore()
 
 class _ShaderViewGLViewport(Qt.QOpenGLWidget):
     """In order to obtain a QGraphicsView instance that renders into an OpenGL 2.1

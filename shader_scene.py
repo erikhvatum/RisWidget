@@ -26,12 +26,40 @@ from .gl_resources import GL
 from pathlib import Path
 from PyQt5 import Qt
 
+#from ._qt_debug import qevent_type_value_enum_string #TODO: remove
+
 class ShaderScene(Qt.QGraphicsScene):
-    # The update_mouseover_info signal serves to relay mouseover info text change requests
-    # from any items in the ShaderScene to every attached Viewport's ViewportOverlayScene's
-    # MouseoverTextItem (which is part of ViewportOverlayScene so that the text is view-relative
-    # rather than scaling with the shader item).
-    update_mouseover_info = Qt.pyqtSignal(str)
+    """update_mouseover_info_signal serves to relay mouseover info plaintext/html change requests
+    from any items in the ShaderScene to every attached Viewport's ViewportOverlayScene's
+    mouseover_text_item (which is part of ViewportOverlayScene so that the text is view-relative
+    rather than scaling with the shader item).  The clear_mouseover_info(self, requester) and
+    update_mouseover_info(self, string, is_html, requester) member functions provide an interface that
+    relieves the need to ensure that a single pair of mouse-exited-so-clear-the-text and
+    mouse-over-new-thing-so-display-some-other-text events are handled in order.
+
+    If the second parameter is True, the first parameter is interpreted as html, and is treated
+    as a plaintext string otherwise."""
+    update_mouseover_info_signal = Qt.pyqtSignal(str, bool)
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.requester_of_current_nonempty_mouseover_info = None
+
+    def clear_mouseover_info(self, requester):
+        self.update_mouseover_info(None, False, requester)
+
+    def update_mouseover_info(self, string, is_html, requester):
+        if string is None or len(string) == 0:
+            if self.requester_of_current_nonempty_mouseover_info is None or self.requester_of_current_nonempty_mouseover_info is requester:
+                self.requester_of_current_nonempty_mouseover_info = None
+                self.update_mouseover_info_signal.emit('', False)
+        else:
+            self.requester_of_current_nonempty_mouseover_info = requester
+            self.update_mouseover_info_signal.emit(string, is_html)
+
+#   def event(self, event): #TODO: remove
+#       print(type(event), qevent_type_value_enum_string(event))
+#       return super().event(event)
 
 class ShaderItem(Qt.QGraphicsItem):
     def __init__(self, parent_item=None):

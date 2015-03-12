@@ -1,3 +1,5 @@
+#pragma once
+
 #include <QPointer>
 #include <QtCore>
 #include <QtWidgets>
