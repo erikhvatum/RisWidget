@@ -46,6 +46,9 @@ class ShaderViewOverlayScene(Qt.QGraphicsScene):
         else:
             self.mouseover_text_item.setPlainText(string)
 
+    def set_mouseover_info_item_visibility(self, visible):
+        self.mouseover_text_item.setVisible(visible)
+
 # At some point, in order to make overlay plane interactive, it will be necessary to either make the below
 # work, or modestly rearchitect overlay rendering (not hard to do - it consists of a single ShaderViewOverlayScene.render
 # call, which would be replaced by a blit operation, and associating an offscreen view with the overlay scene), as
