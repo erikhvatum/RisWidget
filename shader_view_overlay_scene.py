@@ -28,9 +28,17 @@ class ShaderViewOverlayScene(Qt.QGraphicsScene):
     def __init__(self, shader_scene, parent):
         super().__init__(parent)
         self.shader_scene = shader_scene
-        self.mouseover_text_item = self.addText('')
+        self.add_mouseover_info_item()
+
+    def add_mouseover_info_item(self):
+        f = Qt.QFont('Courier', 14)
+        f.setKerning(False)
+        f.setStyleHint(Qt.QFont.Monospace, Qt.QFont.OpenGLCompatible | Qt.QFont.PreferQuality)
+        self.mouseover_text_item = self.addText('', f)
         self.shader_scene.update_mouseover_info_signal.connect(self.on_update_mouseover_info)
-        self.mouseover_text_item.setDefaultTextColor(Qt.QColor(Qt.Qt.white))
+        c = Qt.QColor(Qt.Qt.green)
+        c.setAlphaF(.75)
+        self.mouseover_text_item.setDefaultTextColor(c)
 
     def on_update_mouseover_info(self, string, is_html):
         if is_html:
