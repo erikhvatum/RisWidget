@@ -22,9 +22,3 @@ sipAPI_ris_widget.h
 ris_widget.vpw
 ris_widget.vpwhistu
 ris_widget.vtg
-build/
-top_left.npy
-moc_*.cpp
-*.xcodeproj
-*.build
-Debug
