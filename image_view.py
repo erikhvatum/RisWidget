@@ -30,7 +30,7 @@ class ImageView(ShaderView):
     _ZOOM_PRESETS = numpy.array((10, 8, 7, 6, 5, 4, 3, 2, 1.5, 1, .75, .6666666, .5, .333333, .25, .1), dtype=numpy.float64)
     _ZOOM_MIN_MAX = (.001, 10000.0)
     _ZOOM_DEFAULT_PRESET_IDX = 9
-    _ZOOM_INCREMENT_BEYOND_PRESETS_FACTOR = .25
+    _ZOOM_INCREMENT_BEYOND_PRESETS_FACTORS = (.8, 1.25)
 
     zoom_changed = Qt.pyqtSignal(int, float)
     zoom_to_fit_changed = Qt.pyqtSignal(bool)
@@ -73,7 +73,7 @@ class ImageView(ShaderView):
                     else:
                         self._zoom_preset_idx += 1
             if self._zoom_preset_idx == -1:
-                self._custom_zoom *= (1 + ImageView._ZOOM_INCREMENT_BEYOND_PRESETS_FACTOR) if zoom_in else (1 - ImageView._ZOOM_INCREMENT_BEYOND_PRESETS_FACTOR)
+                self._custom_zoom *= ImageView._ZOOM_INCREMENT_BEYOND_PRESETS_FACTORS[zoom_in]
                 if not switched_to_custom and self._custom_zoom <= ImageView._ZOOM_PRESETS[0] and self._custom_zoom >= ImageView._ZOOM_PRESETS[-1]:
                     # Jump to nearest preset if we are re-entering preset range
                     self._zoom_preset_idx = numpy.argmin(numpy.abs(ImageView._ZOOM_PRESETS - self._custom_zoom))

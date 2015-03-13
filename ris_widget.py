@@ -40,12 +40,12 @@ class RisWidget(Qt.QMainWindow):
 
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0)):
         super().__init__(parent, window_flags)
-        if sys.platform == 'darwin': # workaround for https://bugreports.qt.io/browse/QTBUG-44230
-            hs = Qt.QSlider(Qt.Qt.Horizontal)
-            hs.show()
-            hs.hide()
-            hs.destroy()
-            del hs
+#       if sys.platform == 'darwin': # workaround for https://bugreports.qt.io/browse/QTBUG-44230
+#           hs = Qt.QSlider(Qt.Qt.Horizontal)
+#           hs.show()
+#           hs.hide()
+#           hs.destroy()
+#           del hs
         if window_title is not None:
             self.setWindowTitle(window_title)
         self.setAcceptDrops(True)

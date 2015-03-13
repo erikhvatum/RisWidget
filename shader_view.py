@@ -23,6 +23,7 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from .gl_resources import GL_QSURFACE_FORMAT, GL
+#from .shader_view_overlay_scene import ShaderViewOverlayView
 import numpy
 from PyQt5 import Qt
 
@@ -40,11 +41,14 @@ class ShaderView(Qt.QGraphicsView):
         self._glw = glw
         self.setViewport(glw)
         self.destroyed.connect(self._free_shader_view_resources)
-        self.overlay_scene.changed.connect(self._on_invalidate)
+        self.overlay_scene.changed.connect(self.scene().invalidate)
+#       self.overlay_scene.changed.connect(self._on_invalidate)
+#       self.overlay_view = ShaderViewOverlayView(overlay_scene, glw)
+#       self.overlay_view.show()
 
-    def _on_invalidate(self):
+#   def _on_invalidate(self):
 #       print('ShaderView._on_invalidate')
-        self.scene().invalidate()
+#       self.scene().invalidate()
 
     def _free_shader_view_resources(self):
         """Delete, release, or otherwise destroy GL resources associated with this ShaderView instance."""
@@ -85,7 +89,7 @@ class ShaderView(Qt.QGraphicsView):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        size = self.viewport().size()
+        size = event.size()
         self.overlay_scene.setSceneRect(0, 0, size.width(), size.height())
         self.resized.emit(size)
 
