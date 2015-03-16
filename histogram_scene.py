@@ -30,24 +30,66 @@ from PyQt5 import Qt
 from .shader_scene import ShaderItem, ShaderScene, ShaderTexture
 import sys
 
+class ItemProp:
+    def __init__(self, item_props, name, name_in_label=None, channel_name=None):
+        self.name = name
+        self.full_name = name
+        if channel_name is not None:
+            self.full_name += '_' + channel_name
+        item_props[self.full_name] = self
+        self.scene_items = {}
+
+    def instantiate(self, histogram_scene):
+        scene_item = self._scene_item_class()(histogram_scene.histogram_item)
+        self.scene_items[histogram_scene] = scene_item
+        scene_item.value_changed.connect(histogram_scene.gamma_or_min_max_changed)
+
+    def _item_class(self):
+        raise NotImplementedError()
+
+    def __get__(self, histogram_scene, objtype=None):
+        if histogram_scene is None:
+            return self
+        return self.scene_items[histogram_scene].value
+
+    def __set__(self, histogram_scene, value):
+        if histogram_scene is None:
+            raise AttributeError("Can't set instance attribute of class.")
+        self.scene_items[histogram_scene].value = value
+
+class MinMaxItemProp(ItemProp):
+    def __init__(self, item_props, min_max_item_props, name, name_in_label=None, channel_name=None):
+        super().__init__(item_props, name, name_in_label, channel_name)
+        min_max_item_props[self.full_name] = self
+
+    def _scene_item_class(self):
+        return MinMaxItem
+
+    def propagate_scene_item_value(self, histogram_scene):
+        pass
+
 class HistogramScene(ShaderScene):
     gamma_or_min_max_changed = Qt.pyqtSignal()
 
-#   _scalar_props = []
-#   _min_max_props = {}
+    _item_props = {}
+    _min_max_item_props = {}
 
-#   max = MinMaxProp(_scalar_props, _min_max_props, 'max')
-#   min = MinMaxProp(_scalar_props, _min_max_props, 'min')
+    max = MinMaxItemProp(_item_props, _min_max_item_props, 'max')
+    min = MinMaxItemProp(_item_props, _min_max_item_props, 'min')
 
     def __init__(self, parent):
         super().__init__(parent)
+        self.setSceneRect(0, 0, 1, 1)
         self.histogram_item = HistogramItem()
         self.addItem(self.histogram_item)
+        for item_prop in self._item_props.values():
+            item_prop.instantiate(self)
         self.gamma = 1.0
         self.gamma_gamma = 1.0
         self.rescale_enabled = True
         self.min = 0
-        self.max = 65535
+        self.max = 1
+        self._channel_controls_visible = False
 
 #       self._allow_inversion = True # Set to True during initialization for convenience...
 #       for scalar_prop in HistogramView._scalar_props:
@@ -60,26 +102,26 @@ class HistogramScene(ShaderScene):
 class HistogramItem(ShaderItem):
     def __init__(self, graphics_item_parent=None):
         super().__init__(graphics_item_parent)
-        self._image = None
+        self.image = None
         self._image_id = 0
-        self._bounding_rect = Qt.QRectF()
+        self._bounding_rect = Qt.QRectF(0, 0, 1, 1)
 
     def boundingRect(self):
-        return Qt.QRectF() if self._image is None else self._bounding_rect
+        return self._bounding_rect
 
     def _set_bounding_rect(self, rect):
-        if self._image is not None:
+        if self.image is not None:
             self.prepareGeometryChange()
         self._bounding_rect = rect
 
     def paint(self, qpainter, option, widget):
         if widget is None:
             print('WARNING: histogram_view.HistogramItem.paint called with widget=None.  Ensure that view caching is disabled.')
-        elif self._image is None:
+        elif self.image is None:
             if widget.view in self.view_resources:
                 self._del_tex()
         else:
-            image = self._image
+            image = self.image
             view = widget.view
             scene = self.scene()
             gl = GL()
@@ -166,13 +208,94 @@ class HistogramItem(ShaderItem):
                     # personal time todo: per-channel RGB histogram support
 
     def on_image_changing(self, image):
-        if (self._image is None) != (image is not None) or \
-           self._image is not None and image is not None and self._image.histogram.shape[-1] != image.histogram.shape[-1]:
+        if (self.image is None) != (image is not None) or \
+           self.image is not None and image is not None and self.image.histogram.shape[-1] != image.histogram.shape[-1]:
             self.prepareGeometryChange()
         super().on_image_changing(image)
 
-class GammaPlotItem(Qt.QGraphicsItem):
-    pass
+class MinMaxItem(Qt.QGraphicsObject):
+    value_changed = Qt.pyqtSignal(HistogramScene, float)
 
-class MinItem(Qt.QGraphicsItem):
-    pass
+    def __init__(self, histogram_item):
+        super().__init__(histogram_item)
+        self._bounding_rect = Qt.QRectF(-0.1, 0, .2, 1)
+        self._unit_normalized_value = 0
+        self._ignore_x_change = False
+        self.xChanged.connect(self.on_x_changed)
+        self.yChanged.connect(self.on_y_changed)
+        self.setFlag(Qt.QGraphicsItem.ItemIsMovable, True)
+        self.setFlag(Qt.QGraphicsItem.ItemIsSelectable, True)
+
+    def on_x_changed(self):
+        if not self._ignore_x_change:
+            x = self.x()
+            if x < 0:
+                self.setX(0)
+            elif x > 1:
+                self.setX(1)
+            else:
+                self.value_changed.emit(self.scene(), self.x_to_value(x))
+
+    def on_y_changed(self):
+        if self.y() != 0:
+            self.setY(0)
+
+    def boundingRect(self):
+        return self._bounding_rect
+
+    def paint(self, qpainter, option, widget):
+        c = Qt.QColor(Qt.Qt.red)
+        c.setAlphaF(0.5)
+        pen = Qt.QPen(c)
+        pen.setWidth(0)
+        qpainter.setPen(pen)
+        br = self.boundingRect()
+        x = (br.left() + br.right()) / 2
+        qpainter.drawLine(x, br.top(), x, br.bottom())
+
+    @property
+    def x_to_value(self):
+        offset = 0; range_width = 1
+        scene = self.scene()
+        if scene is not None:
+            image = scene.histogram_item.image
+            if image is not None:
+                range_ = image.range
+                offset = range_[0]
+                range_width = range_[1] - range_[0]
+        def _x_to_value(x):
+            return x * range_width + offset
+        return _x_to_value
+
+    @property
+    def value_to_x(self):
+        offset = 0; range_width = 1
+        scene = self.scene()
+        if scene is not None:
+            image = scene.histogram_item.image
+            if image is not None:
+                range_ = image.range
+                offset = range_[0]
+                range_width = range_[1] - range_[0]
+        def _value_to_x(value):
+            return (value - offset) / range_width
+        return _value_to_x
+
+    @property
+    def value(self):
+        return self.x_to_value(self.x())
+
+    @value.setter
+    def value(self, value):
+        value_to_x = self.value_to_x
+        x = value_to_x(value)
+        if x < 0 or x > 1:
+            x_to_value = self.x_to_value
+            raise ValueError('MinMaxItem.value must be in the range [{}, {}].'.format(x_to_value(0), x_to_value(1)))
+        if x != self.x():
+            self._ignore_x_change = True
+            try:
+                self.setX(x)
+            finally:
+                self._ignore_x_change = False
+            self.value_changed.emit(self.scene(), value)

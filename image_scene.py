@@ -63,23 +63,21 @@ class ImageItem(ShaderItem):
     def __init__(self, graphics_item_parent=None):
         super().__init__(graphics_item_parent)
         self.setAcceptHoverEvents(True)
-        self._image = None
-        self._image_id = 0
 
     def boundingRect(self):
-        return Qt.QRectF() if self._image is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self._image.size))
+        return Qt.QRectF() if self.image is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self.image.size))
 
     def paint(self, qpainter, option, widget):
         if widget is None:
             print('WARNING: image_view.ImageItem.paint called with widget=None.  Ensure that view caching is disabled.')
-        elif self._image is None:
+        elif self.image is None:
             if widget.view in self.view_resources:
                 vrs = self.view_resources[widget.view]
                 if 'tex' in vrs:
                     vrs['tex'][0].destroy()
                     del vrs['tex']
         else:
-            image = self._image
+            image = self.image
             desired_texture_format = IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[image.type]
             view = widget.view
             with ExitStack() as stack:
@@ -130,7 +128,7 @@ class ImageItem(ShaderItem):
                                 image.data.ctypes.data,
                                 pixel_transfer_opts)
                     vrs['tex'] = tex, self._image_id
-                prog = vrs['progs'][self._image.type]
+                prog = vrs['progs'][self.image.type]
                 prog.bind()
                 stack.callback(prog.release)
                 view.quad_buffer.bind()
@@ -149,7 +147,7 @@ class ImageItem(ShaderItem):
                 prog.setUniformValue('frag_to_tex', frag_to_tex)
                 prog.setUniformValue('viewport_height', float(widget.size().height()))
                 histogram_scene = view.scene().histogram_scene
-                if self._image.is_grayscale:
+                if self.image.is_grayscale:
                     if histogram_scene.rescale_enabled:
                         gamma = histogram_scene.gamma
                         min_max = numpy.array((histogram_scene.min, histogram_scene.max), dtype=float)
@@ -167,7 +165,7 @@ class ImageItem(ShaderItem):
                                                 (histogram_scene.max_red, histogram_scene.max_green, histogram_scene.max_blue)))
                     else:
                         gammas = (1,1,1)
-                        min_max = self._image.range
+                        min_max = self.image.range
                         min_maxs = numpy.array((min_max,)*3).T
                     prog.setUniformValue('gammas', *gammas)
                     self._normalize_min_max(min_maxs)
@@ -177,7 +175,7 @@ class ImageItem(ShaderItem):
                 gl.glDrawArrays(gl.GL_TRIANGLE_FAN, 0, 4)
 
     def hoverMoveEvent(self, event):
-        if self._image is not None:
+        if self.image is not None:
             # NB: event.pos() is a QPointF, and one may call QPointF.toPoint(), as in the following line,
             # to get a QPoint from it.  However, toPoint() rounds x and y coordinates to the nearest int,
             # which would cause us to erroneously report mouse position as being over the pixel to the
@@ -186,22 +184,22 @@ class ImageItem(ShaderItem):
             # of a pixel.
 #           pos = event.pos().toPoint()
             pos = Qt.QPoint(event.pos().x(), event.pos().y())
-            if Qt.QRect(Qt.QPoint(), self._image.size).contains(pos):
+            if Qt.QRect(Qt.QPoint(), self.image.size).contains(pos):
                 mst = 'x:{} y:{} '.format(pos.x(), pos.y())
-                image_type = self._image.type
+                image_type = self.image.type
                 vt = '(' + ' '.join((c + ':{}' for c in image_type)) + ')'
                 if len(image_type) == 1:
-                    vt = vt.format(self._image.data[pos.x(), pos.y()])
+                    vt = vt.format(self.image.data[pos.x(), pos.y()])
                 else:
-                    vt = vt.format(*self._image.data[pos.x(), pos.y()])
+                    vt = vt.format(*self.image.data[pos.x(), pos.y()])
                 self.scene().update_mouseover_info(mst + vt, False, self)
 
     def hoverLeaveEvent(self, event):
         self.scene().clear_mouseover_info(self)
 
     def on_image_changing(self, image):
-        if self._image is None and image is not None or \
-           self._image is not None and (image is None or self._image.size != image.size):
+        if self.image is None and image is not None or \
+           self.image is not None and (image is None or self.image.size != image.size):
             self.prepareGeometryChange()
         super().on_image_changing(image)
 

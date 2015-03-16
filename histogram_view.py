@@ -44,7 +44,5 @@ class HistogramView(ShaderView):
         self.resized.connect(self.on_resized)
 
     def on_resized(self, size):
-        r = Qt.QRectF(0, 0, size.width(), size.height())
-        s = self.scene()
-        s.histogram_item._set_bounding_rect(r)
-        s.setSceneRect(r)
+        self.resetTransform()
+        self.scale(size.width(), size.height())

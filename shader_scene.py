@@ -65,7 +65,7 @@ class ShaderItem(Qt.QGraphicsItem):
     def __init__(self, parent_item=None):
         super().__init__(parent_item)
         self.view_resources = {}
-        self._image = None
+        self.image = None
         self._image_id = 0
 
     def build_shader_prog(self, desc, vert_fn, frag_fn, shader_view):
@@ -97,12 +97,12 @@ class ShaderItem(Qt.QGraphicsItem):
             del self.view_resources[shader_view]
 
     def on_image_changing(self, image):
-        self._image = image
+        self.image = image
         self._image_id += 1
         self.update()
 
     def _normalize_min_max(self, min_max):
-        r = self._image.range
+        r = self.image.range
         min_max -= r[0]
         min_max /= r[1] - r[0]
 
@@ -122,6 +122,6 @@ class ShaderTexture:
     def release(self):
         GL().glBindTexture(self.target, 0)
 
-    def free(self):
-        GL().glDeleteTextures(1, self.texture_id)
+    def destroy(self):
+        GL().glDeleteTextures(1, (self.texture_id,))
         del self.texture_id
