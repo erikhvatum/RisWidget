@@ -30,15 +30,15 @@ from PyQt5 import Qt
 
 class ShaderScene(Qt.QGraphicsScene):
     """update_mouseover_info_signal serves to relay mouseover info plaintext/html change requests
-    from any items in the ShaderScene to every attached Viewport's ViewportOverlayScene's
-    mouseover_text_item (which is part of ViewportOverlayScene so that the text is view-relative
-    rather than scaling with the shader item).  The clear_mouseover_info(self, requester) and
-    update_mouseover_info(self, string, is_html, requester) member functions provide an interface that
+    from any items in the ShaderScene to every attached Viewport's ViewportOverlayScene, which
+    will typically update its mouseover info item in response.  The clear_mouseover_info(self, requester)
+    and update_mouseover_info(self, string, is_html, requester) member functions provide an interface that
     relieves the need to ensure that a single pair of mouse-exited-so-clear-the-text and
-    mouse-over-new-thing-so-display-some-other-text events are handled in order.
+    mouse-over-new-thing-so-display-some-other-text events are handled in order, which should be
+    done if update_mouseover_info_signal.emit(..) is called directly.
 
-    If the second parameter is True, the first parameter is interpreted as html, and is treated
-    as a plaintext string otherwise."""
+    If the second parameter is True, the first parameter is interpreted as html.  The first parameter is
+    treated as a plaintext string otherwise."""
     update_mouseover_info_signal = Qt.pyqtSignal(str, bool)
 
     def __init__(self, parent):
