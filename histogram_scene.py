@@ -174,12 +174,15 @@ class HistogramItem(ShaderItem):
                         histogram = image.histogram[0]
                         max_bin_val = histogram[image.max_histogram_bin[0]]
                     if tex.image_id != self._image_id:
-                        gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)
+                        orig_unpack_alignment = gl.glGetIntegerv(gl.GL_UNPACK_ALIGNMENT)
                         gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
                         gl.glTexImage1D(gl.GL_TEXTURE_1D, 0,
                                         gl.GL_LUMINANCE32UI_EXT, desired_tex_width, 0,
                                         gl.GL_LUMINANCE_INTEGER_EXT, gl.GL_UNSIGNED_INT,
                                         histogram.data)
+                        # QPainter font rendering for OpenGL surfaces will become broken if we do not restore GL_UNPACK_ALIGNMENT
+                        # to whatever QPainter had it set to.
+                        gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, orig_unpack_alignment)
                         tex.image_id = self._image_id
                         tex.width = desired_tex_width
                     view.quad_buffer.bind()
