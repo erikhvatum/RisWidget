@@ -60,10 +60,6 @@ class ImageScene(ShaderScene):
         self.on_histogram_gamma_or_min_max_changed()
 
 class ImageItem(ShaderItem):
-    def __init__(self, graphics_item_parent=None):
-        super().__init__(graphics_item_parent)
-        self.setAcceptHoverEvents(True)
-
     def boundingRect(self):
         return Qt.QRectF() if self.image is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self.image.size))
 

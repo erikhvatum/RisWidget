@@ -67,6 +67,7 @@ class ShaderItem(Qt.QGraphicsItem):
         self.view_resources = {}
         self.image = None
         self._image_id = 0
+        self.setAcceptHoverEvents(True)
 
     def build_shader_prog(self, desc, vert_fn, frag_fn, shader_view):
         source_dpath = Path(__file__).parent / 'shaders'

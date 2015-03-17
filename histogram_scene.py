@@ -68,27 +68,32 @@ class MinMaxItemProp(ItemProp):
     def propagate_scene_item_value(self, histogram_scene):
         pass
 
+#class GammaItemProp(ItemProp):
+
 class HistogramScene(ShaderScene):
     gamma_or_min_max_changed = Qt.pyqtSignal()
 
-    _item_props = {}
-    _min_max_item_props = {}
+    item_props = {}
+    min_max_item_props = {}
+    gamma_item_props = {}
 
-    max = MinMaxItemProp(_item_props, _min_max_item_props, 'max')
-    min = MinMaxItemProp(_item_props, _min_max_item_props, 'min')
+    max = MinMaxItemProp(item_props, min_max_item_props, 'max')
+    min = MinMaxItemProp(item_props, min_max_item_props, 'min')
+#   gamma = GammaItemProp(item_props, gamma_item_props, 'gamma', '\u03b3')
 
     def __init__(self, parent):
         super().__init__(parent)
         self.setSceneRect(0, 0, 1, 1)
         self.histogram_item = HistogramItem()
         self.addItem(self.histogram_item)
-        for item_prop in self._item_props.values():
+        for item_prop in self.item_props.values():
             item_prop.instantiate(self)
-        self.gamma = 1.0
         self.gamma_gamma = 1.0
+        self.gamma = 1.0
         self.rescale_enabled = True
         self.min = 0
         self.max = 1
+#       self.gamma = 1
         self._channel_controls_visible = False
 
 #       self._allow_inversion = True # Set to True during initialization for convenience...
@@ -108,11 +113,6 @@ class HistogramItem(ShaderItem):
 
     def boundingRect(self):
         return self._bounding_rect
-
-    def _set_bounding_rect(self, rect):
-        if self.image is not None:
-            self.prepareGeometryChange()
-        self._bounding_rect = rect
 
     def paint(self, qpainter, option, widget):
         if widget is None:
@@ -207,19 +207,43 @@ class HistogramItem(ShaderItem):
                     pass
                     # personal time todo: per-channel RGB histogram support
 
+    def hoverMoveEvent(self, event):
+        image = self.image
+        if image is not None:
+            x = event.pos().x()
+            if x >= 0 and x <= 1:
+                if image.is_grayscale:
+                    image_type = image.type
+                    histogram = image.histogram
+                    range_ = image.range
+                    intensity = x * (range_[1] - range_[0]) + range_[0]
+                    if image.dtype != numpy.float32:
+                        intensity = int(intensity)
+                    bin = int(x * (histogram.shape[-1] - 1))
+                    mst = '{} '.format(intensity)
+                    vt = '(' + ' '.join((c + ':{}' for c in image_type)) + ')'
+                    if len(image_type) == 1:
+                        vt = vt.format(histogram[bin])
+                    else:
+                        vt = vt.format(*histogram[:,bin])
+                    self.scene().update_mouseover_info(mst + vt, False, self)
+                else:
+                    pass
+                    # personal time todo: per-channel RGB histogram support
+
     def on_image_changing(self, image):
         if (self.image is None) != (image is not None) or \
            self.image is not None and image is not None and self.image.histogram.shape[-1] != image.histogram.shape[-1]:
             self.prepareGeometryChange()
         super().on_image_changing(image)
 
-class MinMaxItem(Qt.QGraphicsObject):
+class ControlItem(Qt.QGraphicsObject):
     value_changed = Qt.pyqtSignal(HistogramScene, float)
 
+class MinMaxItem(ControlItem):
     def __init__(self, histogram_item):
         super().__init__(histogram_item)
         self._bounding_rect = Qt.QRectF(-0.1, 0, .2, 1)
-        self._unit_normalized_value = 0
         self._ignore_x_change = False
         self.xChanged.connect(self.on_x_changed)
         self.yChanged.connect(self.on_y_changed)
@@ -299,3 +323,7 @@ class MinMaxItem(Qt.QGraphicsObject):
             finally:
                 self._ignore_x_change = False
             self.value_changed.emit(self.scene(), value)
+
+class GammaItem(ControlItem):
+    def __init__(self, histogram_item):
+        super().__init__(histogram_item)
