@@ -77,6 +77,12 @@ def GL():
         if context is not None:
             try:
                 _GL = context.versionFunctions()
+                if _GL is None:
+                    # Some platforms seem to need version profile specification
+                    vp = Qt.QOpenGLVersionProfile()
+                    vp.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
+                    vp.setVersion(2, 1)
+                    _GL = context.versionFunctions(vp)
             except ImportError:
                 # PyQt5 v5.4.0 and v5.4.1 provide access to OpenGL functions up to OpenGL 2.0, but we have made
                 # an OpenGL 2.1 context.  QOpenGLContext.versionFunctions(..) will, by default, attempt to return
