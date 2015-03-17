@@ -104,6 +104,9 @@ class HistogramScene(ShaderScene):
     def on_image_changing(self, image):
         self.histogram_item.on_image_changing(image)
 
+    def get_prop_item(self, full_name):
+        return self.item_props[full_name].scene_items[self]
+
 class HistogramItem(ShaderItem):
     def __init__(self, graphics_item_parent=None):
         super().__init__(graphics_item_parent)

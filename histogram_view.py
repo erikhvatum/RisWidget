@@ -42,7 +42,37 @@ class HistogramView(ShaderView):
     def __init__(self, shader_scene, overlay_scene, parent):
         super().__init__(shader_scene, overlay_scene, parent)
         self.resized.connect(self.on_resized)
+        self.add_overlay_min_max_arrow_items()
 
     def on_resized(self, size):
         self.resetTransform()
         self.scale(size.width(), size.height())
+
+    def add_overlay_min_max_arrow_items(self):
+        pen = Qt.QPen(Qt.QColor(Qt.Qt.transparent))
+        color = Qt.QColor(Qt.Qt.red)
+        color.setAlphaF(0.5)
+        brush = Qt.QBrush(color)
+        histogram_scene = self.scene()
+
+        polygon = Qt.QPolygonF((Qt.QPointF(0.5, -10), Qt.QPointF(6, 0), Qt.QPointF(0.5, 10)))
+        self.overlay_min_arrow_item = self.overlay_scene.addPolygon(polygon, pen, brush)
+        min_max_item = histogram_scene.get_prop_item('min')
+        min_max_item.xChanged.connect(lambda min_max_item=min_max_item: \
+                                             self.update_min_max_arrow_item_pos(self.overlay_min_arrow_item, min_max_item))
+        self.resized.connect(lambda _,
+                                    min_max_item=min_max_item: \
+                                    self.update_min_max_arrow_item_pos(self.overlay_min_arrow_item, min_max_item))
+
+        polygon = Qt.QPolygonF((Qt.QPointF(-0.5, -10), Qt.QPointF(-6, 0), Qt.QPointF(-0.5, 10)))
+        self.overlay_max_arrow_item = self.overlay_scene.addPolygon(polygon, pen, brush)
+        min_max_item = histogram_scene.get_prop_item('max')
+        min_max_item.xChanged.connect(lambda min_max_item=min_max_item: \
+                                             self.update_min_max_arrow_item_pos(self.overlay_max_arrow_item, min_max_item))
+        self.resized.connect(lambda _,
+                                    min_max_item=min_max_item: \
+                                    self.update_min_max_arrow_item_pos(self.overlay_max_arrow_item, min_max_item))
+
+    def update_min_max_arrow_item_pos(self, overlay_min_max_arrow_item, min_max_item):
+        view_size = self.viewport().size()
+        overlay_min_max_arrow_item.setPos(min_max_item.x() * view_size.width(), view_size.height() / 2)
