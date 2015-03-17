@@ -72,7 +72,7 @@ class RisWidget(Qt.QMainWindow):
             return txt
 
     def _init_toolbars(self):
-        self._image_view_toolbar = self.addToolBar('View')
+        self._image_view_toolbar = self.addToolBar('Image View')
         self._image_view_zoom_combo = Qt.QComboBox(self)
         self._image_view_toolbar.addWidget(self._image_view_zoom_combo)
         self._image_view_zoom_combo.setEditable(True)
@@ -88,6 +88,8 @@ class RisWidget(Qt.QMainWindow):
         self._image_view_toolbar.addAction(self._image_view_zoom_to_fit_action)
         self._image_view_zoom_to_fit_action.triggered[bool].connect(self._image_view_zoom_to_fit_action_toggled)
         self.image_view.zoom_to_fit_changed.connect(self._image_view_zoom_to_fit_changed)
+        self._histogram_view_toolbar = self.addToolBar('Histogram View')
+        self._histogram_view_toolbar.addAction(self._histogram_dock_widget.toggleViewAction())
 
     def _init_scenes_and_views(self):
         self.image_scene = ImageScene(self)
@@ -101,7 +103,7 @@ class RisWidget(Qt.QMainWindow):
         self.histogram_view, self._histogram_frame = HistogramView.make_histogram_view_and_frame(self.histogram_scene, self.histogram_view_overlay_scene, self._histogram_dock_widget)
         self._histogram_dock_widget.setWidget(self._histogram_frame)
         self._histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
-        self._histogram_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
+        self._histogram_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
         self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self._histogram_dock_widget)
 
     @property

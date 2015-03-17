@@ -219,11 +219,13 @@ class HistogramItem(ShaderItem):
                     image_type = image.type
                     histogram = image.histogram
                     range_ = image.range
-                    intensity = x * (range_[1] - range_[0]) + range_[0]
-                    if image.dtype != numpy.float32:
-                        intensity = int(intensity)
-                    bin = int(x * (histogram.shape[-1] - 1))
-                    mst = '{} '.format(intensity)
+                    bin_count = histogram.shape[-1]
+                    bin = int(x * (bin_count - 1))
+                    bin_width = (range_[1] - range_[0]) / bin_count
+                    if image.dtype == numpy.float32:
+                        mst = '[{},{}) '.format(bin*bin_width, (bin+1)*bin_width)
+                    else:
+                        mst = '[{},{}] '.format(math.ceil(bin*bin_width), math.floor((bin+1)*bin_width))
                     vt = '(' + ' '.join((c + ':{}' for c in image_type)) + ')'
                     if len(image_type) == 1:
                         vt = vt.format(histogram[bin])
