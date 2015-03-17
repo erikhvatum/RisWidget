@@ -40,11 +40,11 @@ class ItemProp:
         self.scene_items = {}
 
     def instantiate(self, histogram_scene):
-        scene_item = self._scene_item_class()(histogram_scene.histogram_item)
+        scene_item = self._make_scene_item(histogram_scene)
         self.scene_items[histogram_scene] = scene_item
         scene_item.value_changed.connect(histogram_scene.gamma_or_min_max_changed)
 
-    def _item_class(self):
+    def _make_scene_item(self, histogram_scene):
         raise NotImplementedError()
 
     def __get__(self, histogram_scene, objtype=None):
@@ -62,8 +62,8 @@ class MinMaxItemProp(ItemProp):
         super().__init__(item_props, name, name_in_label, channel_name)
         min_max_item_props[self.full_name] = self
 
-    def _scene_item_class(self):
-        return MinMaxItem
+    def _make_scene_item(self, histogram_scene):
+        return MinMaxItem(histogram_scene.histogram_item, self.full_name)
 
     def propagate_scene_item_value(self, histogram_scene):
         pass
@@ -241,8 +241,9 @@ class ControlItem(Qt.QGraphicsObject):
     value_changed = Qt.pyqtSignal(HistogramScene, float)
 
 class MinMaxItem(ControlItem):
-    def __init__(self, histogram_item):
+    def __init__(self, histogram_item, prop_full_name):
         super().__init__(histogram_item)
+        self.prop_full_name = prop_full_name
         self._bounding_rect = Qt.QRectF(-0.1, 0, .2, 1)
         self._ignore_x_change = False
         self.xChanged.connect(self.on_x_changed)
@@ -258,6 +259,7 @@ class MinMaxItem(ControlItem):
             elif x > 1:
                 self.setX(1)
             else:
+                self.scene().update_mouseover_info('{}: {}'.format(self.prop_full_name, self.value), False, self)
                 self.value_changed.emit(self.scene(), self.x_to_value(x))
 
     def on_y_changed(self):
@@ -279,16 +281,21 @@ class MinMaxItem(ControlItem):
 
     @property
     def x_to_value(self):
-        offset = 0; range_width = 1
+        offset = 0; range_width = 1; is_fp = True
         scene = self.scene()
         if scene is not None:
             image = scene.histogram_item.image
             if image is not None:
+                is_fp = image.dtype == numpy.float32
                 range_ = image.range
                 offset = range_[0]
                 range_width = range_[1] - range_[0]
-        def _x_to_value(x):
-            return x * range_width + offset
+        if is_fp:
+            def _x_to_value(x):
+                return x * range_width + offset
+        else:
+            def _x_to_value(x):
+                return int(x * range_width + offset)
         return _x_to_value
 
     @property
