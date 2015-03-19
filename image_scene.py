@@ -27,7 +27,7 @@ from .gl_resources import GL, NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE, IMAGE_TYPE_TO_Q
 import math
 import numpy
 from PyQt5 import Qt
-from .shader_scene import ShaderScene, ShaderItem
+from .shader_scene import ShaderScene, ShaderItem, UNIQUE_QGRAPHICSITEM_TYPE
 from .shader_view import ShaderView
 import sys
 
@@ -60,6 +60,11 @@ class ImageScene(ShaderScene):
         self.on_histogram_gamma_or_min_max_changed()
 
 class ImageItem(ShaderItem):
+    QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
+
+    def type(self):
+        return GammaItem.QGRAPHICSITEM_TYPE
+
     def boundingRect(self):
         return Qt.QRectF() if self.image is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self.image.size))
 
