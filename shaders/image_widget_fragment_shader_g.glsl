@@ -1,5 +1,6 @@
 #version 120
 #line 3
+#extension GL_EXT_gpu_shader4 : require
 // The MIT License (MIT)
 // 
 // Copyright (c) 2014 WUSTL ZPLAB

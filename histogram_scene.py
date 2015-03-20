@@ -161,14 +161,14 @@ class HistogramItem(ShaderItem):
                 else:
                     self.view_resources[view] = vrs = {}
                     self.build_shader_prog('g',
-                                            'histogram_widget_vertex_shader.glsl',
-                                            'histogram_widget_fragment_shader_g.glsl',
-                                            view)
+                                           'histogram_widget_vertex_shader.glsl',
+                                           'histogram_widget_fragment_shader_g.glsl',
+                                           view)
                     vrs['progs']['ga'] = vrs['progs']['g']
                     self.build_shader_prog('rgb',
-                                            'histogram_widget_vertex_shader.glsl',
-                                            'histogram_widget_fragment_shader_rgb.glsl',
-                                            view)
+                                           'histogram_widget_vertex_shader.glsl',
+                                           'histogram_widget_fragment_shader_rgb.glsl',
+                                           view)
                     vrs['progs']['rgba'] = vrs['progs']['rgb']
                 desired_tex_width = image.histogram.shape[-1]
                 if 'tex' in vrs:
