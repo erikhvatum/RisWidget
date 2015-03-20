@@ -58,6 +58,8 @@ class RisWidget(Qt.QMainWindow):
         self._image_view_zoom_to_fit_action = Qt.QAction(self)
         self._image_view_zoom_to_fit_action.setCheckable(True)
         self._image_view_zoom_to_fit_action.setText('Zoom to Fit')
+        self._histogram_view_reset_gamma_action = Qt.QAction(self)
+        self._histogram_view_reset_gamma_action.setText('Reset \u03b3')
 
     @staticmethod
     def _format_zoom(zoom):
@@ -90,6 +92,8 @@ class RisWidget(Qt.QMainWindow):
         self.image_view.zoom_to_fit_changed.connect(self._image_view_zoom_to_fit_changed)
         self._histogram_view_toolbar = self.addToolBar('Histogram View')
         self._histogram_view_toolbar.addAction(self._histogram_dock_widget.toggleViewAction())
+        self._histogram_view_toolbar.addAction(self._histogram_view_reset_gamma_action)
+        self._histogram_view_reset_gamma_action.triggered.connect(self._on_reset_gamma)
 
     def _init_scenes_and_views(self):
         self.image_scene = ImageScene(self)
@@ -178,6 +182,9 @@ class RisWidget(Qt.QMainWindow):
                                                                                                                    self._format_zoom(ImageView._ZOOM_MIN_MAX[1] * 100)))
             self._image_view_zoom_combo.setFocus()
             self._image_view_zoom_combo.lineEdit().selectAll()
+
+    def _on_reset_gamma(self):
+        self.histogram_scene.gamma = 1
 
 if __name__ == '__main__':
     import sys

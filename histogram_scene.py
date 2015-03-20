@@ -33,10 +33,14 @@ import sys
 class ItemProp:
     def __init__(self, item_props_list, item_props, name, name_in_label=None, channel_name=None):
         self.name = name
+        self.name_in_label = name_in_label
+        self.full_name_in_label = name if name_in_label is None else name_in_label
         self.full_name = name
         self.channel_name = channel_name
         if channel_name is not None:
-            self.full_name += '_' + channel_name
+            suffix = '_' + channel_name
+            self.full_name += suffix
+            self.full_name_in_label += suffix
         item_props[self.full_name] = self
         item_props_list.append(self)
         self.scene_items = {}
@@ -68,7 +72,7 @@ class MinMaxItemProp(ItemProp):
         min_max_item_props[self.full_name] = self
 
     def _make_scene_item(self, histogram_scene):
-        return MinMaxItem(histogram_scene.histogram_item, self.full_name)
+        return MinMaxItem(histogram_scene.histogram_item, self.full_name, self.full_name_in_label)
 
 class GammaItemProp(ItemProp):
     def __init__(self, item_props_list, item_props, gamma_item_props, name, name_in_label=None, channel_name=None):
@@ -84,7 +88,7 @@ class GammaItemProp(ItemProp):
         scene_item.max_item.value_changed.connect(scene_item.on_min_max_moved)
 
     def _make_scene_item(self, histogram_scene):
-        return GammaItem(histogram_scene.histogram_item, self.full_name)
+        return GammaItem(histogram_scene.histogram_item, self.full_name, self.full_name_in_label)
 
 class HistogramScene(ShaderScene):
     gamma_or_min_max_changed = Qt.pyqtSignal()
@@ -271,9 +275,10 @@ class HistogramItem(ShaderItem):
 class PropItem(Qt.QGraphicsObject):
     value_changed = Qt.pyqtSignal(HistogramScene, float)
 
-    def __init__(self, histogram_item, prop_full_name):
+    def __init__(self, histogram_item, prop_full_name, prop_full_name_in_label):
         super().__init__(histogram_item)
         self.prop_full_name = prop_full_name
+        self.prop_full_name_in_label = prop_full_name_in_label
         self._bounding_rect = Qt.QRectF()
 
     def boundingRect(self):
@@ -282,21 +287,28 @@ class PropItem(Qt.QGraphicsObject):
 class MinMaxItem(PropItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
 
-    def __init__(self, histogram_item, prop_full_name):
-        super().__init__(histogram_item, prop_full_name)
+    def __init__(self, histogram_item, prop_full_name, prop_full_name_in_label):
+        super().__init__(histogram_item, prop_full_name, prop_full_name_in_label)
         self._bounding_rect = Qt.QRectF(-0.1, 0, .2, 1)
         self._ignore_x_change = False
         self.xChanged.connect(self.on_x_changed)
         self.yChanged.connect(self.on_y_changed)
         self.setFlag(Qt.QGraphicsItem.ItemIsMovable, True)
-        self.setFlag(Qt.QGraphicsItem.ItemIsSelectable, True)
+        # GUI behavior is much more predictable with min/max item selectability disabled:
+        # With ItemIsSelectable enabled, min/max items can exhibit some very unexpected behaviors, as we
+        # do not do anything differently in our paint function if the item is selected vs not, making
+        # it unlikely one would realize one or more items are selected.  If multiple items are selected,
+        # they will move together when one is dragged.  Additionally, arrow key presses would move
+        # selected items if their viewport has focus (viewport focus is also not indicated).
+        # Items are non-selectable by default; the following line is present only to make intent clear.
+        self.setFlag(Qt.QGraphicsItem.ItemIsSelectable, False)
 
     def type(self):
         return MinMaxItem.QGRAPHICSITEM_TYPE
 
     def mousePressEvent(self, event):
         super().mousePressEvent(event)
-        self.scene().update_mouseover_info('{}: {}'.format(self.prop_full_name, self.value), False, self)
+        self.scene().update_mouseover_info('{}: {}'.format(self.prop_full_name_in_label, self.value), False, self)
 
     def on_x_changed(self):
         if not self._ignore_x_change:
@@ -306,7 +318,7 @@ class MinMaxItem(PropItem):
             elif x > 1:
                 self.setX(1)
             else:
-                self.scene().update_mouseover_info('{}: {}'.format(self.prop_full_name, self.value), False, self)
+                self.scene().update_mouseover_info('{}: {}'.format(self.prop_full_name_in_label, self.value), False, self)
                 self.value_changed.emit(self.scene(), self.x_to_value(x))
 
     def on_y_changed(self):
@@ -377,18 +389,22 @@ class MinMaxItem(PropItem):
 
 class GammaItem(PropItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
-    RANGE = (0.0625, 4.0)
+    RANGE = (0.0625, 16.0)
     CURVE_VERTEX_COUNT = 62
     CURVE_VERTEX_COMPUTE_POSITIONS = numpy.linspace(0, 1, num=CURVE_VERTEX_COUNT, endpoint=True)[1:-1]
 
-    def __init__(self, histogram_item, prop_full_name):
-        super().__init__(histogram_item, prop_full_name)
+    def __init__(self, histogram_item, prop_full_name, prop_full_name_in_label):
+        super().__init__(histogram_item, prop_full_name, prop_full_name_in_label)
         self._bounding_rect = Qt.QRectF(0, 0, 1, 1)
         self._value = None
         self._path = Qt.QPainterPath()
         self.setFlag(Qt.QGraphicsItem.ItemIsMovable, True)
-        self.setFlag(Qt.QGraphicsItem.ItemIsSelectable, True)
         self.setZValue(1)
+        # This is a convenient way to ensure that only primary mouse button clicks cause
+        # invocation of mouseMoveEvent(..).  Without this, it would be necessary to
+        # override mousePressEvent(..) and check which buttons are down, in addition to
+        # checking which buttons remain down in mouseMoveEvent(..).
+        self.setAcceptedMouseButtons(Qt.Qt.LeftButton)
 
     def type(self):
         return GammaItem.QGRAPHICSITEM_TYPE
@@ -397,7 +413,7 @@ class GammaItem(PropItem):
         pen = Qt.QPen()
         pen.setWidthF(0)
         stroker = Qt.QPainterPathStroker(pen)
-        stroker.setWidth(0.4)
+        stroker.setWidth(0.2)
         return stroker.createStroke(self._path)
 
     def paint(self, qpainter, option, widget):
@@ -419,10 +435,15 @@ class GammaItem(PropItem):
         self.setTransform(t)
 
     def mousePressEvent(self, event):
-        print('mousePressEvent')
+        super().mousePressEvent(event)
+        self.scene().update_mouseover_info('{}: {}'.format(self.prop_full_name_in_label, self.value), False, self)
 
     def mouseMoveEvent(self, event):
-        print('mouseMoveEvent')
+        current_x, current_y = map(lambda v: min(max(v, 0.001), 0.999),
+                                   (event.pos().x(), event.pos().y()))
+        current_y = 1-current_y
+        self.value = min(max(math.log(current_y, current_x), GammaItem.RANGE[0]), GammaItem.RANGE[1])
+        self.scene().update_mouseover_info('{}: {}'.format(self.prop_full_name_in_label, self.value), False, self)
 
     @property
     def value(self):
