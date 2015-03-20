@@ -379,25 +379,33 @@ class GammaItem(PropItem):
 
     def __init__(self, histogram_item, prop_full_name):
         super().__init__(histogram_item, prop_full_name)
-        self._boundingRect = Qt.QRectF(0, 0, 1, 1)
+        self._boundingRect = Qt.QRectF(-10000, -10000, 10000, 10000)
         self._value = None
-        self.path = Qt.QPainterPath()
+        self._path = Qt.QPainterPath()
+        self.setAcceptHoverEvents(True)
+        self.setFlag(Qt.QGraphicsItem.ItemIsMovable, True)
+        self.setFlag(Qt.QGraphicsItem.ItemIsSelectable, True)
 
     def type(self):
         return GammaItem.QGRAPHICSITEM_TYPE
 
     def shape(self):
-        return self.path
+        pen = Qt.QPen()
+        pen.setWidthF(0)
+        ret = Qt.QPainterPathStroker(pen)
+        ret.setWidth(0.4)
+        print('shape')
+        return ret
 
     def paint(self, qpainter, option, widget):
-        if not self.path.isEmpty():
+        if not self._path.isEmpty():
             c = Qt.QColor(Qt.Qt.yellow)
             c.setAlphaF(0.5)
             pen = Qt.QPen(c)
             pen.setWidth(0)
             qpainter.setPen(pen)
             qpainter.setBrush(Qt.QColor(Qt.Qt.transparent))
-            qpainter.drawPath(self.path)
+            qpainter.drawPath(self._path)
 
     def on_min_max_moved(self):
         min_x = self.min_item.x()
@@ -406,6 +414,15 @@ class GammaItem(PropItem):
         t.translate(min_x, 0)
         t.scale(max_x - min_x, 1)
         self.setTransform(t)
+
+    def mousePressEvent(self, event):
+        print('mousePressEvent')
+
+    def contains(self, point):
+        print('contains {}'.format(point))
+
+    def hoverMoveEvent(self, event):
+        print('hoverMoveEvent')
 
     @property
     def value(self):
@@ -416,10 +433,11 @@ class GammaItem(PropItem):
         if value < GammaItem.RANGE[0] or value > GammaItem.RANGE[1]:
             raise ValueError('GammaItem.value must be in the range [{}, {}].'.format(GammaItem.RANGE[0], GammaItem.RANGE[1]))
         if value != self._value:
+            self.prepareGeometryChange()
             self._value = float(value)
-            self.path = Qt.QPainterPath(Qt.QPointF(0, 1))
+            self._path = Qt.QPainterPath(Qt.QPointF(0, 1))
             for x, y in zip(GammaItem.CURVE_VERTEX_COMPUTE_POSITIONS, GammaItem.CURVE_VERTEX_COMPUTE_POSITIONS**self._value):
-                self.path.lineTo(x, 1.0-y)
-            self.path.lineTo(1, 0)
+                self._path.lineTo(x, 1.0-y)
+            self._path.lineTo(1, 0)
             self.update()
             self.value_changed.emit(self.scene(), self._value)
