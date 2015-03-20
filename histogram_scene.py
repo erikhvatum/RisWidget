@@ -121,7 +121,7 @@ class HistogramScene(ShaderScene):
         self.histogram_item.on_image_changing(image)
 
     def get_prop_item(self, full_name):
-        return self.item_props[full_name].scene_items[self]
+        return HistogramScene.item_props[full_name].scene_items[self]
 
 class HistogramItem(ShaderItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
@@ -246,10 +246,10 @@ class HistogramItem(ShaderItem):
                     histogram = image.histogram
                     range_ = image.range
                     bin_count = histogram.shape[-1]
-                    bin = int(x * (bin_count - 1))
+                    bin = int(x * bin_count)
                     bin_width = (range_[1] - range_[0]) / bin_count
                     if image.dtype == numpy.float32:
-                        mst = '[{},{}) '.format(bin*bin_width, (bin+1)*bin_width)
+                        mst = '[{},{}) '.format(range_[0] + bin*bin_width, range_[0] + (bin+1)*bin_width)
                     else:
                         mst = '[{},{}] '.format(math.ceil(bin*bin_width), math.floor((bin+1)*bin_width))
                     vt = '(' + ' '.join((c + ':{}' for c in image_type)) + ')'
@@ -294,6 +294,10 @@ class MinMaxItem(PropItem):
     def type(self):
         return MinMaxItem.QGRAPHICSITEM_TYPE
 
+    def mousePressEvent(self, event):
+        super().mousePressEvent(event)
+        self.scene().update_mouseover_info('{}: {}'.format(self.prop_full_name, self.value), False, self)
+
     def on_x_changed(self):
         if not self._ignore_x_change:
             x = self.x()
@@ -321,21 +325,21 @@ class MinMaxItem(PropItem):
 
     @property
     def x_to_value(self):
-        offset = 0; range_width = 1; is_fp = True
         scene = self.scene()
-        if scene is not None:
-            image = scene.histogram_item.image
-            if image is not None:
-                is_fp = image.dtype == numpy.float32
-                range_ = image.range
-                offset = range_[0]
-                range_width = range_[1] - range_[0]
-        if is_fp:
+        if scene is None or scene.histogram_item.image is None:
             def _x_to_value(x):
-                return x * range_width + offset
+                return x
         else:
-            def _x_to_value(x):
-                return int(x * range_width + offset)
+            image = scene.histogram_item.image
+            bin_count = image.histogram.shape[-1]
+            range_ = image.range
+            bin_width = (range_[1] - range_[0]) / bin_count
+            if image.dtype == numpy.float32:
+                def _x_to_value(x):
+                    return range_[0] + int(x*bin_count)*bin_width
+            else:
+                def _x_to_value(x):
+                    return math.ceil(int(x*bin_count)*bin_width)
         return _x_to_value
 
     @property
@@ -379,12 +383,12 @@ class GammaItem(PropItem):
 
     def __init__(self, histogram_item, prop_full_name):
         super().__init__(histogram_item, prop_full_name)
-        self._boundingRect = Qt.QRectF(-10000, -10000, 10000, 10000)
+        self._bounding_rect = Qt.QRectF(0, 0, 1, 1)
         self._value = None
         self._path = Qt.QPainterPath()
-        self.setAcceptHoverEvents(True)
         self.setFlag(Qt.QGraphicsItem.ItemIsMovable, True)
         self.setFlag(Qt.QGraphicsItem.ItemIsSelectable, True)
+        self.setZValue(1)
 
     def type(self):
         return GammaItem.QGRAPHICSITEM_TYPE
@@ -392,10 +396,9 @@ class GammaItem(PropItem):
     def shape(self):
         pen = Qt.QPen()
         pen.setWidthF(0)
-        ret = Qt.QPainterPathStroker(pen)
-        ret.setWidth(0.4)
-        print('shape')
-        return ret
+        stroker = Qt.QPainterPathStroker(pen)
+        stroker.setWidth(0.4)
+        return stroker.createStroke(self._path)
 
     def paint(self, qpainter, option, widget):
         if not self._path.isEmpty():
@@ -418,11 +421,8 @@ class GammaItem(PropItem):
     def mousePressEvent(self, event):
         print('mousePressEvent')
 
-    def contains(self, point):
-        print('contains {}'.format(point))
-
-    def hoverMoveEvent(self, event):
-        print('hoverMoveEvent')
+    def mouseMoveEvent(self, event):
+        print('mouseMoveEvent')
 
     @property
     def value(self):
