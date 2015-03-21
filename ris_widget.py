@@ -58,6 +58,8 @@ class RisWidget(Qt.QMainWindow):
         self._image_view_zoom_to_fit_action = Qt.QAction(self)
         self._image_view_zoom_to_fit_action.setCheckable(True)
         self._image_view_zoom_to_fit_action.setText('Zoom to Fit')
+        self._histogram_view_reset_min_max_action = Qt.QAction(self)
+        self._histogram_view_reset_min_max_action.setText('Reset Min/Max')
         self._histogram_view_reset_gamma_action = Qt.QAction(self)
         self._histogram_view_reset_gamma_action.setText('Reset \u03b3')
 
@@ -92,6 +94,8 @@ class RisWidget(Qt.QMainWindow):
         self.image_view.zoom_to_fit_changed.connect(self._image_view_zoom_to_fit_changed)
         self._histogram_view_toolbar = self.addToolBar('Histogram View')
         self._histogram_view_toolbar.addAction(self._histogram_dock_widget.toggleViewAction())
+        self._histogram_view_toolbar.addAction(self._histogram_view_reset_min_max_action)
+        self._histogram_view_reset_min_max_action.triggered.connect(self._on_reset_min_max)
         self._histogram_view_toolbar.addAction(self._histogram_view_reset_gamma_action)
         self._histogram_view_reset_gamma_action.triggered.connect(self._on_reset_gamma)
 
@@ -182,6 +186,10 @@ class RisWidget(Qt.QMainWindow):
                                                                                                                    self._format_zoom(ImageView._ZOOM_MIN_MAX[1] * 100)))
             self._image_view_zoom_combo.setFocus()
             self._image_view_zoom_combo.lineEdit().selectAll()
+
+    def _on_reset_min_max(self):
+        self.histogram_scene.get_prop_item('min').setX(0)
+        self.histogram_scene.get_prop_item('max').setX(1)
 
     def _on_reset_gamma(self):
         self.histogram_scene.gamma = 1

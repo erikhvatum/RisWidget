@@ -24,19 +24,29 @@
 // 
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-uniform sampler2D tex;
+uniform $sampler_t tex;
 // 2D homogeneous transformation matrix for transforming gl_FragCoord viewport coordinates into image texture
 // coordinates
 uniform mat3 frag_to_tex;
-uniform vec3 intensity_rescale_mins;
-uniform vec3 intensity_rescale_ranges;
-uniform vec3 gammas;
+uniform $vcomponents_t vcomponent_rescale_mins;
+uniform $vcomponents_t vcomponent_rescale_ranges;
+uniform $vcomponents_t gammas;
 uniform float viewport_height;
 
-vec3 transform_intensities(vec3 intensities)
+$vcomponents_t extract_vcomponents($tcomponents_t tcomponents)
 {
-    return gammas == vec3(1,1,1) ? clamp((intensities - intensity_rescale_mins) / intensity_rescale_ranges, 0, 1) :
-                                   pow(clamp((intensities - intensity_rescale_mins) / intensity_rescale_ranges, 0, 1), gammas);
+    return $extract_vcomponents;
+}
+
+$vcomponents_t transform_vcomponents($vcomponents_t vcomponents)
+{
+    return gammas == $vcomponents_ones_vector ? clamp((vcomponents - vcomponent_rescale_mins) / vcomponent_rescale_ranges, 0, 1) :
+                                                pow(clamp((vcomponents - vcomponent_rescale_mins) / vcomponent_rescale_ranges, 0, 1), gammas);
+}
+
+vec4 combine_vt_components($vcomponents_t vcomponents, $tcomponents_t tcomponents)
+{
+    return $combine_vt_components;
 }
 
 void main()
@@ -55,8 +65,8 @@ void main()
         discard;
     }
 
-    vec4 rgba = texture2D(tex, tex_coord);
-    vec3 transformed = transform_intensities(rgba.rgb);
+    $tcomponents_t tcomponents = texture2D(tex, tex_coord);
+    $vcomponents_t transformed_vcomponents = transform_vcomponents(extract_vcomponents(tcomponents));
 
-    gl_FragColor = vec4(transformed, rgba.a);
+    gl_FragColor = combine_vt_components(transformed_vcomponents, tcomponents);
 }

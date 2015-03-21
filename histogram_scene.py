@@ -110,6 +110,9 @@ class HistogramScene(ShaderScene):
         for item_prop in self.item_props_list:
             item_prop.instantiate(self)
         self.gamma_gamma = 1.0
+        self.gamma_red = self.gamma_green = self.gamma_blue = 1.0
+        self.min_red = self.min_green = self.min_blue = 0.0
+        self.max_red = self.max_green = self.max_blue = 255.0
         self.rescale_enabled = True
         self.min = 0
         self.max = 1
@@ -153,6 +156,9 @@ class HistogramItem(ShaderItem):
             view = widget.view
             scene = self.scene()
             gl = GL()
+            if not image.is_grayscale:
+                return
+                # personal time todo: per-channel RGB histogram support
             with ExitStack() as stack:
                 qpainter.beginNativePainting()
                 stack.callback(qpainter.endNativePainting)

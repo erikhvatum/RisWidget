@@ -207,10 +207,7 @@
 			<F N="shaders/histogram_widget_fragment_shader_g.glsl"/>
 			<F N="shaders/histogram_widget_fragment_shader_rgb.glsl"/>
 			<F N="shaders/histogram_widget_vertex_shader.glsl"/>
-			<F N="shaders/image_widget_fragment_shader_g.glsl"/>
-			<F N="shaders/image_widget_fragment_shader_ga.glsl"/>
-			<F N="shaders/image_widget_fragment_shader_rgb.glsl"/>
-			<F N="shaders/image_widget_fragment_shader_rgba.glsl"/>
+			<F N="shaders/image_widget_fragment_shader_template.glsl"/>
 			<F N="shaders/image_widget_vertex_shader.glsl"/>
 		</Folder>
 		<F N="__init__.py"/>

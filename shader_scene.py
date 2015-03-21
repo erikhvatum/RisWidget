@@ -25,6 +25,7 @@
 from .gl_resources import GL
 from pathlib import Path
 from PyQt5 import Qt
+from string import Template
 
 #from ._qt_debug import qevent_type_value_enum_string #TODO: remove
 
@@ -85,13 +86,22 @@ class ShaderItem(Qt.QGraphicsItem):
         self._image_id = 0
         self.setAcceptHoverEvents(True)
 
-    def build_shader_prog(self, desc, vert_fn, frag_fn, shader_view):
+    def build_shader_prog(self, desc, vert_fn, frag_fn, shader_view, **frag_template_mapping):
         source_dpath = Path(__file__).parent / 'shaders'
         prog = Qt.QOpenGLShaderProgram(shader_view)
+
         if not prog.addShaderFromSourceFile(Qt.QOpenGLShader.Vertex, str(source_dpath / vert_fn)):
             raise RuntimeError('Failed to compile vertex shader "{}" for {} {} shader program.'.format(vert_fn, type(self).__name__, desc))
-        if not prog.addShaderFromSourceFile(Qt.QOpenGLShader.Fragment, str(source_dpath / frag_fn)):
-            raise RuntimeError('Failed to compile fragment shader "{}" for {} {} shader program.'.format(frag_fn, type(self).__name__, desc))
+
+        if len(frag_template_mapping) == 0:
+            if not prog.addShaderFromSourceFile(Qt.QOpenGLShader.Fragment, str(source_dpath / frag_fn)):
+                raise RuntimeError('Failed to compile fragment shader "{}" for {} {} shader program.'.format(frag_fn, type(self).__name__, desc))
+        else:
+            with (source_dpath / frag_fn).open('r') as f:
+                frag_template = Template(f.read())
+            if not prog.addShaderFromSourceCode(Qt.QOpenGLShader.Fragment, frag_template.substitute(frag_template_mapping)):
+                raise RuntimeError('Failed to compile fragment shader "{}" for {} {} shader program.'.format(frag_fn, type(self).__name__, desc))
+
         if not prog.link():
             raise RuntimeError('Failed to link {} {} shader program.'.format(type(self).__name__, desc))
         vrs = self.view_resources[shader_view]

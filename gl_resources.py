@@ -26,8 +26,6 @@ import numpy
 from PyQt5 import Qt
 import sys
 
-#_
-
 NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
     numpy.uint8  : Qt.QOpenGLTexture.UInt8,
     numpy.uint16 : Qt.QOpenGLTexture.UInt16,

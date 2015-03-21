@@ -89,21 +89,45 @@ class ImageItem(ShaderItem):
                 else:
                     self.view_resources[view] = vrs = {}
                     self.build_shader_prog('g',
-                                            'image_widget_vertex_shader.glsl',
-                                            'image_widget_fragment_shader_g.glsl',
-                                            view)
+                                           'image_widget_vertex_shader.glsl',
+                                           'image_widget_fragment_shader_template.glsl',
+                                           view,
+                                           sampler_t='sampler2D',
+                                           vcomponents_t='float',
+                                           tcomponents_t='vec4',
+                                           extract_vcomponents='tcomponents.r',
+                                           vcomponents_ones_vector='1.0f',
+                                           combine_vt_components='vec4(vcomponents, vcomponents, vcomponents, 1.0f)')
                     self.build_shader_prog('ga',
-                                            'image_widget_vertex_shader.glsl',
-                                            'image_widget_fragment_shader_ga.glsl',
-                                            view)
+                                           'image_widget_vertex_shader.glsl',
+                                           'image_widget_fragment_shader_template.glsl',
+                                           view,
+                                           sampler_t='sampler2D',
+                                           vcomponents_t='float',
+                                           tcomponents_t='vec4',
+                                           extract_vcomponents='tcomponents.r',
+                                           vcomponents_ones_vector='1.0f',
+                                           combine_vt_components='vec4(vcomponents, vcomponents, vcomponents, tcomponents.a)')
                     self.build_shader_prog('rgb',
-                                            'image_widget_vertex_shader.glsl',
-                                            'image_widget_fragment_shader_rgb.glsl',
-                                            view)
+                                           'image_widget_vertex_shader.glsl',
+                                           'image_widget_fragment_shader_template.glsl',
+                                           view,
+                                           sampler_t='sampler2D',
+                                           vcomponents_t='vec3',
+                                           tcomponents_t='vec4',
+                                           extract_vcomponents='tcomponents.rgb',
+                                           vcomponents_ones_vector='vec3(1.0f, 1.0f, 1.0f)',
+                                           combine_vt_components='vec4(vcomponents.rgb, 1.0f)')
                     self.build_shader_prog('rgba',
-                                            'image_widget_vertex_shader.glsl',
-                                            'image_widget_fragment_shader_rgba.glsl',
-                                            view)
+                                           'image_widget_vertex_shader.glsl',
+                                           'image_widget_fragment_shader_template.glsl',
+                                           view,
+                                           sampler_t='sampler2D',
+                                           vcomponents_t='vec3',
+                                           tcomponents_t='vec4',
+                                           extract_vcomponents='tcomponents.rgb',
+                                           vcomponents_ones_vector='vec3(1.0f, 1.0f, 1.0f)',
+                                           combine_vt_components='vec4(vcomponents.rgb, tcomponents.a)')
                 if 'tex' in vrs:
                     tex, tex_image_id = vrs['tex']
                     if image.size != Qt.QSize(tex.width(), tex.height()) or tex.format() != desired_texture_format:
@@ -156,9 +180,9 @@ class ImageItem(ShaderItem):
                     else:
                         gamma = 1
                         min_max = numpy.array((0,1), dtype=float)
-                    prog.setUniformValue('gamma', gamma)
-                    prog.setUniformValue('intensity_rescale_min', min_max[0])
-                    prog.setUniformValue('intensity_rescale_range', min_max[1] - min_max[0])
+                    prog.setUniformValue('gammas', gamma)
+                    prog.setUniformValue('vcomponent_rescale_mins', min_max[0])
+                    prog.setUniformValue('vcomponent_rescale_ranges', min_max[1] - min_max[0])
                 else:
                     if histogram_scene.rescale_enabled:
                         gammas = (histogram_scene.gamma_red, histogram_scene.gamma_green, histogram_scene.gamma_blue)
@@ -170,8 +194,8 @@ class ImageItem(ShaderItem):
                         min_maxs = numpy.array((min_max,)*3).T
                     prog.setUniformValue('gammas', *gammas)
                     self._normalize_min_max(min_maxs)
-                    prog.setUniformValue('intensity_rescale_mins', *min_maxs[0])
-                    prog.setUniformValue('intensity_rescale_ranges', *(min_maxs[1]-min_maxs[0]))
+                    prog.setUniformValue('vcomponent_rescale_mins', *min_maxs[0])
+                    prog.setUniformValue('vcomponent_rescale_ranges', *(min_maxs[1]-min_maxs[0]))
                 gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
                 gl.glDrawArrays(gl.GL_TRIANGLE_FAN, 0, 4)
 
