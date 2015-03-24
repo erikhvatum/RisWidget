@@ -134,7 +134,7 @@ class ShaderItem(Qt.QGraphicsItem):
         min_max /= r[1] - r[0]
 
 class ShaderTexture:
-    """QOpenGLTexture does not support support GL_LUMINANCE*_EXT as specified by GL_EXT_texture_integer,
+    """QOpenGLTexture does not support support GL_LUMINANCE*_EXT, etc, as specified by GL_EXT_texture_integer,
     which is required for integer textures in OpenGL 2.1 (QOpenGLTexture does support GL_RGB*U/I formats,
     but these were introduced with OpenGL 3.0 and should not be relied upon in 2.1 contexts).  So, in
     cases where GL_LUMINANCE*_EXT format textures may be required, we use ShaderTexture rather than

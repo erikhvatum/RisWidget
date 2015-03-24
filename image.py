@@ -40,6 +40,7 @@ class Image:
             self._type = 'g'
             stats = compute_ndimage_statistics(self._data, self._is_twelve_bit)
             self._histogram = stats.histogram
+            self._min_max = (stats.min_intensity, stats.max_intensity)
             self._max_histogram_bin = stats.max_bin
         elif self._data.ndim == 3:
             self._type = {2: 'ga', 3: 'rgb', 4: 'rgba'}.get(self._data.shape[2])

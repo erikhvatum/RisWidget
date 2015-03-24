@@ -23,11 +23,11 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from contextlib import ExitStack
-from .gl_resources import GL, NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE, IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT, IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT
+from .gl_resources import GL
 import math
 import numpy
 from PyQt5 import Qt
-from .shader_scene import ShaderScene, ShaderItem, UNIQUE_QGRAPHICSITEM_TYPE
+from .shader_scene import ShaderScene, ShaderItem, ShaderTexture, UNIQUE_QGRAPHICSITEM_TYPE
 from .shader_view import ShaderView
 import sys
 
@@ -61,6 +61,26 @@ class ImageScene(ShaderScene):
 
 class ImageItem(ShaderItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
+    NUMPY_DTYPE_TO_GL_PIXEL_DATA_TYPE_STR = {
+        numpy.uint8  : 'GL_UNSIGNED_BYTE',
+        numpy.uint16 : 'GL_UNSIGNED_SHORT',
+        numpy.uint32 : 'GL_UNSIGNED_INT',
+        numpy.float32: 'GL_FLOAT'}
+    NUMPY_DTYPE_TO_GL_INTERNAL_FORMAT_TYPE_STR = {
+        numpy.uint8  : '8UI_EXT',
+        numpy.uint16 : '16UI_EXT',
+        numpy.uint32 : '32UI_EXT',
+        numpy.float32: ''}
+    IMAGE_TYPE_TO_GL_FORMAT_NAME_STR = {
+        'g'   : 'LUMINANCE',
+        'ga'  : 'LUMINANCE_ALPHA',
+        'rgb' : 'RGB',
+        'rgba': 'RGBA'}
+    IMAGE_TYPE_TO_COMBINE_VT_COMPONENTS = {
+        'g'   : 'vec4(vcomponents, vcomponents, vcomponents, 1.0f)',
+        'ga'  : 'vec4(vcomponents, vcomponents, vcomponents, tcomponents.a)',
+        'rgb' : 'vec4(vcomponents.rgb, 1.0f)',
+        'rgba': 'vec4(vcomponents.rgb, tcomponents.a)'}
 
     def type(self):
         return GammaItem.QGRAPHICSITEM_TYPE
@@ -75,92 +95,104 @@ class ImageItem(ShaderItem):
             if widget.view in self.view_resources:
                 vrs = self.view_resources[widget.view]
                 if 'tex' in vrs:
-                    vrs['tex'][0].destroy()
+                    vrs['tex'].destroy()
                     del vrs['tex']
         else:
-            image = self.image
-            desired_texture_format = IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[image.type]
-            view = widget.view
             with ExitStack() as stack:
                 qpainter.beginNativePainting()
                 stack.callback(qpainter.endNativePainting)
+                gl = GL()
+                image = self.image
+                view = widget.view
                 if view in self.view_resources:
                     vrs = self.view_resources[view]
                 else:
                     self.view_resources[view] = vrs = {}
-                    self.build_shader_prog('g',
+                tex_format_name_str = ImageItem.IMAGE_TYPE_TO_GL_FORMAT_NAME_STR[image.type]
+                tex_internal_format_type_str = ImageItem.NUMPY_DTYPE_TO_GL_INTERNAL_FORMAT_TYPE_STR[image.dtype]
+                tex_internal_format = getattr(gl, 'GL_{}{}'.format(tex_format_name_str, tex_internal_format_type_str))
+                shader_desc = '{}_{}_{}'.format(image.type, tex_format_name_str, tex_internal_format_type_str)
+                if 'progs' in vrs:
+                    progs = vrs['progs']
+                else:
+                    progs = vrs['progs'] = {}
+                if shader_desc in progs:
+                    prog = progs[shader_desc]
+                else:
+                    if image.dtype == numpy.float32:
+                        sampler_t = 'sampler2D'
+                        raw_tcomponents_t = 'vec4'
+                        raw_tcomponents_to_tcomponents = 'raw_tcomponents'
+                    else:
+                        sampler_t = 'usampler2D'
+                        raw_tcomponents_t = 'uvec4'
+                        raw_tcomponents_to_tcomponents = 'vec4(raw_tcomponents)'
+                    if image.is_grayscale:
+                        vcomponents_t = 'float'
+                        extract_vcomponents = 'tcomponents.r'
+                        vcomponents_ones_vector = '1.0f'
+                    else:
+                        vcomponents_t = 'vec3'
+                        extract_vcomponents = 'tcomponents.rgb'
+                        vcomponents_ones_vector = 'vec3(1.0f, 1.0f, 1.0f)'
+                    self.build_shader_prog(shader_desc,
                                            'image_widget_vertex_shader.glsl',
                                            'image_widget_fragment_shader_template.glsl',
                                            view,
-                                           sampler_t='sampler2D',
-                                           vcomponents_t='float',
-                                           tcomponents_t='vec4',
-                                           extract_vcomponents='tcomponents.r',
-                                           vcomponents_ones_vector='1.0f',
-                                           combine_vt_components='vec4(vcomponents, vcomponents, vcomponents, 1.0f)')
-                    self.build_shader_prog('ga',
-                                           'image_widget_vertex_shader.glsl',
-                                           'image_widget_fragment_shader_template.glsl',
-                                           view,
-                                           sampler_t='sampler2D',
-                                           vcomponents_t='float',
-                                           tcomponents_t='vec4',
-                                           extract_vcomponents='tcomponents.r',
-                                           vcomponents_ones_vector='1.0f',
-                                           combine_vt_components='vec4(vcomponents, vcomponents, vcomponents, tcomponents.a)')
-                    self.build_shader_prog('rgb',
-                                           'image_widget_vertex_shader.glsl',
-                                           'image_widget_fragment_shader_template.glsl',
-                                           view,
-                                           sampler_t='sampler2D',
-                                           vcomponents_t='vec3',
-                                           tcomponents_t='vec4',
-                                           extract_vcomponents='tcomponents.rgb',
-                                           vcomponents_ones_vector='vec3(1.0f, 1.0f, 1.0f)',
-                                           combine_vt_components='vec4(vcomponents.rgb, 1.0f)')
-                    self.build_shader_prog('rgba',
-                                           'image_widget_vertex_shader.glsl',
-                                           'image_widget_fragment_shader_template.glsl',
-                                           view,
-                                           sampler_t='sampler2D',
-                                           vcomponents_t='vec3',
-                                           tcomponents_t='vec4',
-                                           extract_vcomponents='tcomponents.rgb',
-                                           vcomponents_ones_vector='vec3(1.0f, 1.0f, 1.0f)',
-                                           combine_vt_components='vec4(vcomponents.rgb, tcomponents.a)')
+                                           sampler_t=sampler_t,
+                                           raw_tcomponents_t=raw_tcomponents_t,
+                                           raw_tcomponents_to_tcomponents=raw_tcomponents_to_tcomponents,
+                                           vcomponents_t=vcomponents_t,
+                                           extract_vcomponents=extract_vcomponents,
+                                           vcomponents_ones_vector=vcomponents_ones_vector,
+                                           combine_vt_components=ImageItem.IMAGE_TYPE_TO_COMBINE_VT_COMPONENTS[image.type])
+                    prog = progs[shader_desc]
+                prog.bind()
+                stack.callback(prog.release)
                 if 'tex' in vrs:
-                    tex, tex_image_id = vrs['tex']
-                    if image.size != Qt.QSize(tex.width(), tex.height()) or tex.format() != desired_texture_format:
+                    tex = vrs['tex']
+                    if tex.size != image.size or tex.internal_format != tex_internal_format:
                         tex.destroy()
                         del vrs['tex']
                 if 'tex' not in vrs:
-                    tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
-                    tex.setFormat(desired_texture_format)
-                    tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
-                    tex.setAutoMipMapGenerationEnabled(True)
-                    tex.setSize(image.size.width(), image.size.height(), 1)
-                    tex.setMipLevels(4)
-                    tex.allocateStorage()
-                    tex.setMinMagFilters(Qt.QOpenGLTexture.LinearMipMapLinear, Qt.QOpenGLTexture.Nearest)
-                    tex_image_id = -1
-                tex.bind()
-                stack.callback(lambda: tex.release(0))
-                if tex_image_id != self._image_id:
-                    pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
-                    pixel_transfer_opts.setAlignment(1)
-                    tex.setData(IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT[image.type],
-                                NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[image.dtype],
-                                image.data.ctypes.data,
-                                pixel_transfer_opts)
-                    vrs['tex'] = tex, self._image_id
-                prog = vrs['progs'][self.image.type]
-                prog.bind()
-                stack.callback(prog.release)
+                    tex = ShaderTexture(gl.GL_TEXTURE_2D)
+                    tex.bind()
+                    stack.callback(tex.release)
+                    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_CLAMP_TO_EDGE)
+                    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE)
+                    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
+                    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
+                    tex.image_id = -1
+                    tex.size = None
+                    vrs['tex'] = tex
+                else:
+                    tex.bind()
+                    stack.callback(tex.release)
+                if tex.image_id != self._image_id:
+                    orig_unpack_alignment = gl.glGetIntegerv(gl.GL_UNPACK_ALIGNMENT)
+                    if orig_unpack_alignment != 1:
+                        gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
+                        # QPainter font rendering for OpenGL surfaces will become broken if we do not restore GL_UNPACK_ALIGNMENT
+                        # to whatever QPainter had it set to (when it prepared the OpenGL context for our use as a result of
+                        # qpainter.beginNativePainting()).
+                        stack.callback(lambda oua=orig_unpack_alignment: gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, oua))
+                    src_format_str = 'GL_' + tex_format_name_str
+                    if image.type != numpy.float32:
+                        src_format_str += '_INTEGER_EXT'
+                    src_format = getattr(gl, src_format_str)
+                    src_gl_data_type = getattr(gl, ImageItem.NUMPY_DTYPE_TO_GL_PIXEL_DATA_TYPE_STR[image.dtype])
+                    gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, tex_internal_format,
+                                    image.size.width(), image.size.height(), 0,
+                                    src_format,
+                                    src_gl_data_type,
+                                    memoryview(image.data.data))
+                    tex.internal_format = tex_internal_format
+                    tex.size = image.size
+                    tex.image_id = self._image_id
                 view.quad_buffer.bind()
                 stack.callback(view.quad_buffer.release)
                 view.quad_vao.bind()
                 stack.callback(view.quad_vao.release)
-                gl = GL()
                 vert_coord_loc = prog.attributeLocation('vert_coord')
                 prog.enableAttributeArray(vert_coord_loc)
                 prog.setAttributeBuffer(vert_coord_loc, gl.GL_FLOAT, 0, 2, 0)
@@ -172,7 +204,7 @@ class ImageItem(ShaderItem):
                 prog.setUniformValue('frag_to_tex', frag_to_tex)
                 prog.setUniformValue('viewport_height', float(widget.size().height()))
                 histogram_scene = view.scene().histogram_scene
-                if self.image.is_grayscale:
+                if image.is_grayscale:
                     if histogram_scene.rescale_enabled:
                         gamma = histogram_scene.gamma
                         min_max = numpy.array((histogram_scene.min, histogram_scene.max), dtype=float)

@@ -26,21 +26,6 @@ import numpy
 from PyQt5 import Qt
 import sys
 
-NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
-    numpy.uint8  : Qt.QOpenGLTexture.UInt8,
-    numpy.uint16 : Qt.QOpenGLTexture.UInt16,
-    numpy.float32: Qt.QOpenGLTexture.Float32}
-IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT = {
-    'g'   : Qt.QOpenGLTexture.R32F,
-    'ga'  : Qt.QOpenGLTexture.RG32F,
-    'rgb' : Qt.QOpenGLTexture.RGB32F,
-    'rgba': Qt.QOpenGLTexture.RGBA32F}
-IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT = {
-    'g'   : Qt.QOpenGLTexture.Red,
-    'ga'  : Qt.QOpenGLTexture.RG,
-    'rgb' : Qt.QOpenGLTexture.RGB,
-    'rgba': Qt.QOpenGLTexture.RGBA}
-
 _GL_QSURFACE_FORMAT = None
 
 def GL_QSURFACE_FORMAT():

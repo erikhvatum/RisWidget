@@ -1,5 +1,6 @@
 #version 120
 #line 3
+#extension GL_EXT_gpu_shader4 : require
 // The MIT License (MIT)
 // 
 // Copyright (c) 2014 WUSTL ZPLAB
@@ -33,7 +34,13 @@ uniform $vcomponents_t vcomponent_rescale_ranges;
 uniform $vcomponents_t gammas;
 uniform float viewport_height;
 
-$vcomponents_t extract_vcomponents($tcomponents_t tcomponents)
+// Convert uvec4 or vec4 returned by texture2D to vec4
+vec4 raw_tcomponents_to_tcomponents($raw_tcomponents_t raw_tcomponents)
+{
+    return $raw_tcomponents_to_tcomponents;
+}
+
+$vcomponents_t extract_vcomponents(vec4 tcomponents)
 {
     return $extract_vcomponents;
 }
@@ -44,7 +51,7 @@ $vcomponents_t transform_vcomponents($vcomponents_t vcomponents)
                                                 pow(clamp((vcomponents - vcomponent_rescale_mins) / vcomponent_rescale_ranges, 0, 1), gammas);
 }
 
-vec4 combine_vt_components($vcomponents_t vcomponents, $tcomponents_t tcomponents)
+vec4 combine_vt_components($vcomponents_t vcomponents, vec4 tcomponents)
 {
     return $combine_vt_components;
 }
@@ -65,8 +72,11 @@ void main()
         discard;
     }
 
-    $tcomponents_t tcomponents = texture2D(tex, tex_coord);
+    $raw_tcomponents_t raw_tcomponents = texture2D(tex, tex_coord);
+    /*vec4 tcomponents = raw_tcomponents_to_tcomponents(raw_tcomponents);
     $vcomponents_t transformed_vcomponents = transform_vcomponents(extract_vcomponents(tcomponents));
 
-    gl_FragColor = combine_vt_components(transformed_vcomponents, tcomponents);
+    gl_FragColor = combine_vt_components(transformed_vcomponents, tcomponents);*/
+    float c = float(raw_tcomponents.r)/65535.0f;
+    gl_FragColor = vec4(c,c,c,1.0f);
 }
