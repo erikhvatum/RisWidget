@@ -30,6 +30,7 @@ from PyQt5 import Qt
 from .shader_scene import ShaderScene, ShaderItem, ShaderTexture, UNIQUE_QGRAPHICSITEM_TYPE
 from .shader_view import ShaderView
 import sys
+import time
 
 class ImageScene(ShaderScene):
     def __init__(self, parent):
@@ -181,11 +182,14 @@ class ImageItem(ShaderItem):
                         src_format_str += '_INTEGER_EXT'
                     src_format = getattr(gl, src_format_str)
                     src_gl_data_type = getattr(gl, ImageItem.NUMPY_DTYPE_TO_GL_PIXEL_DATA_TYPE_STR[image.dtype])
+                    t0=time.time()
                     gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, tex_internal_format,
                                     image.size.width(), image.size.height(), 0,
                                     src_format,
                                     src_gl_data_type,
-                                    memoryview(image.data.data))
+                                    image.data.ravel(order='K').data)
+                    t1=time.time()
+                    print('{}ms / {}fps'.format(1000*(t1-t0), 1/(t1-t0)))
                     tex.internal_format = tex_internal_format
                     tex.size = image.size
                     tex.image_id = self._image_id
