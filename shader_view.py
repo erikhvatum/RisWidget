@@ -129,9 +129,8 @@ class _ShaderViewGLViewport(Qt.QOpenGLWidget):
     QGraphicsView's setViewport method.  _ShaderViewGLViewport is that QOpenGLWidget.
     _ShaderViewGLViewport doesn't really do anything except set up an OpenGL context.
     All relevant QEvents are filtered by the QGraphicsView-derived instance.
-    _ShaderViewGLViewport has paintGL and resizeGL methods only because older PyQt5
-    versions verify that these exist in order to enforce the
-    no-class-instances-with-pure-virtual-methods C++ contract."""
+    _ShaderViewGLViewport has paintGL and resizeGL methods only so that we can
+    detect their being called."""
 
     def __init__(self, view):
         super().__init__()

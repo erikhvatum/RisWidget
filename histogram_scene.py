@@ -314,7 +314,7 @@ class MinMaxItem(PropItem):
         # they will move together when one is dragged.  Additionally, arrow key presses would move
         # selected items if their viewport has focus (viewport focus is also not indicated).
         # Items are non-selectable by default; the following line is present only to make intent clear.
-        self.setFlag(Qt.QGraphicsItem.ItemIsSelectable, False)
+        #self.setFlag(Qt.QGraphicsItem.ItemIsSelectable, False)
 
     def type(self):
         return MinMaxItem.QGRAPHICSITEM_TYPE
