@@ -23,16 +23,14 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from .gl_resources import GL_QSURFACE_FORMAT, GL
-#from .shader_view_overlay_scene import ShaderViewOverlayView
 import numpy
 from PyQt5 import Qt
 
 class ShaderView(Qt.QGraphicsView):
     resized = Qt.pyqtSignal(Qt.QSize)
 
-    def __init__(self, shader_scene, overlay_scene, parent):
+    def __init__(self, shader_scene, parent):
         super().__init__(shader_scene, parent)
-        self.overlay_scene = overlay_scene
         self.setMouseTracking(True)
         glw = _ShaderViewGLViewport(self)
         # It seems necessary to retain this reference.  It is available via self.viewport() after
@@ -40,15 +38,24 @@ class ShaderView(Qt.QGraphicsView):
         # reference is evidentally weak or perhaps just a pointer.
         self._glw = glw
         self.setViewport(glw)
+        self.add_mouseover_info_item()
         self.destroyed.connect(self._free_shader_view_resources)
-        self.overlay_scene.changed.connect(self.scene().invalidate)
-#       self.overlay_scene.changed.connect(self._on_invalidate)
-#       self.overlay_view = ShaderViewOverlayView(overlay_scene, glw)
-#       self.overlay_view.show()
 
-#   def _on_invalidate(self):
-#       print('ShaderView._on_invalidate')
-#       self.scene().invalidate()
+    def add_mouseover_info_item(self):
+        f = Qt.QFont('Courier', 14)
+        f.setKerning(False)
+        f.setStyleHint(Qt.QFont.Monospace, Qt.QFont.OpenGLCompatible | Qt.QFont.PreferQuality)
+        self.mouseover_text_item = self.addText('', f)
+        self.shader_scene.update_mouseover_info_signal.connect(self.on_update_mouseover_info)
+        c = Qt.QColor(Qt.Qt.green)
+        c.setAlphaF(.75)
+        self.mouseover_text_item.setDefaultTextColor(c)
+
+    def on_update_mouseover_info(self, string, is_html):
+        if is_html:
+            self.mouseover_text_item.setHtml(string)
+        else:
+            self.mouseover_text_item.setPlainText(string)
 
     def _free_shader_view_resources(self):
         """Delete, release, or otherwise destroy GL resources associated with this ShaderView instance."""
@@ -89,9 +96,7 @@ class ShaderView(Qt.QGraphicsView):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        size = event.size()
-        self.overlay_scene.setSceneRect(0, 0, size.width(), size.height())
-        self.resized.emit(size)
+        self.resized.emit(event.size())
 
     def drawBackground(self, p, rect):
         p.beginNativePainting()
@@ -100,14 +105,6 @@ class ShaderView(Qt.QGraphicsView):
         gl.glClearDepth(1)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         p.endNativePainting()
-
-    def drawForeground(self, p, rect):
-        p.save()
-        p.resetTransform()
-        try:
-            self.overlay_scene.render(p)
-        finally:
-            p.restore()
 
 class _ShaderViewGLViewport(Qt.QOpenGLWidget):
     """In order to obtain a QGraphicsView instance that renders into an OpenGL 2.1

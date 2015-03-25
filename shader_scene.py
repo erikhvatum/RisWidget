@@ -27,11 +27,9 @@ from pathlib import Path
 from PyQt5 import Qt
 from string import Template
 
-#from ._qt_debug import qevent_type_value_enum_string #TODO: remove
-
 class ShaderScene(Qt.QGraphicsScene):
     """update_mouseover_info_signal serves to relay mouseover info plaintext/html change requests
-    from any items in the ShaderScene to every attached Viewport's ViewportOverlayScene, which
+    from any items in the ShaderScene to every attached ShaderView, which
     will typically update its mouseover info item in response.  The clear_mouseover_info(self, requester)
     and update_mouseover_info(self, string, is_html, requester) member functions provide an interface that
     relieves the need to ensure that a single pair of mouse-exited-so-clear-the-text and
@@ -58,10 +56,6 @@ class ShaderScene(Qt.QGraphicsScene):
             self.requester_of_current_nonempty_mouseover_info = requester
             self.update_mouseover_info_signal.emit(string, is_html)
 
-#   def event(self, event): #TODO: remove
-#       print(type(event), qevent_type_value_enum_string(event))
-#       return super().event(event)
-
 _NEXT_QGRAPHICSITEM_USERTYPE = Qt.QGraphicsItem.UserType + 1
 
 def UNIQUE_QGRAPHICSITEM_TYPE():
@@ -77,6 +71,19 @@ def UNIQUE_QGRAPHICSITEM_TYPE():
     ret = _NEXT_QGRAPHICSITEM_USERTYPE
     _NEXT_QGRAPHICSITEM_USERTYPE += 1
     return ret
+
+class MouseoverTextItem(Qt.QGraphicsTextItem):
+    """Visible only in shader_view, as opposed to all views attached to the scene containing
+    this item.  This allows mouseover info text to be visible only in a certain view,
+    allowing mouseover info text to be visible only in the active view even when there
+    are multiple viewports into the same scene.
+
+    This scheme permits multiple views into the same scene to present different overlay
+    (non-scene-scale-relative) items, so long as those items also override QGraphicsItem.paint(..)
+    to skip drawing into any but the desired view."""
+    def __init__(self, shader_view, parent_item=None):
+        super().__init__(parent_item)
+        self.shader_view = 
 
 class ShaderItem(Qt.QGraphicsItem):
     def __init__(self, parent_item=None):

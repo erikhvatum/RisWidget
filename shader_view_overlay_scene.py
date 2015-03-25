@@ -22,32 +22,32 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from PyQt5 import Qt
-
-class ShaderViewOverlayScene(Qt.QGraphicsScene):
-    def __init__(self, shader_scene, parent):
-        super().__init__(parent)
-        self.shader_scene = shader_scene
-        self.add_mouseover_info_item()
-
-    def add_mouseover_info_item(self):
-        f = Qt.QFont('Courier', 14)
-        f.setKerning(False)
-        f.setStyleHint(Qt.QFont.Monospace, Qt.QFont.OpenGLCompatible | Qt.QFont.PreferQuality)
-        self.mouseover_text_item = self.addText('', f)
-        self.shader_scene.update_mouseover_info_signal.connect(self.on_update_mouseover_info)
-        c = Qt.QColor(Qt.Qt.green)
-        c.setAlphaF(.75)
-        self.mouseover_text_item.setDefaultTextColor(c)
-
-    def on_update_mouseover_info(self, string, is_html):
-        if is_html:
-            self.mouseover_text_item.setHtml(string)
-        else:
-            self.mouseover_text_item.setPlainText(string)
-
-    def set_mouseover_info_item_visibility(self, visible):
-        self.mouseover_text_item.setVisible(visible)
+#from PyQt5 import Qt
+#
+#class ShaderViewOverlayScene(Qt.QGraphicsScene):
+#    def __init__(self, shader_scene, parent):
+#        super().__init__(parent)
+#        self.shader_scene = shader_scene
+#        self.add_mouseover_info_item()
+#
+#    def add_mouseover_info_item(self):
+#        f = Qt.QFont('Courier', 14)
+#        f.setKerning(False)
+#        f.setStyleHint(Qt.QFont.Monospace, Qt.QFont.OpenGLCompatible | Qt.QFont.PreferQuality)
+#        self.mouseover_text_item = self.addText('', f)
+#        self.shader_scene.update_mouseover_info_signal.connect(self.on_update_mouseover_info)
+#        c = Qt.QColor(Qt.Qt.green)
+#        c.setAlphaF(.75)
+#        self.mouseover_text_item.setDefaultTextColor(c)
+#
+#    def on_update_mouseover_info(self, string, is_html):
+#        if is_html:
+#            self.mouseover_text_item.setHtml(string)
+#        else:
+#            self.mouseover_text_item.setPlainText(string)
+#
+#    def set_mouseover_info_item_visibility(self, visible):
+#        self.mouseover_text_item.setVisible(visible)
 
 # At some point, in order to make overlay plane interactive, it will be necessary to either make the below
 # work, or modestly rearchitect overlay rendering (not hard to do - it consists of a single ShaderViewOverlayScene.render
