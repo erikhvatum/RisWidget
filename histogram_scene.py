@@ -272,6 +272,9 @@ class HistogramItem(ShaderItem):
                     pass
                     # personal time todo: per-channel RGB histogram support
 
+    def hoverLeaveEvent(self, event):
+        self.scene().clear_mouseover_info(self)
+
     def on_image_changing(self, image):
         if (self.image is None) != (image is not None) or \
            self.image is not None and image is not None and self.image.histogram.shape[-1] != image.histogram.shape[-1]:
@@ -289,6 +292,10 @@ class PropItem(Qt.QGraphicsObject):
 
     def boundingRect(self):
         return self._bounding_rect
+
+    def mouseReleaseEvent(self, event):
+        super().mouseReleaseEvent(event)
+        self.scene().clear_mouseover_info(self)
 
 class MinMaxItem(PropItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()

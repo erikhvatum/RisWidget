@@ -27,10 +27,9 @@ from .gl_resources import GL
 import math
 import numpy
 from PyQt5 import Qt
-from .shader_scene import ShaderScene, ShaderItem, ShaderTexture, UNIQUE_QGRAPHICSITEM_TYPE
+from .shader_scene import ShaderScene, ShaderItem, ShaderQOpenGLTexture, UNIQUE_QGRAPHICSITEM_TYPE
 from .shader_view import ShaderView
 import sys
-import time
 
 class ImageScene(ShaderScene):
     def __init__(self, parent):
@@ -62,21 +61,20 @@ class ImageScene(ShaderScene):
 
 class ImageItem(ShaderItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
-    NUMPY_DTYPE_TO_GL_PIXEL_DATA_TYPE_STR = {
-        numpy.uint8  : 'GL_UNSIGNED_BYTE',
-        numpy.uint16 : 'GL_UNSIGNED_SHORT',
-        numpy.uint32 : 'GL_UNSIGNED_INT',
-        numpy.float32: 'GL_FLOAT'}
-    NUMPY_DTYPE_TO_GL_INTERNAL_FORMAT_TYPE_STR = {
-        numpy.uint8  : '8UI_EXT',
-        numpy.uint16 : '16UI_EXT',
-        numpy.uint32 : '32UI_EXT',
-        numpy.float32: ''}
-    IMAGE_TYPE_TO_GL_FORMAT_NAME_STR = {
-        'g'   : 'LUMINANCE',
-        'ga'  : 'LUMINANCE_ALPHA',
-        'rgb' : 'RGB',
-        'rgba': 'RGBA'}
+    NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
+        numpy.uint8  : Qt.QOpenGLTexture.UInt8,
+        numpy.uint16 : Qt.QOpenGLTexture.UInt16,
+        numpy.float32: Qt.QOpenGLTexture.Float32}
+    IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT = {
+        'g'   : Qt.QOpenGLTexture.R32F,
+        'ga'  : Qt.QOpenGLTexture.RG32F,
+        'rgb' : Qt.QOpenGLTexture.RGB32F,
+        'rgba': Qt.QOpenGLTexture.RGBA32F}
+    IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT = {
+        'g'   : Qt.QOpenGLTexture.Red,
+        'ga'  : Qt.QOpenGLTexture.RG,
+        'rgb' : Qt.QOpenGLTexture.RGB,
+        'rgba': Qt.QOpenGLTexture.RGBA}
     IMAGE_TYPE_TO_COMBINE_VT_COMPONENTS = {
         'g'   : 'vec4(vcomponents, vcomponents, vcomponents, 1.0f)',
         'ga'  : 'vec4(vcomponents, vcomponents, vcomponents, tcomponents.a)',
@@ -109,25 +107,13 @@ class ImageItem(ShaderItem):
                     vrs = self.view_resources[view]
                 else:
                     self.view_resources[view] = vrs = {}
-                tex_format_name_str = ImageItem.IMAGE_TYPE_TO_GL_FORMAT_NAME_STR[image.type]
-                tex_internal_format_type_str = ImageItem.NUMPY_DTYPE_TO_GL_INTERNAL_FORMAT_TYPE_STR[image.dtype]
-                tex_internal_format = getattr(gl, 'GL_{}{}'.format(tex_format_name_str, tex_internal_format_type_str))
-                shader_desc = '{}_{}_{}'.format(image.type, tex_format_name_str, tex_internal_format_type_str)
                 if 'progs' in vrs:
                     progs = vrs['progs']
                 else:
                     progs = vrs['progs'] = {}
-                if shader_desc in progs:
-                    prog = progs[shader_desc]
+                if image.type in progs:
+                    prog = progs[image.type]
                 else:
-                    if image.dtype == numpy.float32:
-                        sampler_t = 'sampler2D'
-                        raw_tcomponents_t = 'vec4'
-                        raw_tcomponents_to_tcomponents = 'raw_tcomponents'
-                    else:
-                        sampler_t = 'usampler2D'
-                        raw_tcomponents_t = 'uvec4'
-                        raw_tcomponents_to_tcomponents = 'vec4(raw_tcomponents)'
                     if image.is_grayscale:
                         vcomponents_t = 'float'
                         extract_vcomponents = 'tcomponents.r'
@@ -136,63 +122,48 @@ class ImageItem(ShaderItem):
                         vcomponents_t = 'vec3'
                         extract_vcomponents = 'tcomponents.rgb'
                         vcomponents_ones_vector = 'vec3(1.0f, 1.0f, 1.0f)'
-                    self.build_shader_prog(shader_desc,
+                    self.build_shader_prog(image.type,
                                            'image_widget_vertex_shader.glsl',
                                            'image_widget_fragment_shader_template.glsl',
                                            view,
-                                           sampler_t=sampler_t,
-                                           raw_tcomponents_t=raw_tcomponents_t,
-                                           raw_tcomponents_to_tcomponents=raw_tcomponents_to_tcomponents,
                                            vcomponents_t=vcomponents_t,
                                            extract_vcomponents=extract_vcomponents,
                                            vcomponents_ones_vector=vcomponents_ones_vector,
                                            combine_vt_components=ImageItem.IMAGE_TYPE_TO_COMBINE_VT_COMPONENTS[image.type])
-                    prog = progs[shader_desc]
+                    prog = progs[image.type]
                 prog.bind()
                 stack.callback(prog.release)
+                desired_texture_format = ImageItem.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[image.type]
                 if 'tex' in vrs:
                     tex = vrs['tex']
-                    if tex.size != image.size or tex.internal_format != tex_internal_format:
+                    if image.size != Qt.QSize(tex.width(), tex.height()) or tex.format() != desired_texture_format:
                         tex.destroy()
                         del vrs['tex']
                 if 'tex' not in vrs:
-                    tex = ShaderTexture(gl.GL_TEXTURE_2D)
-                    tex.bind()
-                    stack.callback(tex.release)
-                    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_CLAMP_TO_EDGE)
-                    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE)
-                    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
-                    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
+                    tex = ShaderQOpenGLTexture(Qt.QOpenGLTexture.Target2D)
+                    tex.setFormat(desired_texture_format)
+                    tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
+                    tex.setMipLevels(1)
+                    tex.setAutoMipMapGenerationEnabled(False)
+                    tex.setSize(image.size.width(), image.size.height(), 1)
+                    tex.allocateStorage()
+                    tex.setMinMagFilters(Qt.QOpenGLTexture.Linear, Qt.QOpenGLTexture.Nearest)
                     tex.image_id = -1
-                    tex.size = None
-                    vrs['tex'] = tex
-                else:
-                    tex.bind()
-                    stack.callback(tex.release)
+                tex.bind()
+                stack.callback(tex.release)
                 if tex.image_id != self._image_id:
-                    orig_unpack_alignment = gl.glGetIntegerv(gl.GL_UNPACK_ALIGNMENT)
-                    if orig_unpack_alignment != 1:
-                        gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
-                        # QPainter font rendering for OpenGL surfaces will become broken if we do not restore GL_UNPACK_ALIGNMENT
-                        # to whatever QPainter had it set to (when it prepared the OpenGL context for our use as a result of
-                        # qpainter.beginNativePainting()).
-                        stack.callback(lambda oua=orig_unpack_alignment: gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, oua))
-                    src_format_str = 'GL_' + tex_format_name_str
-                    if image.type != numpy.float32:
-                        src_format_str += '_INTEGER_EXT'
-                    src_format = getattr(gl, src_format_str)
-                    src_gl_data_type = getattr(gl, ImageItem.NUMPY_DTYPE_TO_GL_PIXEL_DATA_TYPE_STR[image.dtype])
-                    t0=time.time()
-                    gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, tex_internal_format,
-                                    image.size.width(), image.size.height(), 0,
-                                    src_format,
-                                    src_gl_data_type,
-                                    image.data.ravel(order='K').data)
-                    t1=time.time()
-                    print('{}ms / {}fps'.format(1000*(t1-t0), 1/(t1-t0)))
-                    tex.internal_format = tex_internal_format
-                    tex.size = image.size
+#                   import time
+#                   t0=time.time()
+                    pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
+                    pixel_transfer_opts.setAlignment(1)
+                    tex.setData(ImageItem.IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT[image.type],
+                                ImageItem.NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[image.dtype],
+                                image.data.ctypes.data,
+                                pixel_transfer_opts)
+#                   t1=time.time()
+#                   print('{}ms / {}fps'.format(1000*(t1-t0), 1/(t1-t0)))
                     tex.image_id = self._image_id
+                    vrs['tex'] = tex
                 view.quad_buffer.bind()
                 stack.callback(view.quad_buffer.release)
                 view.quad_vao.bind()
@@ -263,13 +234,3 @@ class ImageItem(ShaderItem):
            self.image is not None and (image is None or self.image.size != image.size):
             self.prepareGeometryChange()
         super().on_image_changing(image)
-
-    def free_shader_view_resources(self, shader_view):
-        # TODO: replace QOpenGLTexture usage with luminance-extension-format-supporting ShaderTexture and eliminate this
-        # override
-        if shader_view in self.view_resources:
-            vrs = self.view_resources[shader_view]
-            if 'tex' in vrs:
-                vrs['tex'][0].destroy()
-                del vrs['tex']
-        super().free_shader_view_resources(shader_view)

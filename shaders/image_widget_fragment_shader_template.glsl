@@ -25,7 +25,7 @@
 // 
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-uniform $sampler_t tex;
+uniform sampler2D tex;
 // 2D homogeneous transformation matrix for transforming gl_FragCoord viewport coordinates into image texture
 // coordinates
 uniform mat3 frag_to_tex;
@@ -33,12 +33,6 @@ uniform $vcomponents_t vcomponent_rescale_mins;
 uniform $vcomponents_t vcomponent_rescale_ranges;
 uniform $vcomponents_t gammas;
 uniform float viewport_height;
-
-// Convert uvec4 or vec4 returned by texture2D to vec4
-vec4 raw_tcomponents_to_tcomponents($raw_tcomponents_t raw_tcomponents)
-{
-    return $raw_tcomponents_to_tcomponents;
-}
 
 $vcomponents_t extract_vcomponents(vec4 tcomponents)
 {
@@ -72,11 +66,8 @@ void main()
         discard;
     }
 
-    $raw_tcomponents_t raw_tcomponents = texture2D(tex, tex_coord);
-    /*vec4 tcomponents = raw_tcomponents_to_tcomponents(raw_tcomponents);
+    vec4 tcomponents = texture2D(tex, tex_coord);
     $vcomponents_t transformed_vcomponents = transform_vcomponents(extract_vcomponents(tcomponents));
 
-    gl_FragColor = combine_vt_components(transformed_vcomponents, tcomponents);*/
-    float c = float(raw_tcomponents.r)/65535.0f;
-    gl_FragColor = vec4(c,c,c,1.0f);
+    gl_FragColor = combine_vt_components(transformed_vcomponents, tcomponents);
 }

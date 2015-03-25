@@ -93,15 +93,6 @@ class ShaderView(Qt.QGraphicsView):
         self.overlay_scene.setSceneRect(0, 0, size.width(), size.height())
         self.resized.emit(size)
 
-    # Show mouseover info supplied by shader scene in the overlay of only the view containing the mouse cursor
-    def enterEvent(self, event):
-        super().enterEvent(event)
-        self.overlay_scene.mouseover_text_item.show()
-
-    def leaveEvent(self, event):
-        super().leaveEvent(event)
-        self.overlay_scene.mouseover_text_item.hide()
-
     def drawBackground(self, p, rect):
         p.beginNativePainting()
         gl = GL()

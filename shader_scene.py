@@ -152,3 +152,9 @@ class ShaderTexture:
     def destroy(self):
         GL().glDeleteTextures(1, (self.texture_id,))
         del self.texture_id
+
+class ShaderQOpenGLTexture(Qt.QOpenGLTexture):
+    """ShaderQOpenGLTexture replaces QOpenGLTexture's release function with one that does not require an
+    argument, simplifying the implementation of ShaderItem.free_shader_view_resources."""
+    def release(self):
+        super().release(0)
