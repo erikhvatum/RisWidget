@@ -72,7 +72,16 @@ def UNIQUE_QGRAPHICSITEM_TYPE():
     _NEXT_QGRAPHICSITEM_USERTYPE += 1
     return ret
 
-class MouseoverTextItem(Qt.QGraphicsTextItem):
+class VisibleInShaderViewOnlyItemMixin:
+    def paint(self, qpainter, option, widget):
+        # Qt supplies our ShaderView's viewport (a _ShaderViewGLViewport) for the widget argument,
+        # requiring us to check whether the widget's view attribute matches self.shader_view, rather than
+        # comparing widget to self.shader.
+        if hasattr(widget, 'view') and widget.view is self.shader_view:
+            super().paint(qpainter, option, widget)
+
+class MouseoverTextItem(VisibleInShaderViewOnlyItemMixin, Qt.QGraphicsTextItem):
+    QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
     """Visible only in self.shader_view, as opposed to all views attached to the scene containing
     this item.  This allows mouseover info text to be visible only in the active view even when there
     are multiple viewports into the same scene."""
@@ -82,12 +91,8 @@ class MouseoverTextItem(Qt.QGraphicsTextItem):
         self.shader_view = shader_view
         self.setFlag(Qt.QGraphicsItem.ItemIgnoresTransformations)
 
-    def paint(self, qpainter, option, widget):
-        # Qt supplies our ShaderView's viewport (a _ShaderViewGLViewport) for the widget argument,
-        # requiring us to check whether the widget's view attribute matches self.shader_view, rather than
-        # comparing widget to self.shader.
-        if hasattr(widget, 'view') and widget.view is self.shader_view:
-            super().paint(qpainter, option, widget)
+    def type(self):
+        return MouseoverTextItem.QGRAPHICSITEM_TYPE
 
     def on_shader_view_scene_rect_changed(self):
         """Maintain position at top left corner of self.shader_view."""

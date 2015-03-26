@@ -41,18 +41,17 @@ class HistogramView(ShaderView):
 
     def __init__(self, shader_scene, parent):
         super().__init__(shader_scene, parent)
-        self.resized.connect(self.on_resized)
 #       self.add_overlay_min_max_arrow_items()
 
-    def add_mouseover_info_item(self):
-        super().add_mouseover_info_item()
-        # HistogramView always displays the same region of the scene (the unit square) regardless of
-        # view size.
-        self.resized.disconnect(self.mouseover_text_item.on_shader_view_scene_rect_changed)
-
-    def on_resized(self, size):
+    def on_resize(self, size):
         self.resetTransform()
         self.scale(size.width(), size.height())
+
+    def on_resize_done(self, size):
+        """HistogramView always displays the same region of the scene (the unit square) regardless of
+        view size, so there is no need for our base class's implementation of this function to
+        emit scene_view_rect_changed."""
+        pass
 
 #   def add_overlay_min_max_arrow_items(self):
 #       pen = Qt.QPen(Qt.QColor(Qt.Qt.transparent))

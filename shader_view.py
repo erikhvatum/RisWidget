@@ -28,7 +28,6 @@ import numpy
 from PyQt5 import Qt
 
 class ShaderView(Qt.QGraphicsView):
-    resized = Qt.pyqtSignal(Qt.QSize)
     # scene_view_rect_changed is emitted immediately after the boundries of the scene region framed
     # by the view rect change (including the portions of the scene extending beyond the ImageItem,
     # in the case where the view is larger than the ImageItem given the current zoom level).  Item
@@ -61,7 +60,6 @@ class ShaderView(Qt.QGraphicsView):
         self.mouseover_text_item.setDefaultTextColor(c)
         scene.update_mouseover_info_signal.connect(self.on_update_mouseover_info)
         self.scene_view_rect_changed.connect(self.mouseover_text_item.on_shader_view_scene_rect_changed)
-        self.resized.connect(self.mouseover_text_item.on_shader_view_scene_rect_changed)
 
     def on_update_mouseover_info(self, string, is_html):
         if is_html:
@@ -114,7 +112,7 @@ class ShaderView(Qt.QGraphicsView):
         super().scrollContentsBy(dx, dy)
         # In the case of scrollContentsBy(..) execution in response to view resize, self.resizeEvent(..)
         # has not yet had a chance to do its thing, meaning that self.transform() may differ from
-        # the value obtained during painting.  However, self.resizeEvent(..) also emits
+        # the value obtained during painting.  However, self.on_resize_done(..) also emits
         # scene_view_rect_changed, at which point self.transform() does return the correct value.
         # Both happen during the same event loop iteration, and no repaint will occur until the next
         # iteration, so any incorrect position possibly set in response to scene_view_rect_change emission
@@ -125,7 +123,18 @@ class ShaderView(Qt.QGraphicsView):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self.resized.emit(event.size())
+        size = event.size()
+        self.on_resize(size)
+        self.on_resize_done(size)
+
+    def on_resize(self, size):
+        """Adjust view transform in response to view resize."""
+        pass
+
+    def on_resize_done(self, size):
+        """Adjust scene contents in response to modification of view transform that occurred as a result
+        of view resize."""
+        self.scene_view_rect_changed.emit()
 
     def drawBackground(self, p, rect):
         p.beginNativePainting()

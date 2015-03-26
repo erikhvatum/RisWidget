@@ -400,6 +400,8 @@ class MinMaxItem(PropItem):
                 self._ignore_x_change = False
             self.value_changed.emit(self.scene(), value)
 
+#class MinMaxArrowItem(Qt.QGraphics:
+
 class GammaItem(PropItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
     RANGE = (0.0625, 16.0)

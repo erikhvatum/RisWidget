@@ -42,13 +42,12 @@ class ImageView(ShaderView):
         self._custom_zoom = 0
         self._zoom_to_fit = False
         self.setDragMode(Qt.QGraphicsView.ScrollHandDrag)
-        self.resized.connect(self.on_resized)
 
     def on_image_changing(self, image):
         if self._zoom_to_fit:
             self.fitInView(self.scene().image_item, Qt.Qt.KeepAspectRatio)
 
-    def on_resized(self, size):
+    def on_resize(self, size):
         if self._zoom_to_fit:
             self.fitInView(self.scene().image_item, Qt.Qt.KeepAspectRatio)
 
