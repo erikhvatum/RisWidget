@@ -29,6 +29,12 @@ from PyQt5 import Qt
 
 class ShaderView(Qt.QGraphicsView):
     resized = Qt.pyqtSignal(Qt.QSize)
+    # scene_view_rect_changed is emitted immediately after the boundries of the scene region framed
+    # by the view rect change (including the portions of the scene extending beyond the ImageItem,
+    # in the case where the view is larger than the ImageItem given the current zoom level).  Item
+    # view coordinates may be held constant by updating item scene position in response to this
+    # signal (in the case of shader_scene.MouseoverTextItem, for example).
+    scene_view_rect_changed = Qt.pyqtSignal()
 
     def __init__(self, shader_scene, parent):
         super().__init__(shader_scene, parent)
@@ -47,12 +53,14 @@ class ShaderView(Qt.QGraphicsView):
         f.setKerning(False)
         f.setStyleHint(Qt.QFont.Monospace, Qt.QFont.OpenGLCompatible | Qt.QFont.PreferQuality)
         self.mouseover_text_item = MouseoverTextItem(self)
-        self.scene().addItem(self.mouseover_text_item)
+        scene = self.scene()
+        scene.addItem(self.mouseover_text_item)
         self.mouseover_text_item.setFont(f)
         c = Qt.QColor(Qt.Qt.green)
         c.setAlphaF(.75)
         self.mouseover_text_item.setDefaultTextColor(c)
-        self.scene().update_mouseover_info_signal.connect(self.on_update_mouseover_info)
+        scene.update_mouseover_info_signal.connect(self.on_update_mouseover_info)
+        self.scene_view_rect_changed.connect(self.mouseover_text_item.on_shader_view_scene_rect_changed)
 
     def on_update_mouseover_info(self, string, is_html):
         if is_html:

@@ -104,6 +104,10 @@ class ImageView(ShaderView):
             self.setTransformationAnchor(Qt.QGraphicsView.AnchorViewCenter)
             self.zoom_changed.emit(self._zoom_preset_idx, self._custom_zoom)
 
+    def scrollContentsBy(self, dx, dy):
+        super().scrollContentsBy(dx, dy)
+        self.scene_view_rect_changed.emit()
+
     @property
     def zoom_to_fit(self):
         return self._zoom_to_fit

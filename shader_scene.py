@@ -89,6 +89,12 @@ class MouseoverTextItem(Qt.QGraphicsTextItem):
         if hasattr(widget, 'view') and widget.view is self.shader_view:
             super().paint(qpainter, option, widget)
 
+    def on_shader_view_scene_rect_changed(self):
+        """Maintain position at top left corner of self.shader_view."""
+        topleft = Qt.QPoint()
+        if self.shader_view.mapFromScene(self.pos()) != topleft:
+            self.setPos(self.shader_view.mapToScene(topleft))
+
 class ShaderItem(Qt.QGraphicsItem):
     def __init__(self, parent_item=None):
         super().__init__(parent_item)
