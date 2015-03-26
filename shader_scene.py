@@ -22,7 +22,7 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from .gl_resources import GL
+from .shared_resources import GL, UNIQUE_QGRAPHICSITEM_TYPE
 from pathlib import Path
 from PyQt5 import Qt
 from string import Template
@@ -55,22 +55,6 @@ class ShaderScene(Qt.QGraphicsScene):
         else:
             self.requester_of_current_nonempty_mouseover_info = requester
             self.update_mouseover_info_signal.emit(string, is_html)
-
-_NEXT_QGRAPHICSITEM_USERTYPE = Qt.QGraphicsItem.UserType + 1
-
-def UNIQUE_QGRAPHICSITEM_TYPE():
-    """Returns a value to return from QGraphicsItem.type() overrides (which help
-    Qt and PyQt return objects of the right type from any call returning QGraphicsItem
-    references; for details see http://www.riverbankcomputing.com/pipermail/pyqt/2015-January/035302.html
-    and https://bugreports.qt.io/browse/QTBUG-45064)
-
-    This function will not return the same value twice and should be
-    used to generate type values for all custom item classes that may
-    have instances in the same scene."""
-    global _NEXT_QGRAPHICSITEM_USERTYPE
-    ret = _NEXT_QGRAPHICSITEM_USERTYPE
-    _NEXT_QGRAPHICSITEM_USERTYPE += 1
-    return ret
 
 class VisibleInShaderViewOnlyItemMixin:
     def paint(self, qpainter, option, widget):

@@ -26,6 +26,22 @@ import numpy
 from PyQt5 import Qt
 import sys
 
+_NEXT_QGRAPHICSITEM_USERTYPE = Qt.QGraphicsItem.UserType + 1
+
+def UNIQUE_QGRAPHICSITEM_TYPE():
+    """Returns a value to return from QGraphicsItem.type() overrides (which help
+    Qt and PyQt return objects of the right type from any call returning QGraphicsItem
+    references; for details see http://www.riverbankcomputing.com/pipermail/pyqt/2015-January/035302.html
+    and https://bugreports.qt.io/browse/QTBUG-45064)
+
+    This function will not return the same value twice and should be
+    used to generate type values for all custom item classes that may
+    have instances in the same scene."""
+    global _NEXT_QGRAPHICSITEM_USERTYPE
+    ret = _NEXT_QGRAPHICSITEM_USERTYPE
+    _NEXT_QGRAPHICSITEM_USERTYPE += 1
+    return ret
+
 _GL_QSURFACE_FORMAT = None
 
 def GL_QSURFACE_FORMAT():

@@ -22,7 +22,7 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from .gl_resources import GL_QSURFACE_FORMAT, GL
+from .shared_resources import GL_QSURFACE_FORMAT, GL
 from .shader_scene import MouseoverTextItem
 import numpy
 from PyQt5 import Qt

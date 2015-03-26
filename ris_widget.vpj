@@ -212,7 +212,6 @@
 		</Folder>
 		<F N="__init__.py"/>
 		<F N="_qt_debug.py"/>
-		<F N="gl_resources.py"/>
 		<F N="histogram_scene.py"/>
 		<F N="histogram_view.py"/>
 		<F N="image.py"/>
@@ -227,5 +226,6 @@
 		<F N="shader_scene.py"/>
 		<F N="shader_view.py"/>
 		<F N="shader_view_overlay_scene.py"/>
+		<F N="shared_resources.py"/>
 	</Files>
 </Project>

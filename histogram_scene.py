@@ -23,11 +23,11 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from contextlib import ExitStack
-from .gl_resources import GL
+from .shared_resources import GL, UNIQUE_QGRAPHICSITEM_TYPE
 import math
 import numpy
 from PyQt5 import Qt
-from .shader_scene import ShaderItem, ShaderScene, ShaderTexture, UNIQUE_QGRAPHICSITEM_TYPE
+from .shader_scene import ShaderItem, ShaderScene, ShaderTexture
 import sys
 
 class ItemProp:
