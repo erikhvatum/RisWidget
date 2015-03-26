@@ -37,6 +37,7 @@ class ShaderView(Qt.QGraphicsView):
 
     def __init__(self, shader_scene, parent):
         super().__init__(shader_scene, parent)
+        self.view_items = []
         self.setMouseTracking(True)
         glw = _ShaderViewGLViewport(self)
         # It seems necessary to retain this reference.  It is available via self.viewport() after
@@ -52,8 +53,11 @@ class ShaderView(Qt.QGraphicsView):
         f.setKerning(False)
         f.setStyleHint(Qt.QFont.Monospace, Qt.QFont.OpenGLCompatible | Qt.QFont.PreferQuality)
         self.mouseover_text_item = MouseoverTextItem(self)
+        self.mouseover_text_item.setAcceptHoverEvents(False)
+        self.mouseover_text_item.setAcceptedMouseButtons(Qt.Qt.NoButton)
         scene = self.scene()
         scene.addItem(self.mouseover_text_item)
+        self.view_items.append(self.mouseover_text_item)
         self.mouseover_text_item.setFont(f)
         c = Qt.QColor(Qt.Qt.green)
         c.setAlphaF(.75)
@@ -69,14 +73,17 @@ class ShaderView(Qt.QGraphicsView):
 
     def _free_shader_view_resources(self):
         """Delete, release, or otherwise destroy GL resources associated with this ShaderView instance."""
-        if self.scene() is not None:
+        scene = self.scene()
+        if scene is not None:
+            for view_item in self.view_items:
+                scene.removeItem(view_item)
             viewport = self.viewport()
             if viewport is not None and viewport.context() is not None and viewport.context().isValid():
                 viewport.makeCurrent()
                 try:
                     self.quad_vao.destroy()
                     self.quad_buffer.destroy()
-                    for item in self.scene().items():
+                    for item in scene.items():
                         if issubclass(type(item), CanvasGLItem):
                             item.free_shader_view_resources(self)
                 finally:
@@ -132,8 +139,7 @@ class ShaderView(Qt.QGraphicsView):
         pass
 
     def on_resize_done(self, size):
-        """Adjust scene contents in response to modification of view transform that occurred as a result
-        of view resize."""
+        """Adjust scene contents in response to modification of view transform caused by view resize."""
         self.scene_view_rect_changed.emit()
 
     def drawBackground(self, p, rect):

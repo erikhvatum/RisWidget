@@ -225,7 +225,6 @@
 		<F N="setup.py"/>
 		<F N="shader_scene.py"/>
 		<F N="shader_view.py"/>
-		<F N="shader_view_overlay_scene.py"/>
 		<F N="shared_resources.py"/>
 	</Files>
 </Project>

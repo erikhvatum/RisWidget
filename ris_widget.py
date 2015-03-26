@@ -185,8 +185,11 @@ class RisWidget(Qt.QMainWindow):
             self._image_view_zoom_combo.lineEdit().selectAll()
 
     def _on_reset_min_max(self):
-        self.histogram_scene.get_prop_item('min').setX(0)
-        self.histogram_scene.get_prop_item('max').setX(1)
+        if self._image is None:
+            self.histogram_scene.min = 0
+            self.histogram_scene.max = 1
+        else:
+            self.histogram_scene.min, self.histogram_scene.max = self._image.range
 
     def _on_reset_gamma(self):
         self.histogram_scene.gamma = 1

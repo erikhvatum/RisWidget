@@ -22,8 +22,9 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from PyQt5 import Qt
+from .histogram_scene import MinMaxArrowItem
 from .shader_view import ShaderView
+from PyQt5 import Qt
 
 class HistogramView(ShaderView):
     @classmethod
@@ -41,7 +42,7 @@ class HistogramView(ShaderView):
 
     def __init__(self, shader_scene, parent):
         super().__init__(shader_scene, parent)
-#       self.add_overlay_min_max_arrow_items()
+        self.add_min_max_arrow_items()
 
     def on_resize(self, size):
         self.resetTransform()
@@ -50,34 +51,18 @@ class HistogramView(ShaderView):
     def on_resize_done(self, size):
         """HistogramView always displays the same region of the scene (the unit square) regardless of
         view size, so there is no need for our base class's implementation of this function to
-        emit scene_view_rect_changed."""
+        emit scene_view_rect_changed.  For this reason, this override does not call super().on_resize_done(..)."""
         pass
 
-#   def add_overlay_min_max_arrow_items(self):
-#       pen = Qt.QPen(Qt.QColor(Qt.Qt.transparent))
-#       color = Qt.QColor(Qt.Qt.red)
-#       color.setAlphaF(0.5)
-#       brush = Qt.QBrush(color)
-#       histogram_scene = self.scene()
-#
-#       polygon = Qt.QPolygonF((Qt.QPointF(0.5, -10), Qt.QPointF(6, 0), Qt.QPointF(0.5, 10)))
-#       self.overlay_min_arrow_item = self.overlay_scene.addPolygon(polygon, pen, brush)
-#       min_max_item = histogram_scene.get_prop_item('min')
-#       min_max_item.xChanged.connect(lambda min_max_item=min_max_item: \
-#                                            self.update_min_max_arrow_item_pos(self.overlay_min_arrow_item, min_max_item))
-#       self.resized.connect(lambda _,
-#                                   min_max_item=min_max_item: \
-#                                   self.update_min_max_arrow_item_pos(self.overlay_min_arrow_item, min_max_item))
-#
-#       polygon = Qt.QPolygonF((Qt.QPointF(-0.5, -10), Qt.QPointF(-6, 0), Qt.QPointF(-0.5, 10)))
-#       self.overlay_max_arrow_item = self.overlay_scene.addPolygon(polygon, pen, brush)
-#       min_max_item = histogram_scene.get_prop_item('max')
-#       min_max_item.xChanged.connect(lambda min_max_item=min_max_item: \
-#                                            self.update_min_max_arrow_item_pos(self.overlay_max_arrow_item, min_max_item))
-#       self.resized.connect(lambda _,
-#                                   min_max_item=min_max_item: \
-#                                   self.update_min_max_arrow_item_pos(self.overlay_max_arrow_item, min_max_item))
-#
-#   def update_min_max_arrow_item_pos(self, overlay_min_max_arrow_item, min_max_item):
-#       view_size = self.viewport().size()
-#       overlay_min_max_arrow_item.setPos(min_max_item.x() * view_size.width(), view_size.height() / 2)
+    def add_min_max_arrow_items(self):
+        histogram_scene = self.scene()
+
+        polygonf = Qt.QPolygonF((Qt.QPointF(0.5, -10), Qt.QPointF(6, 0), Qt.QPointF(0.5, 10)))
+        self.min_arrow_item = MinMaxArrowItem(self, polygonf, histogram_scene.get_prop_item('min'))
+        histogram_scene.addItem(self.min_arrow_item)
+        self.view_items.append(self.min_arrow_item)
+
+        polygonf = Qt.QPolygonF((Qt.QPointF(-0.5, -10), Qt.QPointF(-6, 0), Qt.QPointF(-0.5, 10)))
+        self.max_arrow_item = MinMaxArrowItem(self, polygonf, histogram_scene.get_prop_item('max'))
+        histogram_scene.addItem(self.max_arrow_item)
+        self.view_items.append(self.max_arrow_item)

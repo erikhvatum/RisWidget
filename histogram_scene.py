@@ -303,40 +303,9 @@ class MinMaxItem(PropItem):
     def __init__(self, histogram_item, prop_full_name, prop_full_name_in_label):
         super().__init__(histogram_item, prop_full_name, prop_full_name_in_label)
         self._bounding_rect = Qt.QRectF(-0.1, 0, .2, 1)
-        self._ignore_x_change = False
-        self.xChanged.connect(self.on_x_changed)
-        self.yChanged.connect(self.on_y_changed)
-        self.setFlag(Qt.QGraphicsItem.ItemIsMovable, True)
-        # GUI behavior is much more predictable with min/max item selectability disabled:
-        # With ItemIsSelectable enabled, min/max items can exhibit some very unexpected behaviors, as we
-        # do not do anything differently in our paint function if the item is selected vs not, making
-        # it unlikely one would realize one or more items are selected.  If multiple items are selected,
-        # they will move together when one is dragged.  Additionally, arrow key presses would move
-        # selected items if their viewport has focus (viewport focus is also not indicated).
-        # Items are non-selectable by default; the following line is present only to make intent clear.
-        #self.setFlag(Qt.QGraphicsItem.ItemIsSelectable, False)
 
     def type(self):
         return MinMaxItem.QGRAPHICSITEM_TYPE
-
-    def mousePressEvent(self, event):
-        super().mousePressEvent(event)
-        self.scene().update_mouseover_info('{}: {}'.format(self.prop_full_name_in_label, self.value), False, self)
-
-    def on_x_changed(self):
-        if not self._ignore_x_change:
-            x = self.x()
-            if x < 0:
-                self.setX(0)
-            elif x > 1:
-                self.setX(1)
-            else:
-                self.scene().update_mouseover_info('{}: {}'.format(self.prop_full_name_in_label, self.value), False, self)
-                self.value_changed.emit(self.scene(), self.x_to_value(x))
-
-    def on_y_changed(self):
-        if self.y() != 0:
-            self.setY(0)
 
     def paint(self, qpainter, option, widget):
         c = Qt.QColor(Qt.Qt.red)
@@ -393,14 +362,77 @@ class MinMaxItem(PropItem):
             x_to_value = self.x_to_value
             raise ValueError('MinMaxItem.value must be in the range [{}, {}].'.format(x_to_value(0), x_to_value(1)))
         if x != self.x():
-            self._ignore_x_change = True
-            try:
-                self.setX(x)
-            finally:
-                self._ignore_x_change = False
+            self.setX(x)
+            self.scene().update_mouseover_info('{}: {}'.format(self.prop_full_name_in_label, self.value), False, self)
             self.value_changed.emit(self.scene(), value)
 
-#class MinMaxArrowItem(Qt.QGraphics:
+class MinMaxArrowItem(Qt.QGraphicsObject):
+    QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
+
+    def __init__(self, shader_view, polygonf, min_max_item, parent_item=None):
+        super().__init__(parent_item)
+        self.shader_view = shader_view
+        self.min_max_item = min_max_item
+        self._path = Qt.QPainterPath()
+        self._path.addPolygon(polygonf)
+        self._path.closeSubpath()
+        self._bounding_rect = self._path.boundingRect()
+        self.pen = Qt.QPen(Qt.QColor(Qt.Qt.transparent))
+        color = Qt.QColor(Qt.Qt.red)
+        color.setAlphaF(0.5)
+        self.brush = Qt.QBrush(color)
+        self.setFlag(Qt.QGraphicsItem.ItemIgnoresTransformations)
+        self.setFlag(Qt.QGraphicsItem.ItemIsMovable)
+        # GUI behavior is much more predictable with min/max item selectability disabled:
+        # With ItemIsSelectable enabled, min/max items can exhibit some very unexpected behaviors, as we
+        # do not do anything differently in our paint function if the item is selected vs not, making
+        # it unlikely one would realize one or more items are selected.  If multiple items are selected,
+        # they will move together when one is dragged.  Additionally, arrow key presses would move
+        # selected items if their viewport has focus (viewport focus is also not indicated).
+        # Items are non-selectable by default; the following line is present only to make intent clear.
+        #self.setFlag(Qt.QGraphicsItem.ItemIsSelectable, False)
+        self._ignore_x_change = False
+        self.setPos(min_max_item.x(), 0.5)
+        self.xChanged.connect(self.on_x_changed)
+        self.yChanged.connect(self.on_y_changed)
+        min_max_item.value_changed.connect(self.on_min_max_value_changed)
+
+    def type(self):
+        return MinMaxArrowItem.QGRAPHICSITEM_TYPE
+
+    def boundingRect(self):
+        return self._bounding_rect
+
+    def shape(self):
+        return self._path
+
+    def paint(self, qpainter, option, widget):
+        if hasattr(widget, 'view') and widget.view is self.shader_view:
+            qpainter.setPen(self.pen)
+            qpainter.setBrush(self.brush)
+            qpainter.drawPath(self._path)
+
+    def on_x_changed(self):
+        x = self.x()
+        if x < 0:
+            self.setX(0)
+        elif x > 1:
+            self.setX(1)
+        else:
+            self.min_max_item.value = self.min_max_item.x_to_value(x)
+
+    def on_y_changed(self):
+        if self.y() != 0.5:
+            self.setY(0.5)
+
+    def mousePressEvent(self, event):
+        super().mousePressEvent(event)
+        self.scene().update_mouseover_info('{}: {}'.format(self.min_max_item.prop_full_name_in_label, self.min_max_item.value), False, self)
+
+    def on_min_max_value_changed(self):
+        desired_x = self.min_max_item.x()
+        if self.x() != desired_x:
+            self.setX(desired_x)
 
 class GammaItem(PropItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
@@ -413,8 +445,8 @@ class GammaItem(PropItem):
         self._bounding_rect = Qt.QRectF(0, 0, 1, 1)
         self._value = None
         self._path = Qt.QPainterPath()
-        self.setFlag(Qt.QGraphicsItem.ItemIsMovable, True)
-        self.setZValue(1)
+        self.setFlag(Qt.QGraphicsItem.ItemIsMovable)
+        self.setZValue(-1)
         # This is a convenient way to ensure that only primary mouse button clicks cause
         # invocation of mouseMoveEvent(..).  Without this, it would be necessary to
         # override mousePressEvent(..) and check which buttons are down, in addition to
