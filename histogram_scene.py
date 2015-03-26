@@ -276,9 +276,6 @@ class HistogramItem(ShaderItem):
         self.scene().clear_mouseover_info(self)
 
     def on_image_changing(self, image):
-        if (self.image is None) != (image is not None) or \
-           self.image is not None and image is not None and self.image.histogram.shape[-1] != image.histogram.shape[-1]:
-            self.prepareGeometryChange()
         super().on_image_changing(image)
 
 class PropItem(Qt.QGraphicsObject):
@@ -325,15 +322,14 @@ class MinMaxItem(PropItem):
                 return x
         else:
             image = scene.histogram_item.image
-            bin_count = image.histogram.shape[-1]
             range_ = image.range
-            bin_width = (range_[1] - range_[0]) / bin_count
+            range_width = range_[1] - range_[0]
             if image.dtype == numpy.float32:
                 def _x_to_value(x):
-                    return range_[0] + int(x*bin_count)*bin_width
+                    return range_[0] + x*range_width
             else:
                 def _x_to_value(x):
-                    return math.ceil(int(x*bin_count)*bin_width)
+                    return range_[0] + int(x*range_width)
         return _x_to_value
 
     @property
@@ -363,7 +359,6 @@ class MinMaxItem(PropItem):
             raise ValueError('MinMaxItem.value must be in the range [{}, {}].'.format(x_to_value(0), x_to_value(1)))
         if x != self.x():
             self.setX(x)
-            self.scene().update_mouseover_info('{}: {}'.format(self.prop_full_name_in_label, self.value), False, self)
             self.value_changed.emit(self.scene(), value)
 
 class MinMaxArrowItem(Qt.QGraphicsObject):
@@ -383,8 +378,8 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
         self.brush = Qt.QBrush(color)
         self.setFlag(Qt.QGraphicsItem.ItemIgnoresTransformations)
         self.setFlag(Qt.QGraphicsItem.ItemIsMovable)
-        # GUI behavior is much more predictable with min/max item selectability disabled:
-        # With ItemIsSelectable enabled, min/max items can exhibit some very unexpected behaviors, as we
+        # GUI behavior is much more predictable with min/max arrow item selectability disabled:
+        # with ItemIsSelectable enabled, min/max items can exhibit some very unexpected behaviors, as we
         # do not do anything differently in our paint function if the item is selected vs not, making
         # it unlikely one would realize one or more items are selected.  If multiple items are selected,
         # they will move together when one is dragged.  Additionally, arrow key presses would move
@@ -424,6 +419,10 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
     def on_y_changed(self):
         if self.y() != 0.5:
             self.setY(0.5)
+
+    def mouseMoveEvent(self, event):
+        super().mouseMoveEvent(event)
+        self.scene().update_mouseover_info('{}: {}'.format(self.min_max_item.prop_full_name_in_label, self.min_max_item.value), False, self)
 
     def mousePressEvent(self, event):
         super().mousePressEvent(event)
