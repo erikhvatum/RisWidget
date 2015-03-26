@@ -73,17 +73,21 @@ def UNIQUE_QGRAPHICSITEM_TYPE():
     return ret
 
 class MouseoverTextItem(Qt.QGraphicsTextItem):
-    """Visible only in shader_view, as opposed to all views attached to the scene containing
-    this item.  This allows mouseover info text to be visible only in a certain view,
-    allowing mouseover info text to be visible only in the active view even when there
-    are multiple viewports into the same scene.
+    """Visible only in self.shader_view, as opposed to all views attached to the scene containing
+    this item.  This allows mouseover info text to be visible only in the active view even when there
+    are multiple viewports into the same scene."""
 
-    This scheme permits multiple views into the same scene to present different overlay
-    (non-scene-scale-relative) items, so long as those items also override QGraphicsItem.paint(..)
-    to skip drawing into any but the desired view."""
     def __init__(self, shader_view, parent_item=None):
         super().__init__(parent_item)
-        self.shader_view = 
+        self.shader_view = shader_view
+        self.setFlag(Qt.QGraphicsItem.ItemIgnoresTransformations)
+
+    def paint(self, qpainter, option, widget):
+        # Qt supplies our ShaderView's viewport (a _ShaderViewGLViewport) for the widget argument,
+        # requiring us to check whether the widget's view attribute matches self.shader_view, rather than
+        # comparing widget to self.shader.
+        if hasattr(widget, 'view') and widget.view is self.shader_view:
+            super().paint(qpainter, option, widget)
 
 class ShaderItem(Qt.QGraphicsItem):
     def __init__(self, parent_item=None):

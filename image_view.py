@@ -35,8 +35,8 @@ class ImageView(ShaderView):
     zoom_changed = Qt.pyqtSignal(int, float)
     zoom_to_fit_changed = Qt.pyqtSignal(bool)
 
-    def __init__(self, shader_scene, overlay_scene, parent):
-        super().__init__(shader_scene, overlay_scene, parent)
+    def __init__(self, shader_scene, parent):
+        super().__init__(shader_scene, parent)
         self.setMinimumSize(Qt.QSize(100,100))
         self._zoom_preset_idx = self._ZOOM_DEFAULT_PRESET_IDX
         self._custom_zoom = 0

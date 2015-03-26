@@ -23,6 +23,7 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from .gl_resources import GL_QSURFACE_FORMAT, GL
+from .shader_scene import MouseoverTextItem
 import numpy
 from PyQt5 import Qt
 
@@ -45,11 +46,13 @@ class ShaderView(Qt.QGraphicsView):
         f = Qt.QFont('Courier', 14)
         f.setKerning(False)
         f.setStyleHint(Qt.QFont.Monospace, Qt.QFont.OpenGLCompatible | Qt.QFont.PreferQuality)
-        self.mouseover_text_item = self.addText('', f)
-        self.shader_scene.update_mouseover_info_signal.connect(self.on_update_mouseover_info)
+        self.mouseover_text_item = MouseoverTextItem(self)
+        self.scene().addItem(self.mouseover_text_item)
+        self.mouseover_text_item.setFont(f)
         c = Qt.QColor(Qt.Qt.green)
         c.setAlphaF(.75)
         self.mouseover_text_item.setDefaultTextColor(c)
+        self.scene().update_mouseover_info_signal.connect(self.on_update_mouseover_info)
 
     def on_update_mouseover_info(self, string, is_html):
         if is_html:
