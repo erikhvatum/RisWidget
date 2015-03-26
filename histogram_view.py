@@ -44,6 +44,12 @@ class HistogramView(ShaderView):
         self.resized.connect(self.on_resized)
 #       self.add_overlay_min_max_arrow_items()
 
+    def add_mouseover_info_item(self):
+        super().add_mouseover_info_item()
+        # HistogramView always displays the same region of the scene (the unit square) regardless of
+        # view size.
+        self.resized.disconnect(self.mouseover_text_item.on_shader_view_scene_rect_changed)
+
     def on_resized(self, size):
         self.resetTransform()
         self.scale(size.width(), size.height())

@@ -88,25 +88,20 @@ class ImageView(ShaderView):
                 desired_zoom = self._custom_zoom
             else:
                 desired_zoom = self._ZOOM_PRESETS[self._zoom_preset_idx]
-            # With transformationAnchor set to AnchorUnderMouse, QGraphicsView.scale modifies the view's transformation
-            # matrix such that the same image pixel remains under the mouse cursor (except where the demands imposed by
-            # centering of an undersized scene take priority).  But, that does mean we must modify the transformation
-            # via the view's scale function and not by direct manipulation of the view's transformation matrix.  Thus,
-            # it is necessary to find the current scaling in order to compute the factor by which scaling must be
-            # mulitplied in order to arrive at our desired scaling.  This found by taking the view's current vertical
-            # scaling under the assumption that a square in the scene will appear as a square in the view (and not a
-            # rectangle or trapezoid), which holds if we are displaying images with square pixels - the only kind we
-            # support.
+            # With transformationAnchor set to AnchorUnderMouse, QGraphicsView.scale modifies the view's transformation matrix such
+            # that the same image pixel remains under the mouse cursor (except where the demands imposed by centering of an
+            # undersized scene take priority).  But, that does mean we must modify the transformation via the view's scale function
+            # and not by direct manipulation of the view's transformation matrix.  Thus, it is necessary to find the current
+            # scaling in order to compute the factor by which scaling must be mulitplied in order to arrive at our desired scaling.
+            # This found by taking the view's current vertical scaling under the assumption that a square in the scene will appear
+            # as a square in the view (and not a rectangle or trapezoid), which holds if we are displaying images with square
+            # pixels - the only kind we support.
             current_zoom = self.transform().m22()
             scale_zoom = desired_zoom / current_zoom
             self.setTransformationAnchor(Qt.QGraphicsView.AnchorUnderMouse)
             self.scale(scale_zoom, scale_zoom)
             self.setTransformationAnchor(Qt.QGraphicsView.AnchorViewCenter)
             self.zoom_changed.emit(self._zoom_preset_idx, self._custom_zoom)
-
-    def scrollContentsBy(self, dx, dy):
-        super().scrollContentsBy(dx, dy)
-        self.scene_view_rect_changed.emit()
 
     @property
     def zoom_to_fit(self):

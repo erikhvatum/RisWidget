@@ -61,6 +61,7 @@ class ShaderView(Qt.QGraphicsView):
         self.mouseover_text_item.setDefaultTextColor(c)
         scene.update_mouseover_info_signal.connect(self.on_update_mouseover_info)
         self.scene_view_rect_changed.connect(self.mouseover_text_item.on_shader_view_scene_rect_changed)
+        self.resized.connect(self.mouseover_text_item.on_shader_view_scene_rect_changed)
 
     def on_update_mouseover_info(self, string, is_html):
         if is_html:
@@ -104,6 +105,23 @@ class ShaderView(Qt.QGraphicsView):
             # Note: the following release call is essential.  Without it, QPainter will never work for
             # this widget again!
             self.quad_buffer.release()
+
+    def scrollContentsBy(self, dx, dy):
+        """This function is never actually called for HistogramView as HistogramView always displays
+        a unit-square view into HistogramScene.  However, if zooming and panning and whatnot are ever
+        implemented for HistogramView, then this function will swing into action as it does for ImageView,
+        and HistogramView's add_mouseover_info_item's resize signal's disconnect call should be removed."""
+        super().scrollContentsBy(dx, dy)
+        # In the case of scrollContentsBy(..) execution in response to view resize, self.resizeEvent(..)
+        # has not yet had a chance to do its thing, meaning that self.transform() may differ from
+        # the value obtained during painting.  However, self.resizeEvent(..) also emits
+        # scene_view_rect_changed, at which point self.transform() does return the correct value.
+        # Both happen during the same event loop iteration, and no repaint will occur until the next
+        # iteration, so any incorrect position possibly set in response to scene_view_rect_change emission
+        # here will be corrected in response to resizeEvent(..)'s scene_view_rect_changed emission
+        # before the next repaint.  Thus, nothing repositioned in response to our emission should be
+        # visible to the user in an incorrect position.
+        self.scene_view_rect_changed.emit()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
