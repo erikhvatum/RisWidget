@@ -395,10 +395,11 @@ class MinMaxItem(PropItem):
 
     @value.deleter
     def value(self):
-        if self._image is None:
+        image = self.scene().histogram_item.image
+        if image is None:
             range_ = (0, 1)
         else:
-            range_ = self._image.range
+            range_ = image.range
         self.value = range_[self.prop.name == 'max']
 
 class MinMaxArrowItem(Qt.QGraphicsObject):

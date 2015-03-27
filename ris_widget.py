@@ -186,6 +186,7 @@ class RisWidget(Qt.QMainWindow):
             self._image_view_zoom_combo.lineEdit().selectAll()
 
     def _on_reset_min_max(self):
+        self.histogram_scene.auto_min_max_enabled = False
         del self.histogram_scene.min
         del self.histogram_scene.max
 
