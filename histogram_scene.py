@@ -63,6 +63,11 @@ class ItemProp:
             raise AttributeError("Can't set instance attribute of class.")
         self.scene_items[histogram_scene].value = value
 
+    def __delete__(self, histogram_scene):
+        if histogram_scene is None:
+            raise AttributeError("Can't delete instance attribute of class.")
+        del self.scene_items[histogram_scene].value
+
     def propagate_scene_item_value(self, histogram_scene):
         pass
 
@@ -72,7 +77,7 @@ class MinMaxItemProp(ItemProp):
         min_max_item_props[self.full_name] = self
 
     def _make_scene_item(self, histogram_scene):
-        return MinMaxItem(histogram_scene.histogram_item, self.full_name, self.full_name_in_label)
+        return MinMaxItem(histogram_scene.histogram_item, self)
 
 class GammaItemProp(ItemProp):
     def __init__(self, item_props_list, item_props, gamma_item_props, name, name_in_label=None, channel_name=None):
@@ -88,7 +93,7 @@ class GammaItemProp(ItemProp):
         scene_item.max_item.value_changed.connect(scene_item.on_min_max_moved)
 
     def _make_scene_item(self, histogram_scene):
-        return GammaItem(histogram_scene.histogram_item, self.full_name, self.full_name_in_label)
+        return GammaItem(histogram_scene.histogram_item, self)
 
 class HistogramScene(ShaderScene):
     gamma_or_min_max_changed = Qt.pyqtSignal()
@@ -118,6 +123,10 @@ class HistogramScene(ShaderScene):
         self.max = 1
         self.gamma = 1
         self._channel_controls_visible = False
+        self.auto_min_max_enabled_action = Qt.QAction('Auto Min/Max', self)
+        self.auto_min_max_enabled_action.setCheckable(True)
+        self.auto_min_max_enabled_action.setChecked(True)
+        self.auto_min_max_enabled_action.toggled.connect(self.on_auto_min_max_enabled_action_toggled)
 
 #       self._allow_inversion = True # Set to True during initialization for convenience...
 #       for scalar_prop in HistogramView._scalar_props:
@@ -126,9 +135,33 @@ class HistogramScene(ShaderScene):
 
     def on_image_changing(self, image):
         self.histogram_item.on_image_changing(image)
+        if self.auto_min_max_enabled:
+            self.do_auto_min_max()
 
     def get_prop_item(self, full_name):
         return HistogramScene.item_props[full_name].scene_items[self]
+
+    def on_auto_min_max_enabled_action_toggled(self, auto_min_max_enabled):
+        if self.auto_min_max_enabled:
+            self.do_auto_min_max()
+
+    def do_auto_min_max(self):
+        image = self.histogram_item.image
+        if image is not None:
+            if image.is_grayscale:
+                self.min, self.max = image.min_max
+            else:
+                for channel_name, channel_min_max in zip(image.min_max, ('red','green','blue')):
+                    setattr(self, 'min_'+channel_name, channel_min_max[0])
+                    setattr(self, 'max_'+channel_name, channel_min_max[1])
+
+    @property
+    def auto_min_max_enabled(self):
+        return self.auto_min_max_enabled_action.isChecked()
+
+    @auto_min_max_enabled.setter
+    def auto_min_max_enabled(self, auto_min_max_enabled):
+        self.auto_min_max_enabled_action.setChecked(auto_min_max_enabled)
 
 class HistogramItem(ShaderItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
@@ -281,10 +314,9 @@ class HistogramItem(ShaderItem):
 class PropItem(Qt.QGraphicsObject):
     value_changed = Qt.pyqtSignal(HistogramScene, float)
 
-    def __init__(self, histogram_item, prop_full_name, prop_full_name_in_label):
+    def __init__(self, histogram_item, prop):
         super().__init__(histogram_item)
-        self.prop_full_name = prop_full_name
-        self.prop_full_name_in_label = prop_full_name_in_label
+        self.prop = prop
         self._bounding_rect = Qt.QRectF()
 
     def boundingRect(self):
@@ -297,8 +329,8 @@ class PropItem(Qt.QGraphicsObject):
 class MinMaxItem(PropItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
 
-    def __init__(self, histogram_item, prop_full_name, prop_full_name_in_label):
-        super().__init__(histogram_item, prop_full_name, prop_full_name_in_label)
+    def __init__(self, histogram_item, prop):
+        super().__init__(histogram_item, prop)
         self._bounding_rect = Qt.QRectF(-0.1, 0, .2, 1)
 
     def type(self):
@@ -361,6 +393,14 @@ class MinMaxItem(PropItem):
             self.setX(x)
             self.value_changed.emit(self.scene(), value)
 
+    @value.deleter
+    def value(self):
+        if self._image is None:
+            range_ = (0, 1)
+        else:
+            range_ = self._image.range
+        self.value = range_[self.prop.name == 'max']
+
 class MinMaxArrowItem(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
 
@@ -422,11 +462,11 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
 
     def mouseMoveEvent(self, event):
         super().mouseMoveEvent(event)
-        self.scene().update_mouseover_info('{}: {}'.format(self.min_max_item.prop_full_name_in_label, self.min_max_item.value), False, self)
+        self.scene().update_mouseover_info('{}: {}'.format(self.min_max_item.prop.full_name_in_label, self.min_max_item.value), False, self)
 
     def mousePressEvent(self, event):
         super().mousePressEvent(event)
-        self.scene().update_mouseover_info('{}: {}'.format(self.min_max_item.prop_full_name_in_label, self.min_max_item.value), False, self)
+        self.scene().update_mouseover_info('{}: {}'.format(self.min_max_item.prop.full_name_in_label, self.min_max_item.value), False, self)
 
     def on_min_max_value_changed(self):
         desired_x = self.min_max_item.x()
@@ -439,8 +479,8 @@ class GammaItem(PropItem):
     CURVE_VERTEX_COUNT = 62
     CURVE_VERTEX_COMPUTE_POSITIONS = numpy.linspace(0, 1, num=CURVE_VERTEX_COUNT, endpoint=True)[1:-1]
 
-    def __init__(self, histogram_item, prop_full_name, prop_full_name_in_label):
-        super().__init__(histogram_item, prop_full_name, prop_full_name_in_label)
+    def __init__(self, histogram_item, prop):
+        super().__init__(histogram_item, prop)
         self._bounding_rect = Qt.QRectF(0, 0, 1, 1)
         self._value = None
         self._path = Qt.QPainterPath()
@@ -482,14 +522,14 @@ class GammaItem(PropItem):
 
     def mousePressEvent(self, event):
         super().mousePressEvent(event)
-        self.scene().update_mouseover_info('{}: {}'.format(self.prop_full_name_in_label, self.value), False, self)
+        self.scene().update_mouseover_info('{}: {}'.format(self.prop.full_name_in_label, self.value), False, self)
 
     def mouseMoveEvent(self, event):
         current_x, current_y = map(lambda v: min(max(v, 0.001), 0.999),
                                    (event.pos().x(), event.pos().y()))
         current_y = 1-current_y
         self.value = min(max(math.log(current_y, current_x), GammaItem.RANGE[0]), GammaItem.RANGE[1])
-        self.scene().update_mouseover_info('{}: {}'.format(self.prop_full_name_in_label, self.value), False, self)
+        self.scene().update_mouseover_info('{}: {}'.format(self.prop.full_name_in_label, self.value), False, self)
 
     @property
     def value(self):
@@ -508,3 +548,7 @@ class GammaItem(PropItem):
             self._path.lineTo(1, 0)
             self.update()
             self.value_changed.emit(self.scene(), self._value)
+
+    @value.deleter
+    def value(self):
+        self.value = 1

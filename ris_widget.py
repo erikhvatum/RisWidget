@@ -57,10 +57,13 @@ class RisWidget(Qt.QMainWindow):
         self._image_view_zoom_to_fit_action = Qt.QAction(self)
         self._image_view_zoom_to_fit_action.setCheckable(True)
         self._image_view_zoom_to_fit_action.setText('Zoom to Fit')
+        self._image_view_zoom_to_fit_action.triggered[bool].connect(self._image_view_zoom_to_fit_action_toggled)
         self._histogram_view_reset_min_max_action = Qt.QAction(self)
         self._histogram_view_reset_min_max_action.setText('Reset Min/Max')
+        self._histogram_view_reset_min_max_action.triggered.connect(self._on_reset_min_max)
         self._histogram_view_reset_gamma_action = Qt.QAction(self)
         self._histogram_view_reset_gamma_action.setText('Reset \u03b3')
+        self._histogram_view_reset_gamma_action.triggered.connect(self._on_reset_gamma)
 
     @staticmethod
     def _format_zoom(zoom):
@@ -89,14 +92,12 @@ class RisWidget(Qt.QMainWindow):
         self._image_view_zoom_combo.lineEdit().returnPressed.connect(self._image_view_zoom_combo_custom_value_entered)
         self.image_view.zoom_changed.connect(self._image_view_zoom_changed)
         self._image_view_toolbar.addAction(self._image_view_zoom_to_fit_action)
-        self._image_view_zoom_to_fit_action.triggered[bool].connect(self._image_view_zoom_to_fit_action_toggled)
         self.image_view.zoom_to_fit_changed.connect(self._image_view_zoom_to_fit_changed)
         self._histogram_view_toolbar = self.addToolBar('Histogram View')
         self._histogram_view_toolbar.addAction(self._histogram_dock_widget.toggleViewAction())
         self._histogram_view_toolbar.addAction(self._histogram_view_reset_min_max_action)
-        self._histogram_view_reset_min_max_action.triggered.connect(self._on_reset_min_max)
         self._histogram_view_toolbar.addAction(self._histogram_view_reset_gamma_action)
-        self._histogram_view_reset_gamma_action.triggered.connect(self._on_reset_gamma)
+        self._histogram_view_toolbar.addAction(self.histogram_scene.auto_min_max_enabled_action)
 
     def _init_scenes_and_views(self):
         self.image_scene = ImageScene(self)
@@ -185,14 +186,11 @@ class RisWidget(Qt.QMainWindow):
             self._image_view_zoom_combo.lineEdit().selectAll()
 
     def _on_reset_min_max(self):
-        if self._image is None:
-            self.histogram_scene.min = 0
-            self.histogram_scene.max = 1
-        else:
-            self.histogram_scene.min, self.histogram_scene.max = self._image.range
+        del self.histogram_scene.min
+        del self.histogram_scene.max
 
     def _on_reset_gamma(self):
-        self.histogram_scene.gamma = 1
+        del self.histogram_scene.gamma
 
 if __name__ == '__main__':
     import sys
