@@ -49,7 +49,7 @@ class ShaderView(Qt.QGraphicsView):
         self.destroyed.connect(self._free_shader_view_resources)
 
     def add_mouseover_info_item(self):
-        f = Qt.QFont('Courier', 14)
+        f = Qt.QFont('Courier', pointSize=14, weight=Qt.QFont.Bold)
         f.setKerning(False)
         f.setStyleHint(Qt.QFont.Monospace, Qt.QFont.OpenGLCompatible | Qt.QFont.PreferQuality)
         self.mouseover_text_item = MouseoverTextItem(self)

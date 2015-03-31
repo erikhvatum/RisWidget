@@ -44,7 +44,13 @@ class ImageView(ShaderView):
         self.zoom_to_fit_action.setChecked(False)
         self._ignore_zoom_to_fit_action_toggle = False
         self.zoom_to_fit_action.toggled.connect(self.on_zoom_to_fit_action_toggled)
-        self.viewport().setCursor(Qt.Qt.CrossCursor)
+        # Calling self.setDragMode(Qt.QGraphicsView.ScrollHandDrag) would enable QGraphicsView's built-in
+        # click-drag panning, saving us from having to implement it.  However, QGraphicsView is very
+        # insistent about setting the mouse cursor to the hand icon in ScrollHandDragMode.  It does this
+        # in a number of places that would have to be invidually overridden, making it much simpler to
+        # implement click-drag panning ourselves.
+        self.setDragMode(Qt.QGraphicsView.NoDrag)
+        self._panning = False
 
     def on_image_changing(self, image):
         if self.zoom_to_fit:
@@ -108,6 +114,13 @@ class ImageView(ShaderView):
                 self.zoom_to_fit_action.setChecked(False)
                 self._ignore_zoom_to_fit_action_toggle = False
             self.zoom_changed.emit(self._zoom_preset_idx, self._custom_zoom)
+
+    def mousePressEvent(self, event):
+        # event is set to accepted when we receive it...
+        event.setAccepted(False)
+        # 
+        super().mousePressEvent(event)
+        
 
     def on_zoom_to_fit_action_toggled(self):
         if not self._ignore_zoom_to_fit_action_toggle:
