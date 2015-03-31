@@ -54,10 +54,6 @@ class RisWidget(Qt.QMainWindow):
         self._image = None
 
     def _init_actions(self):
-        self._image_view_zoom_to_fit_action = Qt.QAction(self)
-        self._image_view_zoom_to_fit_action.setCheckable(True)
-        self._image_view_zoom_to_fit_action.setText('Zoom to Fit')
-        self._image_view_zoom_to_fit_action.triggered[bool].connect(self._image_view_zoom_to_fit_action_toggled)
         self._histogram_view_reset_min_max_action = Qt.QAction(self)
         self._histogram_view_reset_min_max_action.setText('Reset Min/Max')
         self._histogram_view_reset_min_max_action.triggered.connect(self._on_reset_min_max)
@@ -91,8 +87,7 @@ class RisWidget(Qt.QMainWindow):
         self._image_view_zoom_combo.activated[int].connect(self._image_view_zoom_combo_changed)
         self._image_view_zoom_combo.lineEdit().returnPressed.connect(self._image_view_zoom_combo_custom_value_entered)
         self.image_view.zoom_changed.connect(self._image_view_zoom_changed)
-        self._image_view_toolbar.addAction(self._image_view_zoom_to_fit_action)
-        self.image_view.zoom_to_fit_changed.connect(self._image_view_zoom_to_fit_changed)
+        self._image_view_toolbar.addAction(self.image_view.zoom_to_fit_action)
         self._histogram_view_toolbar = self.addToolBar('Histogram View')
         self._histogram_view_toolbar.addAction(self._histogram_dock_widget.toggleViewAction())
         self._histogram_view_toolbar.addAction(self._histogram_view_reset_min_max_action)
@@ -159,19 +154,8 @@ class RisWidget(Qt.QMainWindow):
         else:
             self._image_view_zoom_combo.setCurrentIndex(zoom_preset_idx)
 
-    def _image_view_zoom_to_fit_changed(self, zoom_to_fit):
-        """Handle self.image_view.zoom_to_fit property change."""
-        if zoom_to_fit != self._image_view_zoom_to_fit_action.isChecked():
-            self._image_view_zoom_to_fit_action.setChecked(zoom_to_fit)
-            self._image_view_zoom_combo.setEnabled(not zoom_to_fit)
-
     def _image_view_zoom_combo_changed(self, idx):
         self.image_view.zoom_preset_idx = idx
-
-    def _image_view_zoom_to_fit_action_toggled(self, zoom_to_fit):
-        """Change self._image_widget.zoom_to_fit property value in response to GUI manipulation."""
-        self._image_view_zoom_combo.setEnabled(not zoom_to_fit)
-        self.image_view.zoom_to_fit = zoom_to_fit
 
     def _image_view_zoom_combo_custom_value_entered(self):
         txt = self._image_view_zoom_combo.lineEdit().text()

@@ -33,27 +33,30 @@ class ImageView(ShaderView):
     _ZOOM_INCREMENT_BEYOND_PRESETS_FACTORS = (.8, 1.25)
 
     zoom_changed = Qt.pyqtSignal(int, float)
-    zoom_to_fit_changed = Qt.pyqtSignal(bool)
 
     def __init__(self, shader_scene, parent):
         super().__init__(shader_scene, parent)
         self.setMinimumSize(Qt.QSize(100,100))
         self._zoom_preset_idx = self._ZOOM_DEFAULT_PRESET_IDX
         self._custom_zoom = 0
-        self._zoom_to_fit = False
-        self.setDragMode(Qt.QGraphicsView.ScrollHandDrag)
+        self.zoom_to_fit_action = Qt.QAction('Zoom to Fit', self)
+        self.zoom_to_fit_action.setCheckable(True)
+        self.zoom_to_fit_action.setChecked(False)
+        self._ignore_zoom_to_fit_action_toggle = False
+        self.zoom_to_fit_action.toggled.connect(self.on_zoom_to_fit_action_toggled)
+        self.viewport().setCursor(Qt.Qt.CrossCursor)
 
     def on_image_changing(self, image):
-        if self._zoom_to_fit:
-            self.fitInView(self.scene().image_item, Qt.Qt.KeepAspectRatio)
+        if self.zoom_to_fit:
+            self._apply_zoom()
 
     def on_resize(self, size):
-        if self._zoom_to_fit:
-            self.fitInView(self.scene().image_item, Qt.Qt.KeepAspectRatio)
+        if self.zoom_to_fit:
+            self._apply_zoom()
 
     def wheelEvent(self, event):
         wheel_delta = event.angleDelta().y()
-        if wheel_delta != 0 and not self._zoom_to_fit:
+        if wheel_delta != 0:
             zoom_in = wheel_delta > 0
             switched_to_custom = False
             if self._zoom_preset_idx != -1:
@@ -100,16 +103,23 @@ class ImageView(ShaderView):
             self.setTransformationAnchor(Qt.QGraphicsView.AnchorUnderMouse)
             self.scale(scale_zoom, scale_zoom)
             self.setTransformationAnchor(Qt.QGraphicsView.AnchorViewCenter)
+            if self.zoom_to_fit:
+                self._ignore_zoom_to_fit_action_toggle = True
+                self.zoom_to_fit_action.setChecked(False)
+                self._ignore_zoom_to_fit_action_toggle = False
             self.zoom_changed.emit(self._zoom_preset_idx, self._custom_zoom)
+
+    def on_zoom_to_fit_action_toggled(self):
+        if not self._ignore_zoom_to_fit_action_toggle:
+            self._apply_zoom()
 
     @property
     def zoom_to_fit(self):
-        return self._zoom_to_fit
+        return self.zoom_to_fit_action.isChecked()
 
     @zoom_to_fit.setter
     def zoom_to_fit(self, zoom_to_fit):
-        self._zoom_to_fit = zoom_to_fit
-        self._zoom()
+        self.zoom_to_fit_action.setChecked(zoom_to_fit)
 
     @property
     def custom_zoom(self):
@@ -135,16 +145,18 @@ class ImageView(ShaderView):
         self._custom_zoom = 0
         self._zoom()
 
-    def _zoom(self, zoom_to_fit_changed=False):
-        if self._zoom_to_fit:
+    def _apply_zoom(self):
+        if self.zoom_to_fit:
             self.fitInView(self.scene().image_item, Qt.Qt.KeepAspectRatio)
+            current_zoom = self.transform().m22()
+            if current_zoom != self._custom_zoom:
+                self._custom_zoom = current_zoom
+                self._zoom_preset_idx = -1
+                self.zoom_changed.emit(self._zoom_preset_idx, self._custom_zoom)
         else:
             zoom_factor = self._custom_zoom if self._zoom_preset_idx == -1 else ImageView._ZOOM_PRESETS[self._zoom_preset_idx]
             old_transform = Qt.QTransform(self.transform())
             self.resetTransform()
             self.translate(old_transform.dx(), old_transform.dy())
             self.scale(zoom_factor, zoom_factor)
-        if zoom_to_fit_changed:
-            self.zoom_to_fit_changed.emit(self._zoom_to_fit)
-        else:
             self.zoom_changed.emit(self._zoom_preset_idx, self._custom_zoom)

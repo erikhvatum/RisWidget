@@ -127,11 +127,9 @@ class HistogramScene(ShaderScene):
         self.auto_min_max_enabled_action.setCheckable(True)
         self.auto_min_max_enabled_action.setChecked(True)
         self.auto_min_max_enabled_action.toggled.connect(self.on_auto_min_max_enabled_action_toggled)
-
-#       self._allow_inversion = True # Set to True during initialization for convenience...
-#       for scalar_prop in HistogramView._scalar_props:
-#           scalar_prop.instantiate(self, layout)
-#       self._allow_inversion = False # ... and, enough stuff has been initialized that this can now be set to False without trouble
+        self._keep_auto_min_max_on_min_max_value_change = False
+        for full_name in HistogramScene.min_max_item_props.keys():
+            self.get_prop_item(full_name).value_changed.connect(self.on_auto_min_max_change)
 
     def on_image_changing(self, image):
         self.histogram_item.on_image_changing(image)
@@ -148,12 +146,20 @@ class HistogramScene(ShaderScene):
     def do_auto_min_max(self):
         image = self.histogram_item.image
         if image is not None:
-            if image.is_grayscale:
-                self.min, self.max = image.min_max
-            else:
-                for channel_name, channel_min_max in zip(image.min_max, ('red','green','blue')):
-                    setattr(self, 'min_'+channel_name, channel_min_max[0])
-                    setattr(self, 'max_'+channel_name, channel_min_max[1])
+            self._keep_auto_min_max_on_min_max_value_change = True
+            try:
+                if image.is_grayscale:
+                    self.min, self.max = image.min_max
+                else:
+                    for channel_name, channel_min_max in zip(image.min_max, ('red','green','blue')):
+                        setattr(self, 'min_'+channel_name, channel_min_max[0])
+                        setattr(self, 'max_'+channel_name, channel_min_max[1])
+            finally:
+                self._keep_auto_min_max_on_min_max_value_change = False
+
+    def on_auto_min_max_change(self):
+        if not self._keep_auto_min_max_on_min_max_value_change and self.auto_min_max_enabled:
+            self.auto_min_max_enabled_action.setChecked(False)
 
     @property
     def auto_min_max_enabled(self):
@@ -332,6 +338,7 @@ class MinMaxItem(PropItem):
     def __init__(self, histogram_item, prop):
         super().__init__(histogram_item, prop)
         self._bounding_rect = Qt.QRectF(-0.1, 0, .2, 1)
+        self._opposite_item = None
 
     def type(self):
         return MinMaxItem.QGRAPHICSITEM_TYPE
@@ -392,6 +399,11 @@ class MinMaxItem(PropItem):
         if x != self.x():
             self.setX(x)
             self.value_changed.emit(self.scene(), value)
+            oitem = self.opposite_item
+            ovalue = oitem.value
+            if self.prop.name == 'max' and value < ovalue or \
+               self.prop.name == 'min' and value > ovalue:
+                oitem.value = value
 
     @value.deleter
     def value(self):
@@ -401,6 +413,15 @@ class MinMaxItem(PropItem):
         else:
             range_ = image.range
         self.value = range_[self.prop.name == 'max']
+
+    @property
+    def opposite_item(self):
+        if self._opposite_item is None:
+            oname = 'max' if self.prop.name == 'min' else 'min'
+            if self.prop.channel_name is not None:
+                oname += '_' + self.prop.channel_name
+            self._opposite_item = self.scene().get_prop_item(oname)
+        return self._opposite_item
 
 class MinMaxArrowItem(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
