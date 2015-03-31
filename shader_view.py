@@ -59,8 +59,7 @@ class ShaderView(Qt.QGraphicsView):
         scene.addItem(self.mouseover_text_item)
         self.view_items.append(self.mouseover_text_item)
         self.mouseover_text_item.setFont(f)
-        c = Qt.QColor(Qt.Qt.green)
-        c.setAlphaF(.75)
+        c = Qt.QColor(45,255,70,255)
         self.mouseover_text_item.setDefaultTextColor(c)
         scene.update_mouseover_info_signal.connect(self.on_update_mouseover_info)
         self.scene_view_rect_changed.connect(self.mouseover_text_item.on_shader_view_scene_rect_changed)
@@ -70,6 +69,22 @@ class ShaderView(Qt.QGraphicsView):
             self.mouseover_text_item.setHtml(string)
         else:
             self.mouseover_text_item.setPlainText(string)
+
+    @property
+    def mouseover_info_color(self):
+        """(r,g,b,a) tuple, with elements in the range [0,255].  The alpha channel value (4th element of the 
+        tuple) defaults to 255 and may be omitted when setting this property."""
+        c = self.mouseover_text_item.defaultTextColor()
+        return c.red(), c.green(), c.blue(), c.alpha()
+
+    @mouseover_info_color.setter
+    def mouseover_info_color(self, rgb_a):
+        rgb_a = tuple(map(int, rgb_a))
+        if len(rgb_a) == 3:
+            rgb_a = rgb_a + (255,)
+        elif len(rgb_a) != 4:
+            raise ValueError('Value supplied for mouseover_info_color must be a 3 or 4 element iterable.')
+        self.mouseover_text_item.setDefaultTextColor(Qt.QColor(*rgb_a))
 
     def _free_shader_view_resources(self):
         """Delete, release, or otherwise destroy GL resources associated with this ShaderView instance."""
