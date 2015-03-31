@@ -131,7 +131,7 @@ class ImageView(ShaderView):
             raise ValueError('Value must be in the range [{}, {}].'.format(*ImageView._ZOOM_MIN_MAX))
         self._custom_zoom = custom_zoom
         self._zoom_preset_idx = -1
-        self._zoom()
+        self._apply_zoom()
 
     @property
     def zoom_preset_idx(self):
@@ -143,7 +143,7 @@ class ImageView(ShaderView):
             raise ValueError('idx must be in the range [0, {}).'.format(ImageView._ZOOM_PRESETS.shape[0]))
         self._zoom_preset_idx = idx
         self._custom_zoom = 0
-        self._zoom()
+        self._apply_zoom()
 
     def _apply_zoom(self):
         if self.zoom_to_fit:
