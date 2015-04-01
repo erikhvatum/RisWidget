@@ -93,6 +93,8 @@ class RisWidget(Qt.QMainWindow):
         self._histogram_view_toolbar.addAction(self._histogram_view_reset_min_max_action)
         self._histogram_view_toolbar.addAction(self._histogram_view_reset_gamma_action)
         self._histogram_view_toolbar.addAction(self.histogram_scene.auto_min_max_enabled_action)
+#       self._image_name_toolbar = self.addToolBar('Image Name')
+#       self._image_name_toolbar.addAction(self.image_view.show_image_name_action)
 
     def _init_scenes_and_views(self):
         self.image_scene = ImageScene(self)
@@ -104,8 +106,50 @@ class RisWidget(Qt.QMainWindow):
         self.histogram_view, self._histogram_frame = HistogramView.make_histogram_view_and_frame(self.histogram_scene, self._histogram_dock_widget)
         self._histogram_dock_widget.setWidget(self._histogram_frame)
         self._histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
-        self._histogram_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
+        self._histogram_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | \
+                                                Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
         self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self._histogram_dock_widget)
+
+    def dragEnterEvent(self, event):
+        event.acceptProposedAction()
+
+    def dragMoveEvent(self, event):
+        event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        mime_data = event.mimeData()
+        if mime_data.hasUrls():
+            # Note: if the URL is a "file://..." representing a local file, toLocalFile returns a string
+            # appropriate for feeding to Python's open() function.  If the URL does not refer to a local file,
+            # toLocalFile returns None.
+            fpaths = list(map(lambda url: url.toLocalFile(), mime_data.urls()))
+            if len(fpaths) > 0 and fpaths[0].startswith('file:///.file/id=') and sys.platform == 'darwin':
+                e = 'In order for image file drag & drop to work on OS X >=10.10 (Yosemite), please upgrade to at least Qt 5.4.1.'
+                Qt.QMessageBox.information(self, 'Qt Upgrade Required', e)
+                return
+            if 1:#len(fpaths) == 1:
+                try:
+                    import freeimage
+                except ImportError:
+                    Qt.QMessageBox.information(self, 'freeimage.py Not Found', "Zach's freeimage module is required for loading drag & dropped image files.")
+                    return
+                except RuntimeError as e:
+                    estr = '\n'.join(("freeimage.py was found, but an error occurred while importing it " + \
+                                      "(likely because freeimage.so/dylib/dll could not be found):\n",) + e.args)
+                    Qt.QMessageBox.information(self, 'Error While Importing freeimage Module', estr)
+                    return
+                self.image = Image(freeimage.read(fpaths[0]), fpaths[0])
+                event.accept()
+            else:
+                # TODO: if more than one file is dropped, open them all in a new flipper
+                pass
+#           for url in mime_data.urls():
+#       if mime_data.hasImage():
+# TODO: THIS PART
+#           image = mime_data.imageData()
+#           pixmap = Qt.QPixmap(image.size())
+#           pixmap.convertFromImage(image)
+#           self.imageLabel.setPixmap(pixmap)
 
     @property
     def image_data(self):

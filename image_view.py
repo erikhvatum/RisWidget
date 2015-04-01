@@ -54,6 +54,11 @@ class ImageView(ShaderView):
         self.zoom_to_fit_action.setChecked(False)
         self._ignore_zoom_to_fit_action_toggle = False
         self.zoom_to_fit_action.toggled.connect(self.on_zoom_to_fit_action_toggled)
+#       self.show_image_name_action = Qt.QAction(self)
+#       self.show_image_name_action.setText('Show Image Name')
+#       self.show_image_name_action.setCheckable(True)
+#       self.show_image_name_action.setChecked(True)
+#       self.show_image_name_action.toggled.connect(self._on_show_image_name_action_toggled)
         # Calling self.setDragMode(Qt.QGraphicsView.ScrollHandDrag) would enable QGraphicsView's built-in
         # click-drag panning, saving us from having to implement it.  However, QGraphicsView is very
         # insistent about setting the mouse cursor to the hand icon in ScrollHandDragMode.  It does this
@@ -61,6 +66,7 @@ class ImageView(ShaderView):
         # implement click-drag panning ourselves.
         self.setDragMode(Qt.QGraphicsView.NoDrag)
         self._panning = False
+        self.setAcceptDrops(True)
 
     def on_image_changing(self, image):
         if self.zoom_to_fit:
@@ -166,6 +172,24 @@ class ImageView(ShaderView):
                 hbar.setValue(hbar.value() + (delta.x() if self.isRightToLeft() else -delta.x()))
                 vbar.setValue(vbar.value() - delta.y())
                 self._panning_prev_mouse_pos = pos
+
+    def dragEnterEvent(self, event):
+        event.setAccepted(False)
+        self.parent().dragEnterEvent(event)
+        if not event.isAccepted():
+            super().dragEnterEvent(event)
+
+    def dragMoveEvent(self, event):
+        event.setAccepted(False)
+        self.parent().dragMoveEvent(event)
+        if not event.isAccepted():
+            super().dragMoveEvent(event)
+
+    def dropEvent(self, event):
+        event.setAccepted(False)
+        self.parent().dropEvent(event)
+        if not event.isAccepted():
+            super().dropEvent(event)
 
     def on_zoom_to_fit_action_toggled(self):
         if not self._ignore_zoom_to_fit_action_toggle:
