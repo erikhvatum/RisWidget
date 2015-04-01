@@ -27,9 +27,19 @@ import numpy
 from PyQt5 import Qt
 
 class ImageView(ShaderView):
-    _ZOOM_PRESETS = numpy.array((10, 8, 7, 6, 5, 4, 3, 2, 1.5, 1, .75, .6666666, .5, .333333, .25, .1), dtype=numpy.float64)
+    def _make_zoom_presets(self=None):
+        def f(x, step_zoomout=0.125, step_zoomin=0.2):
+            if x == 0:
+                return 1
+            if x < 0:
+                return 2**(x*step_zoomout)
+            return 1 + x*step_zoomin
+        xs = numpy.linspace(15, -16, 32, endpoint=True, dtype=numpy.float64)
+        ys = list(map(f, xs))
+        return numpy.array(ys, dtype=numpy.float64)
+    _ZOOM_PRESETS = _make_zoom_presets()
     _ZOOM_MIN_MAX = (.001, 10000.0)
-    _ZOOM_DEFAULT_PRESET_IDX = 9
+    _ZOOM_DEFAULT_PRESET_IDX = 15
     _ZOOM_INCREMENT_BEYOND_PRESETS_FACTORS = (.8, 1.25)
 
     zoom_changed = Qt.pyqtSignal(int, float)
