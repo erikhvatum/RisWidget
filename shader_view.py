@@ -149,6 +149,9 @@ class ShaderView(Qt.QGraphicsView):
         self.on_resize(size)
         self.on_resize_done(size)
 
+    def on_image_changing(self, image):
+        self.scene_view_rect_changed.emit()
+
     def on_resize(self, size):
         """Adjust view transform in response to view resize."""
         pass

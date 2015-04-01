@@ -35,7 +35,7 @@ from .image_view import ImageView
 class RisWidget(Qt.QMainWindow):
     # The image_changed signal is emitted immediately after a new value is successfully assigned to the
     # RisWidget_instance.image property
-    image_changed = Qt.pyqtSignal(Image)
+    image_changed = Qt.pyqtSignal(object)
 
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0)):
         super().__init__(parent, window_flags)

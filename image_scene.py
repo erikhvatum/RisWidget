@@ -85,7 +85,7 @@ class ImageItem(ShaderItem):
         return GammaItem.QGRAPHICSITEM_TYPE
 
     def boundingRect(self):
-        return Qt.QRectF() if self.image is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self.image.size))
+        return Qt.QRectF(0,0,1,1) if self.image is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self.image.size))
 
     def paint(self, qpainter, option, widget):
         if widget is None:

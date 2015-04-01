@@ -189,7 +189,11 @@ class HistogramItem(ShaderItem):
             print('WARNING: histogram_view.HistogramItem.paint called with widget=None.  Ensure that view caching is disabled.')
         elif self.image is None:
             if widget.view in self.view_resources:
-                self._del_tex()
+                vrs = self.view_resources[widget.view]
+                if 'tex' in vrs:
+                    tex = vrs['tex']
+                    tex.destroy()
+                    del vrs['tex']
         else:
             image = self.image
             view = widget.view
