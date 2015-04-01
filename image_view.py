@@ -138,11 +138,10 @@ class ImageView(ShaderView):
     def mouseReleaseEvent(self, event):
         event.setAccepted(False)
         super().mouseReleaseEvent(event)
-        if not event.isAccepted():
-            if event.button() == Qt.Qt.LeftButton:
-                self._panning = False
-                del self._panning_prev_mouse_pos
-                event.setAccepted(True)
+        if not event.isAccepted() and event.button() == Qt.Qt.LeftButton and self._panning:
+            self._panning = False
+            del self._panning_prev_mouse_pos
+            event.setAccepted(True)
 
     def mouseMoveEvent(self, event):
         event.setAccepted(False)

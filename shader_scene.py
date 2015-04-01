@@ -73,7 +73,7 @@ class MouseoverTextItem(Qt.QGraphicsTextItem):
     def paint(self, qpainter, option, widget):
         # Qt supplies our ShaderView's viewport (a _ShaderViewGLViewport) for the widget argument,
         # requiring us to check whether the widget's view attribute matches self.shader_view, rather than
-        # comparing widget to self.shader.
+        # comparing widget to self.shader_view.
         if hasattr(widget, 'view') and widget.view is self.shader_view:
             super().paint(qpainter, option, widget)
 
