@@ -117,11 +117,45 @@ class ImageView(ShaderView):
             self.zoom_changed.emit(self._zoom_preset_idx, self._custom_zoom)
 
     def mousePressEvent(self, event):
-        # event is set to accepted when we receive it...
+        # For our convenience, Qt sets event accpted to true before calling us, so that we don't have to in the common case
+        # where a handler handles the event and the event should be considered handled.  (Some unhandled events propagate
+        # to parent widgets, so this can be important)
         event.setAccepted(False)
-        # 
+        # However, Qt's handlers are generally good citizens and will, often redundantly, set accepted to true
+        # if they recognize and respond to an event.  QGraphicsView.mousePressEvent(..) is such a handler.
         super().mousePressEvent(event)
-        
+        if not event.isAccepted():
+            # If the mouse click landed on an interactive scene item, super().mousePressEvent(event) would have set
+            # event to accepted.  So, neither the view nor the scene wanted this mouse click, and we check if it is perhaps
+            # a click-drag pan initiation...
+            if event.button() == Qt.Qt.LeftButton:
+                # It is, and we're handling this event
+                self._panning = True
+                self._panning_prev_mouse_pos = event.pos()
+                event.setAccepted(True)
+
+    def mouseReleaseEvent(self, event):
+        event.setAccepted(False)
+        super().mouseReleaseEvent(event)
+        if not event.isAccepted():
+            if event.button() == Qt.Qt.LeftButton:
+                self._panning = False
+                del self._panning_prev_mouse_pos
+                event.setAccepted(True)
+
+    def mouseMoveEvent(self, event):
+        event.setAccepted(False)
+        super().mouseMoveEvent(event)
+        if not event.isAccepted():
+            if self._panning:
+                # This block more or less borrowed from QGraphicsView::mouseMoveEvent(QMouseEvent *event), found in
+                # qtbase/src/widgets/graphicsview/qgraphicsview.cpp
+                hbar, vbar = self.horizontalScrollBar(), self.verticalScrollBar()
+                pos = event.pos()
+                delta = pos - self._panning_prev_mouse_pos
+                hbar.setValue(hbar.value() + (delta.x() if self.isRightToLeft() else -delta.x()))
+                vbar.setValue(vbar.value() - delta.y())
+                self._panning_prev_mouse_pos = pos
 
     def on_zoom_to_fit_action_toggled(self):
         if not self._ignore_zoom_to_fit_action_toggle:
