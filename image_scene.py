@@ -183,7 +183,8 @@ class ImageItem(ShaderItem):
                     if histogram_scene.rescale_enabled:
                         gamma = histogram_scene.gamma
                         min_max = numpy.array((histogram_scene.min, histogram_scene.max), dtype=float)
-                        self._normalize_min_max(min_max)
+                        if image.dtype != numpy.float32:
+                            self._normalize_min_max(min_max)
                     else:
                         gamma = 1
                         min_max = numpy.array((0,1), dtype=float)
