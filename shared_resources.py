@@ -100,3 +100,30 @@ def GL():
             if not _GL.initializeOpenGLFunctions():
                 raise RuntimeError('Failed to initialize OpenGL wrapper namespace.')
     return _GL
+
+_freeimage = None
+
+def FREEIMAGE(show_messagebox_on_error=False, error_messagebox_owner=None):
+    """If show_messagebox_on_error is true and importing freeimage fails with an exception, a modal QMessageBox is displayed
+    describing the error and None is returned.  If show_messagebox_on_error is false and importing freeimage fails with
+    and exception, the exception is allowed to propagate."""
+    global _freeimage
+    if _freeimage is None:
+        if show_messagebox_on_error:
+            try:
+                import freeimage
+                _freeimage = freeimage
+            except ImportError:
+                Qt.QMessageBox.information(error_messagebox_owner,
+                                           'freeimage.py Not Found',
+                                           "Zach's freeimage module is required for loading drag & dropped image files.")
+                return
+            except RuntimeError as e:
+                estr = '\n'.join(("freeimage.py was found, but an error occurred while importing it " + \
+                                  "(likely because freeimage.so/dylib/dll could not be found):\n",) + e.args)
+                Qt.QMessageBox.information(error_messagebox_owner, 'Error While Importing freeimage Module', estr)
+                return
+        else:
+            import freeimage
+            _freeimage = freeimage
+    return _freeimage

@@ -151,9 +151,10 @@ class HistogramScene(ShaderScene):
                 if image.is_grayscale:
                     self.min, self.max = image.min_max
                 else:
-                    for channel_name, channel_min_max in zip(image.min_max, ('red','green','blue')):
-                        setattr(self, 'min_'+channel_name, channel_min_max[0])
-                        setattr(self, 'max_'+channel_name, channel_min_max[1])
+                    pass
+#                   for channel_name, channel_min_max in zip(image.min_max, ('red','green','blue')):
+#                       setattr(self, 'min_'+channel_name, channel_min_max[0])
+#                       setattr(self, 'max_'+channel_name, channel_min_max[1])
             finally:
                 self._keep_auto_min_max_on_min_max_value_change = False
 

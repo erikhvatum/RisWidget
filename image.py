@@ -27,7 +27,13 @@ import numpy
 from PyQt5 import Qt
 
 class Image:
-    def __init__(self, data, name=None, is_twelve_bit=False, float_range=None):
+    def __init__(self, data, name=None, is_twelve_bit=False, float_range=None, shape_is_width_height=True):
+        """All Python code written in Zach Pincus's lab that manipulates images must interpret the first 
+        element of any image data array's shape tuple to represent width.  This program was written
+        in Zach Pincus's lab, and so it defaults to that behavior.  If you are supplying image data
+        that does not follow this convention, specify the argument shape_is_width_height=False, and
+        your image will be displayed correctly rather than mirrored over the X/Y axis."""
+        self.name = '' if name is None else name
         self._data = numpy.asarray(data)
         self._is_twelve_bit = is_twelve_bit
         dt = self._data.dtype.type
@@ -36,13 +42,22 @@ class Image:
             dt = numpy.float32
 
         if self._data.ndim == 2:
-            self._data = numpy.asfortranarray(self._data)
+            if not shape_is_width_height:
+                self._data = self._data.transpose(1, 0)
             self._type = 'g'
+            bpe = self._data.itemsize
+            desired_strides = (bpe, self._data.shape[0]*bpe)
+            if desired_strides != self._data.strides:
+                d = self._data
+                self._data = numpy.ndarray(d.shape, strides=desired_strides, dtype=d.dtype.type)
+                self._data.flat = d.flat
             stats = compute_ndimage_statistics(self._data, self._is_twelve_bit)
             self._histogram = stats.histogram
             self._min_max = (stats.min_intensity, stats.max_intensity)
             self._max_histogram_bin = stats.max_bin
         elif self._data.ndim == 3:
+            if not shape_is_width_height:
+                self._data = self._data.transpose(1, 0, 2)
             self._type = {2: 'ga', 3: 'rgb', 4: 'rgba'}.get(self._data.shape[2])
             if self._type is None:
                 e = '3D iterable supplied for image_data argument must be either MxNx2 (grayscale with alpha), '
@@ -95,7 +110,13 @@ class Image:
 
     @property
     def data(self):
+        """Image data as numpy array in Zach convention."""
         return self._data
+
+    @property
+    def data_T(self):
+        """Image data as numpy array in shape = (height, width, [channels]) convention."""
+        return self._data.transpose(*(1,0,2)[:self._data.ndim])
 
     @property
     def histogram(self):

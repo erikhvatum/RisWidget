@@ -31,6 +31,8 @@ from .histogram_view import HistogramView
 from .image import Image
 from .image_scene import ImageScene
 from .image_view import ImageView
+from .shared_resources import FREEIMAGE
+import ctypes
 
 class RisWidget(Qt.QMainWindow):
     # The image_changed signal is emitted immediately after a new value is successfully assigned to the
@@ -118,7 +120,30 @@ class RisWidget(Qt.QMainWindow):
 
     def dropEvent(self, event):
         mime_data = event.mimeData()
-        if mime_data.hasUrls():
+        if mime_data.hasImage():
+            qimage = mime_data.imageData()
+            if not qimage.isNull() and qimage.format() != Qt.QImage.Format_Invalid:
+                if qimage.hasAlphaChannel():
+                    desired_format = Qt.QImage.Format_RGBA8888
+                    channel_count = 4
+                else:
+                    desired_format = Qt.QImage.Format_RGB888
+                    channel_count = 3
+                if qimage.format() != desired_format:
+                    qimage = qimage.convertToFormat(desired_format)
+                npyimage = numpy.ctypeslib.as_array(ctypes.cast(int(qimage.bits()), ctypes.POINTER(ctypes.c_uint8)),
+                                                    shape=(qimage.height(), qimage.width(), channel_count))
+                if qimage.isGrayscale():
+                    npyimage=npyimage[...,0]
+                image = Image(npyimage, mime_data.urls()[0] if mime_data.hasUrls() else None, shape_is_width_height=False)
+                if image.data.ctypes.data == npyimage.ctypes.data:
+                    # Retain reference to prevent deallocation of underlying buffer owned by Qt and wrapped by numpy.  This does happen,
+                    # indicating that the various transponse operations just shift around elements of shape and strides rather than
+                    # causing memcpys.
+                    image.qimage = qimage
+                self.image = image
+                event.accept()
+        elif mime_data.hasUrls():
             # Note: if the URL is a "file://..." representing a local file, toLocalFile returns a string
             # appropriate for feeding to Python's open() function.  If the URL does not refer to a local file,
             # toLocalFile returns None.
@@ -127,29 +152,16 @@ class RisWidget(Qt.QMainWindow):
                 e = 'In order for image file drag & drop to work on OS X >=10.10 (Yosemite), please upgrade to at least Qt 5.4.1.'
                 Qt.QMessageBox.information(self, 'Qt Upgrade Required', e)
                 return
-            if 1:#len(fpaths) == 1:
-                try:
-                    import freeimage
-                except ImportError:
-                    Qt.QMessageBox.information(self, 'freeimage.py Not Found', "Zach's freeimage module is required for loading drag & dropped image files.")
-                    return
-                except RuntimeError as e:
-                    estr = '\n'.join(("freeimage.py was found, but an error occurred while importing it " + \
-                                      "(likely because freeimage.so/dylib/dll could not be found):\n",) + e.args)
-                    Qt.QMessageBox.information(self, 'Error While Importing freeimage Module', estr)
-                    return
+            freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
+            if freeimage is None:
+                return
+            if len(fpaths) == 1:
                 self.image = Image(freeimage.read(fpaths[0]), fpaths[0])
                 event.accept()
             else:
                 # TODO: if more than one file is dropped, open them all in a new flipper
-                pass
-#           for url in mime_data.urls():
-#       if mime_data.hasImage():
-# TODO: THIS PART
-#           image = mime_data.imageData()
-#           pixmap = Qt.QPixmap(image.size())
-#           pixmap.convertFromImage(image)
-#           self.imageLabel.setPixmap(pixmap)
+                for fpath in fpaths:
+                    print(fpath)
 
     @property
     def image_data(self):
@@ -177,6 +189,34 @@ class RisWidget(Qt.QMainWindow):
     @image_data.setter
     def image_data(self, image_data):
         self.image = None if image_data is None else Image(image_data)
+
+    @property
+    def image_data_T(self):
+        """image_data_T property:
+        The input assigned to this property may be None, in which case the current image and histogram views are cleared,
+        and otherwise must be convertable to a 2D or 3D numpy array of shape (h, w) or (h, w, c), respectively*.  2D input
+        is interpreted as grayscale.  3D input, depending on the value of c, is iterpreted as grayscale & alpha (c of 2),
+        red & blue & green (c of 3), or red & blue & green & alpha (c of 4).
+
+        The following dtypes are directly supported (data of any other type is converted to 32-bit floating point,
+        and an exception is thrown if conversion fails):
+        numpy.uint8
+        numpy.uint16
+        numpy.float32
+
+        Supplying a numpy array of one of the above types as input may avoid an intermediate copy step by allowing RisWidget
+        to keep a reference to the supplied array, allowing its data to be accessed directly.
+
+
+        * IE, the iterable assigned to the image property is interpreted as an iterable of columns (image left to right), each
+        containing an iterable of rows (image top to bottom), each of which is either a grayscale intensity value or an
+        iterable of color channel intensity values (gray & alpha, or red & green & blue, or red & green & blue & alpha)."""
+        if self._image is not None:
+            return self._image.data_T
+
+    @image_data_T.setter
+    def image_data_T(self, image_data_T):
+        self.image = None if image_data_T is None else Image(image_data_T, shape_is_width_height=False)
 
     @property
     def image(self):
