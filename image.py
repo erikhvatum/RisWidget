@@ -23,17 +23,38 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from .ndimage_statistics import compute_ndimage_statistics
+import datetime
 import numpy
 from PyQt5 import Qt
+import time
 
 class Image:
+    _previous_anon_name_timestamp = None
+    _previous_anon_name_timestamp_dupe_count = None
+
+    @staticmethod
+    def _generate_anon_name():
+        timestamp = time.time()
+        if timestamp == Image._previous_anon_name_timestamp:
+            Image._previous_anon_name_timestamp_dupe_count += 1
+        else:
+            Image._previous_anon_name_timestamp = timestamp
+            Image._previous_anon_name_timestamp_dupe_count = 0
+        name = str(timestamp)
+        if Image._previous_anon_name_timestamp_dupe_count > 0:
+            name += '-{:04}'.format(Image._previous_anon_name_timestamp_dupe_count)
+        name += ' ({})'.format(datetime.datetime.fromtimestamp(timestamp).strftime('%c'))
+        return name
+
     def __init__(self, data, name=None, is_twelve_bit=False, float_range=None, shape_is_width_height=True):
         """All Python code written in Zach Pincus's lab that manipulates images must interpret the first 
         element of any image data array's shape tuple to represent width.  This program was written
         in Zach Pincus's lab, and so it defaults to that behavior.  If you are supplying image data
         that does not follow this convention, specify the argument shape_is_width_height=False, and
         your image will be displayed correctly rather than mirrored over the X/Y axis."""
-        self.name = '' if name is None else name
+        if name is None:
+            name = Image._generate_anon_name()
+        self.name = name
         self._data = numpy.asarray(data)
         self._is_twelve_bit = is_twelve_bit
         dt = self._data.dtype.type
@@ -96,6 +117,16 @@ class Image:
             else:
                 raise NotImplementedError('Support for another numpy dtype was added without implementing self._range calculation for it...')
 
+    def __repr__(self):
+        num_channels = self.num_channels
+        return '{}; {}x{}, {} channel{} ({}), with name "{}">'.format(super().__repr__()[:-1],
+                                                                      self._size.width(),
+                                                                      self._size.height(),
+                                                                      num_channels,
+                                                                      '' if num_channels == 1 else 's',
+                                                                      self._type,
+                                                                      self.name)
+
     @property
     def type(self):
         return self._type
@@ -149,3 +180,7 @@ class Image:
     @property
     def is_twelve_bit(self):
         return self._is_twelve_bit
+
+    @property
+    def num_channels(self):
+        return len(self._type)
