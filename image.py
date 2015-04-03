@@ -142,7 +142,7 @@ class Image:
 
     @property
     def data(self):
-        """Image data as numpy array in Zach convention."""
+        """Image data as numpy array in shape = (width, height, [channels]) convention."""
         return self._data
 
     @property
