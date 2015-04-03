@@ -119,13 +119,14 @@ class Image:
 
     def __repr__(self):
         num_channels = self.num_channels
-        return '{}; {}x{}, {} channel{} ({}), with name "{}">'.format(super().__repr__()[:-1],
-                                                                      self._size.width(),
-                                                                      self._size.height(),
-                                                                      num_channels,
-                                                                      '' if num_channels == 1 else 's',
-                                                                      self._type,
-                                                                      self.name)
+        return '{}; {}x{}, {} channel{} ({}), with name "{}">'.format(
+            super().__repr__()[:-1],
+            self._size.width(),
+            self._size.height(),
+            num_channels,
+            '' if num_channels == 1 else 's',
+            self._type,
+            self.name)
 
     @property
     def type(self):
