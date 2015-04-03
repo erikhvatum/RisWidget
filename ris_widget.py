@@ -26,6 +26,7 @@ from PyQt5 import Qt
 import numpy
 import sys
 
+from .flipbook import Flipbook
 from .histogram_scene import HistogramScene
 from .histogram_view import HistogramView
 from .image import Image
@@ -54,6 +55,8 @@ class RisWidget(Qt.QMainWindow):
         self._init_actions()
         self._init_toolbars()
         self._image = None
+        # Flipbook names -> Flipbook widget instances
+        self._flipbooks = dict()
 
     def _init_actions(self):
         self._histogram_view_reset_min_max_action = Qt.QAction(self)
@@ -159,9 +162,35 @@ class RisWidget(Qt.QMainWindow):
                 self.image = Image(freeimage.read(fpaths[0]), fpaths[0])
                 event.accept()
             else:
-                # TODO: if more than one file is dropped, open them all in a new flipper
-                for fpath in fpaths:
-                    print(fpath)
+                # TODO: read images in background thread and display modal progress bar dialog with cancel button
+                images = [Image(freeimage.read(fpath), fpath) for fpath in fpaths]
+                self.make_flipbook(images)
+                event.accept()
+
+    def make_flipbook(self, images=None, name=None):
+        """The images argument may be any mixture of ris_widget.image.Image objects and raw data iterables of the sort that
+        may be assigned to RisWidget.image_data or RisWidget.image_data_T.
+        If None is supplied for images, an empty flipbook is created.
+        If None is supplied for name, a unique name is generated.
+        If the value supplied for name is not unique, a suffix is appended such that the resulting name is unique."""
+        image_prop_setter = RisWidget.__dict__['image'].__set__
+        flipbook = Flipbook(self._uniqueify_flipbook_name, lambda image: image_prop_setter(self, image), images, name)
+        assert flipbook.name not in self._flipbooks
+        self._flipbooks[flipbook.name] = flipbook
+        flipbook.name_changed.connect(self._on_flipbook_name_changed)
+        flipbook.destroyed.connect(self._on_flipbook_destroyed)
+        dock_widget = Qt.QDockWidget(flipbook.name, self)
+        dock_widget.setWidget(flipbook)
+        dock_widget.setAllowedAreas(Qt.Qt.LeftDockWidgetArea | Qt.Qt.RightDockWidgetArea)
+        dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
+        dock_widget.setAttribute(Qt.Qt.WA_DeleteOnClose)
+        self.addDockWidget(Qt.Qt.RightDockWidgetArea, dock_widget)
+
+    def get_flipbook(self, name):
+        return self._flipbooks[name]
+
+    def close_flipbook(self, name):
+        self._flipbooks[name].parent().deleteLater()
 
     @property
     def image_data(self):
@@ -224,12 +253,13 @@ class RisWidget(Qt.QMainWindow):
 
     @image.setter
     def image(self, image):
-        if image is not None and not issubclass(type(image), Image):
-            raise ValueError('The value assigned to the image property must either be derived from ris_widget.image.Image or must be None.  Did you mean to assign to the image_data property?')
-        self.histogram_scene.on_image_changing(image)
-        self.image_scene.on_image_changing(image)
-        self._image = image
-        self.image_changed.emit(image)
+        if image is not self._image:
+            if image is not None and not issubclass(type(image), Image):
+                raise ValueError('The value assigned to the image property must either be derived from ris_widget.image.Image or must be None.  Did you mean to assign to the image_data property?')
+            self.histogram_scene.on_image_changing(image)
+            self.image_scene.on_image_changing(image)
+            self._image = image
+            self.image_changed.emit(image)
 
     def _image_view_zoom_changed(self, zoom_preset_idx, custom_zoom):
         assert zoom_preset_idx == -1 and custom_zoom != 0 or zoom_preset_idx != -1 and custom_zoom == 0, 'zoom_preset_idx XOR custom_zoom must be set.'
@@ -260,6 +290,25 @@ class RisWidget(Qt.QMainWindow):
 
     def _on_reset_gamma(self):
         del self.histogram_scene.gamma
+
+    def _uniqueify_flipbook_name(self, name):
+        if name not in self._flipbooks:
+            return name
+        dupe_count = 1
+        try_name = name + str(dupe_count)
+        while try_name in self._flipbooks:
+            # This loop is not fast for large numbers of flipbooks, of which there should not be
+            dupe_count += 1
+            try_name = name + str(dupe_count)
+        return try_name
+
+    def _on_flipbook_name_changed(self, flipbook, old_name, name):
+        assert name not in self._flipbooks
+        del self._flipbooks[old_name]
+        self._flipbooks[name] = flipbook
+
+    def _on_flipbook_destroyed(self, flipbook_qobject):
+        del self._flipbooks[flipbook_qobject.objectName()]
 
 if __name__ == '__main__':
     import sys
