@@ -81,6 +81,10 @@ class ImageItem(ShaderItem):
         'rgb' : 'vec4(vcomponents.rgb, 1.0f)',
         'rgba': 'vec4(vcomponents.rgb, tcomponents.a)'}
 
+    def __init__(self, parent_item=None):
+        super().__init__(parent_item)
+        self.tex = None
+
     def type(self):
         return GammaItem.QGRAPHICSITEM_TYPE
 
@@ -91,28 +95,17 @@ class ImageItem(ShaderItem):
         if widget is None:
             print('WARNING: image_view.ImageItem.paint called with widget=None.  Ensure that view caching is disabled.')
         elif self.image is None:
-            if widget.view in self.view_resources:
-                vrs = self.view_resources[widget.view]
-                if 'tex' in vrs:
-                    vrs['tex'].destroy()
-                    del vrs['tex']
+            if self.tex is not None:
+                self.tex.destroy()
+                self.tex = None
         else:
             with ExitStack() as stack:
                 qpainter.beginNativePainting()
                 stack.callback(qpainter.endNativePainting)
                 gl = GL()
                 image = self.image
-                view = widget.view
-                if view in self.view_resources:
-                    vrs = self.view_resources[view]
-                else:
-                    self.view_resources[view] = vrs = {}
-                if 'progs' in vrs:
-                    progs = vrs['progs']
-                else:
-                    progs = vrs['progs'] = {}
-                if image.type in progs:
-                    prog = progs[image.type]
+                if image.type in self.progs:
+                    prog = self.progs[image.type]
                 else:
                     if image.is_grayscale:
                         vcomponents_t = 'float'
@@ -122,24 +115,22 @@ class ImageItem(ShaderItem):
                         vcomponents_t = 'vec3'
                         extract_vcomponents = 'tcomponents.rgb'
                         vcomponents_ones_vector = 'vec3(1.0f, 1.0f, 1.0f)'
-                    self.build_shader_prog(image.type,
-                                           'image_widget_vertex_shader.glsl',
-                                           'image_widget_fragment_shader_template.glsl',
-                                           view,
-                                           vcomponents_t=vcomponents_t,
-                                           extract_vcomponents=extract_vcomponents,
-                                           vcomponents_ones_vector=vcomponents_ones_vector,
-                                           combine_vt_components=ImageItem.IMAGE_TYPE_TO_COMBINE_VT_COMPONENTS[image.type])
-                    prog = progs[image.type]
+                    prog = self.build_shader_prog(image.type,
+                                                  'image_widget_vertex_shader.glsl',
+                                                  'image_widget_fragment_shader_template.glsl',
+                                                  vcomponents_t=vcomponents_t,
+                                                  extract_vcomponents=extract_vcomponents,
+                                                  vcomponents_ones_vector=vcomponents_ones_vector,
+                                                  combine_vt_components=ImageItem.IMAGE_TYPE_TO_COMBINE_VT_COMPONENTS[image.type])
                 prog.bind()
                 stack.callback(prog.release)
                 desired_texture_format = ImageItem.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[image.type]
-                if 'tex' in vrs:
-                    tex = vrs['tex']
+                tex = self.tex
+                if tex is not None:
                     if image.size != Qt.QSize(tex.width(), tex.height()) or tex.format() != desired_texture_format:
                         tex.destroy()
-                        del vrs['tex']
-                if 'tex' not in vrs:
+                        tex = self.tex = None
+                if tex is None:
                     tex = ShaderQOpenGLTexture(Qt.QOpenGLTexture.Target2D)
                     tex.setFormat(desired_texture_format)
                     tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
@@ -163,7 +154,10 @@ class ImageItem(ShaderItem):
 #                   t1=time.time()
 #                   print('{}ms / {}fps'.format(1000*(t1-t0), 1/(t1-t0)))
                     tex.image_id = self._image_id
-                    vrs['tex'] = tex
+                    # self.tex is updated here and not before so that any failure preparing tex results in a retry the next time self.tex
+                    # is needed
+                    self.tex = tex
+                view = widget.view
                 view.quad_buffer.bind()
                 stack.callback(view.quad_buffer.release)
                 view.quad_vao.bind()
@@ -225,10 +219,10 @@ class ImageItem(ShaderItem):
                     vt = vt.format(self.image.data[pos.x(), pos.y()])
                 else:
                     vt = vt.format(*self.image.data[pos.x(), pos.y()])
-                self.scene().update_mouseover_info(mst + vt, False, self)
+                self.scene().update_contextual_info(mst + vt, False, self)
 
     def hoverLeaveEvent(self, event):
-        self.scene().clear_mouseover_info(self)
+        self.scene().clear_contextual_info(self)
 
     def on_image_changing(self, image):
         if self.image is None and image is not None or \

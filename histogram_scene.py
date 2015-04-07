@@ -68,9 +68,6 @@ class ItemProp:
             raise AttributeError("Can't delete instance attribute of class.")
         del self.scene_items[histogram_scene].value
 
-    def propagate_scene_item_value(self, histogram_scene):
-        pass
-
 class MinMaxItemProp(ItemProp):
     def __init__(self, item_props_list, item_props, min_max_item_props, name, name_in_label=None, channel_name=None):
         super().__init__(item_props_list, item_props, name, name_in_label, channel_name)
@@ -178,6 +175,7 @@ class HistogramItem(ShaderItem):
         self.image = None
         self._image_id = 0
         self._bounding_rect = Qt.QRectF(0, 0, 1, 1)
+        self.tex = None
 
     def type(self):
         return HistogramItem.QGRAPHICSITEM_TYPE
@@ -189,44 +187,34 @@ class HistogramItem(ShaderItem):
         if widget is None:
             print('WARNING: histogram_view.HistogramItem.paint called with widget=None.  Ensure that view caching is disabled.')
         elif self.image is None:
-            if widget.view in self.view_resources:
-                vrs = self.view_resources[widget.view]
-                if 'tex' in vrs:
-                    tex = vrs['tex']
-                    tex.destroy()
-                    del vrs['tex']
+            if self.tex is not None:
+                self.tex.destroy()
+                self.tex = None
         else:
             image = self.image
             view = widget.view
             scene = self.scene()
-            gl = GL()
             if not image.is_grayscale:
                 return
                 # personal time todo: per-channel RGB histogram support
             with ExitStack() as stack:
                 qpainter.beginNativePainting()
                 stack.callback(qpainter.endNativePainting)
-                if view in self.view_resources:
-                    vrs = self.view_resources[view]
+                gl = GL()
+                desired_shader_type = 'g' if image.type in ('g', 'ga') else 'rgb'
+                if desired_shader_type in self.progs:
+                    prog = self.progs[desired_shader_type]
                 else:
-                    self.view_resources[view] = vrs = {}
-                    self.build_shader_prog('g',
-                                           'histogram_widget_vertex_shader.glsl',
-                                           'histogram_widget_fragment_shader_g.glsl',
-                                           view)
-                    vrs['progs']['ga'] = vrs['progs']['g']
-                    self.build_shader_prog('rgb',
-                                           'histogram_widget_vertex_shader.glsl',
-                                           'histogram_widget_fragment_shader_rgb.glsl',
-                                           view)
-                    vrs['progs']['rgba'] = vrs['progs']['rgb']
+                    prog = self.build_shader_prog(desired_shader_type,
+                                                  'histogram_widget_vertex_shader.glsl',
+                                                  'histogram_widget_fragment_shader_{}.glsl'.format(desired_shader_type))
                 desired_tex_width = image.histogram.shape[-1]
-                if 'tex' in vrs:
-                    tex = vrs['tex']
+                tex = self.tex
+                if tex is not None:
                     if tex.width != desired_tex_width:
                         tex.destroy()
-                        del vrs['tex']
-                if 'tex' not in vrs:
+                        tex = self.tex = None
+                if tex is None:
                     tex = ShaderTexture(gl.GL_TEXTURE_1D)
                     tex.bind()
                     stack.callback(tex.release)
@@ -237,7 +225,6 @@ class HistogramItem(ShaderItem):
                     gl.glTexParameteri(gl.GL_TEXTURE_1D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
                     gl.glTexParameteri(gl.GL_TEXTURE_1D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
                     tex.image_id = -1
-                    vrs['tex'] = tex
                 else:
                     tex.bind()
                     stack.callback(tex.release)
@@ -262,11 +249,11 @@ class HistogramItem(ShaderItem):
                                         histogram.data)
                         tex.image_id = self._image_id
                         tex.width = desired_tex_width
+                        self.tex = tex
                     view.quad_buffer.bind()
                     stack.callback(view.quad_buffer.release)
                     view.quad_vao.bind()
                     stack.callback(view.quad_vao.release)
-                    prog = vrs['progs'][image.type]
                     prog.bind()
                     stack.callback(prog.release)
                     vert_coord_loc = prog.attributeLocation('vert_coord')
@@ -311,13 +298,13 @@ class HistogramItem(ShaderItem):
                         vt = vt.format(histogram[bin])
                     else:
                         vt = vt.format(*histogram[:,bin])
-                    self.scene().update_mouseover_info(mst + vt, False, self)
+                    self.scene().update_contextual_info(mst + vt, False, self)
                 else:
                     pass
                     # personal time todo: per-channel RGB histogram support
 
     def hoverLeaveEvent(self, event):
-        self.scene().clear_mouseover_info(self)
+        self.scene().clear_contextual_info(self)
 
     def on_image_changing(self, image):
         super().on_image_changing(image)
@@ -335,7 +322,7 @@ class PropItem(Qt.QGraphicsObject):
 
     def mouseReleaseEvent(self, event):
         super().mouseReleaseEvent(event)
-        self.scene().clear_mouseover_info(self)
+        self.scene().clear_contextual_info(self)
 
 class MinMaxItem(PropItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
@@ -344,6 +331,7 @@ class MinMaxItem(PropItem):
         super().__init__(histogram_item, prop)
         self._bounding_rect = Qt.QRectF(-0.1, 0, .2, 1)
         self._opposite_item = None
+        self.arrow_item = MinMaxArrowItem(self, histogram_item)
 
     def type(self):
         return MinMaxItem.QGRAPHICSITEM_TYPE
@@ -431,11 +419,14 @@ class MinMaxItem(PropItem):
 class MinMaxArrowItem(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
 
-    def __init__(self, shader_view, polygonf, min_max_item, parent_item=None):
-        super().__init__(parent_item)
-        self.shader_view = shader_view
-        self.min_max_item = min_max_item
+    def __init__(self, min_max_item, histogram_item):
+        super().__init__(histogram_item)
         self._path = Qt.QPainterPath()
+        self.min_max_item = min_max_item
+        if min_max_item.prop.name == 'min':
+            polygonf = Qt.QPolygonF((Qt.QPointF(0.5, -10), Qt.QPointF(6, 0), Qt.QPointF(0.5, 10)))
+        else:
+            polygonf = Qt.QPolygonF((Qt.QPointF(-0.5, -10), Qt.QPointF(-6, 0), Qt.QPointF(-0.5, 10)))
         self._path.addPolygon(polygonf)
         self._path.closeSubpath()
         self._bounding_rect = self._path.boundingRect()
@@ -469,10 +460,9 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
         return self._path
 
     def paint(self, qpainter, option, widget):
-        if hasattr(widget, 'view') and widget.view is self.shader_view:
-            qpainter.setPen(self.pen)
-            qpainter.setBrush(self.brush)
-            qpainter.drawPath(self._path)
+        qpainter.setPen(self.pen)
+        qpainter.setBrush(self.brush)
+        qpainter.drawPath(self._path)
 
     def on_x_changed(self):
         x = self.x()
@@ -480,8 +470,7 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
             self.setX(0)
         elif x > 1:
             self.setX(1)
-        else:
-            self.min_max_item.value = self.min_max_item.x_to_value(x)
+        self.min_max_item.value = self.min_max_item.x_to_value(x)
 
     def on_y_changed(self):
         if self.y() != 0.5:
@@ -489,11 +478,11 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
 
     def mouseMoveEvent(self, event):
         super().mouseMoveEvent(event)
-        self.scene().update_mouseover_info('{}: {}'.format(self.min_max_item.prop.full_name_in_label, self.min_max_item.value), False, self)
+        self.scene().update_contextual_info('{}: {}'.format(self.min_max_item.prop.full_name_in_label, self.min_max_item.value), False, self)
 
     def mousePressEvent(self, event):
         super().mousePressEvent(event)
-        self.scene().update_mouseover_info('{}: {}'.format(self.min_max_item.prop.full_name_in_label, self.min_max_item.value), False, self)
+        self.scene().update_contextual_info('{}: {}'.format(self.min_max_item.prop.full_name_in_label, self.min_max_item.value), False, self)
 
     def on_min_max_value_changed(self):
         desired_x = self.min_max_item.x()
@@ -549,14 +538,14 @@ class GammaItem(PropItem):
 
     def mousePressEvent(self, event):
         super().mousePressEvent(event)
-        self.scene().update_mouseover_info('{}: {}'.format(self.prop.full_name_in_label, self.value), False, self)
+        self.scene().update_contextual_info('{}: {}'.format(self.prop.full_name_in_label, self.value), False, self)
 
     def mouseMoveEvent(self, event):
         current_x, current_y = map(lambda v: min(max(v, 0.001), 0.999),
                                    (event.pos().x(), event.pos().y()))
         current_y = 1-current_y
         self.value = min(max(math.log(current_y, current_x), GammaItem.RANGE[0]), GammaItem.RANGE[1])
-        self.scene().update_mouseover_info('{}: {}'.format(self.prop.full_name_in_label, self.value), False, self)
+        self.scene().update_contextual_info('{}: {}'.format(self.prop.full_name_in_label, self.value), False, self)
 
     @property
     def value(self):

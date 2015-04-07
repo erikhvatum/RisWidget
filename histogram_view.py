@@ -40,11 +40,9 @@ class HistogramView(ShaderView):
         histogram_frame.layout().addWidget(histogram_view)
         return (histogram_view, histogram_frame)
 
-    def __init__(self, shader_scene, parent):
-        super().__init__(shader_scene, parent)
-        self.add_min_max_arrow_items()
-
     def on_resize(self, size):
+        super().on_resize(size)
+        # Adjust this view's transform such that unit square scene rect fills resized viewport
         self.resetTransform()
         self.scale(size.width(), size.height())
 
@@ -53,16 +51,3 @@ class HistogramView(ShaderView):
         view size, so there is no need for our base class's implementation of this function to
         emit scene_view_rect_changed.  For this reason, this override does not call super().on_resize_done(..)."""
         pass
-
-    def add_min_max_arrow_items(self):
-        histogram_scene = self.scene()
-
-        polygonf = Qt.QPolygonF((Qt.QPointF(0.5, -10), Qt.QPointF(6, 0), Qt.QPointF(0.5, 10)))
-        self.min_arrow_item = MinMaxArrowItem(self, polygonf, histogram_scene.get_prop_item('min'))
-        histogram_scene.addItem(self.min_arrow_item)
-        self.view_items.append(self.min_arrow_item)
-
-        polygonf = Qt.QPolygonF((Qt.QPointF(-0.5, -10), Qt.QPointF(-6, 0), Qt.QPointF(-0.5, 10)))
-        self.max_arrow_item = MinMaxArrowItem(self, polygonf, histogram_scene.get_prop_item('max'))
-        histogram_scene.addItem(self.max_arrow_item)
-        self.view_items.append(self.max_arrow_item)

@@ -23,77 +23,123 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from .shared_resources import GL, UNIQUE_QGRAPHICSITEM_TYPE
+from .shader_view import ShaderView
 from pathlib import Path
 from PyQt5 import Qt
 from string import Template
 
 class ShaderScene(Qt.QGraphicsScene):
-    """update_mouseover_info_signal serves to relay mouseover info plaintext/html change requests
-    from any items in the ShaderScene to every attached ShaderView, which
-    will typically update its mouseover info item in response.  The clear_mouseover_info(self, requester)
-    and update_mouseover_info(self, string, is_html, requester) member functions provide an interface that
-    relieves the need to ensure that a single pair of mouse-exited-so-clear-the-text and
-    mouse-over-new-thing-so-display-some-other-text events are handled in order, which should be
-    done if update_mouseover_info_signal.emit(..) is called directly.
+    """Although the Qt Graphics View Framework supports multiple views into a single scene, we don't
+    have much need for this capability, and we do not go out of our way to make it work correctly.
+    GraphicsItems that maintain view relative positions by responding to the
+    ShaderView.scene_view_rect_changed signal will be positioned correctly only for the view that
+    last emitted the signal.  So, if you make two ImageViews into the same ImageScene and pan one
+    ImageView, you will see the contextual info text item remain fixed in the view being panned
+    while appearing to move about in the stationary view."""
 
-    If the second parameter is True, the first parameter is interpreted as html.  The first parameter is
-    treated as a plaintext string otherwise."""
-    update_mouseover_info_signal = Qt.pyqtSignal(str, bool)
+    # update_contextual_info_signal serves to relay contextual info plaintext/html change requests
+    # from any items in the ShaderScene to any interested recipient.  By default, the only recipient
+    # is self.contextual_info_text_item, which is pinned to the top left corner of
+    # will typically update its mouseover info item in response.  The clear_contextual_info(self, requester)
+    # and update_contextual_info(self, string, is_html, requester) member functions provide an interface that
+    # relieves the need to ensure that a single pair of mouse-exited-so-clear-the-text and
+    # mouse-over-new-thing-so-display-some-other-text events are handled in order, which should be
+    # done if update_contextual_info_signal.emit(..) is called directly.
+    #
+    # If the second parameter is True, the first parameter is interpreted as html.  The first parameter is
+    # treated as a plaintext string otherwise.
+    update_contextual_info_signal = Qt.pyqtSignal(str, bool)
+    # shader_scene_view_rect_changed is emitted by the ShaderView associated with this scene
+    # immediately after the boundries of the scene region framed by the view rect change.  Item
+    # view coordinates may be held constant by updating item scene position in response to this
+    # signal (in the case of shader_scene.ContextualInfoTextItem, for example).
+    shader_scene_view_rect_changed = Qt.pyqtSignal(ShaderView)
 
     def __init__(self, parent):
         super().__init__(parent)
         self.requester_of_current_nonempty_mouseover_info = None
+        self.add_contextual_info_item()
 
-    def clear_mouseover_info(self, requester):
-        self.update_mouseover_info(None, False, requester)
+    def add_contextual_info_item(self):
+        self.contextual_info_text_item = ContextualInfoTextItem()
+        self.addItem(self.contextual_info_text_item)
+        self.update_contextual_info_signal.connect(self.contextual_info_text_item.on_update_contextual_info)
+        self.shader_scene_view_rect_changed.connect(self.contextual_info_text_item.on_shader_view_scene_rect_changed)
 
-    def update_mouseover_info(self, string, is_html, requester):
+    def clear_contextual_info(self, requester):
+        self.update_contextual_info(None, False, requester)
+
+    def update_contextual_info(self, string, is_html, requester):
         if string is None or len(string) == 0:
             if self.requester_of_current_nonempty_mouseover_info is None or self.requester_of_current_nonempty_mouseover_info is requester:
                 self.requester_of_current_nonempty_mouseover_info = None
-                self.update_mouseover_info_signal.emit('', False)
+                self.update_contextual_info_signal.emit('', False)
         else:
             self.requester_of_current_nonempty_mouseover_info = requester
-            self.update_mouseover_info_signal.emit(string, is_html)
+            self.update_contextual_info_signal.emit(string, is_html)
 
-class MouseoverTextItem(Qt.QGraphicsTextItem):
+    @property
+    def contextual_info_default_color(self):
+        """(r,g,b,a) tuple, with elements in the range [0,255].  The alpha channel value (4th element of the 
+        tuple) defaults to 255 and may be omitted when setting this property.  "default" in
+        "contextual_info_default_color" refers to the fact that this color may be overridden by color information
+        in an HTML ShaderScene.update_contextual_info_signal."""
+        c = self.contextual_info_text_item.defaultTextColor()
+        return c.red(), c.green(), c.blue(), c.alpha()
+
+    @contextual_info_default_color.setter
+    def contextual_info_default_color(self, rgb_a):
+        rgb_a = tuple(map(int, rgb_a))
+        if len(rgb_a) == 3:
+            rgb_a = rgb_a + (255,)
+        elif len(rgb_a) != 4:
+            raise ValueError('Value supplied for contextual_info_default_color must be a 3 or 4 element iterable.')
+        self.contextual_info_text_item.setDefaultTextColor(Qt.QColor(*rgb_a))
+
+class ContextualInfoTextItem(Qt.QGraphicsTextItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
-    """Visible only in self.shader_view, as opposed to all views attached to the scene containing
-    this item.  This allows mouseover info text to be visible only in the active view even when there
-    are multiple viewports into the same scene."""
 
-    def __init__(self, shader_view, parent_item=None):
-        super().__init__(parent_item)
-        self.shader_view = shader_view
-        self.setFlag(Qt.QGraphicsItem.ItemIgnoresTransformations)
-
-    def type(self):
-        return MouseoverTextItem.QGRAPHICSITEM_TYPE
-
-    def paint(self, qpainter, option, widget):
-        # Qt supplies our ShaderView's viewport (a _ShaderViewGLViewport) for the widget argument,
-        # requiring us to check whether the widget's view attribute matches self.shader_view, rather than
-        # comparing widget to self.shader_view.
-        if hasattr(widget, 'view') and widget.view is self.shader_view:
-            super().paint(qpainter, option, widget)
-
-    def on_shader_view_scene_rect_changed(self):
-        """Maintain position at top left corner of self.shader_view."""
-        topleft = Qt.QPoint()
-        if self.shader_view.mapFromScene(self.pos()) != topleft:
-            self.setPos(self.shader_view.mapToScene(topleft))
-
-class ShaderItem(Qt.QGraphicsItem):
     def __init__(self, parent_item=None):
         super().__init__(parent_item)
-        self.view_resources = {}
+        self.setFlag(Qt.QGraphicsItem.ItemIgnoresTransformations)
+        f = Qt.QFont('Courier', pointSize=14, weight=Qt.QFont.Bold)
+        f.setKerning(False)
+        f.setStyleHint(Qt.QFont.Monospace, Qt.QFont.OpenGLCompatible | Qt.QFont.PreferQuality)
+        # Necessary to prevent context information from disappearing when mouse pointer passes over
+        # context info text
+        self.setAcceptHoverEvents(False)
+        self.setAcceptedMouseButtons(Qt.Qt.NoButton)
+        self.setFont(f)
+        c = Qt.QColor(45,255,70,255)
+        self.setDefaultTextColor(c)
+        self.setZValue(10)
+
+    def type(self):
+        return ContextualInfoTextItem.QGRAPHICSITEM_TYPE
+
+    def on_shader_view_scene_rect_changed(self, shader_view):
+        """Maintain position at top left corner of shader_view."""
+        topleft = Qt.QPoint()
+        if shader_view.mapFromScene(self.pos()) != topleft:
+            self.setPos(shader_view.mapToScene(topleft))
+
+    def on_update_contextual_info(self, string, is_html):
+        if is_html:
+            self.setHtml(string)
+        else:
+            self.setPlainText(string)
+
+class ShaderItem(Qt.QGraphicsObject):
+    def __init__(self, parent_item=None):
+        super().__init__(parent_item)
         self.image = None
         self._image_id = 0
         self.setAcceptHoverEvents(True)
+        self.progs = {}
 
-    def build_shader_prog(self, desc, vert_fn, frag_fn, shader_view, **frag_template_mapping):
+    def build_shader_prog(self, desc, vert_fn, frag_fn, **frag_template_mapping):
         source_dpath = Path(__file__).parent / 'shaders'
-        prog = Qt.QOpenGLShaderProgram(shader_view)
+        prog = Qt.QOpenGLShaderProgram(self)
 
         if not prog.addShaderFromSourceFile(Qt.QOpenGLShader.Vertex, str(source_dpath / vert_fn)):
             raise RuntimeError('Failed to compile vertex shader "{}" for {} {} shader program.'.format(vert_fn, type(self).__name__, desc))
@@ -109,24 +155,8 @@ class ShaderItem(Qt.QGraphicsItem):
 
         if not prog.link():
             raise RuntimeError('Failed to link {} {} shader program.'.format(type(self).__name__, desc))
-        vrs = self.view_resources[shader_view]
-        if 'progs' not in vrs:
-            vrs['progs'] = {desc : prog}
-        else:
-            vrs['progs'][desc] = prog
-
-    def free_shader_view_resources(self, shader_view):
-        for item in self.childItems():
-            if issubclass(type(item), ShaderItem):
-                item.free_shader_view_resources(shader_view)
-        if shader_view in self.view_resources:
-            vrs = self.view_resources[shader_view]
-            if 'tex' in vrs:
-                vrs['tex'].destroy()
-            if 'progs' in vrs:
-                for prog in vrs['progs'].values():
-                    prog.removeAllShaders()
-            del self.view_resources[shader_view]
+        self.progs[desc] = prog
+        return prog
 
     def on_image_changing(self, image):
         self.image = image
