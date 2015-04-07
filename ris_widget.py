@@ -255,14 +255,18 @@ class RisWidget(Qt.QMainWindow):
     def image(self, image):
         if image is not self._image:
             if image is not None and not issubclass(type(image), Image):
-                raise ValueError('The value assigned to the image property must either be derived from ris_widget.image.Image or must be None.  Did you mean to assign to the image_data property?')
+                e = 'The value assigned to the image property must either be derived '
+                e+= 'from ris_widget.image.Image or must be None.  Did you mean to assign '
+                e+= 'to the image_data property?'
+                raise ValueError(e)
             self.histogram_scene.on_image_changing(image)
             self.image_scene.on_image_changing(image)
             self._image = image
             self.image_changed.emit(image)
 
     def _image_view_zoom_changed(self, zoom_preset_idx, custom_zoom):
-        assert zoom_preset_idx == -1 and custom_zoom != 0 or zoom_preset_idx != -1 and custom_zoom == 0, 'zoom_preset_idx XOR custom_zoom must be set.'
+        assert zoom_preset_idx == -1 and custom_zoom != 0 or zoom_preset_idx != -1 and custom_zoom == 0,
+               'zoom_preset_idx XOR custom_zoom must be set.'
         if zoom_preset_idx == -1:
             self._image_view_zoom_combo.lineEdit().setText(self._format_zoom(custom_zoom * 100) + '%')
         else:
@@ -278,8 +282,10 @@ class RisWidget(Qt.QMainWindow):
         try:
             self.image_view.custom_zoom = float(scale_txt) * 0.01
         except ValueError:
-            Qt.QMessageBox.information(self, self.windowTitle(), 'Please enter a number between {} and {}.'.format(self._format_zoom(ImageView._ZOOM_MIN_MAX[0] * 100),
-                                                                                                                   self._format_zoom(ImageView._ZOOM_MIN_MAX[1] * 100)))
+            e = 'Please enter a number between {} and {}.'.format(
+                self._format_zoom(ImageView._ZOOM_MIN_MAX[0] * 100),
+                self._format_zoom(ImageView._ZOOM_MIN_MAX[1] * 100))
+            Qt.QMessageBox.information(self, 'self.windowTitle() Input Error', e)
             self._image_view_zoom_combo.setFocus()
             self._image_view_zoom_combo.lineEdit().selectAll()
 
