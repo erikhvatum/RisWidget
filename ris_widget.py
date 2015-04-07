@@ -265,7 +265,7 @@ class RisWidget(Qt.QMainWindow):
             self.image_changed.emit(image)
 
     def _image_view_zoom_changed(self, zoom_preset_idx, custom_zoom):
-        assert zoom_preset_idx == -1 and custom_zoom != 0 or zoom_preset_idx != -1 and custom_zoom == 0,
+        assert zoom_preset_idx == -1 and custom_zoom != 0 or zoom_preset_idx != -1 and custom_zoom == 0, \
                'zoom_preset_idx XOR custom_zoom must be set.'
         if zoom_preset_idx == -1:
             self._image_view_zoom_combo.lineEdit().setText(self._format_zoom(custom_zoom * 100) + '%')
