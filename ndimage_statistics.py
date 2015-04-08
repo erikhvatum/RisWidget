@@ -24,29 +24,29 @@
 
 import numpy
 from collections import namedtuple
+import concurrent.futures as futures
 
-NDImageStatistics = namedtuple('NDImageStatistics', ('histogram', 'max_bin', 'min_intensity', 'max_intensity'))
+pool = futures.ThreadPoolExecutor(max_workers=16)
+
+NDImageStatistics = namedtuple('NDImageStatistics', ('histogram', 'max_bin', 'min_max_intensity'))
 
 try:
     from . import _ndimage_statistics
-    import concurrent.futures as futures
-
-    pool = futures.ThreadPoolExecutor(max_workers=16)
-
-    def compute_ndimage_statistics(array, twelve_bit=False, n_bins=1024, hist_max=None, hist_min=None, n_threads=8):
+    
+    def compute_ndimage_statistics(array, twelve_bit=False, n_bins=1024, hist_max=None, hist_min=None, n_threads=8, return_future=False):
         array = numpy.asarray(array)
         extra_args = ()
         if array.dtype == numpy.uint8:
-            function = _ndimage_statistics.hist_min_max_uint8
+            hist_min_max = _ndimage_statistics.hist_min_max_uint8
             n_bins = 256
         elif array.dtype == numpy.uint16:
             n_bins = 1024
             if twelve_bit:
-                function = _ndimage_statistics.hist_min_max_uint12
+                hist_min_max = _ndimage_statistics.hist_min_max_uint12
             else:
-                function = _ndimage_statistics.hist_min_max_uint16
+                hist_min_max = _ndimage_statistics.hist_min_max_uint16
         elif array.dtype == numpy.float32:
-            function = _ndimage_statistics.hist_min_max_float32
+            hist_min_max = _ndimage_statistics.hist_min_max_float32
             if hist_max is None:
                 hist_max = array.max()
             if hist_min is None:
@@ -58,21 +58,28 @@ try:
         slices = [array[i::n_threads] for i in range(n_threads)]
         histograms = numpy.empty((n_threads, n_bins), dtype=numpy.uint32)
         min_maxs = numpy.empty((n_threads, 2), dtype=array.dtype)
-        futures = [pool.submit(function, arr_slice, hist_slice, min_max, *extra_args) for
+        futures = [pool.submit(hist_min_max, arr_slice, hist_slice, min_max, *extra_args) for
                    arr_slice, hist_slice, min_max in zip(slices, histograms, min_maxs)]
-        for future in futures:
-            future.result()
 
-        histogram = histograms.sum(axis=0, dtype=numpy.uint32)
-        max_bin = histogram.argmax()
+        def get_result():
+            for future in futures:
+                future.result()
 
-        return NDImageStatistics(histogram, max_bin, min_maxs[:,0].min(), min_maxs[:,1].max())
+            histogram = histograms.sum(axis=0, dtype=numpy.uint32)
+            max_bin = histogram.argmax()
+
+            return NDImageStatistics(histogram, max_bin, (min_maxs[:,0].min(), min_maxs[:,1].max()))
+
+        if return_future:
+            return pool.submit(get_result)
+        else:
+            return get_result()
 
 except ImportError:
     import sys
     print('warning: Failed to load _ndimage_statistics binary module; using slow histogram and extrema computation methods.', file=sys.stderr)
 
-    def compute_ndimage_statistics(array, twelve_bit=False, n_bins=1024, hist_max=None, hist_min=None, n_threads=None):
+    def compute_ndimage_statistics(array, twelve_bit=False, n_bins=1024, hist_max=None, hist_min=None, n_threads=None, return_future=False):
         if array.dtype == numpy.uint8:
             n_bins = 256
             histogram_range = (0, 255)
@@ -86,7 +93,31 @@ except ImportError:
                 array.min() if hist_min is None else hist_min,
                 array.max() if hist_max is None else hist_max)
 
-        histogram = numpy.histogram(array, bins=n_bins, range=histogram_range, density=False)[0].astype(numpy.uint32)
-        max_bin = histogram.argmax()
+        def get_result():
+            histogram = numpy.histogram(array, bins=n_bins, range=histogram_range, density=False)[0].astype(numpy.uint32)
+            max_bin = histogram.argmax()
 
-        return NDImageStatistics(histogram, max_bin, image_range[0], image_range[1])
+            return NDImageStatistics(histogram, max_bin, image_range)
+
+        if return_future:
+            return pool.submit(get_result)
+        else:
+            return get_result()
+
+def compute_multichannel_ndimage_statistics(array, twelve_bit=False, n_bins=1024, hist_max=None, hist_min=None, n_threads=2, return_future=False):
+    array = numpy.asarray(array)
+
+    if return_future:
+        def function():
+            futures = [compute_ndimage_statistics(array[...,channel_idx], twelve_bit, n_bins, hist_max, hist_min, n_threads, True) for channel_idx in range(array.shape[2])]
+            return NDImageStatistics(
+                numpy.vstack((future.result().histogram for future in futures)),
+                numpy.hstack((future.result().max_bin for future in futures)),
+                numpy.vstack((future.result().min_max_intensity for future in futures)))
+        return pool.submit(function)
+    else:
+        statses = [compute_ndimage_statistics(array[...,channel_idx], twelve_bit, n_bins, hist_max, hist_min, n_threads, False) for channel_idx in range(array.shape[2])]
+        return NDImageStatistics(
+            numpy.vstack((stats.histogram for stats in statses)),
+            numpy.hstack((stats.max_bin for stats in statses)),
+            numpy.vstack((stats.min_max_intensity for stats in statses)))

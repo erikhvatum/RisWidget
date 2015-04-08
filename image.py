@@ -22,7 +22,7 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from .ndimage_statistics import compute_ndimage_statistics
+from .ndimage_statistics import compute_ndimage_statistics, compute_multichannel_ndimage_statistics
 import datetime
 import numpy
 from PyQt5 import Qt
@@ -72,14 +72,7 @@ class Image:
                 d = self._data
                 self._data = numpy.ndarray(d.shape, strides=desired_strides, dtype=d.dtype.type)
                 self._data.flat = d.flat
-            import time
-            t0=time.time()
-            stats = compute_ndimage_statistics(self._data, self._is_twelve_bit)
-            t1=time.time()
-            print('compute_ndimage_statistics {}ms / {}fps'.format(1000*(t1-t0), 1/(t1-t0)))
-            self._histogram = stats.histogram
-            self._min_max = (stats.min_intensity, stats.max_intensity)
-            self._max_histogram_bin = stats.max_bin
+            self.stats_future = compute_ndimage_statistics(self._data, self._is_twelve_bit, return_future=True)
         elif self._data.ndim == 3:
             if not shape_is_width_height:
                 self._data = self._data.transpose(1, 0, 2)
@@ -94,10 +87,7 @@ class Image:
                 d = self._data
                 self._data = numpy.ndarray(d.shape, strides=desired_strides, dtype=d.dtype.type)
                 self._data.flat = d.flat
-            statses = [compute_ndimage_statistics(self._data[...,channel_idx], is_twelve_bit) for channel_idx in range(self._data.shape[2])]
-            self._histogram = numpy.vstack((stats.histogram for stats in statses))
-            self._min_max = numpy.vstack(((stats.min_intensity, stats.max_intensity) for stats in statses))
-            self._max_histogram_bin = numpy.hstack((stats.max_bin for stats in statses))
+            self.stats_future = compute_multichannel_ndimage_statistics(self._data, self._is_twelve_bit, return_future=True)
         else:
             raise ValueError('image_data argument must be a 2D (grayscale) or 3D (grayscale with alpha, rgb, or rgba) iterable.')
         self._size = Qt.QSize(self._data.shape[0], self._data.shape[1])
@@ -105,7 +95,12 @@ class Image:
 
         if dt == numpy.float32:
             if float_range is None:
-                self._range = tuple(self._min_max)
+                # We end up waiting for our futures, now, in this case.  If displaying float images with unspecified range turns out
+                # to be common enough that this slowdown is unacceptable, future-ify range computation.
+                if self._data.ndim == 2:
+                    self._range = tuple(self.min_max)
+                else:
+                    self._range = self.min_max[0,...].min(), self.min_max[1,...].max()
             else:
                 self._range = float_range
         else:
@@ -156,15 +151,15 @@ class Image:
 
     @property
     def histogram(self):
-        return self._histogram
+        return self.stats_future.result().histogram
 
     @property
     def max_histogram_bin(self):
-        return self._max_histogram_bin
+        return self.stats_future.result().max_bin
 
     @property
     def min_max(self):
-        return self._min_max
+        return self.stats_future.result().min_max_intensity
 
     @property
     def range(self):
