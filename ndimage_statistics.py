@@ -54,7 +54,7 @@ try:
             extra_args = (hist_min, hist_max)
         else:
             raise TypeError('array argument type must be uint8, uint16, or float32')
-            
+
         slices = [array[i::n_threads] for i in range(n_threads)]
         histograms = numpy.empty((n_threads, n_bins), dtype=numpy.uint32)
         min_maxs = numpy.empty((n_threads, 2), dtype=array.dtype)

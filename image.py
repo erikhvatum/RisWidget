@@ -72,7 +72,11 @@ class Image:
                 d = self._data
                 self._data = numpy.ndarray(d.shape, strides=desired_strides, dtype=d.dtype.type)
                 self._data.flat = d.flat
+            import time
+            t0=time.time()
             stats = compute_ndimage_statistics(self._data, self._is_twelve_bit)
+            t1=time.time()
+            print('compute_ndimage_statistics {}ms / {}fps'.format(1000*(t1-t0), 1/(t1-t0)))
             self._histogram = stats.histogram
             self._min_max = (stats.min_intensity, stats.max_intensity)
             self._max_histogram_bin = stats.max_bin

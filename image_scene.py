@@ -143,16 +143,16 @@ class ImageItem(ShaderItem):
                 tex.bind()
                 stack.callback(tex.release)
                 if tex.image_id != self._image_id:
-#                   import time
-#                   t0=time.time()
+                    import time
+                    t0=time.time()
                     pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
                     pixel_transfer_opts.setAlignment(1)
                     tex.setData(ImageItem.IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT[image.type],
                                 ImageItem.NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[image.dtype],
                                 image.data.ctypes.data,
                                 pixel_transfer_opts)
-#                   t1=time.time()
-#                   print('{}ms / {}fps'.format(1000*(t1-t0), 1/(t1-t0)))
+                    t1=time.time()
+                    print('tex.setData {}ms / {}fps'.format(1000*(t1-t0), 1/(t1-t0)))
                     tex.image_id = self._image_id
                     # self.tex is updated here and not before so that any failure preparing tex results in a retry the next time self.tex
                     # is needed
