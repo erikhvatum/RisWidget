@@ -174,28 +174,20 @@ class ImageItem(ShaderItem):
                 prog.setUniformValue('viewport_height', float(widget.size().height()))
                 histogram_scene = view.scene().histogram_scene
                 if image.is_grayscale:
-                    if histogram_scene.rescale_enabled:
-                        gamma = histogram_scene.gamma
-                        min_max = numpy.array((histogram_scene.min, histogram_scene.max), dtype=float)
-                        if image.dtype != numpy.float32:
-                            self._normalize_min_max(min_max)
-                    else:
-                        gamma = 1
-                        min_max = numpy.array((0,1), dtype=float)
+                    gamma = histogram_scene.gamma
+                    min_max = numpy.array((histogram_scene.min, histogram_scene.max), dtype=float)
+                    if image.dtype != numpy.float32:
+                        self._normalize_min_max(min_max)
                     prog.setUniformValue('gammas', gamma)
                     prog.setUniformValue('vcomponent_rescale_mins', min_max[0])
                     prog.setUniformValue('vcomponent_rescale_ranges', min_max[1] - min_max[0])
                 else:
-                    if histogram_scene.rescale_enabled:
-                        gammas = (histogram_scene.gamma_red, histogram_scene.gamma_green, histogram_scene.gamma_blue)
-                        min_maxs = numpy.array(((histogram_scene.min_red, histogram_scene.min_green, histogram_scene.min_blue),
-                                                (histogram_scene.max_red, histogram_scene.max_green, histogram_scene.max_blue)))
-                    else:
-                        gammas = (1,1,1)
-                        min_max = self.image.range
-                        min_maxs = numpy.array((min_max,)*3).T
+                    gammas = (histogram_scene.gamma_red, histogram_scene.gamma_green, histogram_scene.gamma_blue)
+                    min_maxs = numpy.array(((histogram_scene.min_red, histogram_scene.min_green, histogram_scene.min_blue),
+                                            (histogram_scene.max_red, histogram_scene.max_green, histogram_scene.max_blue)), dtype=float)
                     prog.setUniformValue('gammas', *gammas)
-                    self._normalize_min_max(min_maxs)
+                    if image.dtype != numpy.float32:
+                        self._normalize_min_max(min_maxs)
                     prog.setUniformValue('vcomponent_rescale_mins', *min_maxs[0])
                     prog.setUniformValue('vcomponent_rescale_ranges', *(min_maxs[1]-min_maxs[0]))
                 gl.glEnableClientState(gl.GL_VERTEX_ARRAY)

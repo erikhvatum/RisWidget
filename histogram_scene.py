@@ -49,6 +49,9 @@ class ItemProp:
         scene_item = self._make_scene_item(histogram_scene)
         self.scene_items[histogram_scene] = scene_item
         scene_item.value_changed.connect(histogram_scene.gamma_or_min_max_changed)
+        if self.channel_name:
+            # Make per-channel values snap to master value upon master value change
+            histogram_scene.get_prop_item(self.name).value_changed.connect(lambda histogram_scene, value: type(scene_item).__dict__['value'].__set__(scene_item, value))
 
     def _make_scene_item(self, histogram_scene):
         raise NotImplementedError()
@@ -94,15 +97,25 @@ class GammaItemProp(ItemProp):
 
 class HistogramScene(ShaderScene):
     gamma_or_min_max_changed = Qt.pyqtSignal()
+    color_channel_controls_visible_changed = Qt.pyqtSignal(bool)
 
     item_props_list = []
     item_props = {}
     min_max_item_props = {}
     gamma_item_props = {}
 
-    max = MinMaxItemProp(item_props_list, item_props, min_max_item_props, 'max')
-    min = MinMaxItemProp(item_props_list, item_props, min_max_item_props, 'min')
-    gamma = GammaItemProp(item_props_list, item_props, gamma_item_props, 'gamma', '\u03b3')
+    max       = MinMaxItemProp(item_props_list, item_props, min_max_item_props, 'max')
+    max_red   = MinMaxItemProp(item_props_list, item_props, min_max_item_props, 'max', channel_name='red')
+    max_green = MinMaxItemProp(item_props_list, item_props, min_max_item_props, 'max', channel_name='green')
+    max_blue  = MinMaxItemProp(item_props_list, item_props, min_max_item_props, 'max', channel_name='blue')
+    min       = MinMaxItemProp(item_props_list, item_props, min_max_item_props, 'min')
+    min_red   = MinMaxItemProp(item_props_list, item_props, min_max_item_props, 'min', channel_name='red')
+    min_green = MinMaxItemProp(item_props_list, item_props, min_max_item_props, 'min', channel_name='green')
+    min_blue  = MinMaxItemProp(item_props_list, item_props, min_max_item_props, 'min', channel_name='blue')
+    gamma       = GammaItemProp(item_props_list, item_props, gamma_item_props, 'gamma', '\u03b3')
+    gamma_red   = GammaItemProp(item_props_list, item_props, gamma_item_props, 'gamma', '\u03b3', 'red')
+    gamma_green = GammaItemProp(item_props_list, item_props, gamma_item_props, 'gamma', '\u03b3', 'green')
+    gamma_blue  = GammaItemProp(item_props_list, item_props, gamma_item_props, 'gamma', '\u03b3', 'blue')
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -112,14 +125,11 @@ class HistogramScene(ShaderScene):
         for item_prop in self.item_props_list:
             item_prop.instantiate(self)
         self.gamma_gamma = 1.0
-        self.gamma_red = self.gamma_green = self.gamma_blue = 1.0
-        self.min_red = self.min_green = self.min_blue = 0.0
-        self.max_red = self.max_green = self.max_blue = 255.0
-        self.rescale_enabled = True
         self.min = 0
         self.max = 1
         self.gamma = 1
-        self._channel_controls_visible = False
+        self._color_channel_controls_visible = None
+        self.color_channel_controls_visible = False
         self.auto_min_max_enabled_action = Qt.QAction('Auto Min/Max', self)
         self.auto_min_max_enabled_action.setCheckable(True)
         self.auto_min_max_enabled_action.setChecked(True)
@@ -130,6 +140,7 @@ class HistogramScene(ShaderScene):
 
     def on_image_changing(self, image):
         self.histogram_item.on_image_changing(image)
+        self.color_channel_controls_visible = image.num_channels > 1
         if self.auto_min_max_enabled:
             self.do_auto_min_max()
 
@@ -148,10 +159,9 @@ class HistogramScene(ShaderScene):
                 if image.is_grayscale:
                     self.min, self.max = image.min_max
                 else:
-                    pass
-#                   for channel_name, channel_min_max in zip(image.min_max, ('red','green','blue')):
-#                       setattr(self, 'min_'+channel_name, channel_min_max[0])
-#                       setattr(self, 'max_'+channel_name, channel_min_max[1])
+                    for channel_min_max, channel_name in zip(image.min_max, ('red','green','blue')):
+                        setattr(self, 'min_'+channel_name, channel_min_max[0])
+                        setattr(self, 'max_'+channel_name, channel_min_max[1])
             finally:
                 self._keep_auto_min_max_on_min_max_value_change = False
 
@@ -166,6 +176,16 @@ class HistogramScene(ShaderScene):
     @auto_min_max_enabled.setter
     def auto_min_max_enabled(self, auto_min_max_enabled):
         self.auto_min_max_enabled_action.setChecked(auto_min_max_enabled)
+
+    @property
+    def color_channel_controls_visible(self):
+        return self._color_channel_controls_visible
+
+    @color_channel_controls_visible.setter
+    def color_channel_controls_visible(self, color_channel_controls_visible):
+        if color_channel_controls_visible != self._color_channel_controls_visible:
+            self._color_channel_controls_visible = color_channel_controls_visible
+            self.color_channel_controls_visible_changed.emit(color_channel_controls_visible)
 
 class HistogramItem(ShaderItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
@@ -264,13 +284,6 @@ class HistogramItem(ShaderItem):
                     inv_max_transformed_bin_val = max_bin_val**-scene.gamma_gamma
                     prog.setUniformValue('inv_max_transformed_bin_val', inv_max_transformed_bin_val)
                     prog.setUniformValue('gamma_gamma', scene.gamma_gamma)
-                    prog.setUniformValue('rescale_enabled', scene.rescale_enabled)
-                    if scene.rescale_enabled:
-                        prog.setUniformValue('gamma', scene.gamma)
-                        min_max = numpy.array((scene.min, scene.max), dtype=float)
-                        self._normalize_min_max(min_max)
-                        prog.setUniformValue('intensity_rescale_min', min_max[0])
-                        prog.setUniformValue('intensity_rescale_range', min_max[1] - min_max[0])
                     gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
                     gl.glDrawArrays(gl.GL_TRIANGLE_FAN, 0, 4)
                 else:
@@ -316,6 +329,8 @@ class PropItem(Qt.QGraphicsObject):
         super().__init__(histogram_item)
         self.prop = prop
         self._bounding_rect = Qt.QRectF()
+        self._color = Qt.QColor()
+        self.scene().color_channel_controls_visible_changed.connect(self.on_color_channel_controls_visible_changed)
 
     def boundingRect(self):
         return self._bounding_rect
@@ -324,27 +339,65 @@ class PropItem(Qt.QGraphicsObject):
         super().mouseReleaseEvent(event)
         self.scene().clear_contextual_info(self)
 
+    def on_color_channel_controls_visible_changed(self, visible):
+        channel_name = self.prop.channel_name
+        if channel_name:
+            self.setVisible(visible)
+        else:
+            if visible:
+                color = Qt.QColor(Qt.Qt.white)
+                color.setAlphaF(0.5)
+            else:
+                color = self.grayscale_color
+            self.color = color
+
+    @property
+    def color(self):
+        return self._color
+
+    @color.setter
+    def color(self, color):
+        assert type(color) is Qt.QColor
+        if color != self._color:
+            self._color = color
+            self.update()
+
 class MinMaxItem(PropItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
+    COLOR_ARROW_Y_VALUES = {name : idx/6 for idx, name in enumerate((None,'red','green','blue'), 1)}
 
     def __init__(self, histogram_item, prop):
         super().__init__(histogram_item, prop)
         self._bounding_rect = Qt.QRectF(-0.1, 0, .2, 1)
         self._opposite_item = None
         self.arrow_item = MinMaxArrowItem(self, histogram_item)
+        if prop.channel_name:
+            color = Qt.QColor(getattr(Qt.Qt, prop.channel_name))
+            color.setAlphaF(0.5)
+            self.arrow_item.fixed_y = MinMaxItem.COLOR_ARROW_Y_VALUES[prop.channel_name]
+        else:
+            self.grayscale_color = Qt.QColor(Qt.Qt.red)
+            self.grayscale_color.setAlphaF(0.5)
+            self.arrow_item.fixed_y = 0.5
+            color = self.grayscale_color
+        self.color = color
 
     def type(self):
         return MinMaxItem.QGRAPHICSITEM_TYPE
 
     def paint(self, qpainter, option, widget):
-        c = Qt.QColor(Qt.Qt.red)
-        c.setAlphaF(0.5)
-        pen = Qt.QPen(c)
+        pen = Qt.QPen(self._color)
         pen.setWidth(0)
         qpainter.setPen(pen)
         br = self.boundingRect()
         x = (br.left() + br.right()) / 2
         qpainter.drawLine(x, br.top(), x, br.bottom())
+
+    def on_color_channel_controls_visible_changed(self, visible):
+        super().on_color_channel_controls_visible_changed(visible)
+        self.arrow_item.setVisible(self.isVisible())
+        if self.prop.channel_name is None:
+            self.arrow_item.fixed_y = MinMaxItem.COLOR_ARROW_Y_VALUES[None] if visible else 0.5
 
     @property
     def x_to_value(self):
@@ -416,6 +469,14 @@ class MinMaxItem(PropItem):
             self._opposite_item = self.scene().get_prop_item(oname)
         return self._opposite_item
 
+    @PropItem.color.setter
+    def color(self, color):
+        assert type(color) is Qt.QColor
+        if color != self._color:
+            self._color = color
+            self.arrow_item.color = color
+            self.update()
+
 class MinMaxArrowItem(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
 
@@ -430,10 +491,8 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
         self._path.addPolygon(polygonf)
         self._path.closeSubpath()
         self._bounding_rect = self._path.boundingRect()
-        self.pen = Qt.QPen(Qt.QColor(Qt.Qt.transparent))
-        color = Qt.QColor(Qt.Qt.red)
-        color.setAlphaF(0.5)
-        self.brush = Qt.QBrush(color)
+        self.pen = Qt.QPen()
+        self.brush = Qt.QBrush(Qt.QColor(Qt.Qt.white))
         self.setFlag(Qt.QGraphicsItem.ItemIgnoresTransformations)
         self.setFlag(Qt.QGraphicsItem.ItemIsMovable)
         # GUI behavior is much more predictable with min/max arrow item selectability disabled:
@@ -446,6 +505,7 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
         #self.setFlag(Qt.QGraphicsItem.ItemIsSelectable, False)
         self._ignore_x_change = False
         self.setPos(min_max_item.x(), 0.5)
+        self._fixed_y = 0.5
         self.xChanged.connect(self.on_x_changed)
         self.yChanged.connect(self.on_y_changed)
         min_max_item.value_changed.connect(self.on_min_max_value_changed)
@@ -473,8 +533,8 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
         self.min_max_item.value = self.min_max_item.x_to_value(x)
 
     def on_y_changed(self):
-        if self.y() != 0.5:
-            self.setY(0.5)
+        if self.y() != self._fixed_y:
+            self.setY(self._fixed_y)
 
     def mouseMoveEvent(self, event):
         super().mouseMoveEvent(event)
@@ -488,6 +548,27 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
         desired_x = self.min_max_item.x()
         if self.x() != desired_x:
             self.setX(desired_x)
+
+    @property
+    def color(self):
+        return self.brush.color()
+
+    @color.setter
+    def color(self, color):
+        assert type(color) is Qt.QColor
+        self.pen.setColor(color)
+        self.brush.setColor(color)
+        self.update()
+
+    @property
+    def fixed_y(self):
+        return self._fixed_y
+
+    @fixed_y.setter
+    def fixed_y(self, fixed_y):
+        if fixed_y != self._fixed_y:
+            self._fixed_y = fixed_y
+            self.setY(fixed_y)
 
 class GammaItem(PropItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
@@ -507,6 +588,14 @@ class GammaItem(PropItem):
         # override mousePressEvent(..) and check which buttons are down, in addition to
         # checking which buttons remain down in mouseMoveEvent(..).
         self.setAcceptedMouseButtons(Qt.Qt.LeftButton)
+        if prop.channel_name:
+            color = Qt.QColor(getattr(Qt.Qt, prop.channel_name))
+            color.setAlphaF(0.5)
+        else:
+            self.grayscale_color = Qt.QColor(Qt.Qt.yellow)
+            self.grayscale_color.setAlphaF(0.5)
+            color = self.grayscale_color
+        self._color = color
 
     def type(self):
         return GammaItem.QGRAPHICSITEM_TYPE
@@ -520,10 +609,9 @@ class GammaItem(PropItem):
 
     def paint(self, qpainter, option, widget):
         if not self._path.isEmpty():
-            c = Qt.QColor(Qt.Qt.yellow)
-            c.setAlphaF(0.5)
-            pen = Qt.QPen(c)
-            pen.setWidth(0)
+            pen = Qt.QPen(self._color)
+            pen.setWidth(1)
+            pen.setCosmetic(True)
             qpainter.setPen(pen)
             qpainter.setBrush(Qt.QColor(Qt.Qt.transparent))
             qpainter.drawPath(self._path)
