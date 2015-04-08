@@ -120,6 +120,8 @@ class HistogramScene(ShaderScene):
     def __init__(self, parent):
         super().__init__(parent)
         self.setSceneRect(0, 0, 1, 1)
+        self._color_channel_controls_visible = None
+        self.color_channel_controls_visible = False
         self.histogram_item = HistogramItem()
         self.addItem(self.histogram_item)
         for item_prop in self.item_props_list:
@@ -128,8 +130,6 @@ class HistogramScene(ShaderScene):
         self.min = 0
         self.max = 1
         self.gamma = 1
-        self._color_channel_controls_visible = None
-        self.color_channel_controls_visible = False
         self.auto_min_max_enabled_action = Qt.QAction('Auto Min/Max', self)
         self.auto_min_max_enabled_action.setCheckable(True)
         self.auto_min_max_enabled_action.setChecked(True)
@@ -442,7 +442,13 @@ class MinMaxItem(PropItem):
         if x < 0 or x > 1:
             x_to_value = self.x_to_value
             raise ValueError('MinMaxItem.value must be in the range [{}, {}].'.format(x_to_value(0), x_to_value(1)))
-        if x != self.x():
+        update = True
+        if x == self.x():
+            # If channel controls are visible and this is the master control, cause value_changed to be emitted
+            # even if value has not changed in order that per-channel controls may receive this signal and snap
+            # to master control setting.
+            update = self.prop.channel_name is None and self.scene().color_channel_controls_visible
+        if update:
             self.setX(x)
             self.value_changed.emit(self.scene(), value)
             oitem = self.opposite_item
@@ -530,7 +536,7 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
             self.setX(0)
         elif x > 1:
             self.setX(1)
-        self.min_max_item.value = self.min_max_item.x_to_value(x)
+        self.min_max_item.value = self.min_max_item.x_to_value(self.x())
 
     def on_y_changed(self):
         if self.y() != self._fixed_y:
@@ -643,7 +649,13 @@ class GammaItem(PropItem):
     def value(self, value):
         if value < GammaItem.RANGE[0] or value > GammaItem.RANGE[1]:
             raise ValueError('GammaItem.value must be in the range [{}, {}].'.format(GammaItem.RANGE[0], GammaItem.RANGE[1]))
-        if value != self._value:
+        update = True
+        if value == self._value:
+            # If channel controls are visible and this is the master control, cause value_changed to be emitted
+            # even if value has not changed in order that per-channel controls may receive this signal and snap
+            # to master control setting.
+            update = self.prop.channel_name is None and self.scene().color_channel_controls_visible
+        if update:
             self.prepareGeometryChange()
             self._value = float(value)
             self._path = Qt.QPainterPath(Qt.QPointF(0, 1))
