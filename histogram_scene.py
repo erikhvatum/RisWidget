@@ -38,9 +38,8 @@ class ItemProp:
         self.full_name = name
         self.channel_name = channel_name
         if channel_name is not None:
-            suffix = '_' + channel_name
-            self.full_name += suffix
-            self.full_name_in_label += suffix
+            self.full_name += '_' + channel_name
+            self.full_name_in_label = channel_name + ' ' + self.full_name_in_label
         item_props[self.full_name] = self
         item_props_list.append(self)
         self.scene_items = {}
@@ -121,7 +120,6 @@ class HistogramScene(ShaderScene):
         super().__init__(parent)
         self.setSceneRect(0, 0, 1, 1)
         self._color_channel_controls_visible = None
-        self.color_channel_controls_visible = False
         self.histogram_item = HistogramItem()
         self.addItem(self.histogram_item)
         for item_prop in self.item_props_list:
@@ -137,6 +135,7 @@ class HistogramScene(ShaderScene):
         self._keep_auto_min_max_on_min_max_value_change = False
         for full_name in HistogramScene.min_max_item_props.keys():
             self.get_prop_item(full_name).value_changed.connect(self.on_auto_min_max_change)
+        self.color_channel_controls_visible = False
 
     def on_image_changing(self, image):
         self.histogram_item.on_image_changing(image)
