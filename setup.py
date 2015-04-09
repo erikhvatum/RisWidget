@@ -42,6 +42,9 @@ extra_compile_args = []
 extra_link_args = []
 define_macros = []
 
+if sys.platform != 'win32':
+    extra_compile_args.extend(('-O3', '-march=native'))
+
 try:
     from Cython.Distutils import build_ext
 

@@ -1433,9 +1433,6 @@ static PyObject *indirect_contiguous = 0;
 static PyObject *__pyx_f_19_ndimage_statistics_hist_min_max_uint16(__Pyx_memviewslice, __Pyx_memviewslice, __Pyx_memviewslice, int __pyx_skip_dispatch); /*proto*/
 static PyObject *__pyx_f_19_ndimage_statistics_hist_min_max_uint12(__Pyx_memviewslice, __Pyx_memviewslice, __Pyx_memviewslice, int __pyx_skip_dispatch); /*proto*/
 static PyObject *__pyx_f_19_ndimage_statistics_hist_min_max_uint8(__Pyx_memviewslice, __Pyx_memviewslice, __Pyx_memviewslice, int __pyx_skip_dispatch); /*proto*/
-static PyObject *__pyx_f_19_ndimage_statistics_shist_min_max_uint16(__Pyx_memviewslice, __Pyx_memviewslice, __Pyx_memviewslice, int __pyx_skip_dispatch); /*proto*/
-static PyObject *__pyx_f_19_ndimage_statistics_shist_min_max_uint12(__Pyx_memviewslice, __Pyx_memviewslice, __Pyx_memviewslice, int __pyx_skip_dispatch); /*proto*/
-static PyObject *__pyx_f_19_ndimage_statistics_shist_min_max_uint8(__Pyx_memviewslice, __Pyx_memviewslice, __Pyx_memviewslice, int __pyx_skip_dispatch); /*proto*/
 static PyObject *__pyx_f_19_ndimage_statistics_hist_min_max_float32(__Pyx_memviewslice, __Pyx_memviewslice, __Pyx_memviewslice, __pyx_t_5numpy_float32_t, __pyx_t_5numpy_float32_t, int __pyx_skip_dispatch); /*proto*/
 static struct __pyx_array_obj *__pyx_array_new(PyObject *, Py_ssize_t, char *, char *, char *); /*proto*/
 static void *__pyx_align_pointer(void *, size_t); /*proto*/
@@ -1490,10 +1487,7 @@ static PyObject *__pyx_builtin_IndexError;
 static PyObject *__pyx_pf_19_ndimage_statistics_hist_min_max_uint16(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max); /* proto */
 static PyObject *__pyx_pf_19_ndimage_statistics_2hist_min_max_uint12(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max); /* proto */
 static PyObject *__pyx_pf_19_ndimage_statistics_4hist_min_max_uint8(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max); /* proto */
-static PyObject *__pyx_pf_19_ndimage_statistics_6shist_min_max_uint16(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max); /* proto */
-static PyObject *__pyx_pf_19_ndimage_statistics_8shist_min_max_uint12(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max); /* proto */
-static PyObject *__pyx_pf_19_ndimage_statistics_10shist_min_max_uint8(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max); /* proto */
-static PyObject *__pyx_pf_19_ndimage_statistics_12hist_min_max_float32(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max, __pyx_t_5numpy_float32_t __pyx_v_hist_min, __pyx_t_5numpy_float32_t __pyx_v_hist_max); /* proto */
+static PyObject *__pyx_pf_19_ndimage_statistics_6hist_min_max_float32(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max, __pyx_t_5numpy_float32_t __pyx_v_hist_min, __pyx_t_5numpy_float32_t __pyx_v_hist_max); /* proto */
 static int __pyx_pf_5numpy_7ndarray___getbuffer__(PyArrayObject *__pyx_v_self, Py_buffer *__pyx_v_info, int __pyx_v_flags); /* proto */
 static void __pyx_pf_5numpy_7ndarray_2__releasebuffer__(PyArrayObject *__pyx_v_self, Py_buffer *__pyx_v_info); /* proto */
 static int __pyx_array_MemoryView_5array___cinit__(struct __pyx_array_obj *__pyx_v_self, PyObject *__pyx_v_shape, Py_ssize_t __pyx_v_itemsize, PyObject *__pyx_v_format, PyObject *__pyx_v_mode, int __pyx_v_allocate_buffer); /* proto */
@@ -2440,1102 +2434,7 @@ static PyObject *__pyx_pf_19_ndimage_statistics_4hist_min_max_uint8(CYTHON_UNUSE
   return __pyx_r;
 }
 
-/* "_ndimage_statistics.pyx":54
- * @cython.boundscheck(False)
- * @cython.wraparound(False)
- * cpdef shist_min_max_uint16(numpy.uint16_t[:, :] arr, numpy.uint32_t[:] hist, numpy.uint16_t[:] min_max):             # <<<<<<<<<<<<<<
- *     cdef numpy.uint16_t v
- *     assert hist.shape[0] == 1024
- */
-
-static PyObject *__pyx_pw_19_ndimage_statistics_7shist_min_max_uint16(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyObject *__pyx_f_19_ndimage_statistics_shist_min_max_uint16(__Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max, CYTHON_UNUSED int __pyx_skip_dispatch) {
-  __pyx_t_5numpy_uint16_t __pyx_v_v;
-  Py_ssize_t __pyx_v_i;
-  Py_ssize_t __pyx_v_j;
-  PyObject *__pyx_r = NULL;
-  __Pyx_RefNannyDeclarations
-  __Pyx_memviewslice __pyx_t_1 = { 0, 0, { 0 }, { 0 }, { 0 } };
-  int __pyx_t_2;
-  Py_ssize_t __pyx_t_3;
-  Py_ssize_t __pyx_t_4;
-  Py_ssize_t __pyx_t_5;
-  Py_ssize_t __pyx_t_6;
-  Py_ssize_t __pyx_t_7;
-  Py_ssize_t __pyx_t_8;
-  Py_ssize_t __pyx_t_9;
-  Py_ssize_t __pyx_t_10;
-  Py_ssize_t __pyx_t_11;
-  Py_ssize_t __pyx_t_12;
-  Py_ssize_t __pyx_t_13;
-  Py_ssize_t __pyx_t_14;
-  long __pyx_t_15;
-  Py_ssize_t __pyx_t_16;
-  int __pyx_t_17;
-  Py_ssize_t __pyx_t_18;
-  Py_ssize_t __pyx_t_19;
-  Py_ssize_t __pyx_t_20;
-  int __pyx_lineno = 0;
-  const char *__pyx_filename = NULL;
-  int __pyx_clineno = 0;
-  __Pyx_RefNannySetupContext("shist_min_max_uint16", 0);
-
-  /* "_ndimage_statistics.pyx":56
- * cpdef shist_min_max_uint16(numpy.uint16_t[:, :] arr, numpy.uint32_t[:] hist, numpy.uint16_t[:] min_max):
- *     cdef numpy.uint16_t v
- *     assert hist.shape[0] == 1024             # <<<<<<<<<<<<<<
- *     cdef Py_ssize_t i, j
- *     with nogil:
- */
-  #ifndef CYTHON_WITHOUT_ASSERTIONS
-  if (unlikely(!Py_OptimizeFlag)) {
-    if (unlikely(!(((__pyx_v_hist.shape[0]) == 1024) != 0))) {
-      PyErr_SetNone(PyExc_AssertionError);
-      {__pyx_filename = __pyx_f[0]; __pyx_lineno = 56; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
-    }
-  }
-  #endif
-
-  /* "_ndimage_statistics.pyx":58
- *     assert hist.shape[0] == 1024
- *     cdef Py_ssize_t i, j
- *     with nogil:             # <<<<<<<<<<<<<<
- *         hist[:] = 0
- *         min_max[0] = arr[0,0]
- */
-  {
-      #ifdef WITH_THREAD
-      PyThreadState *_save;
-      Py_UNBLOCK_THREADS
-      #endif
-      /*try:*/ {
-
-        /* "_ndimage_statistics.pyx":59
- *     cdef Py_ssize_t i, j
- *     with nogil:
- *         hist[:] = 0             # <<<<<<<<<<<<<<
- *         min_max[0] = arr[0,0]
- *         min_max[1] = arr[0,0]
- */
-        __pyx_t_2 = -1;
-        __pyx_t_1.data = __pyx_v_hist.data;
-        __pyx_t_1.memview = __pyx_v_hist.memview;
-        __PYX_INC_MEMVIEW(&__pyx_t_1, 0);
-        __pyx_t_1.shape[0] = __pyx_v_hist.shape[0];
-__pyx_t_1.strides[0] = __pyx_v_hist.strides[0];
-    __pyx_t_1.suboffsets[0] = -1;
-
-{
-            __pyx_t_5numpy_uint32_t __pyx_temp_scalar = 0;
-            {
-                Py_ssize_t __pyx_temp_extent_0 = __pyx_t_1.shape[0];
-                Py_ssize_t __pyx_temp_stride_0 = __pyx_t_1.strides[0];
-                char *__pyx_temp_pointer_0;
-                Py_ssize_t __pyx_temp_idx_0;
-                __pyx_temp_pointer_0 = __pyx_t_1.data;
-                for (__pyx_temp_idx_0 = 0; __pyx_temp_idx_0 < __pyx_temp_extent_0; __pyx_temp_idx_0++) {
-                  *((__pyx_t_5numpy_uint32_t *) __pyx_temp_pointer_0) = __pyx_temp_scalar;
-                  __pyx_temp_pointer_0 += __pyx_temp_stride_0;
-                }
-            }
-        }
-        __PYX_XDEC_MEMVIEW(&__pyx_t_1, 0);
-
-        /* "_ndimage_statistics.pyx":60
- *     with nogil:
- *         hist[:] = 0
- *         min_max[0] = arr[0,0]             # <<<<<<<<<<<<<<
- *         min_max[1] = arr[0,0]
- *         for i in range(arr.shape[0]):
- */
-        __pyx_t_3 = 0;
-        __pyx_t_4 = 0;
-        __pyx_t_5 = 0;
-        *((__pyx_t_5numpy_uint16_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_5 * __pyx_v_min_max.strides[0]) )) = (*((__pyx_t_5numpy_uint16_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_arr.data + __pyx_t_3 * __pyx_v_arr.strides[0]) ) + __pyx_t_4 * __pyx_v_arr.strides[1]) )));
-
-        /* "_ndimage_statistics.pyx":61
- *         hist[:] = 0
- *         min_max[0] = arr[0,0]
- *         min_max[1] = arr[0,0]             # <<<<<<<<<<<<<<
- *         for i in range(arr.shape[0]):
- *             for j in range(arr.shape[1]):
- */
-        __pyx_t_6 = 0;
-        __pyx_t_7 = 0;
-        __pyx_t_8 = 1;
-        *((__pyx_t_5numpy_uint16_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_8 * __pyx_v_min_max.strides[0]) )) = (*((__pyx_t_5numpy_uint16_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_arr.data + __pyx_t_6 * __pyx_v_arr.strides[0]) ) + __pyx_t_7 * __pyx_v_arr.strides[1]) )));
-
-        /* "_ndimage_statistics.pyx":62
- *         min_max[0] = arr[0,0]
- *         min_max[1] = arr[0,0]
- *         for i in range(arr.shape[0]):             # <<<<<<<<<<<<<<
- *             for j in range(arr.shape[1]):
- *                 v = arr[i, j]
- */
-        __pyx_t_9 = (__pyx_v_arr.shape[0]);
-        for (__pyx_t_10 = 0; __pyx_t_10 < __pyx_t_9; __pyx_t_10+=1) {
-          __pyx_v_i = __pyx_t_10;
-
-          /* "_ndimage_statistics.pyx":63
- *         min_max[1] = arr[0,0]
- *         for i in range(arr.shape[0]):
- *             for j in range(arr.shape[1]):             # <<<<<<<<<<<<<<
- *                 v = arr[i, j]
- *                 hist[v >> 6] += 1
- */
-          __pyx_t_11 = (__pyx_v_arr.shape[1]);
-          for (__pyx_t_12 = 0; __pyx_t_12 < __pyx_t_11; __pyx_t_12+=1) {
-            __pyx_v_j = __pyx_t_12;
-
-            /* "_ndimage_statistics.pyx":64
- *         for i in range(arr.shape[0]):
- *             for j in range(arr.shape[1]):
- *                 v = arr[i, j]             # <<<<<<<<<<<<<<
- *                 hist[v >> 6] += 1
- *                 if v < min_max[0]:
- */
-            __pyx_t_13 = __pyx_v_i;
-            __pyx_t_14 = __pyx_v_j;
-            __pyx_v_v = (*((__pyx_t_5numpy_uint16_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_arr.data + __pyx_t_13 * __pyx_v_arr.strides[0]) ) + __pyx_t_14 * __pyx_v_arr.strides[1]) )));
-
-            /* "_ndimage_statistics.pyx":65
- *             for j in range(arr.shape[1]):
- *                 v = arr[i, j]
- *                 hist[v >> 6] += 1             # <<<<<<<<<<<<<<
- *                 if v < min_max[0]:
- *                     min_max[0] = v
- */
-            __pyx_t_15 = (__pyx_v_v >> 6);
-            *((__pyx_t_5numpy_uint32_t *) ( /* dim=0 */ (__pyx_v_hist.data + __pyx_t_15 * __pyx_v_hist.strides[0]) )) += 1;
-
-            /* "_ndimage_statistics.pyx":66
- *                 v = arr[i, j]
- *                 hist[v >> 6] += 1
- *                 if v < min_max[0]:             # <<<<<<<<<<<<<<
- *                     min_max[0] = v
- *                 elif v > min_max[1]:
- */
-            __pyx_t_16 = 0;
-            __pyx_t_17 = ((__pyx_v_v < (*((__pyx_t_5numpy_uint16_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_16 * __pyx_v_min_max.strides[0]) )))) != 0);
-            if (__pyx_t_17) {
-
-              /* "_ndimage_statistics.pyx":67
- *                 hist[v >> 6] += 1
- *                 if v < min_max[0]:
- *                     min_max[0] = v             # <<<<<<<<<<<<<<
- *                 elif v > min_max[1]:
- *                     min_max[1] = v
- */
-              __pyx_t_18 = 0;
-              *((__pyx_t_5numpy_uint16_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_18 * __pyx_v_min_max.strides[0]) )) = __pyx_v_v;
-              goto __pyx_L10;
-            }
-
-            /* "_ndimage_statistics.pyx":68
- *                 if v < min_max[0]:
- *                     min_max[0] = v
- *                 elif v > min_max[1]:             # <<<<<<<<<<<<<<
- *                     min_max[1] = v
- * 
- */
-            __pyx_t_19 = 1;
-            __pyx_t_17 = ((__pyx_v_v > (*((__pyx_t_5numpy_uint16_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_19 * __pyx_v_min_max.strides[0]) )))) != 0);
-            if (__pyx_t_17) {
-
-              /* "_ndimage_statistics.pyx":69
- *                     min_max[0] = v
- *                 elif v > min_max[1]:
- *                     min_max[1] = v             # <<<<<<<<<<<<<<
- * 
- * 
- */
-              __pyx_t_20 = 1;
-              *((__pyx_t_5numpy_uint16_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_20 * __pyx_v_min_max.strides[0]) )) = __pyx_v_v;
-              goto __pyx_L10;
-            }
-            __pyx_L10:;
-          }
-        }
-      }
-
-      /* "_ndimage_statistics.pyx":58
- *     assert hist.shape[0] == 1024
- *     cdef Py_ssize_t i, j
- *     with nogil:             # <<<<<<<<<<<<<<
- *         hist[:] = 0
- *         min_max[0] = arr[0,0]
- */
-      /*finally:*/ {
-        /*normal exit:*/{
-          #ifdef WITH_THREAD
-          Py_BLOCK_THREADS
-          #endif
-          goto __pyx_L5;
-        }
-        __pyx_L4_error: {
-          #ifdef WITH_THREAD
-          Py_BLOCK_THREADS
-          #endif
-          goto __pyx_L1_error;
-        }
-        __pyx_L5:;
-      }
-  }
-
-  /* "_ndimage_statistics.pyx":54
- * @cython.boundscheck(False)
- * @cython.wraparound(False)
- * cpdef shist_min_max_uint16(numpy.uint16_t[:, :] arr, numpy.uint32_t[:] hist, numpy.uint16_t[:] min_max):             # <<<<<<<<<<<<<<
- *     cdef numpy.uint16_t v
- *     assert hist.shape[0] == 1024
- */
-
-  /* function exit code */
-  __pyx_r = Py_None; __Pyx_INCREF(Py_None);
-  goto __pyx_L0;
-  __pyx_L1_error:;
-  __PYX_XDEC_MEMVIEW(&__pyx_t_1, 1);
-  __Pyx_AddTraceback("_ndimage_statistics.shist_min_max_uint16", __pyx_clineno, __pyx_lineno, __pyx_filename);
-  __pyx_r = 0;
-  __pyx_L0:;
-  __Pyx_XGIVEREF(__pyx_r);
-  __Pyx_RefNannyFinishContext();
-  return __pyx_r;
-}
-
-/* Python wrapper */
-static PyObject *__pyx_pw_19_ndimage_statistics_7shist_min_max_uint16(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyObject *__pyx_pw_19_ndimage_statistics_7shist_min_max_uint16(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
-  __Pyx_memviewslice __pyx_v_arr = { 0, 0, { 0 }, { 0 }, { 0 } };
-  __Pyx_memviewslice __pyx_v_hist = { 0, 0, { 0 }, { 0 }, { 0 } };
-  __Pyx_memviewslice __pyx_v_min_max = { 0, 0, { 0 }, { 0 }, { 0 } };
-  int __pyx_lineno = 0;
-  const char *__pyx_filename = NULL;
-  int __pyx_clineno = 0;
-  PyObject *__pyx_r = 0;
-  __Pyx_RefNannyDeclarations
-  __Pyx_RefNannySetupContext("shist_min_max_uint16 (wrapper)", 0);
-  {
-    static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_arr,&__pyx_n_s_hist,&__pyx_n_s_min_max,0};
-    PyObject* values[3] = {0,0,0};
-    if (unlikely(__pyx_kwds)) {
-      Py_ssize_t kw_args;
-      const Py_ssize_t pos_args = PyTuple_GET_SIZE(__pyx_args);
-      switch (pos_args) {
-        case  3: values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
-        case  2: values[1] = PyTuple_GET_ITEM(__pyx_args, 1);
-        case  1: values[0] = PyTuple_GET_ITEM(__pyx_args, 0);
-        case  0: break;
-        default: goto __pyx_L5_argtuple_error;
-      }
-      kw_args = PyDict_Size(__pyx_kwds);
-      switch (pos_args) {
-        case  0:
-        if (likely((values[0] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_arr)) != 0)) kw_args--;
-        else goto __pyx_L5_argtuple_error;
-        case  1:
-        if (likely((values[1] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_hist)) != 0)) kw_args--;
-        else {
-          __Pyx_RaiseArgtupleInvalid("shist_min_max_uint16", 1, 3, 3, 1); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 54; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-        }
-        case  2:
-        if (likely((values[2] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_min_max)) != 0)) kw_args--;
-        else {
-          __Pyx_RaiseArgtupleInvalid("shist_min_max_uint16", 1, 3, 3, 2); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 54; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-        }
-      }
-      if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "shist_min_max_uint16") < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 54; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-      }
-    } else if (PyTuple_GET_SIZE(__pyx_args) != 3) {
-      goto __pyx_L5_argtuple_error;
-    } else {
-      values[0] = PyTuple_GET_ITEM(__pyx_args, 0);
-      values[1] = PyTuple_GET_ITEM(__pyx_args, 1);
-      values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
-    }
-    __pyx_v_arr = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_5numpy_uint16_t(values[0]); if (unlikely(!__pyx_v_arr.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 54; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-    __pyx_v_hist = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_uint32_t(values[1]); if (unlikely(!__pyx_v_hist.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 54; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-    __pyx_v_min_max = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_uint16_t(values[2]); if (unlikely(!__pyx_v_min_max.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 54; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-  }
-  goto __pyx_L4_argument_unpacking_done;
-  __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("shist_min_max_uint16", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 54; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-  __pyx_L3_error:;
-  __Pyx_AddTraceback("_ndimage_statistics.shist_min_max_uint16", __pyx_clineno, __pyx_lineno, __pyx_filename);
-  __Pyx_RefNannyFinishContext();
-  return NULL;
-  __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_19_ndimage_statistics_6shist_min_max_uint16(__pyx_self, __pyx_v_arr, __pyx_v_hist, __pyx_v_min_max);
-
-  /* function exit code */
-  __Pyx_RefNannyFinishContext();
-  return __pyx_r;
-}
-
-static PyObject *__pyx_pf_19_ndimage_statistics_6shist_min_max_uint16(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max) {
-  PyObject *__pyx_r = NULL;
-  __Pyx_RefNannyDeclarations
-  PyObject *__pyx_t_1 = NULL;
-  int __pyx_lineno = 0;
-  const char *__pyx_filename = NULL;
-  int __pyx_clineno = 0;
-  __Pyx_RefNannySetupContext("shist_min_max_uint16", 0);
-  __Pyx_XDECREF(__pyx_r);
-  if (unlikely(!__pyx_v_arr.memview)) { __Pyx_RaiseUnboundLocalError("arr"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 54; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  if (unlikely(!__pyx_v_hist.memview)) { __Pyx_RaiseUnboundLocalError("hist"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 54; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  if (unlikely(!__pyx_v_min_max.memview)) { __Pyx_RaiseUnboundLocalError("min_max"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 54; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  __pyx_t_1 = __pyx_f_19_ndimage_statistics_shist_min_max_uint16(__pyx_v_arr, __pyx_v_hist, __pyx_v_min_max, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 54; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
-  __Pyx_GOTREF(__pyx_t_1);
-  __pyx_r = __pyx_t_1;
-  __pyx_t_1 = 0;
-  goto __pyx_L0;
-
-  /* function exit code */
-  __pyx_L1_error:;
-  __Pyx_XDECREF(__pyx_t_1);
-  __Pyx_AddTraceback("_ndimage_statistics.shist_min_max_uint16", __pyx_clineno, __pyx_lineno, __pyx_filename);
-  __pyx_r = NULL;
-  __pyx_L0:;
-  __PYX_XDEC_MEMVIEW(&__pyx_v_arr, 1);
-  __PYX_XDEC_MEMVIEW(&__pyx_v_hist, 1);
-  __PYX_XDEC_MEMVIEW(&__pyx_v_min_max, 1);
-  __Pyx_XGIVEREF(__pyx_r);
-  __Pyx_RefNannyFinishContext();
-  return __pyx_r;
-}
-
-/* "_ndimage_statistics.pyx":74
- * @cython.boundscheck(False)
- * @cython.wraparound(False)
- * cpdef shist_min_max_uint12(numpy.uint16_t[:, :] arr, numpy.uint32_t[:] hist, numpy.uint16_t[:] min_max):             # <<<<<<<<<<<<<<
- *     cdef numpy.uint16_t v
- *     assert hist.shape[0] == 1024
- */
-
-static PyObject *__pyx_pw_19_ndimage_statistics_9shist_min_max_uint12(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyObject *__pyx_f_19_ndimage_statistics_shist_min_max_uint12(__Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max, CYTHON_UNUSED int __pyx_skip_dispatch) {
-  __pyx_t_5numpy_uint16_t __pyx_v_v;
-  Py_ssize_t __pyx_v_i;
-  Py_ssize_t __pyx_v_j;
-  PyObject *__pyx_r = NULL;
-  __Pyx_RefNannyDeclarations
-  __Pyx_memviewslice __pyx_t_1 = { 0, 0, { 0 }, { 0 }, { 0 } };
-  int __pyx_t_2;
-  Py_ssize_t __pyx_t_3;
-  Py_ssize_t __pyx_t_4;
-  Py_ssize_t __pyx_t_5;
-  Py_ssize_t __pyx_t_6;
-  Py_ssize_t __pyx_t_7;
-  Py_ssize_t __pyx_t_8;
-  Py_ssize_t __pyx_t_9;
-  Py_ssize_t __pyx_t_10;
-  Py_ssize_t __pyx_t_11;
-  Py_ssize_t __pyx_t_12;
-  Py_ssize_t __pyx_t_13;
-  Py_ssize_t __pyx_t_14;
-  long __pyx_t_15;
-  Py_ssize_t __pyx_t_16;
-  int __pyx_t_17;
-  Py_ssize_t __pyx_t_18;
-  Py_ssize_t __pyx_t_19;
-  Py_ssize_t __pyx_t_20;
-  int __pyx_lineno = 0;
-  const char *__pyx_filename = NULL;
-  int __pyx_clineno = 0;
-  __Pyx_RefNannySetupContext("shist_min_max_uint12", 0);
-
-  /* "_ndimage_statistics.pyx":76
- * cpdef shist_min_max_uint12(numpy.uint16_t[:, :] arr, numpy.uint32_t[:] hist, numpy.uint16_t[:] min_max):
- *     cdef numpy.uint16_t v
- *     assert hist.shape[0] == 1024             # <<<<<<<<<<<<<<
- *     cdef Py_ssize_t i, j
- *     with nogil:
- */
-  #ifndef CYTHON_WITHOUT_ASSERTIONS
-  if (unlikely(!Py_OptimizeFlag)) {
-    if (unlikely(!(((__pyx_v_hist.shape[0]) == 1024) != 0))) {
-      PyErr_SetNone(PyExc_AssertionError);
-      {__pyx_filename = __pyx_f[0]; __pyx_lineno = 76; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
-    }
-  }
-  #endif
-
-  /* "_ndimage_statistics.pyx":78
- *     assert hist.shape[0] == 1024
- *     cdef Py_ssize_t i, j
- *     with nogil:             # <<<<<<<<<<<<<<
- *         hist[:] = 0
- *         min_max[0] = arr[0,0]
- */
-  {
-      #ifdef WITH_THREAD
-      PyThreadState *_save;
-      Py_UNBLOCK_THREADS
-      #endif
-      /*try:*/ {
-
-        /* "_ndimage_statistics.pyx":79
- *     cdef Py_ssize_t i, j
- *     with nogil:
- *         hist[:] = 0             # <<<<<<<<<<<<<<
- *         min_max[0] = arr[0,0]
- *         min_max[1] = arr[0,0]
- */
-        __pyx_t_2 = -1;
-        __pyx_t_1.data = __pyx_v_hist.data;
-        __pyx_t_1.memview = __pyx_v_hist.memview;
-        __PYX_INC_MEMVIEW(&__pyx_t_1, 0);
-        __pyx_t_1.shape[0] = __pyx_v_hist.shape[0];
-__pyx_t_1.strides[0] = __pyx_v_hist.strides[0];
-    __pyx_t_1.suboffsets[0] = -1;
-
-{
-            __pyx_t_5numpy_uint32_t __pyx_temp_scalar = 0;
-            {
-                Py_ssize_t __pyx_temp_extent_0 = __pyx_t_1.shape[0];
-                Py_ssize_t __pyx_temp_stride_0 = __pyx_t_1.strides[0];
-                char *__pyx_temp_pointer_0;
-                Py_ssize_t __pyx_temp_idx_0;
-                __pyx_temp_pointer_0 = __pyx_t_1.data;
-                for (__pyx_temp_idx_0 = 0; __pyx_temp_idx_0 < __pyx_temp_extent_0; __pyx_temp_idx_0++) {
-                  *((__pyx_t_5numpy_uint32_t *) __pyx_temp_pointer_0) = __pyx_temp_scalar;
-                  __pyx_temp_pointer_0 += __pyx_temp_stride_0;
-                }
-            }
-        }
-        __PYX_XDEC_MEMVIEW(&__pyx_t_1, 0);
-
-        /* "_ndimage_statistics.pyx":80
- *     with nogil:
- *         hist[:] = 0
- *         min_max[0] = arr[0,0]             # <<<<<<<<<<<<<<
- *         min_max[1] = arr[0,0]
- *         for i in range(arr.shape[0]):
- */
-        __pyx_t_3 = 0;
-        __pyx_t_4 = 0;
-        __pyx_t_5 = 0;
-        *((__pyx_t_5numpy_uint16_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_5 * __pyx_v_min_max.strides[0]) )) = (*((__pyx_t_5numpy_uint16_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_arr.data + __pyx_t_3 * __pyx_v_arr.strides[0]) ) + __pyx_t_4 * __pyx_v_arr.strides[1]) )));
-
-        /* "_ndimage_statistics.pyx":81
- *         hist[:] = 0
- *         min_max[0] = arr[0,0]
- *         min_max[1] = arr[0,0]             # <<<<<<<<<<<<<<
- *         for i in range(arr.shape[0]):
- *             for j in range(arr.shape[1]):
- */
-        __pyx_t_6 = 0;
-        __pyx_t_7 = 0;
-        __pyx_t_8 = 1;
-        *((__pyx_t_5numpy_uint16_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_8 * __pyx_v_min_max.strides[0]) )) = (*((__pyx_t_5numpy_uint16_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_arr.data + __pyx_t_6 * __pyx_v_arr.strides[0]) ) + __pyx_t_7 * __pyx_v_arr.strides[1]) )));
-
-        /* "_ndimage_statistics.pyx":82
- *         min_max[0] = arr[0,0]
- *         min_max[1] = arr[0,0]
- *         for i in range(arr.shape[0]):             # <<<<<<<<<<<<<<
- *             for j in range(arr.shape[1]):
- *                 v = arr[i, j]
- */
-        __pyx_t_9 = (__pyx_v_arr.shape[0]);
-        for (__pyx_t_10 = 0; __pyx_t_10 < __pyx_t_9; __pyx_t_10+=1) {
-          __pyx_v_i = __pyx_t_10;
-
-          /* "_ndimage_statistics.pyx":83
- *         min_max[1] = arr[0,0]
- *         for i in range(arr.shape[0]):
- *             for j in range(arr.shape[1]):             # <<<<<<<<<<<<<<
- *                 v = arr[i, j]
- *                 hist[v >> 2] += 1
- */
-          __pyx_t_11 = (__pyx_v_arr.shape[1]);
-          for (__pyx_t_12 = 0; __pyx_t_12 < __pyx_t_11; __pyx_t_12+=1) {
-            __pyx_v_j = __pyx_t_12;
-
-            /* "_ndimage_statistics.pyx":84
- *         for i in range(arr.shape[0]):
- *             for j in range(arr.shape[1]):
- *                 v = arr[i, j]             # <<<<<<<<<<<<<<
- *                 hist[v >> 2] += 1
- *                 if v < min_max[0]:
- */
-            __pyx_t_13 = __pyx_v_i;
-            __pyx_t_14 = __pyx_v_j;
-            __pyx_v_v = (*((__pyx_t_5numpy_uint16_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_arr.data + __pyx_t_13 * __pyx_v_arr.strides[0]) ) + __pyx_t_14 * __pyx_v_arr.strides[1]) )));
-
-            /* "_ndimage_statistics.pyx":85
- *             for j in range(arr.shape[1]):
- *                 v = arr[i, j]
- *                 hist[v >> 2] += 1             # <<<<<<<<<<<<<<
- *                 if v < min_max[0]:
- *                     min_max[0] = v
- */
-            __pyx_t_15 = (__pyx_v_v >> 2);
-            *((__pyx_t_5numpy_uint32_t *) ( /* dim=0 */ (__pyx_v_hist.data + __pyx_t_15 * __pyx_v_hist.strides[0]) )) += 1;
-
-            /* "_ndimage_statistics.pyx":86
- *                 v = arr[i, j]
- *                 hist[v >> 2] += 1
- *                 if v < min_max[0]:             # <<<<<<<<<<<<<<
- *                     min_max[0] = v
- *                 elif v > min_max[1]:
- */
-            __pyx_t_16 = 0;
-            __pyx_t_17 = ((__pyx_v_v < (*((__pyx_t_5numpy_uint16_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_16 * __pyx_v_min_max.strides[0]) )))) != 0);
-            if (__pyx_t_17) {
-
-              /* "_ndimage_statistics.pyx":87
- *                 hist[v >> 2] += 1
- *                 if v < min_max[0]:
- *                     min_max[0] = v             # <<<<<<<<<<<<<<
- *                 elif v > min_max[1]:
- *                     min_max[1] = v
- */
-              __pyx_t_18 = 0;
-              *((__pyx_t_5numpy_uint16_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_18 * __pyx_v_min_max.strides[0]) )) = __pyx_v_v;
-              goto __pyx_L10;
-            }
-
-            /* "_ndimage_statistics.pyx":88
- *                 if v < min_max[0]:
- *                     min_max[0] = v
- *                 elif v > min_max[1]:             # <<<<<<<<<<<<<<
- *                     min_max[1] = v
- * 
- */
-            __pyx_t_19 = 1;
-            __pyx_t_17 = ((__pyx_v_v > (*((__pyx_t_5numpy_uint16_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_19 * __pyx_v_min_max.strides[0]) )))) != 0);
-            if (__pyx_t_17) {
-
-              /* "_ndimage_statistics.pyx":89
- *                     min_max[0] = v
- *                 elif v > min_max[1]:
- *                     min_max[1] = v             # <<<<<<<<<<<<<<
- * 
- * @cython.boundscheck(False)
- */
-              __pyx_t_20 = 1;
-              *((__pyx_t_5numpy_uint16_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_20 * __pyx_v_min_max.strides[0]) )) = __pyx_v_v;
-              goto __pyx_L10;
-            }
-            __pyx_L10:;
-          }
-        }
-      }
-
-      /* "_ndimage_statistics.pyx":78
- *     assert hist.shape[0] == 1024
- *     cdef Py_ssize_t i, j
- *     with nogil:             # <<<<<<<<<<<<<<
- *         hist[:] = 0
- *         min_max[0] = arr[0,0]
- */
-      /*finally:*/ {
-        /*normal exit:*/{
-          #ifdef WITH_THREAD
-          Py_BLOCK_THREADS
-          #endif
-          goto __pyx_L5;
-        }
-        __pyx_L4_error: {
-          #ifdef WITH_THREAD
-          Py_BLOCK_THREADS
-          #endif
-          goto __pyx_L1_error;
-        }
-        __pyx_L5:;
-      }
-  }
-
-  /* "_ndimage_statistics.pyx":74
- * @cython.boundscheck(False)
- * @cython.wraparound(False)
- * cpdef shist_min_max_uint12(numpy.uint16_t[:, :] arr, numpy.uint32_t[:] hist, numpy.uint16_t[:] min_max):             # <<<<<<<<<<<<<<
- *     cdef numpy.uint16_t v
- *     assert hist.shape[0] == 1024
- */
-
-  /* function exit code */
-  __pyx_r = Py_None; __Pyx_INCREF(Py_None);
-  goto __pyx_L0;
-  __pyx_L1_error:;
-  __PYX_XDEC_MEMVIEW(&__pyx_t_1, 1);
-  __Pyx_AddTraceback("_ndimage_statistics.shist_min_max_uint12", __pyx_clineno, __pyx_lineno, __pyx_filename);
-  __pyx_r = 0;
-  __pyx_L0:;
-  __Pyx_XGIVEREF(__pyx_r);
-  __Pyx_RefNannyFinishContext();
-  return __pyx_r;
-}
-
-/* Python wrapper */
-static PyObject *__pyx_pw_19_ndimage_statistics_9shist_min_max_uint12(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyObject *__pyx_pw_19_ndimage_statistics_9shist_min_max_uint12(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
-  __Pyx_memviewslice __pyx_v_arr = { 0, 0, { 0 }, { 0 }, { 0 } };
-  __Pyx_memviewslice __pyx_v_hist = { 0, 0, { 0 }, { 0 }, { 0 } };
-  __Pyx_memviewslice __pyx_v_min_max = { 0, 0, { 0 }, { 0 }, { 0 } };
-  int __pyx_lineno = 0;
-  const char *__pyx_filename = NULL;
-  int __pyx_clineno = 0;
-  PyObject *__pyx_r = 0;
-  __Pyx_RefNannyDeclarations
-  __Pyx_RefNannySetupContext("shist_min_max_uint12 (wrapper)", 0);
-  {
-    static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_arr,&__pyx_n_s_hist,&__pyx_n_s_min_max,0};
-    PyObject* values[3] = {0,0,0};
-    if (unlikely(__pyx_kwds)) {
-      Py_ssize_t kw_args;
-      const Py_ssize_t pos_args = PyTuple_GET_SIZE(__pyx_args);
-      switch (pos_args) {
-        case  3: values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
-        case  2: values[1] = PyTuple_GET_ITEM(__pyx_args, 1);
-        case  1: values[0] = PyTuple_GET_ITEM(__pyx_args, 0);
-        case  0: break;
-        default: goto __pyx_L5_argtuple_error;
-      }
-      kw_args = PyDict_Size(__pyx_kwds);
-      switch (pos_args) {
-        case  0:
-        if (likely((values[0] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_arr)) != 0)) kw_args--;
-        else goto __pyx_L5_argtuple_error;
-        case  1:
-        if (likely((values[1] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_hist)) != 0)) kw_args--;
-        else {
-          __Pyx_RaiseArgtupleInvalid("shist_min_max_uint12", 1, 3, 3, 1); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 74; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-        }
-        case  2:
-        if (likely((values[2] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_min_max)) != 0)) kw_args--;
-        else {
-          __Pyx_RaiseArgtupleInvalid("shist_min_max_uint12", 1, 3, 3, 2); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 74; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-        }
-      }
-      if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "shist_min_max_uint12") < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 74; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-      }
-    } else if (PyTuple_GET_SIZE(__pyx_args) != 3) {
-      goto __pyx_L5_argtuple_error;
-    } else {
-      values[0] = PyTuple_GET_ITEM(__pyx_args, 0);
-      values[1] = PyTuple_GET_ITEM(__pyx_args, 1);
-      values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
-    }
-    __pyx_v_arr = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_5numpy_uint16_t(values[0]); if (unlikely(!__pyx_v_arr.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 74; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-    __pyx_v_hist = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_uint32_t(values[1]); if (unlikely(!__pyx_v_hist.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 74; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-    __pyx_v_min_max = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_uint16_t(values[2]); if (unlikely(!__pyx_v_min_max.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 74; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-  }
-  goto __pyx_L4_argument_unpacking_done;
-  __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("shist_min_max_uint12", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 74; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-  __pyx_L3_error:;
-  __Pyx_AddTraceback("_ndimage_statistics.shist_min_max_uint12", __pyx_clineno, __pyx_lineno, __pyx_filename);
-  __Pyx_RefNannyFinishContext();
-  return NULL;
-  __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_19_ndimage_statistics_8shist_min_max_uint12(__pyx_self, __pyx_v_arr, __pyx_v_hist, __pyx_v_min_max);
-
-  /* function exit code */
-  __Pyx_RefNannyFinishContext();
-  return __pyx_r;
-}
-
-static PyObject *__pyx_pf_19_ndimage_statistics_8shist_min_max_uint12(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max) {
-  PyObject *__pyx_r = NULL;
-  __Pyx_RefNannyDeclarations
-  PyObject *__pyx_t_1 = NULL;
-  int __pyx_lineno = 0;
-  const char *__pyx_filename = NULL;
-  int __pyx_clineno = 0;
-  __Pyx_RefNannySetupContext("shist_min_max_uint12", 0);
-  __Pyx_XDECREF(__pyx_r);
-  if (unlikely(!__pyx_v_arr.memview)) { __Pyx_RaiseUnboundLocalError("arr"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 74; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  if (unlikely(!__pyx_v_hist.memview)) { __Pyx_RaiseUnboundLocalError("hist"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 74; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  if (unlikely(!__pyx_v_min_max.memview)) { __Pyx_RaiseUnboundLocalError("min_max"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 74; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  __pyx_t_1 = __pyx_f_19_ndimage_statistics_shist_min_max_uint12(__pyx_v_arr, __pyx_v_hist, __pyx_v_min_max, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 74; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
-  __Pyx_GOTREF(__pyx_t_1);
-  __pyx_r = __pyx_t_1;
-  __pyx_t_1 = 0;
-  goto __pyx_L0;
-
-  /* function exit code */
-  __pyx_L1_error:;
-  __Pyx_XDECREF(__pyx_t_1);
-  __Pyx_AddTraceback("_ndimage_statistics.shist_min_max_uint12", __pyx_clineno, __pyx_lineno, __pyx_filename);
-  __pyx_r = NULL;
-  __pyx_L0:;
-  __PYX_XDEC_MEMVIEW(&__pyx_v_arr, 1);
-  __PYX_XDEC_MEMVIEW(&__pyx_v_hist, 1);
-  __PYX_XDEC_MEMVIEW(&__pyx_v_min_max, 1);
-  __Pyx_XGIVEREF(__pyx_r);
-  __Pyx_RefNannyFinishContext();
-  return __pyx_r;
-}
-
-/* "_ndimage_statistics.pyx":93
- * @cython.boundscheck(False)
- * @cython.wraparound(False)
- * cpdef shist_min_max_uint8(numpy.uint8_t[:, :] arr, numpy.uint32_t[:] hist, numpy.uint8_t[:] min_max):             # <<<<<<<<<<<<<<
- *     cdef numpy.uint8_t v
- *     assert hist.shape[0] == 256
- */
-
-static PyObject *__pyx_pw_19_ndimage_statistics_11shist_min_max_uint8(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyObject *__pyx_f_19_ndimage_statistics_shist_min_max_uint8(__Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max, CYTHON_UNUSED int __pyx_skip_dispatch) {
-  __pyx_t_5numpy_uint8_t __pyx_v_v;
-  Py_ssize_t __pyx_v_i;
-  Py_ssize_t __pyx_v_j;
-  PyObject *__pyx_r = NULL;
-  __Pyx_RefNannyDeclarations
-  __Pyx_memviewslice __pyx_t_1 = { 0, 0, { 0 }, { 0 }, { 0 } };
-  int __pyx_t_2;
-  Py_ssize_t __pyx_t_3;
-  Py_ssize_t __pyx_t_4;
-  Py_ssize_t __pyx_t_5;
-  Py_ssize_t __pyx_t_6;
-  Py_ssize_t __pyx_t_7;
-  Py_ssize_t __pyx_t_8;
-  Py_ssize_t __pyx_t_9;
-  Py_ssize_t __pyx_t_10;
-  Py_ssize_t __pyx_t_11;
-  Py_ssize_t __pyx_t_12;
-  Py_ssize_t __pyx_t_13;
-  Py_ssize_t __pyx_t_14;
-  __pyx_t_5numpy_uint8_t __pyx_t_15;
-  Py_ssize_t __pyx_t_16;
-  int __pyx_t_17;
-  Py_ssize_t __pyx_t_18;
-  Py_ssize_t __pyx_t_19;
-  Py_ssize_t __pyx_t_20;
-  int __pyx_lineno = 0;
-  const char *__pyx_filename = NULL;
-  int __pyx_clineno = 0;
-  __Pyx_RefNannySetupContext("shist_min_max_uint8", 0);
-
-  /* "_ndimage_statistics.pyx":95
- * cpdef shist_min_max_uint8(numpy.uint8_t[:, :] arr, numpy.uint32_t[:] hist, numpy.uint8_t[:] min_max):
- *     cdef numpy.uint8_t v
- *     assert hist.shape[0] == 256             # <<<<<<<<<<<<<<
- *     cdef Py_ssize_t i, j
- *     with nogil:
- */
-  #ifndef CYTHON_WITHOUT_ASSERTIONS
-  if (unlikely(!Py_OptimizeFlag)) {
-    if (unlikely(!(((__pyx_v_hist.shape[0]) == 256) != 0))) {
-      PyErr_SetNone(PyExc_AssertionError);
-      {__pyx_filename = __pyx_f[0]; __pyx_lineno = 95; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
-    }
-  }
-  #endif
-
-  /* "_ndimage_statistics.pyx":97
- *     assert hist.shape[0] == 256
- *     cdef Py_ssize_t i, j
- *     with nogil:             # <<<<<<<<<<<<<<
- *         hist[:] = 0
- *         min_max[0] = arr[0,0]
- */
-  {
-      #ifdef WITH_THREAD
-      PyThreadState *_save;
-      Py_UNBLOCK_THREADS
-      #endif
-      /*try:*/ {
-
-        /* "_ndimage_statistics.pyx":98
- *     cdef Py_ssize_t i, j
- *     with nogil:
- *         hist[:] = 0             # <<<<<<<<<<<<<<
- *         min_max[0] = arr[0,0]
- *         min_max[1] = arr[0,0]
- */
-        __pyx_t_2 = -1;
-        __pyx_t_1.data = __pyx_v_hist.data;
-        __pyx_t_1.memview = __pyx_v_hist.memview;
-        __PYX_INC_MEMVIEW(&__pyx_t_1, 0);
-        __pyx_t_1.shape[0] = __pyx_v_hist.shape[0];
-__pyx_t_1.strides[0] = __pyx_v_hist.strides[0];
-    __pyx_t_1.suboffsets[0] = -1;
-
-{
-            __pyx_t_5numpy_uint32_t __pyx_temp_scalar = 0;
-            {
-                Py_ssize_t __pyx_temp_extent_0 = __pyx_t_1.shape[0];
-                Py_ssize_t __pyx_temp_stride_0 = __pyx_t_1.strides[0];
-                char *__pyx_temp_pointer_0;
-                Py_ssize_t __pyx_temp_idx_0;
-                __pyx_temp_pointer_0 = __pyx_t_1.data;
-                for (__pyx_temp_idx_0 = 0; __pyx_temp_idx_0 < __pyx_temp_extent_0; __pyx_temp_idx_0++) {
-                  *((__pyx_t_5numpy_uint32_t *) __pyx_temp_pointer_0) = __pyx_temp_scalar;
-                  __pyx_temp_pointer_0 += __pyx_temp_stride_0;
-                }
-            }
-        }
-        __PYX_XDEC_MEMVIEW(&__pyx_t_1, 0);
-
-        /* "_ndimage_statistics.pyx":99
- *     with nogil:
- *         hist[:] = 0
- *         min_max[0] = arr[0,0]             # <<<<<<<<<<<<<<
- *         min_max[1] = arr[0,0]
- *         for i in range(arr.shape[0]):
- */
-        __pyx_t_3 = 0;
-        __pyx_t_4 = 0;
-        __pyx_t_5 = 0;
-        *((__pyx_t_5numpy_uint8_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_5 * __pyx_v_min_max.strides[0]) )) = (*((__pyx_t_5numpy_uint8_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_arr.data + __pyx_t_3 * __pyx_v_arr.strides[0]) ) + __pyx_t_4 * __pyx_v_arr.strides[1]) )));
-
-        /* "_ndimage_statistics.pyx":100
- *         hist[:] = 0
- *         min_max[0] = arr[0,0]
- *         min_max[1] = arr[0,0]             # <<<<<<<<<<<<<<
- *         for i in range(arr.shape[0]):
- *             for j in range(arr.shape[1]):
- */
-        __pyx_t_6 = 0;
-        __pyx_t_7 = 0;
-        __pyx_t_8 = 1;
-        *((__pyx_t_5numpy_uint8_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_8 * __pyx_v_min_max.strides[0]) )) = (*((__pyx_t_5numpy_uint8_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_arr.data + __pyx_t_6 * __pyx_v_arr.strides[0]) ) + __pyx_t_7 * __pyx_v_arr.strides[1]) )));
-
-        /* "_ndimage_statistics.pyx":101
- *         min_max[0] = arr[0,0]
- *         min_max[1] = arr[0,0]
- *         for i in range(arr.shape[0]):             # <<<<<<<<<<<<<<
- *             for j in range(arr.shape[1]):
- *                 v = arr[i, j]
- */
-        __pyx_t_9 = (__pyx_v_arr.shape[0]);
-        for (__pyx_t_10 = 0; __pyx_t_10 < __pyx_t_9; __pyx_t_10+=1) {
-          __pyx_v_i = __pyx_t_10;
-
-          /* "_ndimage_statistics.pyx":102
- *         min_max[1] = arr[0,0]
- *         for i in range(arr.shape[0]):
- *             for j in range(arr.shape[1]):             # <<<<<<<<<<<<<<
- *                 v = arr[i, j]
- *                 hist[v] += 1
- */
-          __pyx_t_11 = (__pyx_v_arr.shape[1]);
-          for (__pyx_t_12 = 0; __pyx_t_12 < __pyx_t_11; __pyx_t_12+=1) {
-            __pyx_v_j = __pyx_t_12;
-
-            /* "_ndimage_statistics.pyx":103
- *         for i in range(arr.shape[0]):
- *             for j in range(arr.shape[1]):
- *                 v = arr[i, j]             # <<<<<<<<<<<<<<
- *                 hist[v] += 1
- *                 if v < min_max[0]:
- */
-            __pyx_t_13 = __pyx_v_i;
-            __pyx_t_14 = __pyx_v_j;
-            __pyx_v_v = (*((__pyx_t_5numpy_uint8_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_arr.data + __pyx_t_13 * __pyx_v_arr.strides[0]) ) + __pyx_t_14 * __pyx_v_arr.strides[1]) )));
-
-            /* "_ndimage_statistics.pyx":104
- *             for j in range(arr.shape[1]):
- *                 v = arr[i, j]
- *                 hist[v] += 1             # <<<<<<<<<<<<<<
- *                 if v < min_max[0]:
- *                     min_max[0] = v
- */
-            __pyx_t_15 = __pyx_v_v;
-            *((__pyx_t_5numpy_uint32_t *) ( /* dim=0 */ (__pyx_v_hist.data + __pyx_t_15 * __pyx_v_hist.strides[0]) )) += 1;
-
-            /* "_ndimage_statistics.pyx":105
- *                 v = arr[i, j]
- *                 hist[v] += 1
- *                 if v < min_max[0]:             # <<<<<<<<<<<<<<
- *                     min_max[0] = v
- *                 elif v > min_max[1]:
- */
-            __pyx_t_16 = 0;
-            __pyx_t_17 = ((__pyx_v_v < (*((__pyx_t_5numpy_uint8_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_16 * __pyx_v_min_max.strides[0]) )))) != 0);
-            if (__pyx_t_17) {
-
-              /* "_ndimage_statistics.pyx":106
- *                 hist[v] += 1
- *                 if v < min_max[0]:
- *                     min_max[0] = v             # <<<<<<<<<<<<<<
- *                 elif v > min_max[1]:
- *                     min_max[1] = v
- */
-              __pyx_t_18 = 0;
-              *((__pyx_t_5numpy_uint8_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_18 * __pyx_v_min_max.strides[0]) )) = __pyx_v_v;
-              goto __pyx_L10;
-            }
-
-            /* "_ndimage_statistics.pyx":107
- *                 if v < min_max[0]:
- *                     min_max[0] = v
- *                 elif v > min_max[1]:             # <<<<<<<<<<<<<<
- *                     min_max[1] = v
- * 
- */
-            __pyx_t_19 = 1;
-            __pyx_t_17 = ((__pyx_v_v > (*((__pyx_t_5numpy_uint8_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_19 * __pyx_v_min_max.strides[0]) )))) != 0);
-            if (__pyx_t_17) {
-
-              /* "_ndimage_statistics.pyx":108
- *                     min_max[0] = v
- *                 elif v > min_max[1]:
- *                     min_max[1] = v             # <<<<<<<<<<<<<<
- * 
- * @cython.boundscheck(False)
- */
-              __pyx_t_20 = 1;
-              *((__pyx_t_5numpy_uint8_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_20 * __pyx_v_min_max.strides[0]) )) = __pyx_v_v;
-              goto __pyx_L10;
-            }
-            __pyx_L10:;
-          }
-        }
-      }
-
-      /* "_ndimage_statistics.pyx":97
- *     assert hist.shape[0] == 256
- *     cdef Py_ssize_t i, j
- *     with nogil:             # <<<<<<<<<<<<<<
- *         hist[:] = 0
- *         min_max[0] = arr[0,0]
- */
-      /*finally:*/ {
-        /*normal exit:*/{
-          #ifdef WITH_THREAD
-          Py_BLOCK_THREADS
-          #endif
-          goto __pyx_L5;
-        }
-        __pyx_L4_error: {
-          #ifdef WITH_THREAD
-          Py_BLOCK_THREADS
-          #endif
-          goto __pyx_L1_error;
-        }
-        __pyx_L5:;
-      }
-  }
-
-  /* "_ndimage_statistics.pyx":93
- * @cython.boundscheck(False)
- * @cython.wraparound(False)
- * cpdef shist_min_max_uint8(numpy.uint8_t[:, :] arr, numpy.uint32_t[:] hist, numpy.uint8_t[:] min_max):             # <<<<<<<<<<<<<<
- *     cdef numpy.uint8_t v
- *     assert hist.shape[0] == 256
- */
-
-  /* function exit code */
-  __pyx_r = Py_None; __Pyx_INCREF(Py_None);
-  goto __pyx_L0;
-  __pyx_L1_error:;
-  __PYX_XDEC_MEMVIEW(&__pyx_t_1, 1);
-  __Pyx_AddTraceback("_ndimage_statistics.shist_min_max_uint8", __pyx_clineno, __pyx_lineno, __pyx_filename);
-  __pyx_r = 0;
-  __pyx_L0:;
-  __Pyx_XGIVEREF(__pyx_r);
-  __Pyx_RefNannyFinishContext();
-  return __pyx_r;
-}
-
-/* Python wrapper */
-static PyObject *__pyx_pw_19_ndimage_statistics_11shist_min_max_uint8(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyObject *__pyx_pw_19_ndimage_statistics_11shist_min_max_uint8(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
-  __Pyx_memviewslice __pyx_v_arr = { 0, 0, { 0 }, { 0 }, { 0 } };
-  __Pyx_memviewslice __pyx_v_hist = { 0, 0, { 0 }, { 0 }, { 0 } };
-  __Pyx_memviewslice __pyx_v_min_max = { 0, 0, { 0 }, { 0 }, { 0 } };
-  int __pyx_lineno = 0;
-  const char *__pyx_filename = NULL;
-  int __pyx_clineno = 0;
-  PyObject *__pyx_r = 0;
-  __Pyx_RefNannyDeclarations
-  __Pyx_RefNannySetupContext("shist_min_max_uint8 (wrapper)", 0);
-  {
-    static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_arr,&__pyx_n_s_hist,&__pyx_n_s_min_max,0};
-    PyObject* values[3] = {0,0,0};
-    if (unlikely(__pyx_kwds)) {
-      Py_ssize_t kw_args;
-      const Py_ssize_t pos_args = PyTuple_GET_SIZE(__pyx_args);
-      switch (pos_args) {
-        case  3: values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
-        case  2: values[1] = PyTuple_GET_ITEM(__pyx_args, 1);
-        case  1: values[0] = PyTuple_GET_ITEM(__pyx_args, 0);
-        case  0: break;
-        default: goto __pyx_L5_argtuple_error;
-      }
-      kw_args = PyDict_Size(__pyx_kwds);
-      switch (pos_args) {
-        case  0:
-        if (likely((values[0] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_arr)) != 0)) kw_args--;
-        else goto __pyx_L5_argtuple_error;
-        case  1:
-        if (likely((values[1] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_hist)) != 0)) kw_args--;
-        else {
-          __Pyx_RaiseArgtupleInvalid("shist_min_max_uint8", 1, 3, 3, 1); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 93; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-        }
-        case  2:
-        if (likely((values[2] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_min_max)) != 0)) kw_args--;
-        else {
-          __Pyx_RaiseArgtupleInvalid("shist_min_max_uint8", 1, 3, 3, 2); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 93; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-        }
-      }
-      if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "shist_min_max_uint8") < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 93; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-      }
-    } else if (PyTuple_GET_SIZE(__pyx_args) != 3) {
-      goto __pyx_L5_argtuple_error;
-    } else {
-      values[0] = PyTuple_GET_ITEM(__pyx_args, 0);
-      values[1] = PyTuple_GET_ITEM(__pyx_args, 1);
-      values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
-    }
-    __pyx_v_arr = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_5numpy_uint8_t(values[0]); if (unlikely(!__pyx_v_arr.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 93; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-    __pyx_v_hist = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_uint32_t(values[1]); if (unlikely(!__pyx_v_hist.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 93; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-    __pyx_v_min_max = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_uint8_t(values[2]); if (unlikely(!__pyx_v_min_max.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 93; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-  }
-  goto __pyx_L4_argument_unpacking_done;
-  __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("shist_min_max_uint8", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 93; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-  __pyx_L3_error:;
-  __Pyx_AddTraceback("_ndimage_statistics.shist_min_max_uint8", __pyx_clineno, __pyx_lineno, __pyx_filename);
-  __Pyx_RefNannyFinishContext();
-  return NULL;
-  __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_19_ndimage_statistics_10shist_min_max_uint8(__pyx_self, __pyx_v_arr, __pyx_v_hist, __pyx_v_min_max);
-
-  /* function exit code */
-  __Pyx_RefNannyFinishContext();
-  return __pyx_r;
-}
-
-static PyObject *__pyx_pf_19_ndimage_statistics_10shist_min_max_uint8(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max) {
-  PyObject *__pyx_r = NULL;
-  __Pyx_RefNannyDeclarations
-  PyObject *__pyx_t_1 = NULL;
-  int __pyx_lineno = 0;
-  const char *__pyx_filename = NULL;
-  int __pyx_clineno = 0;
-  __Pyx_RefNannySetupContext("shist_min_max_uint8", 0);
-  __Pyx_XDECREF(__pyx_r);
-  if (unlikely(!__pyx_v_arr.memview)) { __Pyx_RaiseUnboundLocalError("arr"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 93; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  if (unlikely(!__pyx_v_hist.memview)) { __Pyx_RaiseUnboundLocalError("hist"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 93; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  if (unlikely(!__pyx_v_min_max.memview)) { __Pyx_RaiseUnboundLocalError("min_max"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 93; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  __pyx_t_1 = __pyx_f_19_ndimage_statistics_shist_min_max_uint8(__pyx_v_arr, __pyx_v_hist, __pyx_v_min_max, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 93; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
-  __Pyx_GOTREF(__pyx_t_1);
-  __pyx_r = __pyx_t_1;
-  __pyx_t_1 = 0;
-  goto __pyx_L0;
-
-  /* function exit code */
-  __pyx_L1_error:;
-  __Pyx_XDECREF(__pyx_t_1);
-  __Pyx_AddTraceback("_ndimage_statistics.shist_min_max_uint8", __pyx_clineno, __pyx_lineno, __pyx_filename);
-  __pyx_r = NULL;
-  __pyx_L0:;
-  __PYX_XDEC_MEMVIEW(&__pyx_v_arr, 1);
-  __PYX_XDEC_MEMVIEW(&__pyx_v_hist, 1);
-  __PYX_XDEC_MEMVIEW(&__pyx_v_min_max, 1);
-  __Pyx_XGIVEREF(__pyx_r);
-  __Pyx_RefNannyFinishContext();
-  return __pyx_r;
-}
-
-/* "_ndimage_statistics.pyx":113
+/* "_ndimage_statistics.pyx":55
  * @cython.wraparound(False)
  * @cython.cdivision(True)
  * cpdef hist_min_max_float32(numpy.float32_t[:, :] arr, numpy.uint32_t[:] hist, numpy.float32_t[:] min_max, numpy.float32_t hist_min, numpy.float32_t hist_max):             # <<<<<<<<<<<<<<
@@ -3543,7 +2442,7 @@ static PyObject *__pyx_pf_19_ndimage_statistics_10shist_min_max_uint8(CYTHON_UNU
  *     cdef numpy.uint32_t n_bins = hist.shape[0]
  */
 
-static PyObject *__pyx_pw_19_ndimage_statistics_13hist_min_max_float32(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static PyObject *__pyx_pw_19_ndimage_statistics_7hist_min_max_float32(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
 static PyObject *__pyx_f_19_ndimage_statistics_hist_min_max_float32(__Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max, __pyx_t_5numpy_float32_t __pyx_v_hist_min, __pyx_t_5numpy_float32_t __pyx_v_hist_max, CYTHON_UNUSED int __pyx_skip_dispatch) {
   __pyx_t_5numpy_float32_t __pyx_v_v;
   __pyx_t_5numpy_uint32_t __pyx_v_n_bins;
@@ -3578,7 +2477,7 @@ static PyObject *__pyx_f_19_ndimage_statistics_hist_min_max_float32(__Pyx_memvie
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("hist_min_max_float32", 0);
 
-  /* "_ndimage_statistics.pyx":115
+  /* "_ndimage_statistics.pyx":57
  * cpdef hist_min_max_float32(numpy.float32_t[:, :] arr, numpy.uint32_t[:] hist, numpy.float32_t[:] min_max, numpy.float32_t hist_min, numpy.float32_t hist_max):
  *     cdef numpy.float32_t v
  *     cdef numpy.uint32_t n_bins = hist.shape[0]             # <<<<<<<<<<<<<<
@@ -3587,7 +2486,7 @@ static PyObject *__pyx_f_19_ndimage_statistics_hist_min_max_float32(__Pyx_memvie
  */
   __pyx_v_n_bins = (__pyx_v_hist.shape[0]);
 
-  /* "_ndimage_statistics.pyx":117
+  /* "_ndimage_statistics.pyx":59
  *     cdef numpy.uint32_t n_bins = hist.shape[0]
  *     cdef Py_ssize_t i, j, bin
  *     cdef numpy.float32_t bin_factor = (n_bins - 1) / (hist_max - hist_min)             # <<<<<<<<<<<<<<
@@ -3596,7 +2495,7 @@ static PyObject *__pyx_f_19_ndimage_statistics_hist_min_max_float32(__Pyx_memvie
  */
   __pyx_v_bin_factor = ((__pyx_v_n_bins - 1) / (__pyx_v_hist_max - __pyx_v_hist_min));
 
-  /* "_ndimage_statistics.pyx":118
+  /* "_ndimage_statistics.pyx":60
  *     cdef Py_ssize_t i, j, bin
  *     cdef numpy.float32_t bin_factor = (n_bins - 1) / (hist_max - hist_min)
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -3610,7 +2509,7 @@ static PyObject *__pyx_f_19_ndimage_statistics_hist_min_max_float32(__Pyx_memvie
       #endif
       /*try:*/ {
 
-        /* "_ndimage_statistics.pyx":119
+        /* "_ndimage_statistics.pyx":61
  *     cdef numpy.float32_t bin_factor = (n_bins - 1) / (hist_max - hist_min)
  *     with nogil:
  *         hist[:] = 0             # <<<<<<<<<<<<<<
@@ -3641,7 +2540,7 @@ __pyx_t_1.strides[0] = __pyx_v_hist.strides[0];
         }
         __PYX_XDEC_MEMVIEW(&__pyx_t_1, 0);
 
-        /* "_ndimage_statistics.pyx":120
+        /* "_ndimage_statistics.pyx":62
  *     with nogil:
  *         hist[:] = 0
  *         min_max[0] = arr[0,0]             # <<<<<<<<<<<<<<
@@ -3653,7 +2552,7 @@ __pyx_t_1.strides[0] = __pyx_v_hist.strides[0];
         __pyx_t_5 = 0;
         *((__pyx_t_5numpy_float32_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_5 * __pyx_v_min_max.strides[0]) )) = (*((__pyx_t_5numpy_float32_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_arr.data + __pyx_t_3 * __pyx_v_arr.strides[0]) ) + __pyx_t_4 * __pyx_v_arr.strides[1]) )));
 
-        /* "_ndimage_statistics.pyx":121
+        /* "_ndimage_statistics.pyx":63
  *         hist[:] = 0
  *         min_max[0] = arr[0,0]
  *         min_max[1] = arr[0,0]             # <<<<<<<<<<<<<<
@@ -3665,7 +2564,7 @@ __pyx_t_1.strides[0] = __pyx_v_hist.strides[0];
         __pyx_t_8 = 1;
         *((__pyx_t_5numpy_float32_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_8 * __pyx_v_min_max.strides[0]) )) = (*((__pyx_t_5numpy_float32_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_arr.data + __pyx_t_6 * __pyx_v_arr.strides[0]) ) + __pyx_t_7 * __pyx_v_arr.strides[1]) )));
 
-        /* "_ndimage_statistics.pyx":122
+        /* "_ndimage_statistics.pyx":64
  *         min_max[0] = arr[0,0]
  *         min_max[1] = arr[0,0]
  *         for i in range(arr.shape[0]):             # <<<<<<<<<<<<<<
@@ -3676,7 +2575,7 @@ __pyx_t_1.strides[0] = __pyx_v_hist.strides[0];
         for (__pyx_t_10 = 0; __pyx_t_10 < __pyx_t_9; __pyx_t_10+=1) {
           __pyx_v_i = __pyx_t_10;
 
-          /* "_ndimage_statistics.pyx":123
+          /* "_ndimage_statistics.pyx":65
  *         min_max[1] = arr[0,0]
  *         for i in range(arr.shape[0]):
  *             for j in range(arr.shape[1]):             # <<<<<<<<<<<<<<
@@ -3687,7 +2586,7 @@ __pyx_t_1.strides[0] = __pyx_v_hist.strides[0];
           for (__pyx_t_12 = 0; __pyx_t_12 < __pyx_t_11; __pyx_t_12+=1) {
             __pyx_v_j = __pyx_t_12;
 
-            /* "_ndimage_statistics.pyx":124
+            /* "_ndimage_statistics.pyx":66
  *         for i in range(arr.shape[0]):
  *             for j in range(arr.shape[1]):
  *                 v = arr[i, j]             # <<<<<<<<<<<<<<
@@ -3698,7 +2597,7 @@ __pyx_t_1.strides[0] = __pyx_v_hist.strides[0];
             __pyx_t_14 = __pyx_v_j;
             __pyx_v_v = (*((__pyx_t_5numpy_float32_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_arr.data + __pyx_t_13 * __pyx_v_arr.strides[0]) ) + __pyx_t_14 * __pyx_v_arr.strides[1]) )));
 
-            /* "_ndimage_statistics.pyx":125
+            /* "_ndimage_statistics.pyx":67
  *             for j in range(arr.shape[1]):
  *                 v = arr[i, j]
  *                 bin = <Py_ssize_t> (bin_factor * (v - hist_min))             # <<<<<<<<<<<<<<
@@ -3707,7 +2606,7 @@ __pyx_t_1.strides[0] = __pyx_v_hist.strides[0];
  */
             __pyx_v_bin = ((Py_ssize_t)(__pyx_v_bin_factor * (__pyx_v_v - __pyx_v_hist_min)));
 
-            /* "_ndimage_statistics.pyx":126
+            /* "_ndimage_statistics.pyx":68
  *                 v = arr[i, j]
  *                 bin = <Py_ssize_t> (bin_factor * (v - hist_min))
  *                 hist[bin] += 1             # <<<<<<<<<<<<<<
@@ -3717,7 +2616,7 @@ __pyx_t_1.strides[0] = __pyx_v_hist.strides[0];
             __pyx_t_15 = __pyx_v_bin;
             *((__pyx_t_5numpy_uint32_t *) ( /* dim=0 */ (__pyx_v_hist.data + __pyx_t_15 * __pyx_v_hist.strides[0]) )) += 1;
 
-            /* "_ndimage_statistics.pyx":127
+            /* "_ndimage_statistics.pyx":69
  *                 bin = <Py_ssize_t> (bin_factor * (v - hist_min))
  *                 hist[bin] += 1
  *                 if v < min_max[0]:             # <<<<<<<<<<<<<<
@@ -3728,7 +2627,7 @@ __pyx_t_1.strides[0] = __pyx_v_hist.strides[0];
             __pyx_t_17 = ((__pyx_v_v < (*((__pyx_t_5numpy_float32_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_16 * __pyx_v_min_max.strides[0]) )))) != 0);
             if (__pyx_t_17) {
 
-              /* "_ndimage_statistics.pyx":128
+              /* "_ndimage_statistics.pyx":70
  *                 hist[bin] += 1
  *                 if v < min_max[0]:
  *                     min_max[0] = v             # <<<<<<<<<<<<<<
@@ -3740,7 +2639,7 @@ __pyx_t_1.strides[0] = __pyx_v_hist.strides[0];
               goto __pyx_L10;
             }
 
-            /* "_ndimage_statistics.pyx":129
+            /* "_ndimage_statistics.pyx":71
  *                 if v < min_max[0]:
  *                     min_max[0] = v
  *                 elif v > min_max[1]:             # <<<<<<<<<<<<<<
@@ -3750,7 +2649,7 @@ __pyx_t_1.strides[0] = __pyx_v_hist.strides[0];
             __pyx_t_17 = ((__pyx_v_v > (*((__pyx_t_5numpy_float32_t *) ( /* dim=0 */ (__pyx_v_min_max.data + __pyx_t_19 * __pyx_v_min_max.strides[0]) )))) != 0);
             if (__pyx_t_17) {
 
-              /* "_ndimage_statistics.pyx":130
+              /* "_ndimage_statistics.pyx":72
  *                     min_max[0] = v
  *                 elif v > min_max[1]:
  *                     min_max[1] = v             # <<<<<<<<<<<<<<
@@ -3764,7 +2663,7 @@ __pyx_t_1.strides[0] = __pyx_v_hist.strides[0];
         }
       }
 
-      /* "_ndimage_statistics.pyx":118
+      /* "_ndimage_statistics.pyx":60
  *     cdef Py_ssize_t i, j, bin
  *     cdef numpy.float32_t bin_factor = (n_bins - 1) / (hist_max - hist_min)
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -3788,7 +2687,7 @@ __pyx_t_1.strides[0] = __pyx_v_hist.strides[0];
       }
   }
 
-  /* "_ndimage_statistics.pyx":113
+  /* "_ndimage_statistics.pyx":55
  * @cython.wraparound(False)
  * @cython.cdivision(True)
  * cpdef hist_min_max_float32(numpy.float32_t[:, :] arr, numpy.uint32_t[:] hist, numpy.float32_t[:] min_max, numpy.float32_t hist_min, numpy.float32_t hist_max):             # <<<<<<<<<<<<<<
@@ -3810,8 +2709,8 @@ __pyx_t_1.strides[0] = __pyx_v_hist.strides[0];
 }
 
 /* Python wrapper */
-static PyObject *__pyx_pw_19_ndimage_statistics_13hist_min_max_float32(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyObject *__pyx_pw_19_ndimage_statistics_13hist_min_max_float32(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static PyObject *__pyx_pw_19_ndimage_statistics_7hist_min_max_float32(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static PyObject *__pyx_pw_19_ndimage_statistics_7hist_min_max_float32(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   __Pyx_memviewslice __pyx_v_arr = { 0, 0, { 0 }, { 0 }, { 0 } };
   __Pyx_memviewslice __pyx_v_hist = { 0, 0, { 0 }, { 0 }, { 0 } };
   __Pyx_memviewslice __pyx_v_min_max = { 0, 0, { 0 }, { 0 }, { 0 } };
@@ -3846,26 +2745,26 @@ static PyObject *__pyx_pw_19_ndimage_statistics_13hist_min_max_float32(PyObject 
         case  1:
         if (likely((values[1] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_hist)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("hist_min_max_float32", 1, 5, 5, 1); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 113; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+          __Pyx_RaiseArgtupleInvalid("hist_min_max_float32", 1, 5, 5, 1); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 55; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
         }
         case  2:
         if (likely((values[2] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_min_max)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("hist_min_max_float32", 1, 5, 5, 2); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 113; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+          __Pyx_RaiseArgtupleInvalid("hist_min_max_float32", 1, 5, 5, 2); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 55; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
         }
         case  3:
         if (likely((values[3] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_hist_min)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("hist_min_max_float32", 1, 5, 5, 3); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 113; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+          __Pyx_RaiseArgtupleInvalid("hist_min_max_float32", 1, 5, 5, 3); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 55; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
         }
         case  4:
         if (likely((values[4] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_hist_max)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("hist_min_max_float32", 1, 5, 5, 4); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 113; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+          __Pyx_RaiseArgtupleInvalid("hist_min_max_float32", 1, 5, 5, 4); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 55; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "hist_min_max_float32") < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 113; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "hist_min_max_float32") < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 55; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
       }
     } else if (PyTuple_GET_SIZE(__pyx_args) != 5) {
       goto __pyx_L5_argtuple_error;
@@ -3876,28 +2775,28 @@ static PyObject *__pyx_pw_19_ndimage_statistics_13hist_min_max_float32(PyObject 
       values[3] = PyTuple_GET_ITEM(__pyx_args, 3);
       values[4] = PyTuple_GET_ITEM(__pyx_args, 4);
     }
-    __pyx_v_arr = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_5numpy_float32_t(values[0]); if (unlikely(!__pyx_v_arr.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 113; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-    __pyx_v_hist = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_uint32_t(values[1]); if (unlikely(!__pyx_v_hist.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 113; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-    __pyx_v_min_max = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float32_t(values[2]); if (unlikely(!__pyx_v_min_max.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 113; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-    __pyx_v_hist_min = __pyx_PyFloat_AsFloat(values[3]); if (unlikely((__pyx_v_hist_min == (npy_float32)-1) && PyErr_Occurred())) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 113; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
-    __pyx_v_hist_max = __pyx_PyFloat_AsFloat(values[4]); if (unlikely((__pyx_v_hist_max == (npy_float32)-1) && PyErr_Occurred())) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 113; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+    __pyx_v_arr = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_5numpy_float32_t(values[0]); if (unlikely(!__pyx_v_arr.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 55; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+    __pyx_v_hist = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_uint32_t(values[1]); if (unlikely(!__pyx_v_hist.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 55; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+    __pyx_v_min_max = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float32_t(values[2]); if (unlikely(!__pyx_v_min_max.memview)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 55; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+    __pyx_v_hist_min = __pyx_PyFloat_AsFloat(values[3]); if (unlikely((__pyx_v_hist_min == (npy_float32)-1) && PyErr_Occurred())) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 55; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+    __pyx_v_hist_max = __pyx_PyFloat_AsFloat(values[4]); if (unlikely((__pyx_v_hist_max == (npy_float32)-1) && PyErr_Occurred())) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 55; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("hist_min_max_float32", 1, 5, 5, PyTuple_GET_SIZE(__pyx_args)); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 113; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
+  __Pyx_RaiseArgtupleInvalid("hist_min_max_float32", 1, 5, 5, PyTuple_GET_SIZE(__pyx_args)); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 55; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
   __pyx_L3_error:;
   __Pyx_AddTraceback("_ndimage_statistics.hist_min_max_float32", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_19_ndimage_statistics_12hist_min_max_float32(__pyx_self, __pyx_v_arr, __pyx_v_hist, __pyx_v_min_max, __pyx_v_hist_min, __pyx_v_hist_max);
+  __pyx_r = __pyx_pf_19_ndimage_statistics_6hist_min_max_float32(__pyx_self, __pyx_v_arr, __pyx_v_hist, __pyx_v_min_max, __pyx_v_hist_min, __pyx_v_hist_max);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_19_ndimage_statistics_12hist_min_max_float32(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max, __pyx_t_5numpy_float32_t __pyx_v_hist_min, __pyx_t_5numpy_float32_t __pyx_v_hist_max) {
+static PyObject *__pyx_pf_19_ndimage_statistics_6hist_min_max_float32(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max, __pyx_t_5numpy_float32_t __pyx_v_hist_min, __pyx_t_5numpy_float32_t __pyx_v_hist_max) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -3906,10 +2805,10 @@ static PyObject *__pyx_pf_19_ndimage_statistics_12hist_min_max_float32(CYTHON_UN
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("hist_min_max_float32", 0);
   __Pyx_XDECREF(__pyx_r);
-  if (unlikely(!__pyx_v_arr.memview)) { __Pyx_RaiseUnboundLocalError("arr"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 113; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  if (unlikely(!__pyx_v_hist.memview)) { __Pyx_RaiseUnboundLocalError("hist"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 113; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  if (unlikely(!__pyx_v_min_max.memview)) { __Pyx_RaiseUnboundLocalError("min_max"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 113; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  __pyx_t_1 = __pyx_f_19_ndimage_statistics_hist_min_max_float32(__pyx_v_arr, __pyx_v_hist, __pyx_v_min_max, __pyx_v_hist_min, __pyx_v_hist_max, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 113; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  if (unlikely(!__pyx_v_arr.memview)) { __Pyx_RaiseUnboundLocalError("arr"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 55; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
+  if (unlikely(!__pyx_v_hist.memview)) { __Pyx_RaiseUnboundLocalError("hist"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 55; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
+  if (unlikely(!__pyx_v_min_max.memview)) { __Pyx_RaiseUnboundLocalError("min_max"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 55; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
+  __pyx_t_1 = __pyx_f_19_ndimage_statistics_hist_min_max_float32(__pyx_v_arr, __pyx_v_hist, __pyx_v_min_max, __pyx_v_hist_min, __pyx_v_hist_max, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 55; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -17220,10 +16119,7 @@ static PyMethodDef __pyx_methods[] = {
   {"hist_min_max_uint16", (PyCFunction)__pyx_pw_19_ndimage_statistics_1hist_min_max_uint16, METH_VARARGS|METH_KEYWORDS, 0},
   {"hist_min_max_uint12", (PyCFunction)__pyx_pw_19_ndimage_statistics_3hist_min_max_uint12, METH_VARARGS|METH_KEYWORDS, 0},
   {"hist_min_max_uint8", (PyCFunction)__pyx_pw_19_ndimage_statistics_5hist_min_max_uint8, METH_VARARGS|METH_KEYWORDS, 0},
-  {"shist_min_max_uint16", (PyCFunction)__pyx_pw_19_ndimage_statistics_7shist_min_max_uint16, METH_VARARGS|METH_KEYWORDS, 0},
-  {"shist_min_max_uint12", (PyCFunction)__pyx_pw_19_ndimage_statistics_9shist_min_max_uint12, METH_VARARGS|METH_KEYWORDS, 0},
-  {"shist_min_max_uint8", (PyCFunction)__pyx_pw_19_ndimage_statistics_11shist_min_max_uint8, METH_VARARGS|METH_KEYWORDS, 0},
-  {"hist_min_max_float32", (PyCFunction)__pyx_pw_19_ndimage_statistics_13hist_min_max_float32, METH_VARARGS|METH_KEYWORDS, 0},
+  {"hist_min_max_float32", (PyCFunction)__pyx_pw_19_ndimage_statistics_7hist_min_max_float32, METH_VARARGS|METH_KEYWORDS, 0},
   {0, 0, 0, 0}
 };
 
@@ -17323,7 +16219,7 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {0, 0, 0, 0, 0, 0, 0}
 };
 static int __Pyx_InitCachedBuiltins(void) {
-  __pyx_builtin_range = __Pyx_GetBuiltinName(__pyx_n_s_range); if (!__pyx_builtin_range) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 62; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_builtin_range = __Pyx_GetBuiltinName(__pyx_n_s_range); if (!__pyx_builtin_range) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 64; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __pyx_builtin_ValueError = __Pyx_GetBuiltinName(__pyx_n_s_ValueError); if (!__pyx_builtin_ValueError) {__pyx_filename = __pyx_f[1]; __pyx_lineno = 215; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __pyx_builtin_RuntimeError = __Pyx_GetBuiltinName(__pyx_n_s_RuntimeError); if (!__pyx_builtin_RuntimeError) {__pyx_filename = __pyx_f[1]; __pyx_lineno = 799; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __pyx_builtin_MemoryError = __Pyx_GetBuiltinName(__pyx_n_s_MemoryError); if (!__pyx_builtin_MemoryError) {__pyx_filename = __pyx_f[2]; __pyx_lineno = 142; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
