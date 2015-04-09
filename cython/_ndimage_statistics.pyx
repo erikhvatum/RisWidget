@@ -49,6 +49,7 @@ cpdef hist_min_max_uint8(numpy.uint8_t[:, :] arr, numpy.uint32_t[:] hist, numpy.
     _hist_min_max_uint8(&arr[0][0], &arr.shape[0], &arr.strides[0],
                          &hist[0], &min_max[0])
 
+@cython.boundscheck(False)
 @cython.wraparound(False)
 cpdef shist_min_max_uint16(numpy.uint16_t[:, :] arr, numpy.uint32_t[:] hist, numpy.uint16_t[:] min_max):
     cdef numpy.uint16_t v
