@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2014 WUSTL ZPLAB
+# Copyright (c) 2014-2015 WUSTL ZPLAB
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,9 +26,31 @@ import cython
 cimport numpy
 import numpy
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
+cdef extern from "_ndimage_statistics_impl.h":
+    void _hist_min_max_uint16(const numpy.uint16_t* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
+                              numpy.uint32_t* hist, numpy.uint16_t* min_max)
+    void _hist_min_max_uint12(const numpy.uint16_t* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
+                              numpy.uint32_t* hist, numpy.uint16_t* min_max)
+    void _hist_min_max_uint8(const numpy.uint8_t* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
+                              numpy.uint32_t* hist, numpy.uint8_t* min_max)
+
 cpdef hist_min_max_uint16(numpy.uint16_t[:, :] arr, numpy.uint32_t[:] hist, numpy.uint16_t[:] min_max):
+    assert hist.shape[0] == 1024
+    _hist_min_max_uint16(&arr[0][0], &arr.shape[0], &arr.strides[0],
+                         &hist[0], &min_max[0])
+
+cpdef hist_min_max_uint12(numpy.uint16_t[:, :] arr, numpy.uint32_t[:] hist, numpy.uint16_t[:] min_max):
+    assert hist.shape[0] == 1024
+    _hist_min_max_uint12(&arr[0][0], &arr.shape[0], &arr.strides[0],
+                         &hist[0], &min_max[0])
+
+cpdef hist_min_max_uint8(numpy.uint8_t[:, :] arr, numpy.uint32_t[:] hist, numpy.uint8_t[:] min_max):
+    assert hist.shape[0] == 256
+    _hist_min_max_uint8(&arr[0][0], &arr.shape[0], &arr.strides[0],
+                         &hist[0], &min_max[0])
+
+@cython.wraparound(False)
+cpdef shist_min_max_uint16(numpy.uint16_t[:, :] arr, numpy.uint32_t[:] hist, numpy.uint16_t[:] min_max):
     cdef numpy.uint16_t v
     assert hist.shape[0] == 1024
     cdef Py_ssize_t i, j
@@ -48,7 +70,7 @@ cpdef hist_min_max_uint16(numpy.uint16_t[:, :] arr, numpy.uint32_t[:] hist, nump
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef hist_min_max_uint12(numpy.uint16_t[:, :] arr, numpy.uint32_t[:] hist, numpy.uint16_t[:] min_max):
+cpdef shist_min_max_uint12(numpy.uint16_t[:, :] arr, numpy.uint32_t[:] hist, numpy.uint16_t[:] min_max):
     cdef numpy.uint16_t v
     assert hist.shape[0] == 1024
     cdef Py_ssize_t i, j
@@ -67,7 +89,7 @@ cpdef hist_min_max_uint12(numpy.uint16_t[:, :] arr, numpy.uint32_t[:] hist, nump
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef hist_min_max_uint8(numpy.uint8_t[:, :] arr, numpy.uint32_t[:] hist, numpy.uint8_t[:] min_max):
+cpdef shist_min_max_uint8(numpy.uint8_t[:, :] arr, numpy.uint32_t[:] hist, numpy.uint8_t[:] min_max):
     cdef numpy.uint8_t v
     assert hist.shape[0] == 256
     cdef Py_ssize_t i, j

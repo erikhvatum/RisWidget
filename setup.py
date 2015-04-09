@@ -31,8 +31,10 @@ import os
 import subprocess
 import sys
 
+cpp_source = 'cython/_ndimage_statistics_impl.cpp'
 cython_source = 'cython/_ndimage_statistics.pyx'
 cythoned_source = 'cython/_ndimage_statistics.cpp'
+cython_source_deps = ['cython/_ndimage_statistics_impl.h']
 
 include_dirs = [numpy.get_include()]
 
@@ -44,11 +46,11 @@ try:
     from Cython.Distutils import build_ext
 
     ext_modules = [Extension('_ndimage_statistics',
-                             sources = [cython_source,],
+                             sources = [cython_source, cpp_source],
                              include_dirs = include_dirs,
                              define_macros = define_macros,
                              language = 'c++',
-#                            depends = cython_source_deps,
+                             depends = cython_source_deps,
                              extra_compile_args = extra_compile_args,
                              extra_link_args = extra_link_args
                              )]
@@ -60,11 +62,11 @@ except ImportError:
     print('Cython does not appear to be installed.  Attempting to use pre-made cpp file...')
 
     ext_modules = [Extension('_ndimage_statistics',
-                             sources = [cythoned_source,],
+                             sources = [cythoned_source, cpp_source],
                              include_dirs = include_dirs,
                              define_macros = define_macros,
                              language = 'c++',
-#                            depends = cython_source_deps,
+                             depends = cython_source_deps,
                              extra_compile_args = extra_compile_args,
                              extra_link_args = extra_link_args
                              )]

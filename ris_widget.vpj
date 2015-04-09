@@ -200,6 +200,8 @@
 			Name="cython"
 			Filters="">
 			<F N="cython/_ndimage_statistics.pyx"/>
+			<F N="cython/_ndimage_statistics_impl.cpp"/>
+			<F N="cython/_ndimage_statistics_impl.h"/>
 		</Folder>
 		<Folder
 			Name="shaders"
