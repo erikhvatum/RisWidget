@@ -47,7 +47,11 @@ class Flipbook(Qt.QWidget):
     def _init_widgets(self):
         layout = Qt.QVBoxLayout()
         self.setLayout(layout)
+        drag_setting_layout = Qt.QHBoxLayout()
+        layout.addLayout(drag_setting_layout)
         self._list_widget = Qt.QListWidget(self)
+#       self._list_widget.setDragEnabled(True)
+#       self._list_widget.setDragDropMode(Qt.QAbstractItemView.InternalMove)
         self._list_widget.currentItemChanged.connect(self._on_list_widget_current_item_changed)
         layout.addWidget(self._list_widget)
 
@@ -104,3 +108,4 @@ class _ListWidgetImageItem(Qt.QListWidgetItem):
     def __init__(self, image):
         super().__init__(image.name, type=_ListWidgetImageItem.QLISTWIDGETITEM_TYPE)
         self.image = image
+        self.setFlags(Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemIsDragEnabled | Qt.Qt.ItemNeverHasChildren)
