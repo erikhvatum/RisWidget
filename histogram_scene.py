@@ -549,7 +549,7 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
         super().mousePressEvent(event)
         self.scene().update_contextual_info('{}: {}'.format(self.min_max_item.prop.full_name_in_label, self.min_max_item.value), False, self)
 
-    def on_min_max_value_changed(self):
+    def on_min_max_value_changed(self, _, _0):
         desired_x = self.min_max_item.x()
         if self.x() != desired_x:
             self.setX(desired_x)
@@ -621,7 +621,7 @@ class GammaItem(PropItem):
             qpainter.setBrush(Qt.QColor(Qt.Qt.transparent))
             qpainter.drawPath(self._path)
 
-    def on_min_max_moved(self):
+    def on_min_max_moved(self, _, _0):
         min_x = self.min_item.x()
         max_x = self.max_item.x()
         t = Qt.QTransform()

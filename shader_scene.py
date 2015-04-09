@@ -164,7 +164,12 @@ class ShaderItem(Qt.QGraphicsObject):
         self.update()
 
     def _normalize_min_max(self, min_max):
-        r = self.image.range
+        image = self.image
+        # OpenGL normalizes uint16 data uploaded to float32 texture for the full uint16 range.  We store
+        # our unpacked 12-bit images in uint16 arrays.  Therefore, OpenGL will normalize by dividing by
+        # 65535, and we must follow suit, even though no 12-bit image will have a component value larger
+        # than 4095.
+        r = (0, 65535) if image.is_twelve_bit else self.image.range
         min_max -= r[0]
         min_max /= r[1] - r[0]
 

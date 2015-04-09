@@ -75,48 +75,6 @@ try:
         else:
             return get_result()
 
-    def scompute_ndimage_statistics(array, twelve_bit=False, n_bins=1024, hist_max=None, hist_min=None, n_threads=8, return_future=False):
-        array = numpy.asarray(array)
-        extra_args = ()
-        if array.dtype == numpy.uint8:
-            hist_min_max = _ndimage_statistics.shist_min_max_uint8
-            n_bins = 256
-        elif array.dtype == numpy.uint16:
-            n_bins = 1024
-            if twelve_bit:
-                hist_min_max = _ndimage_statistics.shist_min_max_uint12
-            else:
-                hist_min_max = _ndimage_statistics.shist_min_max_uint16
-        elif array.dtype == numpy.float32:
-            hist_min_max = _ndimage_statistics.hist_min_max_float32
-            if hist_max is None:
-                hist_max = array.max()
-            if hist_min is None:
-                hist_min = array.min()
-            extra_args = (hist_min, hist_max)
-        else:
-            raise TypeError('array argument type must be uint8, uint16, or float32')
-
-        slices = [array[i::n_threads] for i in range(n_threads)]
-        histograms = numpy.empty((n_threads, n_bins), dtype=numpy.uint32)
-        min_maxs = numpy.empty((n_threads, 2), dtype=array.dtype)
-        futures = [pool.submit(hist_min_max, arr_slice, hist_slice, min_max, *extra_args) for
-                   arr_slice, hist_slice, min_max in zip(slices, histograms, min_maxs)]
-
-        def get_result():
-            for future in futures:
-                future.result()
-
-            histogram = histograms.sum(axis=0, dtype=numpy.uint32)
-            max_bin = histogram.argmax()
-
-            return NDImageStatistics(histogram, max_bin, (min_maxs[:,0].min(), min_maxs[:,1].max()))
-
-        if return_future:
-            return pool.submit(get_result)
-        else:
-            return get_result()
-
 except ImportError:
     import sys
     print('warning: Failed to load _ndimage_statistics binary module; using slow histogram and extrema computation methods.', file=sys.stderr)
