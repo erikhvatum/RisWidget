@@ -24,24 +24,16 @@
 
 #pragma once
 #include <Python.h>
+#include <numpy/npy_common.h>
 
 #define _USE_MATH_DEFINES
 #include <cmath>
 
-#if defined(__UINT32_MAX__) || defined(UINT32_MAX)
- #include <inttypes.h>
-#else
- typedef unsigned char uint8_t;
- typedef unsigned short uint16_t;
- typedef unsigned long uint32_t;
- typedef unsigned long long uint64_t;
-#endif
+void _hist_min_max_uint16(const npy_uint16* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
+                          npy_uint32* hist, npy_uint16* min_max);
 
-void _hist_min_max_uint16(const uint16_t* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
-                          uint32_t* hist, uint16_t* min_max);
+void _hist_min_max_uint12(const npy_uint16* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
+                          npy_uint32* hist, npy_uint16* min_max);
 
-void _hist_min_max_uint12(const uint16_t* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
-                          uint32_t* hist, uint16_t* min_max);
-
-void _hist_min_max_uint8(const uint8_t* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
-                         uint32_t* hist, uint8_t* min_max);
+void _hist_min_max_uint8(const npy_uint8* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
+                         npy_uint32* hist, npy_uint8* min_max);

@@ -84,6 +84,7 @@ class ImageItem(ShaderItem):
     def __init__(self, parent_item=None):
         super().__init__(parent_item)
         self.tex = None
+        self._overlays = []
 
     def type(self):
         return GammaItem.QGRAPHICSITEM_TYPE
@@ -221,3 +222,7 @@ class ImageItem(ShaderItem):
            self.image is not None and (image is None or self.image.size != image.size):
             self.prepareGeometryChange()
         super().on_image_changing(image)
+
+    @property
+    def overlays(self):
+        return self._overlays

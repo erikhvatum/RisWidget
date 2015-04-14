@@ -43,27 +43,27 @@ static void reorder_to_inner_outer(const Py_ssize_t* u_shape, const Py_ssize_t* 
     }
 }
 
-void _hist_min_max_uint16(const uint16_t* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
-                          uint32_t* hist, uint16_t* min_max)
+void _hist_min_max_uint16(const npy_uint16* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
+                          npy_uint32* hist, npy_uint16* min_max)
 {
     Py_ssize_t shape[2], strides[2];
     reorder_to_inner_outer(im_shape, im_strides, shape, strides);
 
-    memset(hist, 0, 1024 * sizeof(uint32_t));
+    memset(hist, 0, 1024 * sizeof(npy_uint32));
     min_max[0] = min_max[1] = im[0];
 
-    const uint8_t* outer = reinterpret_cast<const uint8_t*>(im);
-    const uint8_t*const outer_end = outer + shape[0] * strides[0];
-    const uint8_t* inner;
+    const npy_uint8* outer = reinterpret_cast<const npy_uint8*>(im);
+    const npy_uint8*const outer_end = outer + shape[0] * strides[0];
+    const npy_uint8* inner;
     const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
-    const uint8_t* inner_end;
+    const npy_uint8* inner_end;
     for(; outer != outer_end; outer += strides[0])
     {
         inner = outer;
         inner_end = inner + inner_end_offset;
         for(; inner != inner_end; inner += strides[1])
         {
-            const uint16_t& v = *reinterpret_cast<const uint16_t*>(inner);
+            const npy_uint16& v = *reinterpret_cast<const npy_uint16*>(inner);
             ++hist[v >> 6];
             if(v < min_max[0])
             {
@@ -77,27 +77,27 @@ void _hist_min_max_uint16(const uint16_t* im, const Py_ssize_t* im_shape, const 
     }
 }
 
-void _hist_min_max_uint12(const uint16_t* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
-                          uint32_t* hist, uint16_t* min_max)
+void _hist_min_max_uint12(const npy_uint16* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
+                          npy_uint32* hist, npy_uint16* min_max)
 {
     Py_ssize_t shape[2], strides[2];
     reorder_to_inner_outer(im_shape, im_strides, shape, strides);
 
-    memset(hist, 0, 1024 * sizeof(uint32_t));
+    memset(hist, 0, 1024 * sizeof(npy_uint32));
     min_max[0] = min_max[1] = im[0];
 
-    const uint8_t* outer = reinterpret_cast<const uint8_t*>(im);
-    const uint8_t*const outer_end = outer + shape[0] * strides[0];
-    const uint8_t* inner;
+    const npy_uint8* outer = reinterpret_cast<const npy_uint8*>(im);
+    const npy_uint8*const outer_end = outer + shape[0] * strides[0];
+    const npy_uint8* inner;
     const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
-    const uint8_t* inner_end;
+    const npy_uint8* inner_end;
     for(; outer != outer_end; outer += strides[0])
     {
         inner = outer;
         inner_end = inner + inner_end_offset;
         for(; inner != inner_end; inner += strides[1])
         {
-            const uint16_t& v = *reinterpret_cast<const uint16_t*>(inner);
+            const npy_uint16& v = *reinterpret_cast<const npy_uint16*>(inner);
             ++hist[v >> 2];
             if(v < min_max[0])
             {
@@ -111,27 +111,27 @@ void _hist_min_max_uint12(const uint16_t* im, const Py_ssize_t* im_shape, const 
     }
 }
 
-void _hist_min_max_uint8(const uint8_t* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
-                          uint32_t* hist, uint8_t* min_max)
+void _hist_min_max_uint8(const npy_uint8* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
+                          npy_uint32* hist, npy_uint8* min_max)
 {
     Py_ssize_t shape[2], strides[2];
     reorder_to_inner_outer(im_shape, im_strides, shape, strides);
 
-    memset(hist, 0, 256 * sizeof(uint32_t));
+    memset(hist, 0, 256 * sizeof(npy_uint32));
     min_max[0] = min_max[1] = im[0];
 
-    const uint8_t* outer = im;
-    const uint8_t*const outer_end = outer + shape[0] * strides[0];
-    const uint8_t* inner;
+    const npy_uint8* outer = im;
+    const npy_uint8*const outer_end = outer + shape[0] * strides[0];
+    const npy_uint8* inner;
     const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
-    const uint8_t* inner_end;
+    const npy_uint8* inner_end;
     for(; outer != outer_end; outer += strides[0])
     {
         inner = outer;
         inner_end = inner + inner_end_offset;
         for(; inner != inner_end; inner += strides[1])
         {
-            const uint8_t& v = *inner;
+            const npy_uint8& v = *inner;
             ++hist[v];
             if(v < min_max[0])
             {

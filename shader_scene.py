@@ -195,6 +195,6 @@ class ShaderTexture:
 
 class ShaderQOpenGLTexture(Qt.QOpenGLTexture):
     """ShaderQOpenGLTexture replaces QOpenGLTexture's release function with one that does not require an
-    argument, simplifying the implementation of ShaderItem.free_shader_view_resources."""
+    argument."""
     def release(self):
         super().release(0)
