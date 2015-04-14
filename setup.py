@@ -25,7 +25,6 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from distutils.core import setup
-from distutils.extension import Extension
 import numpy
 import os
 import subprocess
@@ -47,6 +46,12 @@ if sys.platform != 'win32':
 
 try:
     from Cython.Distutils import build_ext
+    from Cython.Distutils.extension import Extension
+
+    class build_ext_forced_rebuild(build_ext):
+        def __init__(self, *va, **ka):
+            super().__init__(*va, **ka)
+            self.force = True
 
     ext_modules = [Extension('_ndimage_statistics',
                              sources = [cython_source, cpp_source],
@@ -55,14 +60,16 @@ try:
                              language = 'c++',
                              depends = cython_source_deps,
                              extra_compile_args = extra_compile_args,
-                             extra_link_args = extra_link_args
+                             extra_link_args = extra_link_args,
+                             cython_directives={'language_level' : 3}
                              )]
 
     setup(name = 'ris_widget',
-          cmdclass = {'build_ext' : build_ext},
+          cmdclass = {'build_ext' : build_ext_forced_rebuild},
           ext_modules = ext_modules)
 except ImportError:
     print('Cython does not appear to be installed.  Attempting to use pre-made cpp file...')
+    from distutils.extension import Extension
 
     ext_modules = [Extension('_ndimage_statistics',
                              sources = [cythoned_source, cpp_source],
