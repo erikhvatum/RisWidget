@@ -22,13 +22,14 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from contextlib import ExitStack
+from .image import Image
 from .shared_resources import GL, UNIQUE_QGRAPHICSITEM_TYPE
+from .shader_scene import ShaderScene, ShaderItem, ShaderQOpenGLTexture
+from .shader_view import ShaderView
+from contextlib import ExitStack
 import math
 import numpy
 from PyQt5 import Qt
-from .shader_scene import ShaderScene, ShaderItem, ShaderQOpenGLTexture
-from .shader_view import ShaderView
 import sys
 
 class ImageScene(ShaderScene):
@@ -243,5 +244,111 @@ class ImageItem(ShaderItem):
             self._show_frame = show_frame
             self.update()
 
-#class ImageOverlayItem(Qt.QGraphicsObject):
+class ImageOverlayItem(Qt.QGraphicsObject):
+    QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
 
+    def __init__(self, overlayed_image_item, overlay_image=None):
+        super().__init__(overlayed_image_item)
+        if overlay_image is None or issubclass(type(overlay_image), Image):
+            self._overlay_image = overlay_image
+        else:
+            self._overlay_image = Image(overlay_image)
+        self._show_frame = False
+        self._bounding_rect = Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self.image.size))
+        self.image_id = 0
+        self.tex = None
+
+    def __del__(self):
+        if self.tex is not None and self.tex.isCreated():
+            scene = self.scene()
+            if scene is not None:
+                views = scene.views()
+                if views:
+                    views[0].makeCurrent()
+                    try:
+                        self.tex.destroy()
+                    finally:
+                        views[0].doneCurrent()
+
+    def type(self):
+        return GammaItem.QGRAPHICSITEM_TYPE
+
+    def boundingRect(self):
+        return Qt.QRectF() if self.overlay_image is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self.overlay_image.size))
+
+    def paint(self, qpainter, option, widget):
+        """This QGraphicsItem (from which QGraphicsObject is derived, from which this class, in turn, is derived) is primarily
+        drawn by its parent, an ImageItem, in order that it may be composited with that ImageItem in more advanced ways than
+        supported by QPainter when rendering to an OpenGL context (QPainter in software mode supports a galaxy of various blend
+        modes, but QPainter in software mode is far too slow for our purposes, namely, drawing full screen images transformed
+        in real time - not unlike AGG, which would also be too slow.  Use matplotlib.pyplot.imshow to see how slow is slow).
+        
+        The only drawing that ImageOverlayItem actually does in its own right is to paint a stippled border two pixels wide,
+        with one pixel inside and one pixel outside, and it only does this if the show_frame attribute has been set to True
+        or something that evaluated to True when coerced to bool."""
+        if self._show_frame and self.overlay_image is not None and self.parent().image is not None:
+            qpainter.setBrush(Qt.QBrush(Qt.Qt.transparent))
+            color = Qt.QColor(Qt.Qt.blue)
+            color.setAlphaF(0.5)
+            pen = Qt.QPen(color)
+            pen.setWidth(2)
+            pen.setCosmetic(True)
+            pen.setStyle(Qt.Qt.DotLine)
+            qpainter.setPen(pen)
+            qpainter.drawRect(self.boundingRect())
+
+    def update_tex(self):
+        """This function is intended to be called from ImageItem's paint function and relies upon an OpenGL context being
+        current (eg, via QOpenGLWidget.setCurrent, QOpenGLContext.setCurrent, QPainter.beginNativePainting, glXMakeCurrent
+        C call on *nix, WglMakeCurrent C call on win32, [NSOpenGLContext makeCurrent] obj-C method on Darwin, or any other
+        equivalent)."""
+        if self.overlay_image is None:
+            if self.tex is not None:
+                self.tex.destroy()
+                self.tex = None
+        else:
+            with ExitStack() as stack:
+                oimage = self.overlay_image
+                tex = self.tex
+                if tex is not None:
+                    desired_texture_format = ImageItem.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[oimage.type]
+                    if oimage.size != Qt.QSize(tex.width(), tex.height()) or tex.format() != desired_texture_format:
+                        tex.destroy()
+                        tex = self.tex = None
+                    if tex is None:
+                        tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
+                        tex.setFormat(desired_texture_format)
+                        tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
+                        tex.setMipLevels(6)
+                        tex.setAutoMipMapGenerationEnabled(True)
+                        tex.setSize(oimage.size.width(), oimage.size.height(), 1)
+                        tex.allocateStorage()
+                        # Overylay display should be as accurate as reasonably possible.  Trilinear filtering for normal
+                        # images is not reasonably possible - the required mipmap computation is too slow for live mode
+                        # viewing of 2560x2160 16bpp grayscale images.  Trilinear filtering for overlay images, however,
+                        # is fine so long as the overlay is not updated with every 2560x2160 16bpp image, which is not
+                        # expected to occur for live streams.
+                        tex.setMinMagFilters(Qt.QOpenGLTexture.LinearMipMapLinear, Qt.QOpenGLTexture.Nearest)
+                        tex.image_id = -1
+                    tex.bind()
+                    stack.callback(lambda: tex.release(0))
+                    if tex.image_id != self.image_id:
+                        pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
+                        pixel_transfer_opts.setAlignment(1)
+                        tex.setData(ImageItem.IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT[oimage.type],
+                                    ImageItem.NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[oimage.dtype],
+                                    oimage.data.ctypes.data,
+                                    pixel_transfer_opts)
+                        tex.image_id = self.image_id
+                        self.tex = tex
+                        # TODO TODO TODO FINISH THIS
+
+    @property
+    def show_frame(self):
+        return self._show_frame
+
+    @show_frame.setter
+    def show_frame(self, show_frame):
+        if show_frame != self.show_frame:
+            self._show_frame = show_frame
+            self.update()
