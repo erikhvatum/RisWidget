@@ -41,6 +41,7 @@ class Flipbook(Qt.QWidget):
         self._name = self._uniqueify_name_func(name)
         self.setObjectName(self._name)
         self._init_widgets()
+        self._next_anon_idx = 0
         if images is not None:
             self.append_images(images)
 
@@ -62,7 +63,8 @@ class Flipbook(Qt.QWidget):
         """Insert images before table widget item at position idx (counting from zero)."""
         for image in images:
             if not issubclass(type(image), Image):
-                image = Image(image)
+                image = Image(image, str(self._next_anon_idx))
+                self._next_anon_idx += 1
             self._list_widget.insertItem(idx, _ListWidgetImageItem(image))
             idx += 1
         if self._list_widget.currentRow() == -1:
