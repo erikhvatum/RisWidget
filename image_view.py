@@ -39,7 +39,7 @@ class ImageView(ShaderView):
         return numpy.array(ys, dtype=numpy.float64)
     _ZOOM_PRESETS = _make_zoom_presets()
     _ZOOM_MIN_MAX = (.001, 3000.0)
-    _ZOOM_DEFAULT_PRESET_IDX = 15
+    _ZOOM_ONE_TO_ONE_PRESET_IDX = 15
     _ZOOM_INCREMENT_BEYOND_PRESETS_FACTORS = (.8, 1.25)
 
     zoom_changed = Qt.pyqtSignal(int, float)
@@ -47,13 +47,19 @@ class ImageView(ShaderView):
     def __init__(self, shader_scene, parent):
         super().__init__(shader_scene, parent)
         self.setMinimumSize(Qt.QSize(100,100))
-        self._zoom_preset_idx = self._ZOOM_DEFAULT_PRESET_IDX
+        self._zoom_preset_idx = self._ZOOM_ONE_TO_ONE_PRESET_IDX
         self._custom_zoom = 0
         self.zoom_to_fit_action = Qt.QAction('Zoom to Fit', self)
         self.zoom_to_fit_action.setCheckable(True)
         self.zoom_to_fit_action.setChecked(False)
+        self.zoom_to_fit_action.setShortcut(Qt.Qt.Key_QuoteLeft)
+        self.zoom_to_fit_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
         self._ignore_zoom_to_fit_action_toggle = False
         self.zoom_to_fit_action.toggled.connect(self.on_zoom_to_fit_action_toggled)
+        self.zoom_one_to_one_action = Qt.QAction('1:1 Zoom', self)
+        self.zoom_one_to_one_action.setShortcut(Qt.Qt.Key_1)
+        self.zoom_one_to_one_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
+        self.zoom_one_to_one_action.triggered.connect(lambda: ImageView.__dict__['zoom_preset_idx'].__set__(self, ImageView._ZOOM_ONE_TO_ONE_PRESET_IDX))
 #       self.show_image_name_action = Qt.QAction(self)
 #       self.show_image_name_action.setText('Show Image Name')
 #       self.show_image_name_action.setCheckable(True)
@@ -214,6 +220,10 @@ class ImageView(ShaderView):
             raise ValueError('Value must be in the range [{}, {}].'.format(*ImageView._ZOOM_MIN_MAX))
         self._custom_zoom = custom_zoom
         self._zoom_preset_idx = -1
+        if self.zoom_to_fit:
+            self._ignore_zoom_to_fit_action_toggle = True
+            self.zoom_to_fit_action.setChecked(False)
+            self._ignore_zoom_to_fit_action_toggle = False
         self._apply_zoom()
 
     @property
@@ -226,6 +236,10 @@ class ImageView(ShaderView):
             raise ValueError('idx must be in the range [0, {}).'.format(ImageView._ZOOM_PRESETS.shape[0]))
         self._zoom_preset_idx = idx
         self._custom_zoom = 0
+        if self.zoom_to_fit:
+            self._ignore_zoom_to_fit_action_toggle = True
+            self.zoom_to_fit_action.setChecked(False)
+            self._ignore_zoom_to_fit_action_toggle = False
         self._apply_zoom()
 
     def _apply_zoom(self):

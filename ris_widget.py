@@ -49,6 +49,7 @@ class RisWidget(Qt.QMainWindow):
         self._init_scenes_and_views()
         self._init_actions()
         self._init_toolbars()
+        self._init_menus()
         self._image = None
         # Flipbook names -> Flipbook widget instances
         self._flipbooks = dict()
@@ -62,11 +63,13 @@ class RisWidget(Qt.QMainWindow):
         self._histogram_view_reset_gamma_action.triggered.connect(self._on_reset_gamma)
         if sys.platform == 'darwin':
             self.exit_fullscreen_action = Qt.QAction(self)
-            self.exit_fullscreen_action.setText('Exit Fullscreen Mode')
+            # If self.exit_fullscreen_action's text were "Exit Full Screen Mode" as we ultimately desire,
+            # we would not be able to add it as a menu entry (http://doc.qt.io/qt-5/qmenubar.html#qmenubar-on-os-x).
+            # "Leave Full Screen Mode" is a compromise.
+            self.exit_fullscreen_action.setText('Leave Full Screen Mode')
             self.exit_fullscreen_action.triggered.connect(self.showNormal)
             self.exit_fullscreen_action.setShortcut(Qt.Qt.Key_Escape)
             self.exit_fullscreen_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
-            self.addAction(self.exit_fullscreen_action)
 
     @staticmethod
     def _format_zoom(zoom):
@@ -90,7 +93,7 @@ class RisWidget(Qt.QMainWindow):
         self._image_view_zoom_combo.setSizeAdjustPolicy(Qt.QComboBox.AdjustToContents)
         for zoom in ImageView._ZOOM_PRESETS:
             self._image_view_zoom_combo.addItem(self._format_zoom(zoom * 100) + '%')
-        self._image_view_zoom_combo.setCurrentIndex(ImageView._ZOOM_DEFAULT_PRESET_IDX)
+        self._image_view_zoom_combo.setCurrentIndex(ImageView._ZOOM_ONE_TO_ONE_PRESET_IDX)
         self._image_view_zoom_combo.activated[int].connect(self._image_view_zoom_combo_changed)
         self._image_view_zoom_combo.lineEdit().returnPressed.connect(self._image_view_zoom_combo_custom_value_entered)
         self.image_view.zoom_changed.connect(self._image_view_zoom_changed)
@@ -102,6 +105,15 @@ class RisWidget(Qt.QMainWindow):
         self._histogram_view_toolbar.addAction(self.histogram_scene.auto_min_max_enabled_action)
 #       self._image_name_toolbar = self.addToolBar('Image Name')
 #       self._image_name_toolbar.addAction(self.image_view.show_image_name_action)
+
+    def _init_menus(self):
+        mb = self.menuBar()
+        m = mb.addMenu('View')
+        if sys.platform == 'darwin':
+            m.addAction(self.exit_fullscreen_action)
+            m.addSeparator()
+        m.addAction(self.image_view.zoom_to_fit_action)
+        m.addAction(self.image_view.zoom_one_to_one_action)
 
     def _init_scenes_and_views(self):
         self.image_scene = ImageScene(self)
