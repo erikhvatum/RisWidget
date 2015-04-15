@@ -38,7 +38,7 @@ class ImageView(ShaderView):
         ys = list(map(f, xs))
         return numpy.array(ys, dtype=numpy.float64)
     _ZOOM_PRESETS = _make_zoom_presets()
-    _ZOOM_MIN_MAX = (.001, 10000.0)
+    _ZOOM_MIN_MAX = (.001, 3000.0)
     _ZOOM_DEFAULT_PRESET_IDX = 15
     _ZOOM_INCREMENT_BEYOND_PRESETS_FACTORS = (.8, 1.25)
 

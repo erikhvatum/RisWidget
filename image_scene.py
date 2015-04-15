@@ -84,7 +84,7 @@ class ImageItem(ShaderItem):
     def __init__(self, parent_item=None):
         super().__init__(parent_item)
         self.tex = None
-        self._overlays = []
+        self._show_frame = False
 
     def type(self):
         return GammaItem.QGRAPHICSITEM_TYPE
@@ -193,6 +193,16 @@ class ImageItem(ShaderItem):
                     prog.setUniformValue('vcomponent_rescale_ranges', *(min_maxs[1]-min_maxs[0]))
                 gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
                 gl.glDrawArrays(gl.GL_TRIANGLE_FAN, 0, 4)
+            if self._show_frame:
+                qpainter.setBrush(Qt.QBrush(Qt.Qt.transparent))
+                color = Qt.QColor(Qt.Qt.red)
+                color.setAlphaF(0.5)
+                pen = Qt.QPen(color)
+                pen.setWidth(2)
+                pen.setCosmetic(True)
+                pen.setStyle(Qt.Qt.DotLine)
+                qpainter.setPen(pen)
+                qpainter.drawRect(0, 0, image.size.width(), image.size.height())
 
     def hoverMoveEvent(self, event):
         if self.image is not None:
@@ -224,5 +234,14 @@ class ImageItem(ShaderItem):
         super().on_image_changing(image)
 
     @property
-    def overlays(self):
-        return self._overlays
+    def show_frame(self):
+        return self._show_frame
+
+    @show_frame.setter
+    def show_frame(self, show_frame):
+        if show_frame != self.show_frame:
+            self._show_frame = show_frame
+            self.update()
+
+#class ImageOverlayItem(Qt.QGraphicsObject):
+

@@ -34,6 +34,7 @@ from .image_scene import ImageScene
 from .image_view import ImageView
 from .shared_resources import FREEIMAGE
 import ctypes
+import sys
 
 class RisWidget(Qt.QMainWindow):
     # The image_changed signal is emitted immediately after a new value is successfully assigned to the
@@ -42,12 +43,6 @@ class RisWidget(Qt.QMainWindow):
 
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0)):
         super().__init__(parent, window_flags)
-#       if sys.platform == 'darwin': # workaround for https://bugreports.qt.io/browse/QTBUG-44230
-#           hs = Qt.QSlider(Qt.Qt.Horizontal)
-#           hs.show()
-#           hs.hide()
-#           hs.destroy()
-#           del hs
         if window_title is not None:
             self.setWindowTitle(window_title)
         self.setAcceptDrops(True)
@@ -65,6 +60,13 @@ class RisWidget(Qt.QMainWindow):
         self._histogram_view_reset_gamma_action = Qt.QAction(self)
         self._histogram_view_reset_gamma_action.setText('Reset \u03b3')
         self._histogram_view_reset_gamma_action.triggered.connect(self._on_reset_gamma)
+        if sys.platform == 'darwin':
+            self.exit_fullscreen_action = Qt.QAction(self)
+            self.exit_fullscreen_action.setText('Exit Fullscreen Mode')
+            self.exit_fullscreen_action.triggered.connect(self.showNormal)
+            self.exit_fullscreen_action.setShortcut(Qt.Qt.Key_Escape)
+            self.exit_fullscreen_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
+            self.addAction(self.exit_fullscreen_action)
 
     @staticmethod
     def _format_zoom(zoom):
@@ -111,8 +113,9 @@ class RisWidget(Qt.QMainWindow):
         self.histogram_view, self._histogram_frame = HistogramView.make_histogram_view_and_frame(self.histogram_scene, self._histogram_dock_widget)
         self._histogram_dock_widget.setWidget(self._histogram_frame)
         self._histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
-        self._histogram_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | \
-                                                Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
+        self._histogram_dock_widget.setFeatures(
+            Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | \
+            Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
         self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self._histogram_dock_widget)
 
     def dragEnterEvent(self, event):
@@ -134,8 +137,9 @@ class RisWidget(Qt.QMainWindow):
                     channel_count = 3
                 if qimage.format() != desired_format:
                     qimage = qimage.convertToFormat(desired_format)
-                npyimage = numpy.ctypeslib.as_array(ctypes.cast(int(qimage.bits()), ctypes.POINTER(ctypes.c_uint8)),
-                                                    shape=(qimage.height(), qimage.width(), channel_count))
+                npyimage = numpy.ctypeslib.as_array(
+                    ctypes.cast(int(qimage.bits()), ctypes.POINTER(ctypes.c_uint8)),
+                    shape=(qimage.height(), qimage.width(), channel_count))
                 if qimage.isGrayscale():
                     npyimage=npyimage[...,0]
                 image = Image(npyimage, mime_data.urls()[0] if mime_data.hasUrls() else None, shape_is_width_height=False)
