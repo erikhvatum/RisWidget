@@ -254,8 +254,7 @@ class ImageOverlayItem(Qt.QGraphicsObject):
         else:
             self._overlay_image = Image(overlay_image)
         self._show_frame = False
-        self._bounding_rect = Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self.image.size))
-        self.image_id = 0
+        self.overlay_image_id = 0
         self.tex = None
 
     def __del__(self):
@@ -307,41 +306,43 @@ class ImageOverlayItem(Qt.QGraphicsObject):
                 self.tex.destroy()
                 self.tex = None
         else:
-            with ExitStack() as stack:
-                oimage = self.overlay_image
-                tex = self.tex
-                if tex is not None:
-                    desired_texture_format = ImageItem.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[oimage.type]
-                    if oimage.size != Qt.QSize(tex.width(), tex.height()) or tex.format() != desired_texture_format:
-                        tex.destroy()
-                        tex = self.tex = None
-                    if tex is None:
-                        tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
-                        tex.setFormat(desired_texture_format)
-                        tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
-                        tex.setMipLevels(6)
-                        tex.setAutoMipMapGenerationEnabled(True)
-                        tex.setSize(oimage.size.width(), oimage.size.height(), 1)
-                        tex.allocateStorage()
-                        # Overylay display should be as accurate as reasonably possible.  Trilinear filtering for normal
-                        # images is not reasonably possible - the required mipmap computation is too slow for live mode
-                        # viewing of 2560x2160 16bpp grayscale images.  Trilinear filtering for overlay images, however,
-                        # is fine so long as the overlay is not updated with every 2560x2160 16bpp image, which is not
-                        # expected to occur for live streams.
-                        tex.setMinMagFilters(Qt.QOpenGLTexture.LinearMipMapLinear, Qt.QOpenGLTexture.Nearest)
-                        tex.image_id = -1
-                    tex.bind()
-                    stack.callback(lambda: tex.release(0))
-                    if tex.image_id != self.image_id:
+            oimage = self.overlay_image
+            tex = self.tex
+            if tex is not None:
+                desired_texture_format = ImageItem.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[oimage.type]
+                if oimage.size != Qt.QSize(tex.width(), tex.height()) or tex.format() != desired_texture_format:
+                    tex.destroy()
+                    tex = self.tex = None
+                if tex is None:
+                    tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
+                    tex.setFormat(desired_texture_format)
+                    tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
+                    tex.setMipLevels(6)
+                    tex.setAutoMipMapGenerationEnabled(True)
+                    tex.setSize(oimage.size.width(), oimage.size.height(), 1)
+                    tex.allocateStorage()
+                    # Overylay display should be as accurate as reasonably possible.  Trilinear filtering for normal
+                    # images is not reasonably possible - the required mipmap computation is too slow for live mode
+                    # viewing of 2560x2160 16bpp grayscale images.  Trilinear filtering for overlay images, however,
+                    # is fine so long as the overlay is not updated with every 2560x2160 16bpp image, which is not
+                    # expected to occur for live streams.
+                    tex.setMinMagFilters(Qt.QOpenGLTexture.LinearMipMapLinear, Qt.QOpenGLTexture.Nearest)
+                    tex.overlay_image_id = -1
+                if tex.overlay_image_id != self.overlay_image_id:
+                    with ExitStack() as stack:
+                        tex.bind()
+                        stack.callback(lambda: tex.release(0))
                         pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
                         pixel_transfer_opts.setAlignment(1)
                         tex.setData(ImageItem.IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT[oimage.type],
                                     ImageItem.NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[oimage.dtype],
                                     oimage.data.ctypes.data,
                                     pixel_transfer_opts)
-                        tex.image_id = self.image_id
+                        tex.overlay_image_id = self.overlay_image_id
+                        # self.tex is updated here and not before so that any failure preparing tex results in a retry the next time self.tex
+                        # is needed
                         self.tex = tex
-                        # TODO TODO TODO FINISH THIS
+
 
     @property
     def show_frame(self):
