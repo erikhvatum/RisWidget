@@ -27,6 +27,7 @@ from .shared_resources import GL, UNIQUE_QGRAPHICSITEM_TYPE
 from .shader_scene import ShaderScene, ShaderItem, ShaderQOpenGLTexture
 from .shader_view import ShaderView
 from contextlib import ExitStack
+import html
 import math
 import numpy
 from PyQt5 import Qt
@@ -259,15 +260,48 @@ class ImageItem(ShaderItem):
             # of a pixel.
 #           pos = event.pos().toPoint()
             pos = Qt.QPoint(event.pos().x(), event.pos().y())
-            if Qt.QRect(Qt.QPoint(), self.image.size).contains(pos):
-                mst = 'x:{} y:{} '.format(pos.x(), pos.y())
-                image_type = self.image.type
-                vt = '(' + ' '.join((c + ':{}' for c in image_type)) + ')'
-                if len(image_type) == 1:
-                    vt = vt.format(self.image.data[pos.x(), pos.y()])
+            cis = []
+            ci = self.generate_contextual_info_for_pos(pos)
+            if ci is not None:
+                cis.append(ci)
+            self.update_overlay_items_z_sort()
+            for overlay_stack_idx, overlay_item in enumerate(self._overlay_items):
+                if overlay_item.isVisible():
+                    o_pos = self.mapToItem(overlay_item, pos)
+                    if overlay_item.boundingRect().contains(o_pos):
+                        ci = overlay_item.generate_contextual_info_for_pos(o_pos, overlay_stack_idx)
+                        if ci is not None:
+                            cis.append(ci)
+            if cis:
+                all_html = True
+                any_html = False
+                for string, is_html in cis:
+                    if is_html:
+                        any_html = True
+                    else:
+                        all_html = False
+                    if any_html and not all_html:
+                        # all_html and any_html values can not possibly change if we are here, so we can
+                        # stop early
+                        break
+                if any_html and not all_html:
+                    cis = (ci if ci[1] else (html.escape(ci[0]), True) for ci in cis)
+                    all_html = True
+                if all_html:
+                    self.scene().update_contextual_info('<br>'.join((ci[0] for ci in cis)), True, self)
                 else:
-                    vt = vt.format(*self.image.data[pos.x(), pos.y()])
-                self.scene().update_contextual_info(mst + vt, False, self)
+                    self.scene().update_contextual_info('\n'.join((ci[0] for ci in cis)), False, self)
+
+    def generate_contextual_info_for_pos(self, pos):
+        if Qt.QRect(Qt.QPoint(), self.image.size).contains(pos):
+            mst = 'x:{} y:{} '.format(pos.x(), pos.y())
+            image_type = self.image.type
+            vt = '(' + ' '.join((c + ':{}' for c in image_type)) + ')'
+            if len(image_type) == 1:
+                vt = vt.format(self.image.data[pos.x(), pos.y()])
+            else:
+                vt = vt.format(*self.image.data[pos.x(), pos.y()])
+            return mst+vt, False
 
     def hoverLeaveEvent(self, event):
         self.scene().clear_contextual_info(self)
@@ -293,6 +327,11 @@ class ImageItem(ShaderItem):
         del self._overlay_items[idx]
         self.update()
 
+    def update_overlay_items_z_sort(self):
+        if not self._overlay_items_z_sort_is_current:
+            self._overlay_items.sort(key=lambda i: i.zValue())
+            self._overlay_items_z_sort_is_current = True
+
     @property
     def show_frame(self):
         return self._show_frame
@@ -306,29 +345,17 @@ class ImageItem(ShaderItem):
 class ImageOverlayItem(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
 
-    def __init__(self, overlayed_image_item, overlay_image=None):
+    def __init__(self, overlayed_image_item, overlay_image=None, overlay_name=None):
         super().__init__(overlayed_image_item)
         self._show_frame = False
         self.overlay_image_id = 0
         self.tex = None
         self._overlay_image = None
         self.overlay_image = overlay_image
-        overlayed_image_item.attach_overlay(self)
-
-#   def __del__(self):
-#       if self.tex is not None and self.tex.isCreated():
-#           parent = self.parentItem()
-#           if parent is not None:
-#               parent.detach_overlay(self)
-#           scene = self.scene()
-#           if scene is not None:
-#               views = scene.views()
-#               if views:
-#                   views[0].makeCurrent()
-#                   try:
-#                       self.tex.destroy()
-#                   finally:
-#                       views[0].doneCurrent()
+        self.setFlag(Qt.QGraphicsItem.ItemIgnoresParentOpacity)
+        self.overlay_name = overlay_name
+        if overlayed_image_item is not None:
+            overlayed_image_item.attach_overlay(self)
 
     def type(self):
         return ImageOverlayItem.QGRAPHICSITEM_TYPE
@@ -338,7 +365,29 @@ class ImageOverlayItem(Qt.QGraphicsObject):
 
     def itemChange(self, change, value):
         if change == Qt.QGraphicsItem.ItemParentChange:
-            print('itemChange', self.parentItem(), value)
+            parent = self.parentItem()
+            if parent is not None:
+                parent.detach_overlay(self)
+            if self.tex is not None and self.tex.isCreated():
+                scene = self.scene()
+                if scene is not None:
+                    views = scene.views()
+                    if views:
+                        views[0].makeCurrent()
+                        try:
+                            self.tex.destroy()
+                        finally:
+                            views[0].doneCurrent()
+        elif change == Qt.QGraphicsItem.ItemParentHasChanged:
+            parent = value
+            if parent is not None:
+                parent.attach_overlay(self)
+        # Omitting the following line results in numerous subtle misbehaviors such as being unable to make this item visible
+        # after hiding it.  This is a result of the return value from itemChange sometimes mattering: certain item changes
+        # may be cancelled or modified by returning something other than the value argument.  In the case of
+        # Qt.QGraphicsItem.ItemVisibleChange, returning something that casts to False overrides a visibility -> True state
+        # change, causing the item to remain hidden.
+        return value
 
     def paint(self, qpainter, option, widget):
         """This QGraphicsItem (from which QGraphicsObject is derived, from which this class, in turn, is derived) is primarily
@@ -350,7 +399,7 @@ class ImageOverlayItem(Qt.QGraphicsObject):
         The only drawing that ImageOverlayItem actually does in its own right is to paint a stippled border two pixels wide,
         with one pixel inside and one pixel outside, and it only does this if the show_frame attribute has been set to True
         or something that evaluated to True when coerced to bool."""
-        if self._show_frame and self.overlay_image is not None and self.parentItem().image is not None:
+        if self._show_frame and self.overlay_image is not None and (self.parentItem() is None or self.parentItem().image is not None):
             qpainter.setBrush(Qt.QBrush(Qt.Qt.transparent))
             color = Qt.QColor(Qt.Qt.blue)
             color.setAlphaF(0.5)
@@ -407,6 +456,18 @@ class ImageOverlayItem(Qt.QGraphicsObject):
                     # self.tex is updated here and not before so that any failure preparing tex results in a retry the next time self.tex
                     # is needed
                     self.tex = tex
+
+    def generate_contextual_info_for_pos(self, pos, overlay_stack_idx):
+        oimage = self._overlay_image
+        mst = 'overlay {} '.format(overlay_stack_idx) if self.overlay_name is None else (self.overlay_name + ' ')
+        mst+= 'x:{} y:{} '.format(pos.x(), pos.y())
+        oimage_type = oimage.type
+        vt = '(' + ' '.join((c + ':{}' for c in oimage_type)) + ')'
+        if len(oimage_type) == 1:
+            vt = vt.format(oimage.data[pos.x(), pos.y()])
+        else:
+            vt = vt.format(*oimage.data[pos.x(), pos.y()])
+        return mst+vt, False
 
     @property
     def overlay_image(self):
