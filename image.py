@@ -127,6 +127,14 @@ class Image:
             self._type,
             self.name)
 
+    def recompute_stats(self):
+        if self._data.ndim == 2:
+            self.stats_future = compute_ndimage_statistics(self._data, self._is_twelve_bit, return_future=True)
+        elif self._data.ndim == 3:
+            self.stats_future = compute_multichannel_ndimage_statistics(self._data, self._is_twelve_bit, return_future=True)
+        else:
+            raise ValueError('self._data must be a 2D or 3D ndarray.')
+
     @property
     def type(self):
         return self._type

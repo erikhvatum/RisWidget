@@ -26,9 +26,11 @@
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 uniform sampler2D tex;
+$overlay_samplers
 // 2D homogeneous transformation matrix for transforming gl_FragCoord viewport coordinates into image texture
 // coordinates
 uniform mat3 frag_to_tex;
+$overlay_frag_to_texs
 uniform $vcomponents_t vcomponent_rescale_mins;
 uniform $vcomponents_t vcomponent_rescale_ranges;
 uniform $vcomponents_t gammas;
@@ -50,10 +52,15 @@ vec4 combine_vt_components($vcomponents_t vcomponents, vec4 tcomponents)
     return $combine_vt_components;
 }
 
-void main()
+vec2 transform_frag_to_tex(mat3 frag_to_tex_max)
 {
     vec3 tex_coord_h = frag_to_tex * vec3(gl_FragCoord.x, viewport_height - gl_FragCoord.y, gl_FragCoord.w);
-    vec2 tex_coord = tex_coord_h.xy / tex_coord_h.z;
+    return tex_coord_h.xy / tex_coord_h.z;
+}
+
+void main()
+{
+    vec2 tex_coord = transform_frag_to_tex(frag_to_tex);
 
     // Render nothing if fragment coordinate is outside of texture. This should only happen for a display row or column
     // at the edge of the quad.
@@ -67,7 +74,11 @@ void main()
     }
 
     vec4 tcomponents = texture2D(tex, tex_coord);
-    $vcomponents_t transformed_vcomponents = transform_vcomponents(extract_vcomponents(tcomponents));
+    $vcomponents_t vcomponents = extract_vcomponents(tcomponents);
+    $vcomponents_t transformed_vcomponents = transform_vcomponents(vcomponents);
+    vec4 t_transformed = combine_vt_components(transformed_vcomponents, tcomponents);
 
-    gl_FragColor = combine_vt_components(transformed_vcomponents, tcomponents);
+    $do_overlay_blending
+
+    gl_FragColor = ${gl_FragColor};
 }

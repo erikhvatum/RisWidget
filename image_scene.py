@@ -86,9 +86,11 @@ class ImageItem(ShaderItem):
         super().__init__(parent_item)
         self.tex = None
         self._show_frame = False
+        self._overlay_items = []
+        self._overlay_items_z_sort_is_current = True
 
     def type(self):
-        return GammaItem.QGRAPHICSITEM_TYPE
+        return ImageItem.QGRAPHICSITEM_TYPE
 
     def boundingRect(self):
         return Qt.QRectF(0,0,1,1) if self.image is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self.image.size))
@@ -106,8 +108,18 @@ class ImageItem(ShaderItem):
                 stack.callback(qpainter.endNativePainting)
                 gl = GL()
                 image = self.image
-                if image.type in self.progs:
-                    prog = self.progs[image.type]
+                if len(self._overlay_items) > 1:
+                    raise RuntimeError('Only one overlay per ImageItem is supported at the moment.')
+                if len(self._overlay_items) == 1 and self._overlay_items[0].isVisible():
+                    overlay_item = self._overlay_items[0]
+                    has_overlay = True
+                    overlay_type = 'g' if overlay_item.overlay_image.is_grayscale else 'rgb'
+                else:
+                    overlay_item = None
+                    has_overlay = False
+                    overlay_type = None
+                if (image.type, has_overlay) in self.progs:
+                    prog = self.progs[(image.type, overlay_type)]
                 else:
                     if image.is_grayscale:
                         vcomponents_t = 'float'
@@ -117,13 +129,39 @@ class ImageItem(ShaderItem):
                         vcomponents_t = 'vec3'
                         extract_vcomponents = 'tcomponents.rgb'
                         vcomponents_ones_vector = 'vec3(1.0f, 1.0f, 1.0f)'
-                    prog = self.build_shader_prog(image.type,
+                    if has_overlay:
+                        overlay_samplers = 'uniform sampler2D overlay0_tex;'
+                        overlay_frag_to_texs = 'uniform mat3 overlay0_frag_to_tex;'
+                        do_overlay_blending = \
+"""
+    vec2 overlay0_tex_coord = transform_frag_to_tex(overlay0_frag_to_tex);
+    if(overlay0_tex_coord.x >= 0 && overlay0_tex_coord.x < 1 && overlay0_tex_coord.y >= 0 && overlay0_tex_coord.y < 1)
+    {
+        vec4 o = texture2D(overlay0_tex, overlay0_tex_coord);""" + ('\nfloat oc = 1.0f - o.r;' if overlay_item.overlay_image.is_grayscale else '\nvec3 oc = 1.0f - o.rgb;') + """
+        vec3 tc = 1.0f - t_transformed.rgb;
+        tc *= oc;
+        tc = 1.0f - tc;//vec3(1.0f - tc.r, 1.0f - tc.g, 1.0f - tc.b);
+        tc = clamp(tc, 0, 1);
+        t_transformed.rgb = tc;
+    }
+"""
+                        gl_FragColor = 't_transformed'
+                    else:
+                        overlay_samplers = ''
+                        overlay_frag_to_texs = ''
+                        do_overlay_blending = ''
+                        gl_FragColor = 't_transformed'
+                    prog = self.build_shader_prog((image.type, overlay_type),
                                                   'image_widget_vertex_shader.glsl',
                                                   'image_widget_fragment_shader_template.glsl',
                                                   vcomponents_t=vcomponents_t,
                                                   extract_vcomponents=extract_vcomponents,
                                                   vcomponents_ones_vector=vcomponents_ones_vector,
-                                                  combine_vt_components=ImageItem.IMAGE_TYPE_TO_COMBINE_VT_COMPONENTS[image.type])
+                                                  combine_vt_components=ImageItem.IMAGE_TYPE_TO_COMBINE_VT_COMPONENTS[image.type],
+                                                  overlay_samplers=overlay_samplers,
+                                                  overlay_frag_to_texs=overlay_frag_to_texs,
+                                                  do_overlay_blending=do_overlay_blending,
+                                                  gl_FragColor=gl_FragColor)
                 prog.bind()
                 stack.callback(prog.release)
                 desired_texture_format = ImageItem.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[image.type]
@@ -192,6 +230,12 @@ class ImageItem(ShaderItem):
                         self._normalize_min_max(min_maxs)
                     prog.setUniformValue('vcomponent_rescale_mins', *min_maxs[0])
                     prog.setUniformValue('vcomponent_rescale_ranges', *(min_maxs[1]-min_maxs[0]))
+                if has_overlay:
+                    overlay_item.update_tex()
+                    overlay_item.tex.bind(1)
+                    stack.callback(lambda: overlay_item.tex.release(1))
+                    prog.setUniformValue('overlay0_frag_to_tex', frag_to_tex)
+                    prog.setUniformValue('overlay0_tex', 1)
                 gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
                 gl.glDrawArrays(gl.GL_TRIANGLE_FAN, 0, 4)
             if self._show_frame:
@@ -234,6 +278,21 @@ class ImageItem(ShaderItem):
             self.prepareGeometryChange()
         super().on_image_changing(image)
 
+    def attach_overlay(self, overlay_item):
+        assert overlay_item not in self._overlay_items
+        if not isinstance(overlay_item, ImageOverlayItem):
+            raise ValueError('overlay_item argument must be or must be derived from ris_widget.image_scene.ImageOverlayItem.')
+        if overlay_item.parentItem() is not self:
+            raise RuntimeError('ImageItem must be parent of overlay_item to be attached.')
+        self._overlay_items.append(overlay_item)
+        self._overlay_items_z_sort_is_current = False
+        self.update()
+
+    def detach_overlay(self, overlay_item):
+        idx = self._overlay_items.index(overlay_item)
+        del self._overlay_items[idx]
+        self.update()
+
     @property
     def show_frame(self):
         return self._show_frame
@@ -249,31 +308,37 @@ class ImageOverlayItem(Qt.QGraphicsObject):
 
     def __init__(self, overlayed_image_item, overlay_image=None):
         super().__init__(overlayed_image_item)
-        if overlay_image is None or issubclass(type(overlay_image), Image):
-            self._overlay_image = overlay_image
-        else:
-            self._overlay_image = Image(overlay_image)
         self._show_frame = False
         self.overlay_image_id = 0
         self.tex = None
+        self._overlay_image = None
+        self.overlay_image = overlay_image
+        overlayed_image_item.attach_overlay(self)
 
-    def __del__(self):
-        if self.tex is not None and self.tex.isCreated():
-            scene = self.scene()
-            if scene is not None:
-                views = scene.views()
-                if views:
-                    views[0].makeCurrent()
-                    try:
-                        self.tex.destroy()
-                    finally:
-                        views[0].doneCurrent()
+#   def __del__(self):
+#       if self.tex is not None and self.tex.isCreated():
+#           parent = self.parentItem()
+#           if parent is not None:
+#               parent.detach_overlay(self)
+#           scene = self.scene()
+#           if scene is not None:
+#               views = scene.views()
+#               if views:
+#                   views[0].makeCurrent()
+#                   try:
+#                       self.tex.destroy()
+#                   finally:
+#                       views[0].doneCurrent()
 
     def type(self):
-        return GammaItem.QGRAPHICSITEM_TYPE
+        return ImageOverlayItem.QGRAPHICSITEM_TYPE
 
     def boundingRect(self):
-        return Qt.QRectF() if self.overlay_image is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self.overlay_image.size))
+        return Qt.QRectF() if self._overlay_image is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self._overlay_image.size))
+
+    def itemChange(self, change, value):
+        if change == Qt.QGraphicsItem.ItemParentChange:
+            print('itemChange', self.parentItem(), value)
 
     def paint(self, qpainter, option, widget):
         """This QGraphicsItem (from which QGraphicsObject is derived, from which this class, in turn, is derived) is primarily
@@ -285,7 +350,7 @@ class ImageOverlayItem(Qt.QGraphicsObject):
         The only drawing that ImageOverlayItem actually does in its own right is to paint a stippled border two pixels wide,
         with one pixel inside and one pixel outside, and it only does this if the show_frame attribute has been set to True
         or something that evaluated to True when coerced to bool."""
-        if self._show_frame and self.overlay_image is not None and self.parent().image is not None:
+        if self._show_frame and self.overlay_image is not None and self.parentItem().image is not None:
             qpainter.setBrush(Qt.QBrush(Qt.Qt.transparent))
             color = Qt.QColor(Qt.Qt.blue)
             color.setAlphaF(0.5)
@@ -301,48 +366,67 @@ class ImageOverlayItem(Qt.QGraphicsObject):
         current (eg, via QOpenGLWidget.setCurrent, QOpenGLContext.setCurrent, QPainter.beginNativePainting, glXMakeCurrent
         C call on *nix, WglMakeCurrent C call on win32, [NSOpenGLContext makeCurrent] obj-C method on Darwin, or any other
         equivalent)."""
-        if self.overlay_image is None:
+        if self._overlay_image is None:
             if self.tex is not None:
                 self.tex.destroy()
                 self.tex = None
         else:
-            oimage = self.overlay_image
+            oimage = self._overlay_image
             tex = self.tex
+            desired_texture_format = ImageItem.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[oimage.type]
             if tex is not None:
-                desired_texture_format = ImageItem.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[oimage.type]
                 if oimage.size != Qt.QSize(tex.width(), tex.height()) or tex.format() != desired_texture_format:
                     tex.destroy()
                     tex = self.tex = None
-                if tex is None:
-                    tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
-                    tex.setFormat(desired_texture_format)
-                    tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
-                    tex.setMipLevels(6)
-                    tex.setAutoMipMapGenerationEnabled(True)
-                    tex.setSize(oimage.size.width(), oimage.size.height(), 1)
-                    tex.allocateStorage()
-                    # Overylay display should be as accurate as reasonably possible.  Trilinear filtering for normal
-                    # images is not reasonably possible - the required mipmap computation is too slow for live mode
-                    # viewing of 2560x2160 16bpp grayscale images.  Trilinear filtering for overlay images, however,
-                    # is fine so long as the overlay is not updated with every 2560x2160 16bpp image, which is not
-                    # expected to occur for live streams.
-                    tex.setMinMagFilters(Qt.QOpenGLTexture.LinearMipMapLinear, Qt.QOpenGLTexture.Nearest)
-                    tex.overlay_image_id = -1
-                if tex.overlay_image_id != self.overlay_image_id:
-                    with ExitStack() as stack:
-                        tex.bind()
-                        stack.callback(lambda: tex.release(0))
-                        pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
-                        pixel_transfer_opts.setAlignment(1)
-                        tex.setData(ImageItem.IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT[oimage.type],
-                                    ImageItem.NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[oimage.dtype],
-                                    oimage.data.ctypes.data,
-                                    pixel_transfer_opts)
-                        tex.overlay_image_id = self.overlay_image_id
-                        # self.tex is updated here and not before so that any failure preparing tex results in a retry the next time self.tex
-                        # is needed
-                        self.tex = tex
+            if tex is None:
+                tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
+                tex.setFormat(desired_texture_format)
+                tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
+                tex.setMipLevels(6)
+                tex.setAutoMipMapGenerationEnabled(True)
+                tex.setSize(oimage.size.width(), oimage.size.height(), 1)
+                tex.allocateStorage()
+                # Overylay display should be as accurate as reasonably possible.  Trilinear filtering for normal
+                # images is not reasonably possible - the required mipmap computation is too slow for live mode
+                # viewing of 2560x2160 16bpp grayscale images.  Trilinear filtering for overlay images, however,
+                # is fine so long as the overlay is not updated with every 2560x2160 16bpp image, which is not
+                # expected to occur for live streams.
+                tex.setMinMagFilters(Qt.QOpenGLTexture.LinearMipMapLinear, Qt.QOpenGLTexture.Nearest)
+                tex.overlay_image_id = -1
+            if tex.overlay_image_id != self.overlay_image_id:
+                with ExitStack() as stack:
+                    tex.bind()
+                    stack.callback(lambda: tex.release(0))
+                    pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
+                    pixel_transfer_opts.setAlignment(1)
+                    tex.setData(ImageItem.IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT[oimage.type],
+                                ImageItem.NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[oimage.dtype],
+                                oimage.data.ctypes.data,
+                                pixel_transfer_opts)
+                    tex.overlay_image_id = self.overlay_image_id
+                    # self.tex is updated here and not before so that any failure preparing tex results in a retry the next time self.tex
+                    # is needed
+                    self.tex = tex
 
+    @property
+    def overlay_image(self):
+        return self._overlay_image
+
+    @overlay_image.setter
+    def overlay_image(self, overlay_image):
+        if overlay_image is self._overlay_image:
+            if overlay_image is not None:
+                self.overlay_image_id += 1
+                self.parentItem().update()
+        else:
+            if self._overlay_image is None and overlay_image is not None or \
+               self._overlay_image is not None and (overlay_image is None or self._overlay_image.size != overlay_image.size):
+                self.prepareGeometryChange()
+            if overlay_image is None or issubclass(type(overlay_image), Image):
+                self._overlay_image = overlay_image
+            else:
+                self._overlay_image = Image(overlay_image)
+            self.parentItem().update()
 
     @property
     def show_frame(self):

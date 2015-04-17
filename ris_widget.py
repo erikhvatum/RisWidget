@@ -269,6 +269,15 @@ class RisWidget(Qt.QMainWindow):
 
     @image.setter
     def image(self, image):
+        if image is self._image:
+            if image is not None:
+                # The same image is being reassigned, presumably because its data has been modified - so, its histogram
+                # and image views need to be updated.
+                self._image.recompute_stats()
+                self.histogram_scene.histogram_item._image_id += 1
+                self.histogram_scene.update()
+                self.image_scene.image_item._image_id += 1
+                self.image_scene.update()
         if image is not self._image:
             if image is not None and not issubclass(type(image), Image):
                 e = 'The value assigned to the image property must either be derived '
