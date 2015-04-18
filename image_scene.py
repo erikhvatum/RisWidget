@@ -267,7 +267,11 @@ class ImageItem(ShaderItem):
             self.update_overlay_items_z_sort()
             for overlay_stack_idx, overlay_item in enumerate(self._overlay_items):
                 if overlay_item.isVisible():
-                    o_pos = self.mapToItem(overlay_item, pos)
+                    # For a number of potential reasons including overlay rotation, differing resolution
+                    # or scale, and fractional offset relative to parent, it is necessary to project floating
+                    # point coordinates and not integer coordinates into overlay item space in order to
+                    # accurately determine which overlay image pixel contains the mouse pointer
+                    o_pos = self.mapToItem(overlay_item, event.pos())
                     if overlay_item.boundingRect().contains(o_pos):
                         ci = overlay_item.generate_contextual_info_for_pos(o_pos, overlay_stack_idx)
                         if ci is not None:
@@ -458,16 +462,18 @@ class ImageOverlayItem(Qt.QGraphicsObject):
                     self.tex = tex
 
     def generate_contextual_info_for_pos(self, pos, overlay_stack_idx):
+        pos = Qt.QPoint(pos.x(), pos.y())
         oimage = self._overlay_image
-        mst = 'overlay {} '.format(overlay_stack_idx) if self.overlay_name is None else (self.overlay_name + ' ')
-        mst+= 'x:{} y:{} '.format(pos.x(), pos.y())
-        oimage_type = oimage.type
-        vt = '(' + ' '.join((c + ':{}' for c in oimage_type)) + ')'
-        if len(oimage_type) == 1:
-            vt = vt.format(oimage.data[pos.x(), pos.y()])
-        else:
-            vt = vt.format(*oimage.data[pos.x(), pos.y()])
-        return mst+vt, False
+        if Qt.QRect(Qt.QPoint(), oimage.size).contains(pos):
+            mst = 'overlay {}: '.format(overlay_stack_idx) if self.overlay_name is None else (self.overlay_name + ': ')
+            mst+= 'x:{} y:{} '.format(pos.x(), pos.y())
+            oimage_type = oimage.type
+            vt = '(' + ' '.join((c + ':{}' for c in oimage_type)) + ')'
+            if len(oimage_type) == 1:
+                vt = vt.format(oimage.data[pos.x(), pos.y()])
+            else:
+                vt = vt.format(*oimage.data[pos.x(), pos.y()])
+            return mst+vt, False
 
     @property
     def overlay_image(self):
