@@ -241,7 +241,7 @@ class ImageItem(ShaderItem):
                     overlay_item.tex.bind(1)
                     stack.callback(lambda: overlay_item.tex.release(1))
                     overlay_frag_to_tex = Qt.QTransform()
-                    overlay_frame = Qt.QPolygonF(view.mapFromScene(overlay_item.boundingRect()))
+                    overlay_frame = Qt.QPolygonF(view.mapFromScene(Qt.QPolygonF(overlay_item.sceneTransform().mapToPolygon(overlay_item.boundingRect().toRect()))))
                     overlay_qpainter_transform = overlay_item.deviceTransform(view.viewportTransform())
                     if not overlay_qpainter_transform.quadToSquare(overlay_frame, overlay_frag_to_tex):
                         raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix for overlay.')
