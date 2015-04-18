@@ -25,6 +25,7 @@
 """Stuff for Qt development and debugging.  RisWidget does not depend on this file;
 it is provided for developer use.  Feel free to delete it."""
 
+import numpy
 from PyQt5 import Qt
 
 _QEVENT_TYPE_ENUM_VALUE_TO_STRING = None
@@ -40,3 +41,9 @@ def qevent_type_value_enum_string(qevent):
         return _QEVENT_TYPE_ENUM_VALUE_TO_STRING[qevent.type()]
     except KeyError:
         return 'UNKNOWN'
+
+def qtransform_to_numpy(t):
+    return numpy.array(((t.m11(),t.m12(),t.m13()),(t.m21(),t.m22(),t.m23()),(t.m31(),t.m32(),t.m33())))
+
+def print_qtransform(t):
+    print(qtransform_to_numpy(t))

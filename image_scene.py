@@ -22,6 +22,7 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+from ._qt_debug import qtransform_to_numpy
 from .image import Image
 from .shared_resources import GL, UNIQUE_QGRAPHICSITEM_TYPE
 from .shader_scene import ShaderScene, ShaderItem, ShaderQOpenGLTexture
@@ -214,6 +215,10 @@ class ImageItem(ShaderItem):
                 prog.setUniformValue('frag_to_tex', frag_to_tex)
                 prog.setUniformValue('viewport_height', float(widget.size().height()))
                 histogram_scene = view.scene().histogram_scene
+
+#               print('qpainter.transform():', qtransform_to_numpy(qpainter.transform()))
+#               print('self.deviceTransform(view.viewportTransform()):', qtransform_to_numpy(self.deviceTransform(view.viewportTransform())))
+
                 if image.is_grayscale:
                     gamma = histogram_scene.gamma
                     min_max = numpy.array((histogram_scene.min, histogram_scene.max), dtype=float)
@@ -235,7 +240,13 @@ class ImageItem(ShaderItem):
                     overlay_item.update_tex()
                     overlay_item.tex.bind(1)
                     stack.callback(lambda: overlay_item.tex.release(1))
-                    prog.setUniformValue('overlay0_frag_to_tex', frag_to_tex)
+                    overlay_frag_to_tex = Qt.QTransform()
+                    overlay_frame = Qt.QPolygonF(view.mapFromScene(overlay_item.boundingRect()))
+                    overlay_qpainter_transform = overlay_item.deviceTransform(view.viewportTransform())
+                    if not overlay_qpainter_transform.quadToSquare(overlay_frame, overlay_frag_to_tex):
+                        raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix for overlay.')
+#                   overlay_frag_to_tex.scale(0.5, 2)
+                    prog.setUniformValue('overlay0_frag_to_tex', overlay_frag_to_tex)
                     prog.setUniformValue('overlay0_tex', 1)
                 gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
                 gl.glDrawArrays(gl.GL_TRIANGLE_FAN, 0, 4)

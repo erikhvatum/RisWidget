@@ -52,9 +52,9 @@ vec4 combine_vt_components($vcomponents_t vcomponents, vec4 tcomponents)
     return $combine_vt_components;
 }
 
-vec2 transform_frag_to_tex(mat3 frag_to_tex_max)
+vec2 transform_frag_to_tex(mat3 frag_to_tex_mat)
 {
-    vec3 tex_coord_h = frag_to_tex * vec3(gl_FragCoord.x, viewport_height - gl_FragCoord.y, gl_FragCoord.w);
+    vec3 tex_coord_h = frag_to_tex_mat * vec3(gl_FragCoord.x, viewport_height - gl_FragCoord.y, gl_FragCoord.w);
     return tex_coord_h.xy / tex_coord_h.z;
 }
 
