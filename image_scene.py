@@ -316,7 +316,7 @@ class ImageItem(ShaderItem):
                 vt = vt.format(self.image.data[pos.x(), pos.y()])
             else:
                 vt = vt.format(*self.image.data[pos.x(), pos.y()])
-            return mst+vt, False
+            return '<div style="outline-style:solid">' + html.escape(mst+vt) + '</div>', True
 
     def hoverLeaveEvent(self, event):
         self.scene().clear_contextual_info(self)

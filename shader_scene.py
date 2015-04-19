@@ -117,6 +117,15 @@ class ContextualInfoTextItem(Qt.QGraphicsTextItem):
     def type(self):
         return ContextualInfoTextItem.QGRAPHICSITEM_TYPE
 
+#   def paint(self, painter, option, widget):
+#       qpicture = Qt.QPicture()
+#       super().paint(painter, option, widget)
+#       painter.setBrush(Qt.Qt.transparent)
+#       color = Qt.QColor(Qt.Qt.black)
+#       color.setAlphaF(self.opacity())
+#       painter.setPen(Qt.QPen(color))
+#       painter.drawPath(self.shape())
+
     def on_shader_view_scene_rect_changed(self, shader_view):
         """Maintain position at top left corner of shader_view."""
         topleft = Qt.QPoint()
@@ -125,6 +134,7 @@ class ContextualInfoTextItem(Qt.QGraphicsTextItem):
 
     def on_update_contextual_info(self, string, is_html):
         if is_html:
+#           print(string)
             self.setHtml(string)
         else:
             self.setPlainText(string)
