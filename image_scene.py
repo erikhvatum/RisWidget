@@ -90,6 +90,7 @@ class ImageItem(ShaderItem):
         self._show_frame = False
         self._overlay_items = []
         self._overlay_items_z_sort_is_current = True
+        self._trilinear_filtering_enabled = True
 
     def type(self):
         return ImageItem.QGRAPHICSITEM_TYPE
@@ -167,19 +168,24 @@ class ImageItem(ShaderItem):
                 stack.callback(prog.release)
                 desired_texture_format = ImageItem.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[image.type]
                 tex = self.tex
+                desired_minification_filter = Qt.QOpenGLTexture.LinearMipMapLinear if self._trilinear_filtering_enabled else Qt.QOpenGLTexture.Linear
                 if tex is not None:
-                    if image.size != Qt.QSize(tex.width(), tex.height()) or tex.format() != desired_texture_format:
+                    if image.size != Qt.QSize(tex.width(), tex.height()) or tex.format() != desired_texture_format or tex.minificationFilter() != desired_minification_filter:
                         tex.destroy()
                         tex = self.tex = None
                 if tex is None:
                     tex = ShaderQOpenGLTexture(Qt.QOpenGLTexture.Target2D)
                     tex.setFormat(desired_texture_format)
                     tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
-                    tex.setMipLevels(1)
-                    tex.setAutoMipMapGenerationEnabled(False)
+                    if self._trilinear_filtering_enabled:
+                        tex.setMipLevels(5)
+                        tex.setAutoMipMapGenerationEnabled(True)
+                    else:
+                        tex.setMipLevels(1)
+                        tex.setAutoMipMapGenerationEnabled(False)
                     tex.setSize(image.size.width(), image.size.height(), 1)
                     tex.allocateStorage()
-                    tex.setMinMagFilters(Qt.QOpenGLTexture.Linear, Qt.QOpenGLTexture.Nearest)
+                    tex.setMinMagFilters(desired_minification_filter, Qt.QOpenGLTexture.Nearest)
                     tex.image_id = -1
                 tex.bind()
                 stack.callback(tex.release)
@@ -357,6 +363,26 @@ class ImageItem(ShaderItem):
             self._show_frame = show_frame
             self.update()
 
+    @property
+    def trilinear_filtering_enabled(self):
+        """If set to True (the default), trilinear filtering is used for minification (zooming out).  This is
+        somewhat higher quality than simple linear filtering, but it requires mipmap computation, which is too slow
+        for 30fps display of 2560x2160 16bpp grayscale images on the ZPLAB acquisition computer.  Trilinear filtering
+        as a minification filter tends to preserve some representation of small image details that simply disappear
+        with linear filtering, so it is therefore desirable when frame rate is not of paramount importance.
+
+        As compared to trilinear filtering, bilinear filtering would provide higher textured fragment fill rate - 
+        which is not our bottleneck - at slightly lower quality while still requiring mipmap computation - which 
+        is our bottleneck.  So, for the purposes of ZPLAB, trilinear and linear minification filters are the sensible
+        choices, and this property selects between the two."""
+        return self._trilinear_filtering_enabled
+
+    @trilinear_filtering_enabled.setter
+    def trilinear_filtering_enabled(self, trilinear_filtering_enabled):
+        if trilinear_filtering_enabled != self._trilinear_filtering_enabled:
+            self._trilinear_filtering_enabled = trilinear_filtering_enabled
+            self.update()
+
 class ImageOverlayItem(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
 
@@ -427,10 +453,10 @@ class ImageOverlayItem(Qt.QGraphicsObject):
 #       if self.parentItem() is not None:
 #           self.parentItem().update()
 
-    def wheelEvent(self, event):
-        wheel_delta = event.delta()
-        if wheel_delta != 0:
-            self.setRotation(self.rotation() + (1 if wheel_delta > 0 else -1))
+#   def wheelEvent(self, event):
+#       wheel_delta = event.delta()
+#       if wheel_delta != 0:
+#           self.setRotation(self.rotation() + (1 if wheel_delta > 0 else -1))
 
     def update_tex(self):
         """This function is intended to be called from ImageItem's paint function and relies upon an OpenGL context being
