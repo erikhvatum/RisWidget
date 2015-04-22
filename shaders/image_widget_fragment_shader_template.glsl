@@ -26,11 +26,11 @@
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 uniform sampler2D tex;
-$overlay_samplers
+uniform float tex_global_alpha;
+$overlay_uniforms
 // 2D homogeneous transformation matrix for transforming gl_FragCoord viewport coordinates into image texture
 // coordinates
 uniform mat3 frag_to_tex;
-$overlay_frag_to_texs
 uniform $vcomponents_t vcomponent_rescale_mins;
 uniform $vcomponents_t vcomponent_rescale_ranges;
 uniform $vcomponents_t gammas;

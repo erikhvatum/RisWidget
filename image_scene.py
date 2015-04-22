@@ -79,10 +79,10 @@ class ImageItem(ShaderItem):
         'rgb' : Qt.QOpenGLTexture.RGB,
         'rgba': Qt.QOpenGLTexture.RGBA}
     IMAGE_TYPE_TO_COMBINE_VT_COMPONENTS = {
-        'g'   : 'vec4(vcomponents, vcomponents, vcomponents, 1.0f)',
-        'ga'  : 'vec4(vcomponents, vcomponents, vcomponents, tcomponents.a)',
-        'rgb' : 'vec4(vcomponents.rgb, 1.0f)',
-        'rgba': 'vec4(vcomponents.rgb, tcomponents.a)'}
+        'g'   : 'vec4(vcomponents, vcomponents, vcomponents, tex_global_alpha)',
+        'ga'  : 'vec4(vcomponents, vcomponents, vcomponents, tcomponents.a * tex_global_alpha)',
+        'rgb' : 'vec4(vcomponents.rgb, tex_global_alpha)',
+        'rgba': 'vec4(vcomponents.rgb, tcomponents.a * tex_global_alpha)'}
 
     def __init__(self, parent_item=None):
         super().__init__(parent_item)
@@ -132,25 +132,25 @@ class ImageItem(ShaderItem):
                         extract_vcomponents = 'tcomponents.rgb'
                         vcomponents_ones_vector = 'vec3(1.0f, 1.0f, 1.0f)'
                     if has_overlay:
-                        overlay_samplers = 'uniform sampler2D overlay0_tex;'
-                        overlay_frag_to_texs = 'uniform mat3 overlay0_frag_to_tex;'
+                        overlay_samplers = ''
+                        overlay_uniforms = 'uniform sampler2D overlay0_tex; uniform mat3 overlay0_frag_to_tex; uniform float overlay0_tex_global_alpha;'
                         do_overlay_blending = \
 """
     vec2 overlay0_tex_coord = transform_frag_to_tex(overlay0_frag_to_tex);
     if(overlay0_tex_coord.x >= 0 && overlay0_tex_coord.x < 1 && overlay0_tex_coord.y >= 0 && overlay0_tex_coord.y < 1)
     {
-        vec4 o = texture2D(overlay0_tex, overlay0_tex_coord);""" + ('\nfloat oc = 1.0f - o.r;' if overlay_item.overlay_image.is_grayscale else '\nvec3 oc = 1.0f - o.rgb;') + """
-        vec3 tc = 1.0f - t_transformed.rgb;
-        tc *= oc;
-        tc = 1.0f - tc;//vec3(1.0f - tc.r, 1.0f - tc.g, 1.0f - tc.b);
-        tc = clamp(tc, 0, 1);
-        t_transformed.rgb = tc;
+        vec4 o = texture2D(overlay0_tex, overlay0_tex_coord);""" + ('o.g=o.b=o.r;' if overlay_item.overlay_image.is_grayscale else '\nvec3 oc = 1.0f - o.rgb;') + """
+        """ + ('o.a = overlay0_tex_global_alpha * o.a;' if overlay_item.overlay_image.has_alpha_channel else 'o.a = overlay0_tex_global_alpha;') + """
+        vec3 ipm = t_transformed.rgb * t_transformed.a;
+        vec3 opm = o.rgb * o.a;
+        vec3 dpm = ipm + opm - ipm * opm;
+        vec4 d = vec4(dpm, t_transformed.a + o.a - t_transformed.a * o.a);
+        t_transformed = clamp(d, 0, 1);
     }
 """
                         gl_FragColor = 't_transformed'
                     else:
-                        overlay_samplers = ''
-                        overlay_frag_to_texs = ''
+                        overlay_uniforms = ''
                         do_overlay_blending = ''
                         gl_FragColor = 't_transformed'
                     prog = self.build_shader_prog((image.type, overlay_type),
@@ -160,8 +160,7 @@ class ImageItem(ShaderItem):
                                                   extract_vcomponents=extract_vcomponents,
                                                   vcomponents_ones_vector=vcomponents_ones_vector,
                                                   combine_vt_components=ImageItem.IMAGE_TYPE_TO_COMBINE_VT_COMPONENTS[image.type],
-                                                  overlay_samplers=overlay_samplers,
-                                                  overlay_frag_to_texs=overlay_frag_to_texs,
+                                                  overlay_uniforms=overlay_uniforms,
                                                   do_overlay_blending=do_overlay_blending,
                                                   gl_FragColor=gl_FragColor)
                 prog.bind()
@@ -209,10 +208,11 @@ class ImageItem(ShaderItem):
                 prog.setAttributeBuffer(vert_coord_loc, gl.GL_FLOAT, 0, 2, 0)
                 prog.setUniformValue('tex', 0)
                 frag_to_tex = Qt.QTransform()
-                frame = Qt.QPolygonF(view.mapFromScene(self.boundingRect()))
+                frame = Qt.QPolygonF(view.mapFromScene(Qt.QPolygonF(self.sceneTransform().mapToPolygon(self.boundingRect().toRect())))) #Qt.QPolygonF(view.mapFromScene(self.boundingRect()))
                 if not qpainter.transform().quadToSquare(frame, frag_to_tex):
                     raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix.')
                 prog.setUniformValue('frag_to_tex', frag_to_tex)
+                prog.setUniformValue('tex_global_alpha', self.opacity())
                 prog.setUniformValue('viewport_height', float(widget.size().height()))
                 histogram_scene = view.scene().histogram_scene
 
@@ -245,9 +245,9 @@ class ImageItem(ShaderItem):
                     overlay_qpainter_transform = overlay_item.deviceTransform(view.viewportTransform())
                     if not overlay_qpainter_transform.quadToSquare(overlay_frame, overlay_frag_to_tex):
                         raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix for overlay.')
-#                   overlay_frag_to_tex.scale(0.5, 2)
                     prog.setUniformValue('overlay0_frag_to_tex', overlay_frag_to_tex)
                     prog.setUniformValue('overlay0_tex', 1)
+                    prog.setUniformValue('overlay0_tex_global_alpha', overlay_item.opacity())
                 gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
                 gl.glDrawArrays(gl.GL_TRIANGLE_FAN, 0, 4)
             if self._show_frame:
@@ -424,6 +424,13 @@ class ImageOverlayItem(Qt.QGraphicsObject):
             pen.setStyle(Qt.Qt.DotLine)
             qpainter.setPen(pen)
             qpainter.drawRect(self.boundingRect())
+#       if self.parentItem() is not None:
+#           self.parentItem().update()
+
+    def wheelEvent(self, event):
+        wheel_delta = event.delta()
+        if wheel_delta != 0:
+            self.setRotation(self.rotation() + (1 if wheel_delta > 0 else -1))
 
     def update_tex(self):
         """This function is intended to be called from ImageItem's paint function and relies upon an OpenGL context being

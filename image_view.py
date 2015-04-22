@@ -84,7 +84,7 @@ class ImageView(ShaderView):
         if self.zoom_to_fit:
             self._apply_zoom()
 
-    def wheelEvent(self, event):
+    def _wheelEvent(self, event):
         wheel_delta = event.angleDelta().y()
         if wheel_delta != 0:
             zoom_in = wheel_delta > 0

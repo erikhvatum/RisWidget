@@ -190,5 +190,9 @@ class Image:
         return self._is_twelve_bit
 
     @property
+    def has_alpha_channel(self):
+        return self._type[-1] == 'a'
+
+    @property
     def num_channels(self):
         return len(self._type)
