@@ -25,7 +25,7 @@
 from ._qt_debug import qtransform_to_numpy
 from .image import Image
 from .shared_resources import GL, UNIQUE_QGRAPHICSITEM_TYPE
-from .shader_scene import ShaderScene, ItemWithImage, ShaderItemWithImage, ShaderQOpenGLTexture
+from .shader_scene import ShaderScene, ItemWithImage, ShaderItemWithImage
 from .shader_view import ShaderView
 from contextlib import ExitStack
 import html
@@ -197,7 +197,7 @@ class ImageItem(ShaderItemWithImage):
                         tex.destroy()
                         tex = self.tex = None
                 if tex is None:
-                    tex = ShaderQOpenGLTexture(Qt.QOpenGLTexture.Target2D)
+                    tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
                     tex.setFormat(desired_texture_format)
                     tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
                     if self._trilinear_filtering_enabled:
@@ -211,7 +211,7 @@ class ImageItem(ShaderItemWithImage):
                     tex.setMinMagFilters(desired_minification_filter, Qt.QOpenGLTexture.Nearest)
                     tex.image_id = -1
                 tex.bind()
-                stack.callback(tex.release)
+                stack.callback(lambda: tex.release(0))
                 if tex.image_id != self._image_id:
 #                   import time
 #                   t0=time.time()

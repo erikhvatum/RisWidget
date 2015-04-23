@@ -288,9 +288,8 @@ class ItemWithImage(Qt.QGraphicsObject):
         self._frame_color = frame_color
         self.update()
 
-class ShaderItemWithImage(ItemWithImage):
-    def __init__(self, parent_item=None):
-        super().__init__(parent_item)
+class ShaderItemMixin:
+    def __init__(self, *va, **ka):
         self.progs = {}
 
     def build_shader_prog(self, desc, vert_fn, frag_fn, **frag_template_mapping):
@@ -314,6 +313,19 @@ class ShaderItemWithImage(ItemWithImage):
         self.progs[desc] = prog
         return prog
 
+class ShaderItem(ShaderItemMixin, Qt.QGraphicsObject):
+    def __init__(self, parent_item=None):
+        super(Qt.QGraphicsObject, self).__init__(parent_item)
+        super(ShaderItemMixin, self).__init__()
+
+    def type(self):
+        raise NotImplementedError()
+
+class ShaderItemWithImage(ShaderItemMixin, ItemWithImage):
+    def __init__(self, parent_item=None):
+        super(ItemWithImage, self).__init__(parent_item)
+        super(ShaderItemMixin, self).__init__()
+
 class ShaderTexture:
     """QOpenGLTexture does not support support GL_LUMINANCE*_EXT, etc, as specified by GL_EXT_texture_integer,
     which is required for integer textures in OpenGL 2.1 (QOpenGLTexture does support GL_RGB*U/I formats,
@@ -333,9 +345,3 @@ class ShaderTexture:
     def destroy(self):
         GL().glDeleteTextures(1, (self.texture_id,))
         del self.texture_id
-
-class ShaderQOpenGLTexture(Qt.QOpenGLTexture):
-    """ShaderQOpenGLTexture replaces QOpenGLTexture's release function with one that does not require an
-    argument."""
-    def release(self):
-        super().release(0)
