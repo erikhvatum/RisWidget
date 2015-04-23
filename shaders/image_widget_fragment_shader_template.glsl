@@ -27,7 +27,6 @@
 
 uniform sampler2D tex;
 uniform float tex_global_alpha;
-$overlay_uniforms
 // 2D homogeneous transformation matrix for transforming gl_FragCoord viewport coordinates into image texture
 // coordinates
 uniform mat3 frag_to_tex;
@@ -35,6 +34,7 @@ uniform $vcomponents_t vcomponent_rescale_mins;
 uniform $vcomponents_t vcomponent_rescale_ranges;
 uniform $vcomponents_t gammas;
 uniform float viewport_height;
+$overlay_uniforms
 
 $vcomponents_t extract_vcomponents(vec4 tcomponents)
 {

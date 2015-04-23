@@ -58,7 +58,7 @@ class Image:
         self._data = numpy.asarray(data)
         self._is_twelve_bit = is_twelve_bit
         dt = self._data.dtype.type
-        if dt not in (numpy.uint8, numpy.uint16, numpy.float32):
+        if dt not in (numpy.bool8, numpy.uint8, numpy.uint16, numpy.float32):
             self._data = self._data.astype(numpy.float32)
             dt = numpy.float32
 
@@ -89,7 +89,7 @@ class Image:
                 self._data.flat = d.flat
             self.stats_future = compute_multichannel_ndimage_statistics(self._data, self._is_twelve_bit, return_future=True)
         else:
-            raise ValueError('image_data argument must be a 2D (grayscale) or 3D (grayscale with alpha, rgb, or rgba) iterable.')
+            raise ValueError('data argument must be a 2D (grayscale) or 3D (grayscale with alpha, rgb, or rgba) iterable.')
         self._size = Qt.QSize(self._data.shape[0], self._data.shape[1])
         self._is_grayscale = self._type in ('g', 'ga')
 
@@ -118,13 +118,14 @@ class Image:
 
     def __repr__(self):
         num_channels = self.num_channels
-        return '{}; {}x{}, {} channel{} ({}), with name "{}">'.format(
+        return '{}; {}x{}, {} channel{} ({}){}, with name "{}">'.format(
             super().__repr__()[:-1],
             self._size.width(),
             self._size.height(),
             num_channels,
             '' if num_channels == 1 else 's',
             self._type,
+            ' (per-channel binary)' if self.is_binary else '',
             self.name)
 
     def recompute_stats(self):
@@ -188,6 +189,10 @@ class Image:
     @property
     def is_twelve_bit(self):
         return self._is_twelve_bit
+
+    @property
+    def is_binary(self):
+        return self.dtype is numpy.bool8
 
     @property
     def has_alpha_channel(self):

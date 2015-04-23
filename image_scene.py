@@ -65,6 +65,7 @@ class ImageScene(ShaderScene):
 class ImageItem(ShaderItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
     NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
+        numpy.bool8  : Qt.QOpenGLTexture.UInt8,
         numpy.uint8  : Qt.QOpenGLTexture.UInt8,
         numpy.uint16 : Qt.QOpenGLTexture.UInt16,
         numpy.float32: Qt.QOpenGLTexture.Float32}
@@ -178,7 +179,7 @@ class ImageItem(ShaderItem):
                     tex.setFormat(desired_texture_format)
                     tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
                     if self._trilinear_filtering_enabled:
-                        tex.setMipLevels(5)
+                        tex.setMipLevels(6)
                         tex.setAutoMipMapGenerationEnabled(True)
                     else:
                         tex.setMipLevels(1)

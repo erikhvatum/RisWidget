@@ -33,7 +33,7 @@ NDImageStatistics = namedtuple('NDImageStatistics', ('histogram', 'max_bin', 'mi
 try:
     from . import _ndimage_statistics
     
-    def compute_ndimage_statistics(array, twelve_bit=False, n_bins=1024, hist_max=None, hist_min=None, n_threads=8, return_future=False):
+    def compute_ndimage_statistics(array, twelve_bit=False, n_bins=1024, hist_max=None, hist_min=None, n_threads=1, return_future=False):
         array = numpy.asarray(array)
         extra_args = ()
         if array.dtype == numpy.uint8:
@@ -104,7 +104,8 @@ except ImportError:
         else:
             return get_result()
 
-def compute_multichannel_ndimage_statistics(array, twelve_bit=False, n_bins=1024, hist_max=None, hist_min=None, n_threads=2, return_future=False):
+def compute_multichannel_ndimage_statistics(array, twelve_bit=False, n_bins=1024, hist_max=None, hist_min=None, n_threads=1, return_future=False):
+    """Uses array.shape[2] * n_threads number of threads."""
     array = numpy.asarray(array)
 
     if return_future:
