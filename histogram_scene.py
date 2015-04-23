@@ -30,161 +30,26 @@ from PyQt5 import Qt
 from .shader_scene import ShaderItem, ShaderScene, ShaderTexture
 import sys
 
-class ItemProp:
-    def __init__(self, item_props_list, item_props, name, name_in_label=None, channel_name=None):
-        self.name = name
-        self.name_in_label = name_in_label
-        self.full_name_in_label = name if name_in_label is None else name_in_label
-        self.full_name = name
-        self.channel_name = channel_name
-        if channel_name is not None:
-            self.full_name += '_' + channel_name
-            self.full_name_in_label = channel_name + ' ' + self.full_name_in_label
-        item_props[self.full_name] = self
-        item_props_list.append(self)
-        self.scene_items = {}
-
-    def instantiate(self, histogram_scene):
-        scene_item = self._make_scene_item(histogram_scene)
-        self.scene_items[histogram_scene] = scene_item
-        scene_item.value_changed.connect(histogram_scene.gamma_or_min_max_changed)
-        if self.channel_name:
-            # Make per-channel values snap to master value upon master value change
-            histogram_scene.get_prop_item(self.name).value_changed.connect(lambda histogram_scene, value: type(scene_item).__dict__['value'].__set__(scene_item, value))
-
-    def _make_scene_item(self, histogram_scene):
-        raise NotImplementedError()
-
-    def __get__(self, histogram_scene, objtype=None):
-        if histogram_scene is None:
-            return self
-        return self.scene_items[histogram_scene].value
-
-    def __set__(self, histogram_scene, value):
-        if histogram_scene is None:
-            raise AttributeError("Can't set instance attribute of class.")
-        self.scene_items[histogram_scene].value = value
-
-    def __delete__(self, histogram_scene):
-        if histogram_scene is None:
-            raise AttributeError("Can't delete instance attribute of class.")
-        del self.scene_items[histogram_scene].value
-
-class MinMaxItemProp(ItemProp):
-    def __init__(self, item_props_list, item_props, min_max_item_props, name, name_in_label=None, channel_name=None):
-        super().__init__(item_props_list, item_props, name, name_in_label, channel_name)
-        min_max_item_props[self.full_name] = self
-
-    def _make_scene_item(self, histogram_scene):
-        return MinMaxItem(histogram_scene.histogram_item, self)
-
-class GammaItemProp(ItemProp):
-    def __init__(self, item_props_list, item_props, gamma_item_props, name, name_in_label=None, channel_name=None):
-        super().__init__(item_props_list, item_props, name, name_in_label, channel_name)
-        gamma_item_props[self.full_name] = self
-
-    def instantiate(self, histogram_scene):
-        super().instantiate(histogram_scene)
-        scene_item = histogram_scene.get_prop_item(self.full_name)
-        scene_item.min_item = histogram_scene.get_prop_item('min' + ('' if self.channel_name is None else '_{}'.format(self.channel_name)))
-        scene_item.min_item.value_changed.connect(scene_item.on_min_max_moved)
-        scene_item.max_item = histogram_scene.get_prop_item('max' + ('' if self.channel_name is None else '_{}'.format(self.channel_name)))
-        scene_item.max_item.value_changed.connect(scene_item.on_min_max_moved)
-
-    def _make_scene_item(self, histogram_scene):
-        return GammaItem(histogram_scene.histogram_item, self)
-
 class HistogramScene(ShaderScene):
-    gamma_or_min_max_changed = Qt.pyqtSignal()
-    color_channel_controls_visible_changed = Qt.pyqtSignal(bool)
-
-    item_props_list = []
-    item_props = {}
-    min_max_item_props = {}
-    gamma_item_props = {}
-
-    max       = MinMaxItemProp(item_props_list, item_props, min_max_item_props, 'max')
-    max_red   = MinMaxItemProp(item_props_list, item_props, min_max_item_props, 'max', channel_name='red')
-    max_green = MinMaxItemProp(item_props_list, item_props, min_max_item_props, 'max', channel_name='green')
-    max_blue  = MinMaxItemProp(item_props_list, item_props, min_max_item_props, 'max', channel_name='blue')
-    min       = MinMaxItemProp(item_props_list, item_props, min_max_item_props, 'min')
-    min_red   = MinMaxItemProp(item_props_list, item_props, min_max_item_props, 'min', channel_name='red')
-    min_green = MinMaxItemProp(item_props_list, item_props, min_max_item_props, 'min', channel_name='green')
-    min_blue  = MinMaxItemProp(item_props_list, item_props, min_max_item_props, 'min', channel_name='blue')
-    gamma       = GammaItemProp(item_props_list, item_props, gamma_item_props, 'gamma', '\u03b3')
-    gamma_red   = GammaItemProp(item_props_list, item_props, gamma_item_props, 'gamma', '\u03b3', 'red')
-    gamma_green = GammaItemProp(item_props_list, item_props, gamma_item_props, 'gamma', '\u03b3', 'green')
-    gamma_blue  = GammaItemProp(item_props_list, item_props, gamma_item_props, 'gamma', '\u03b3', 'blue')
-
     def __init__(self, parent):
         super().__init__(parent)
         self.setSceneRect(0, 0, 1, 1)
-        self._color_channel_controls_visible = None
-        self.histogram_item = HistogramItem()
-        self.addItem(self.histogram_item)
+        self.add_histogram_item()
         for item_prop in self.item_props_list:
             item_prop.instantiate(self)
-        self.gamma_gamma = 1.0
-        self.min = 0
-        self.max = 1
-        self.gamma = 1
-        self.auto_min_max_enabled_action = Qt.QAction('Auto Min/Max', self)
-        self.auto_min_max_enabled_action.setCheckable(True)
-        self.auto_min_max_enabled_action.setChecked(True)
-        self.auto_min_max_enabled_action.toggled.connect(self.on_auto_min_max_enabled_action_toggled)
-        self._keep_auto_min_max_on_min_max_value_change = False
-        for full_name in HistogramScene.min_max_item_props.keys():
-            self.get_prop_item(full_name).value_changed.connect(self.on_auto_min_max_change)
-        self.color_channel_controls_visible = False
+        self._image_item = None
 
-    def on_image_changing(self, image):
-        self.histogram_item.on_image_changing(image)
-        self.color_channel_controls_visible = image.num_channels > 1
-        if self.auto_min_max_enabled:
-            self.do_auto_min_max()
-
-    def get_prop_item(self, full_name):
-        return HistogramScene.item_props[full_name].scene_items[self]
-
-    def on_auto_min_max_enabled_action_toggled(self, auto_min_max_enabled):
-        if self.auto_min_max_enabled:
-            self.do_auto_min_max()
-
-    def do_auto_min_max(self):
-        image = self.histogram_item.image
-        if image is not None:
-            self._keep_auto_min_max_on_min_max_value_change = True
-            try:
-                if image.is_grayscale:
-                    self.min, self.max = image.min_max
-                else:
-                    for channel_min_max, channel_name in zip(image.min_max, ('red','green','blue')):
-                        setattr(self, 'min_'+channel_name, channel_min_max[0])
-                        setattr(self, 'max_'+channel_name, channel_min_max[1])
-            finally:
-                self._keep_auto_min_max_on_min_max_value_change = False
-
-    def on_auto_min_max_change(self):
-        if not self._keep_auto_min_max_on_min_max_value_change and self.auto_min_max_enabled:
-            self.auto_min_max_enabled_action.setChecked(False)
+    def add_histogram_item(self):
+        self.histogram_item = HistogramItem()
+        self.addItem(self.histogram_item)
 
     @property
-    def auto_min_max_enabled(self):
-        return self.auto_min_max_enabled_action.isChecked()
+    def image_item(self):
+        return self._image_item
 
-    @auto_min_max_enabled.setter
-    def auto_min_max_enabled(self, auto_min_max_enabled):
-        self.auto_min_max_enabled_action.setChecked(auto_min_max_enabled)
-
-    @property
-    def color_channel_controls_visible(self):
-        return self._color_channel_controls_visible
-
-    @color_channel_controls_visible.setter
-    def color_channel_controls_visible(self, color_channel_controls_visible):
-        if color_channel_controls_visible != self._color_channel_controls_visible:
-            self._color_channel_controls_visible = color_channel_controls_visible
-            self.color_channel_controls_visible_changed.emit(color_channel_controls_visible)
+    @image_item.setter
+    def image_item(self, image_item):
+        if image_item is not self._image_item:
 
 class HistogramItem(ShaderItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()

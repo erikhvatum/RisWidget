@@ -59,7 +59,7 @@ class ImageView(ShaderView):
         self.zoom_one_to_one_action = Qt.QAction('1:1 Zoom', self)
         self.zoom_one_to_one_action.setShortcut(Qt.Qt.Key_1)
         self.zoom_one_to_one_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
-        self.zoom_one_to_one_action.triggered.connect(lambda: ImageView.__dict__['zoom_preset_idx'].__set__(self, ImageView._ZOOM_ONE_TO_ONE_PRESET_IDX))
+        self.zoom_one_to_one_action.triggered.connect(lambda: ImageView.zoom_preset_idx.fset(self, ImageView._ZOOM_ONE_TO_ONE_PRESET_IDX))
 #       self.show_image_name_action = Qt.QAction(self)
 #       self.show_image_name_action.setText('Show Image Name')
 #       self.show_image_name_action.setCheckable(True)

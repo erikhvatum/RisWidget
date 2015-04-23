@@ -25,7 +25,7 @@
 from ._qt_debug import qtransform_to_numpy
 from .image import Image
 from .shared_resources import GL, UNIQUE_QGRAPHICSITEM_TYPE
-from .shader_scene import ShaderScene, ShaderItem, ShaderQOpenGLTexture
+from .shader_scene import ShaderScene, ItemWithImage, ShaderItemWithImage, ShaderQOpenGLTexture
 from .shader_view import ShaderView
 from contextlib import ExitStack
 import html
@@ -37,32 +37,48 @@ import sys
 class ImageScene(ShaderScene):
     def __init__(self, parent):
         super().__init__(parent)
+        self.add_image_item()
+        self.image_item.image_changing.connect(self.on_image_changing)
+
+    def add_image_item(self):
         self.image_item = ImageItem()
         self.addItem(self.image_item)
-        self._histogram_scene = None
 
-    def on_image_changing(self, image):
-        self.image_item.on_image_changing(image)
-        self.setSceneRect(self.image_item.boundingRect())
+    def on_image_changing(self, image_item, old_image, new_image):
+        assert self.image_item is image_item
+        self.setSceneRect(image_item.boundingRect())
         for view in self.views():
             view.on_image_changing(image)
 
-    def on_histogram_gamma_or_min_max_changed(self):
-        self.image_item.update()
+class ImageItem(ShaderItemWithImage):
+    """When the image_about_to_change(ImageItem, old_image, new_image) signal is emitted, ImageItem.image is still
+    old_image.  This is useful, for example, in the case of informing Qt of bounding rect change via
+    QGraphicsItem.prepareGeometryChange(), at which time ImageItem.boundingRect() must still return the old rect
+    value, and that value varies with ImageItem.image.
 
-    @property
-    def histogram_scene(self):
-        return self._histogram_scene
+    When the image_changing(ImageItem, old_image, new_image) signal is emitted, ImageItem.image has already been
+    updated to the value represented by new_image.  The scene rect, the region of the scene framed by the view (which
+    will change if zoom-to-fit is enabled and the new image is of different size than the old image), and the min/max
+    values of the associated histogram item (which may change if auto-min/max is enabled) have not yet been updated -
+    these are updated in response to image_changing.
 
-    @histogram_scene.setter
-    def histogram_scene(self, histogram_scene):
-        if self._histogram_scene is not None:
-            self._histogram_scene.gamma_or_min_max_changed.disconnect(self.on_histogram_gamma_or_min_max_changed)
-        histogram_scene.gamma_or_min_max_changed.connect(self.on_histogram_gamma_or_min_max_changed)
-        self._histogram_scene = histogram_scene
-        self.on_histogram_gamma_or_min_max_changed()
+    When the image_changed(ImageItem, image) signal is emitted, all RisWidget internals that vary with image
+    have been updated.  The image_changed signal is emitted to provide an easy, catch-all opportunity to update
+    anything with a state that is a function of the state of multiple other things that depend on image.
 
-class ImageItem(ShaderItem):
+    For example, a hypothetical string containing the region of the image framed by the view and the gamma slider
+    min/max values depends on two things that are updated in response to ImageItem.image_changing.  So, if this
+    string is to be updated upon immediately (ie without waiting for an event loop iteratio by using a queued
+    connection) upon image change, it can not be in response to only ImageItem.image_changing - the changes needed
+    in order to correctly assemble the string may not have yet occurred.  It can not be in response to only
+    ImageScene.shader_scene_view_rect_changed - min/max may not yet have been updated.  Likewise, it can not be
+    in response to only min/max changing - scene view rect may not yet have been updated.  It would be necessary
+    to wait for both the rect and min/max change signals, updating string only when the second of the pair arrive,
+    and doing so such that string is never updated with stale data in the face of failure for one of the signals
+    to arrive would require clearing reception flags for both at the end of the current event loop iteration.
+
+    Connecting updating of the hypothetical string to ImageItem.image_changed avoids all of these issues."""
+
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
     NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
         numpy.bool8  : Qt.QOpenGLTexture.UInt8,
@@ -88,21 +104,27 @@ class ImageItem(ShaderItem):
     def __init__(self, parent_item=None):
         super().__init__(parent_item)
         self.tex = None
-        self._show_frame = False
         self._overlay_items = []
         self._overlay_items_z_sort_is_current = True
         self._trilinear_filtering_enabled = True
+        self.image_about_to_change.connect(self.on_image_about_to_change)
+        self.image_changed.connect(self.update)
+        self.auto_min_max_enabled_action = Qt.QAction('Auto Min/Max', self)
+        self.auto_min_max_enabled_action.setCheckable(True)
+        self.auto_min_max_enabled_action.setChecked(True)
+        self.auto_min_max_enabled_action.toggled.connect(self.on_auto_min_max_enabled_action_toggled)
+        self._keep_auto_min_max_on_min_max_value_change = False
 
     def type(self):
         return ImageItem.QGRAPHICSITEM_TYPE
 
     def boundingRect(self):
-        return Qt.QRectF(0,0,1,1) if self.image is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self.image.size))
+        return Qt.QRectF(0,0,1,1) if self._image is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self._image.size))
 
     def paint(self, qpainter, option, widget):
         if widget is None:
             print('WARNING: image_view.ImageItem.paint called with widget=None.  Ensure that view caching is disabled.')
-        elif self.image is None:
+        elif self._image is None:
             if self.tex is not None:
                 self.tex.destroy()
                 self.tex = None
@@ -111,7 +133,7 @@ class ImageItem(ShaderItem):
                 qpainter.beginNativePainting()
                 stack.callback(qpainter.endNativePainting)
                 gl = GL()
-                image = self.image
+                image = self._image
                 if len(self._overlay_items) > 1:
                     raise RuntimeError('Only one overlay per ImageItem is supported at the moment.')
                 if len(self._overlay_items) == 1 and self._overlay_items[0].isVisible():
@@ -257,19 +279,10 @@ class ImageItem(ShaderItem):
                     prog.setUniformValue('overlay0_tex_global_alpha', overlay_item.opacity())
                 gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
                 gl.glDrawArrays(gl.GL_TRIANGLE_FAN, 0, 4)
-            if self._show_frame:
-                qpainter.setBrush(Qt.QBrush(Qt.Qt.transparent))
-                color = Qt.QColor(Qt.Qt.red)
-                color.setAlphaF(0.5)
-                pen = Qt.QPen(color)
-                pen.setWidth(2)
-                pen.setCosmetic(True)
-                pen.setStyle(Qt.Qt.DotLine)
-                qpainter.setPen(pen)
-                qpainter.drawRect(0, 0, image.size.width(), image.size.height())
+            self.paint_frame(qpainter)
 
     def hoverMoveEvent(self, event):
-        if self.image is not None:
+        if self._image is not None:
             # NB: event.pos() is a QPointF, and one may call QPointF.toPoint(), as in the following line,
             # to get a QPoint from it.  However, toPoint() rounds x and y coordinates to the nearest int,
             # which would cause us to erroneously report mouse position as being over the pixel to the
@@ -315,24 +328,47 @@ class ImageItem(ShaderItem):
                     self.scene().update_contextual_info('\n'.join((ci[0] for ci in cis)), False, self)
 
     def generate_contextual_info_for_pos(self, pos):
-        if Qt.QRect(Qt.QPoint(), self.image.size).contains(pos):
+        if Qt.QRect(Qt.QPoint(), self._image.size).contains(pos):
             mst = 'x:{} y:{} '.format(pos.x(), pos.y())
-            image_type = self.image.type
+            image_type = self._image.type
             vt = '(' + ' '.join((c + ':{}' for c in image_type)) + ')'
             if len(image_type) == 1:
-                vt = vt.format(self.image.data[pos.x(), pos.y()])
+                vt = vt.format(self._image.data[pos.x(), pos.y()])
             else:
-                vt = vt.format(*self.image.data[pos.x(), pos.y()])
+                vt = vt.format(*self._image.data[pos.x(), pos.y()])
             return '<div style="outline-style:solid">' + html.escape(mst+vt) + '</div>', True
 
     def hoverLeaveEvent(self, event):
         self.scene().clear_contextual_info(self)
 
-    def on_image_changing(self, image):
-        if self.image is None and image is not None or \
-           self.image is not None and (image is None or self.image.size != image.size):
+    def on_image_about_to_change(self, self_, old_image, new_image):
+        if old_image is None or new_image is None or old_image.image.size != new_image.size:
             self.prepareGeometryChange()
-        super().on_image_changing(image)
+
+    def on_auto_min_max_enabled_action_toggled(self, auto_min_max_enabled):
+        if self.auto_min_max_enabled:
+            self.do_auto_min_max()
+
+    def do_auto_min_max(self):
+        pass
+#       image = self.histogram_item.image
+#       if image is not None:
+#           self._keep_auto_min_max_on_min_max_value_change = True
+#           try:
+#               if image.is_grayscale:
+#                   self.min, self.max = image.min_max
+#               else:
+#                   for channel_min_max, channel_name in zip(image.min_max, ('red','green','blue')):
+#                       setattr(self, 'min_'+channel_name, channel_min_max[0])
+#                       setattr(self, 'max_'+channel_name, channel_min_max[1])
+#           finally:
+#               self._keep_auto_min_max_on_min_max_value_change = False
+
+#   def on_image_changing(self, image):
+#       self.histogram_item.on_image_changing(image)
+#       self.color_channel_controls_visible = image.num_channels > 1
+#       if self.auto_min_max_enabled:
+#           self.do_auto_min_max()
 
     def attach_overlay(self, overlay_item):
         assert overlay_item not in self._overlay_items
@@ -354,15 +390,7 @@ class ImageItem(ShaderItem):
             self._overlay_items.sort(key=lambda i: i.zValue())
             self._overlay_items_z_sort_is_current = True
 
-    @property
-    def show_frame(self):
-        return self._show_frame
-
-    @show_frame.setter
-    def show_frame(self, show_frame):
-        if show_frame != self.show_frame:
-            self._show_frame = show_frame
-            self.update()
+    
 
     @property
     def trilinear_filtering_enabled(self):
@@ -383,6 +411,24 @@ class ImageItem(ShaderItem):
         if trilinear_filtering_enabled != self._trilinear_filtering_enabled:
             self._trilinear_filtering_enabled = trilinear_filtering_enabled
             self.update()
+
+#   @property
+#   def auto_min_max_enabled(self):
+#       return self.auto_min_max_enabled_action.isChecked()
+#
+#   @auto_min_max_enabled.setter
+#   def auto_min_max_enabled(self, auto_min_max_enabled):
+#       self.auto_min_max_enabled_action.setChecked(auto_min_max_enabled)
+#
+#   @property
+#   def color_channel_controls_visible(self):
+#       return self._color_channel_controls_visible
+#
+#   @color_channel_controls_visible.setter
+#   def color_channel_controls_visible(self, color_channel_controls_visible):
+#       if color_channel_controls_visible != self._color_channel_controls_visible:
+#           self._color_channel_controls_visible = color_channel_controls_visible
+#           self.color_channel_controls_visible_changed.emit(color_channel_controls_visible)
 
 class ImageOverlayItem(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()

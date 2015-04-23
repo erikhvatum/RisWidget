@@ -118,6 +118,7 @@ class RisWidget(Qt.QMainWindow):
     def _init_scenes_and_views(self):
         self.image_scene = ImageScene(self)
         self.image_view = ImageView(self.image_scene, self)
+        self.image_view.image_item.image_changed.connect(self.image_changed)
         self.setCentralWidget(self.image_view)
         self.histogram_scene = HistogramScene(self)
         self.image_scene.histogram_scene = self.histogram_scene
@@ -189,8 +190,7 @@ class RisWidget(Qt.QMainWindow):
         If None is supplied for images, an empty flipbook is created.
         If None is supplied for name, a unique name is generated.
         If the value supplied for name is not unique, a suffix is appended such that the resulting name is unique."""
-        image_prop_setter = RisWidget.__dict__['image'].__set__
-        flipbook = Flipbook(self._uniqueify_flipbook_name, lambda image: image_prop_setter(self, image), images, name)
+        flipbook = Flipbook(self._uniqueify_flipbook_name, lambda image: RisWidget.image.fset(self, image), images, name)
         assert flipbook.name not in self._flipbooks
         self._flipbooks[flipbook.name] = flipbook
         flipbook.name_changed.connect(self._on_flipbook_name_changed)
@@ -229,11 +229,11 @@ class RisWidget(Qt.QMainWindow):
         * IE, the iterable assigned to the image property is interpreted as an iterable of columns (image left to right), each
         containing an iterable of rows (image top to bottom), each of which is either a grayscale intensity value or an
         iterable of color channel intensity values (gray & alpha, or red & green & blue, or red & green & blue & alpha)."""
-        return None if self._image is None else self._image.data
+        return self.image_scene.image_item.image_data
 
     @image_data.setter
     def image_data(self, image_data):
-        self.image = None if image_data is None else Image(image_data)
+        self.image_scene.image_item.image_data = image_data
 
     @property
     def image_data_T(self):
@@ -256,38 +256,19 @@ class RisWidget(Qt.QMainWindow):
         * IE, the iterable assigned to the image property is interpreted as an iterable of columns (image left to right), each
         containing an iterable of rows (image top to bottom), each of which is either a grayscale intensity value or an
         iterable of color channel intensity values (gray & alpha, or red & green & blue, or red & green & blue & alpha)."""
-        if self._image is not None:
-            return self._image.data_T
+        return self.image_scene.image_item.image_data_T
 
     @image_data_T.setter
     def image_data_T(self, image_data_T):
-        self.image = None if image_data_T is None else Image(image_data_T, shape_is_width_height=False)
+        self.image_scene.image_item.image_data_T = image_data_T
 
     @property
     def image(self):
-        return self._image
+        return self.image_scene.image_item.image
 
     @image.setter
     def image(self, image):
-        if image is self._image:
-            if image is not None:
-                # The same image is being reassigned, presumably because its data has been modified - so, its histogram
-                # and image views need to be updated.
-                self._image.recompute_stats()
-                self.histogram_scene.histogram_item._image_id += 1
-                self.histogram_scene.update()
-                self.image_scene.image_item._image_id += 1
-                self.image_scene.update()
-        if image is not self._image:
-            if image is not None and not issubclass(type(image), Image):
-                e = 'The value assigned to the image property must either be derived '
-                e+= 'from ris_widget.image.Image or must be None.  Did you mean to assign '
-                e+= 'to the image_data property?'
-                raise ValueError(e)
-            self.histogram_scene.on_image_changing(image)
-            self.image_scene.on_image_changing(image)
-            self._image = image
-            self.image_changed.emit(image)
+        self.image_scene.image_item.image = image
 
     def _image_view_zoom_changed(self, zoom_preset_idx, custom_zoom):
         assert zoom_preset_idx == -1 and custom_zoom != 0 or zoom_preset_idx != -1 and custom_zoom == 0, \
