@@ -37,13 +37,14 @@ class ImageScene(ShaderScene):
     def __init__(self, parent, ImageItemClass, ContextualInfoItemClass):
         super().__init__(parent, ContextualInfoItemClass)
         self.image_item = ImageItemClass()
+        self.image_item.image_changing.connect(self._on_image_changing)
         self.addItem(self.image_item)
 
-    def on_image_changing(self, image_item, old_image, new_image):
+    def _on_image_changing(self, image_item, old_image, new_image):
         assert self.image_item is image_item
         self.setSceneRect(image_item.boundingRect())
         for view in self.views():
-            view.on_image_changing(image)
+            view._on_image_changing()
 
 class ImageItem(ShaderItemWithImage):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
