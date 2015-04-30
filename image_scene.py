@@ -35,14 +35,11 @@ from PyQt5 import Qt
 import sys
 
 class ImageScene(ShaderScene):
-    def __init__(self, parent):
+    def __init__(self, parent, ImageItemClass):
         super().__init__(parent)
-        self.add_image_item()
-        self.image_item.image_changing.connect(self.on_image_changing)
-
-    def add_image_item(self):
-        self.image_item = ImageItem()
+        self.image_item = ImageItemClass()
         self.addItem(self.image_item)
+        self.image_item.image_changing.connect(self._on_image_changing)
 
     def on_image_changing(self, image_item, old_image, new_image):
         assert self.image_item is image_item
@@ -51,34 +48,6 @@ class ImageScene(ShaderScene):
             view.on_image_changing(image)
 
 class ImageItem(ShaderItemWithImage):
-    """When the image_about_to_change(ImageItem, old_image, new_image) signal is emitted, ImageItem.image is still
-    old_image.  This is useful, for example, in the case of informing Qt of bounding rect change via
-    QGraphicsItem.prepareGeometryChange(), at which time ImageItem.boundingRect() must still return the old rect
-    value, and that value varies with ImageItem.image.
-
-    When the image_changing(ImageItem, old_image, new_image) signal is emitted, ImageItem.image has already been
-    updated to the value represented by new_image.  The scene rect, the region of the scene framed by the view (which
-    will change if zoom-to-fit is enabled and the new image is of different size than the old image), and the min/max
-    values of the associated histogram item (which may change if auto-min/max is enabled) have not yet been updated -
-    these are updated in response to image_changing.
-
-    When the image_changed(ImageItem, image) signal is emitted, all RisWidget internals that vary with image
-    have been updated.  The image_changed signal is emitted to provide an easy, catch-all opportunity to update
-    anything with a state that is a function of the state of multiple other things that depend on image.
-
-    For example, a hypothetical string containing the region of the image framed by the view and the gamma slider
-    min/max values depends on two things that are updated in response to ImageItem.image_changing.  So, if this
-    string is to be updated upon immediately (ie without waiting for an event loop iteratio by using a queued
-    connection) upon image change, it can not be in response to only ImageItem.image_changing - the changes needed
-    in order to correctly assemble the string may not have yet occurred.  It can not be in response to only
-    ImageScene.shader_scene_view_rect_changed - min/max may not yet have been updated.  Likewise, it can not be
-    in response to only min/max changing - scene view rect may not yet have been updated.  It would be necessary
-    to wait for both the rect and min/max change signals, updating string only when the second of the pair arrive,
-    and doing so such that string is never updated with stale data in the face of failure for one of the signals
-    to arrive would require clearing reception flags for both at the end of the current event loop iteration.
-
-    Connecting updating of the hypothetical string to ImageItem.image_changed avoids all of these issues."""
-
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
     NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
         numpy.bool8  : Qt.QOpenGLTexture.UInt8,
@@ -101,12 +70,23 @@ class ImageItem(ShaderItemWithImage):
         'rgb' : 'vec4(vcomponents.rgb, tex_global_alpha)',
         'rgba': 'vec4(vcomponents.rgb, tcomponents.a * tex_global_alpha)'}
 
+    # Signal arguments: ImageItem or subclass instance, min value
+    rescaling_min_changed = Qt.pyqtSignal(object, float)
+    # Signal arguments: ImageItem or subclass instance, max value
+    rescaling_max_changed = Qt.pyqtSignal(object, float)
+    # Signal arguments: ImageItem or subclass instance, gamma value
+    gamma_changed = Qt.pyqtSignal(object, float)
+
     def __init__(self, parent_item=None):
         super().__init__(parent_item)
         self.tex = None
         self._overlay_items = []
         self._overlay_items_z_sort_is_current = True
         self._trilinear_filtering_enabled = True
+        # Note: _rescaling_min and _rescaling_max are stored in normalized (0-1) form
+        self._rescaling_min = 0.0
+        self._rescaling_max = 1.0
+        self._gamma = 1.0
         self.image_about_to_change.connect(self.on_image_about_to_change)
         self.image_changed.connect(self.update)
         self.auto_min_max_enabled_action = Qt.QAction('Auto Min/Max', self)
@@ -118,8 +98,9 @@ class ImageItem(ShaderItemWithImage):
     def type(self):
         return ImageItem.QGRAPHICSITEM_TYPE
 
-    def boundingRect(self):
-        return Qt.QRectF(0,0,1,1) if self._image is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self._image.size))
+    def validate_image(self, image):
+        if not image.is_grayscale:
+            raise ValueError('image_scene.ImageItem supports grayscale (single channel, ie MxN, not MxNxc) images.')
 
     def paint(self, qpainter, option, widget):
         if widget is None:
@@ -390,8 +371,6 @@ class ImageItem(ShaderItemWithImage):
             self._overlay_items.sort(key=lambda i: i.zValue())
             self._overlay_items_z_sort_is_current = True
 
-    
-
     @property
     def trilinear_filtering_enabled(self):
         """If set to True (the default), trilinear filtering is used for minification (zooming out).  This is
@@ -412,23 +391,64 @@ class ImageItem(ShaderItemWithImage):
             self._trilinear_filtering_enabled = trilinear_filtering_enabled
             self.update()
 
-#   @property
-#   def auto_min_max_enabled(self):
-#       return self.auto_min_max_enabled_action.isChecked()
-#
-#   @auto_min_max_enabled.setter
-#   def auto_min_max_enabled(self, auto_min_max_enabled):
-#       self.auto_min_max_enabled_action.setChecked(auto_min_max_enabled)
-#
-#   @property
-#   def color_channel_controls_visible(self):
-#       return self._color_channel_controls_visible
-#
-#   @color_channel_controls_visible.setter
-#   def color_channel_controls_visible(self, color_channel_controls_visible):
-#       if color_channel_controls_visible != self._color_channel_controls_visible:
-#           self._color_channel_controls_visible = color_channel_controls_visible
-#           self.color_channel_controls_visible_changed.emit(color_channel_controls_visible)
+    @property
+    def rescaling_min(self):
+        return self.denormalize_to_image_range(self._rescaling_min)
+
+    @rescaling_min.setter
+    def rescaling_min(self, v):
+        v = self.normalize_from_image_range(float(v))
+        if v < 0.0 or v > 1.0:
+            raise ValueError('The value assigned to rescaling_min must lie in the closed interval [{}, {}].'.format(
+                self.denormalize_to_image_range(0.0), self.denormalize_to_image_range(1.0)))
+        if self._rescaling_min != v:
+            self._rescaling_min = v
+            self.rescaling_min_changed.emit(self, v)
+            if self._rescaling_min > self._rescaling_max:
+                self._rescaling_max = v
+                self.rescaling_max_changed.emit(self, v)
+
+    @rescaling_min.deleter
+    def rescaling_min(self):
+        self._rescaling_min = 0.0
+        self.rescaling_min_changed(self, self.denormalize_to_image_range(0.0))
+
+    @property
+    def rescaling_max(self):
+        return self.denormalize_to_image_range(self._rescaling_max)
+
+    @rescaling_max.setter
+    def rescaling_max(self, v):
+        v = self.normalize_from_image_range(float(v))
+        if v < 0.0 or v > 1.0:
+            raise ValueError('The value assigned to rescaling_max must lie in the closed interval [{}, {}].'.format(
+                self.denormalize_to_image_range(0.0), self.denormalize_to_image_range(1.0)))
+        if self._rescaling_max != v:
+            self._rescaling_max = v
+            self.rescaling_max_changed.emit(self, v)
+            if self._rescaling_max < self._rescaling_min:
+                self._rescaling_min = v
+                self.rescaling_min_changed.emit(self, v)
+
+    @rescaling_max.deleter
+    def rescaling_max(self):
+        self._rescaling_max = 1.0
+        self.rescaling_max_changed.emit(self, self.denormalize_to_image_range(1.0))
+
+    @property
+    def gamma(self):
+        return self._gamma
+
+    @gamma.setter
+    def gamma(self, v):
+        v = float(v)
+        if v != self._gamma:
+            self._gamma = v
+            self.gamma_changed.emit(self, v)
+
+    @gamma.deleter
+    def gamma(self):
+        self.gamma = 0
 
 class ImageOverlayItem(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()

@@ -60,6 +60,7 @@ class ImageView(ShaderView):
         self.zoom_one_to_one_action.setShortcut(Qt.Qt.Key_1)
         self.zoom_one_to_one_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
         self.zoom_one_to_one_action.triggered.connect(lambda: ImageView.zoom_preset_idx.fset(self, ImageView._ZOOM_ONE_TO_ONE_PRESET_IDX))
+
 #       self.show_image_name_action = Qt.QAction(self)
 #       self.show_image_name_action.setText('Show Image Name')
 #       self.show_image_name_action.setCheckable(True)
@@ -74,10 +75,9 @@ class ImageView(ShaderView):
         self._panning = False
         self.setAcceptDrops(True)
 
-    def on_image_changing(self, image):
+    def _on_image_changing(self):
         if self.zoom_to_fit:
             self._apply_zoom()
-        super().on_image_changing(image)
 
     def on_resize(self, size):
         super().on_resize(size)

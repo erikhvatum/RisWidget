@@ -27,9 +27,16 @@ import numpy
 from PyQt5 import Qt
 
 class ShaderView(Qt.QGraphicsView):
+    """Updates to things depending directly on the view's size (eg, in many cases, the view's own transformation), if any,
+    are initiated by the ShaderView subclass's resizeEvent handler.
+
+    Updates to things depending directly on the view's transformation and/or the region of the scene visible in the view
+    (eg, the position of the scene's context_info_item relative to the top left of its view) occur in response to the
+    scene_region_changed signal."""
+    scene_region_changed = Qt.pyqtSignal(Qt.QGraphicsView)
+
     def __init__(self, shader_scene, parent):
         super().__init__(shader_scene, parent)
-        self.view_items = []
         self.setMouseTracking(True)
         glw = _ShaderViewGLViewport(self)
         # It seems necessary to retain this reference.  It is available via self.viewport() after
@@ -37,6 +44,7 @@ class ShaderView(Qt.QGraphicsView):
         # reference is evidentally weak or perhaps just a pointer.
         self._glw = glw
         self.setViewport(glw)
+        self.scene_region_changed.connect(shader_scene.contextual_info_item._on_view_scene_region_changed)
 
     def _on_gl_initializing(self):
         self._make_quad_vao()
@@ -60,11 +68,6 @@ class ShaderView(Qt.QGraphicsView):
             # this widget again!
             self.quad_buffer.release()
 
-    def emit_shader_scene_view_rect_changed(self):
-        scene = self.scene()
-        if hasattr(scene, 'shader_scene_view_rect_changed'):
-            scene.shader_scene_view_rect_changed.emit(self)
-
     def scrollContentsBy(self, dx, dy):
         """This function is never actually called for HistogramView as HistogramView always displays
         a unit-square view into HistogramScene.  However, if zooming and panning and whatnot are ever
@@ -80,24 +83,7 @@ class ShaderView(Qt.QGraphicsView):
         # here will be corrected in response to resizeEvent(..)'s scene_view_rect_changed emission
         # before the next repaint.  Thus, nothing repositioned in response to our emission should be
         # visible to the user in an incorrect position.
-        self.emit_shader_scene_view_rect_changed()
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        size = event.size()
-        self.on_resize(size)
-        self.on_resize_done(size)
-
-    def on_image_changing(self, image):
-        self.emit_shader_scene_view_rect_changed()
-
-    def on_resize(self, size):
-        """Adjust view transform in response to view resize."""
-        pass
-
-    def on_resize_done(self, size):
-        """Adjust scene contents in response to modification of view transform caused by view resize."""
-        self.emit_shader_scene_view_rect_changed()
+        self.scene_region_changed.emit(self)
 
     def drawBackground(self, p, rect):
         p.beginNativePainting()

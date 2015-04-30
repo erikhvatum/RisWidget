@@ -31,92 +31,54 @@ from string import Template
 
 class ShaderScene(Qt.QGraphicsScene):
     """Although the Qt Graphics View Framework supports multiple views into a single scene, we don't
-    have much need for this capability, and we do not go out of our way to make it work correctly.
-    GraphicsItems that maintain view relative positions by responding to the
-    ShaderView.scene_view_rect_changed signal will be positioned correctly only for the view that
-    last emitted the signal.  So, if you make two ImageViews into the same ImageScene and pan one
-    ImageView, you will see the contextual info text item remain fixed in the view being panned
-    while appearing to move about in the stationary view."""
+    have a need for this capability, and we do not go out of our way to make it work correctly (which
+    would entail signficant additional code complexity)."""
 
-    # update_contextual_info_signal serves to relay contextual info plaintext/html change requests
-    # from any items in the ShaderScene to any interested recipient.  By default, the only recipient
-    # is self.contextual_info_text_item, which is pinned to the top left corner of
-    # will typically update its mouseover info item in response.  The clear_contextual_info(self, requester)
-    # and update_contextual_info(self, string, is_html, requester) member functions provide an interface that
-    # relieves the need to ensure that a single pair of mouse-exited-so-clear-the-text and
-    # mouse-over-new-thing-so-display-some-other-text events are handled in order, which should be
-    # done if update_contextual_info_signal.emit(..) is called directly.
-    #
-    # If the second parameter is True, the first parameter is interpreted as html.  The first parameter is
-    # treated as a plaintext string otherwise.
-    update_contextual_info_signal = Qt.pyqtSignal(str, bool)
-    # shader_scene_view_rect_changed is emitted by the ShaderView associated with this scene
-    # immediately after the boundries of the scene region framed by the view rect change.  Item
-    # view coordinates may be held constant by updating item scene position in response to this
-    # signal (in the case of shader_scene.ContextualInfoTextItem, for example).
-    shader_scene_view_rect_changed = Qt.pyqtSignal(ShaderView)
-
-    def __init__(self, parent):
+    def __init__(self, parent, ContextualInfoItemClass):
         super().__init__(parent)
-        self.requester_of_current_nonempty_mouseover_info = None
-        self.add_contextual_info_item()
-        self.update_contextual_info_signal.connect(self.contextual_info_text_item.on_update_contextual_info)
-        self.shader_scene_view_rect_changed.connect(self.contextual_info_text_item.on_shader_view_scene_rect_changed)
-
-    def add_contextual_info_item(self):
-        self.contextual_info_text_item = ContextualInfoTextItem()
-        self.addItem(self.contextual_info_text_item)
+        self._requester_of_current_nonempty_mouseover_info = None
+        self.contextual_info_item = ContextualInfoItemClass()
+        self.addItem(self.contextual_info_item)
 
     def clear_contextual_info(self, requester):
         self.update_contextual_info(None, False, requester)
 
-    def update_contextual_info(self, string, is_html, requester):
-        if string is None or len(string) == 0:
-            if self.requester_of_current_nonempty_mouseover_info is None or self.requester_of_current_nonempty_mouseover_info is requester:
-                self.requester_of_current_nonempty_mouseover_info = None
-                self.update_contextual_info_signal.emit('', False)
+    def update_contextual_info(self, text, requester):
+        if text:
+            self._requester_of_current_nonempty_mouseover_info = requester
+            self.contextual_info_item.text = text
         else:
-            self.requester_of_current_nonempty_mouseover_info = requester
-            self.update_contextual_info_signal.emit(string, is_html)
+            if self._requester_of_current_nonempty_mouseover_info is None or self._requester_of_current_nonempty_mouseover_info is requester:
+                self._requester_of_current_nonempty_mouseover_info = None
+                self.contextual_info_item.text = None
 
-    @property
-    def contextual_info_default_color(self):
-        """(r,g,b,a) tuple, with elements in the range [0,255].  The alpha channel value (4th element of the 
-        tuple) defaults to 255 and may be omitted when setting this property.  "default" in
-        "contextual_info_default_color" refers to the fact that this color may be overridden by color information
-        in an HTML ShaderScene.update_contextual_info_signal."""
-        c = self.contextual_info_text_item.defaultTextColor()
-        return c.red(), c.green(), c.blue(), c.alpha()
-
-    @contextual_info_default_color.setter
-    def contextual_info_default_color(self, rgb_a):
-        rgb_a = tuple(map(int, rgb_a))
-        if len(rgb_a) == 3:
-            rgb_a = rgb_a + (255,)
-        elif len(rgb_a) != 4:
-            raise ValueError('Value supplied for contextual_info_default_color must be a 3 or 4 element iterable.')
-        self.contextual_info_text_item.setDefaultTextColor(Qt.QColor(*rgb_a))
-
-class ContextualInfoTextItem(Qt.QGraphicsTextItem):
+class ContextualInfoItem(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
 
     def __init__(self, parent_item=None):
         super().__init__(parent_item)
         self.setFlag(Qt.QGraphicsItem.ItemIgnoresTransformations)
-        f = Qt.QFont('Courier', pointSize=14, weight=Qt.QFont.Bold)
-        f.setKerning(False)
-        f.setStyleHint(Qt.QFont.Monospace, Qt.QFont.OpenGLCompatible | Qt.QFont.PreferQuality)
+        self._font = Qt.QFont('Courier', pointSize=14, weight=Qt.QFont.Bold)
+        self._font.setKerning(False)
+        self._font.setStyleHint(Qt.QFont.Monospace, Qt.QFont.OpenGLCompatible | Qt.QFont.PreferQuality)
         # Necessary to prevent context information from disappearing when mouse pointer passes over
         # context info text
+        self._pen = Qt.QPen(Qt.QColor(Qt.Qt.black))
+        self._pen.setWidth(1)
+        self._pen.setCosmetic(True)
+        self._brush = Qt.QBrush(Qt.QColor(45,255,70,255))
+        self._text = None
+        self._path = None
         self.setAcceptHoverEvents(False)
         self.setAcceptedMouseButtons(Qt.Qt.NoButton)
         self.setFont(f)
-        c = Qt.QColor(45,255,70,255)
-        self.setDefaultTextColor(c)
+        self.setDefaultTextColor()
+        # Info text generally should appear over anything else rather than z-fighting
         self.setZValue(10)
+        self.hide()
 
     def type(self):
-        return ContextualInfoTextItem.QGRAPHICSITEM_TYPE
+        return ContextualInfoItem.QGRAPHICSITEM_TYPE
 
 #   def paint(self, painter, option, widget):
 #       qpicture = Qt.QPicture()
@@ -127,24 +89,73 @@ class ContextualInfoTextItem(Qt.QGraphicsTextItem):
 #       painter.setPen(Qt.QPen(color))
 #       painter.drawPath(self.shape())
 
-    def on_shader_view_scene_rect_changed(self, shader_view):
-        """Maintain position at top left corner of shader_view."""
+    def _on_view_scene_region_changed(self, view):
+        """Maintain position at top left corner of view."""
         topleft = Qt.QPoint()
-        if shader_view.mapFromScene(self.pos()) != topleft:
-            self.setPos(shader_view.mapToScene(topleft))
+        if view.mapFromScene(self.pos()) != topleft:
+            self.setPos(view.mapToScene(topleft))
 
-    def on_update_contextual_info(self, string, is_html):
-        if is_html:
-#           print(string)
-            self.setHtml(string)
-        else:
-            self.setPlainText(string)
+    @property
+    def font(self):
+        return self._font
+
+    @font.setter
+    def font(self, v):
+        assert isinstance(v, Qt.QFont)
+        self._font = v
+        self._path = None
+        self.update()
+
+    @property
+    def pen(self):
+        """pen used to draw text outline to provide contrast against any background.  If None,
+        outline is not drawn."""
+        return self._pen
+
+    @pen.setter
+    def pen(self):
+        assert isinstance(v, (None, Qt.QPen))
+        self._pen = v
+        self._path = None
+        self.update()
+
+    @property
+    def brush(self):
+        """brush used to fill text.  If None, text is not filled."""
+        return self._brush
+
+        #TODO: continue here
 
 class ItemWithImage(Qt.QGraphicsObject):
-    """See image_scene.ImageItem.__doc__ for more information regarding the image_about_to_change, image_changing, and
-    image_changed signals."""
+    """When the image_about_to_change(ItemWithImage, old_image, new_image) signal is emitted, ItemWithImage.image
+    is still old_image.  This is useful, for example, in the case of informing Qt of bounding rect change via
+    QGraphicsItem.prepareGeometryChange(), at which time ItemWithImage.boundingRect() must still return the old rect
+    value (which, itself, varies with ItemWithImage.image).
 
-    # Signal arguments: ItemWithImage_derivative_instance, old_image, new_image.  Either old_image or
+    When the image_changing(ItemWithImage, old_image, new_image) signal is emitted, ItemWithImage.image has already
+    been updated to the value represented by new_image.  The scene rect, the region of the scene framed by the view (which
+    will change if zoom-to-fit is enabled and the new image is of different size than the old image), and the min/max
+    values of the associated histogram item (which may change if auto-min/max is enabled) have not yet been updated -
+    these are updated in response to image_changing.
+
+    When the image_changed(ItemWithImage, image) signal is emitted, all RisWidget internals that vary with image
+    have been updated.  The image_changed signal is emitted to provide an easy, catch-all opportunity to update
+    anything with a state that is a function of the state of multiple other things that depend on image.
+
+    For example, a hypothetical string containing the region of the image framed by the view and the gamma slider
+    min/max values depends on two things that are updated in response to ItemWithImage.image_changing.  So, if this
+    string is to be updated immediately (ie without waiting for an event loop iteration by using a queued
+    connection) upon image change, it can not be in response to only ItemWithImage.image_changing - the changes
+    needed in order to correctly assemble the string may not have yet occurred.  It can not be in response to only
+    ImageScene.shader_scene_view_rect_changed - min/max may not yet have been updated.  Likewise, it can not be
+    in response to only min/max changing - scene view rect may not yet have been updated.  It would be necessary
+    to wait for both the rect and min/max change signals, updating the string only when the second of the pair arrive,
+    and doing so such that the string is never updated with stale data in the face of failure for one of the signals
+    to arrive would require having and clearing reception flags for both at the end of the current event loop iteration.
+
+    Connecting updating of the hypothetical string to ItemWithImage.image_changed avoids all of these issues."""
+
+    # Signal arguments: ItemWithImage subclass instance, old_image, new_image.  Either old_image or
     # new_image may be None, but not both - changing from having no image to having no image does not
     # represent a change.  Reassigning the same Image instance to ItemWithImage.image is interpreted
     # as indicating that the content of the buffer backing ItemWithImage.image.data has changed; in this
@@ -152,7 +163,7 @@ class ItemWithImage(Qt.QGraphicsObject):
     image_about_to_change = Qt.pyqtSignal(object, object, object)
     # Signal arguments: Same as image_about_to_change
     image_changing = Qt.pyqtSignal(object, object, object)
-    # Signal arguments: ItemWithImage_derivative_instance, image
+    # Signal arguments: ItemWithImage subclass instance, image
     image_changed = Qt.pyqtSignal(object, object)
 
     def __init__(self, parent_item=None):
@@ -160,11 +171,14 @@ class ItemWithImage(Qt.QGraphicsObject):
         self._image = None
         self._image_id = 0
         self._show_frame = False
-        self._frame_color = Qt.QColor(0, 255, 255, 128)
+        self._frame_color = Qt.QColor(255, 0, 0, 128)
         self.setAcceptHoverEvents(True)
 
     def type(self):
         raise NotImplementedError()
+
+    def boundingRect(self):
+        return Qt.QRectF(0,0,1,1) if self._image is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self._image.size))
 
     @property
     def image_data(self):
@@ -229,7 +243,10 @@ class ItemWithImage(Qt.QGraphicsObject):
     def image(self, image):
         if image is self._image:
             if image is not None:
-                # The same image is being reassigned, presumably because its data has been modified
+                # The same image is being reassigned, presumably because its data has been modified.  In case other aspects
+                # of the image has changed in ways that would cause texture upload or stats recomputation to fail, subclasses
+                # are given the opportunity to reject the refresh.
+                self.validate_image(image)
                 self.image_about_to_change.emit(self, image, image)
                 self._image.recompute_stats()
                 self._image_id += 1
@@ -241,6 +258,7 @@ class ItemWithImage(Qt.QGraphicsObject):
                 e+= 'from ris_widget.image.Image or must be None.  Did you mean to assign '
                 e+= 'to the image_data property?'
                 raise ValueError(e)
+            self.validate_image(image)
             old_image = self._image
             self.image_about_to_change.emit(self, old_image, image)
             self._image = image
@@ -248,15 +266,38 @@ class ItemWithImage(Qt.QGraphicsObject):
             self.image_changing.emit(self, old_image, image)
             self.image_changed.emit(self, image)
 
-    def _normalize_min_max(self, min_max):
-        image = self.image
-        # OpenGL normalizes uint16 data uploaded to float32 texture for the full uint16 range.  We store
-        # our unpacked 12-bit images in uint16 arrays.  Therefore, OpenGL will normalize by dividing by
-        # 65535, and we must follow suit, even though no 12-bit image will have a component value larger
-        # than 4095.
-        r = (0, 65535) if image.is_twelve_bit else self.image.range
-        min_max -= r[0]
-        min_max /= r[1] - r[0]
+    def validate_image(self, image):
+        """validate_image is provided for subclasses to override.  validate_image is called by the image property setter before
+        any side effects occur, providing an opportunity to raise an exception and abort assignment of the new value to the image
+        property - without requiring wholesale replacement of the image setter and/or duplication of aspects such as the image
+        subclass check."""
+        pass
+
+    def normalize_from_image_range(self, v, for_gl=False):
+        image = self._image
+        if image is not None:
+            if for_gl and image.is_twelve_bit:
+                # OpenGL normalizes uint16 data uploaded to float32 texture for the full uint16 range.  We store
+                # our unpacked 12-bit images in uint16 arrays.  Therefore, OpenGL will normalize by dividing by
+                # 65535, and we must follow suit, even though no 12-bit image will have a component value larger
+                # than 4095.
+                r = (0, 65535)
+            else:
+                r = image.range
+            v -= r[0]
+            v /= r[1] - r[0]
+        return v
+
+    def denormalize_to_image_range(self, v, from_gl=False):
+        image = self._image
+        if image is not None:
+            if from_gl and image.is_twelve_bit:
+                r = (0, 65535)
+            else:
+                r = image.range
+            v *= r[1] - r[0]
+            v += r[0]
+        return v
 
     def paint_frame(self, qpainter):
         if self._show_frame:

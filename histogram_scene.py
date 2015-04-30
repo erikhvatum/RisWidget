@@ -31,14 +31,11 @@ from .shader_scene import ShaderItem, ShaderScene, ShaderTexture
 import sys
 
 class HistogramScene(ShaderScene):
-    def __init__(self, parent):
+    def __init__(self, parent, HistogramItemClass):
         super().__init__(parent)
         self.setSceneRect(0, 0, 1, 1)
-        self.add_histogram_item()
         self._image_item = None
-
-    def add_histogram_item(self):
-        self.histogram_item = HistogramItem()
+        self.histogram_item = HistogramItemClass()
         self.addItem(self.histogram_item)
 
     @property

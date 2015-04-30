@@ -27,26 +27,31 @@ import numpy
 import sys
 
 from .flipbook import Flipbook
-from .histogram_scene import HistogramScene
+from .histogram_scene import HistogramScene, HistogramItem
 from .histogram_view import HistogramView
 from .image import Image
-from .image_scene import ImageScene
+from .image_scene import ImageScene, ImageItem
 from .image_view import ImageView
+from .shader_scene import ContextualInfoItem
 from .shared_resources import FREEIMAGE
 import ctypes
 import sys
 
 class RisWidget(Qt.QMainWindow):
-    # The image_changed signal is emitted immediately after a new value is successfully assigned to the
-    # RisWidget_instance.image property
-    image_changed = Qt.pyqtSignal(object)
-
-    def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0)):
+    def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0),
+                 ImageItemClass=ImageItem, ImageSceneClass=ImageScene, ImageViewClass=ImageView,
+                 ImageViewContextualInfoItemClass=ContextualInfoTextItem,
+                 HistogramItemClass=HistogramItem, HistogramSceneClass=HistogramScene, HistogramViewClass=HistogramView,
+                 HistgramViewContextualInfoItemClass=ContextualInfoTextItem):
         super().__init__(parent, window_flags)
         if window_title is not None:
             self.setWindowTitle(window_title)
         self.setAcceptDrops(True)
-        self._init_scenes_and_views()
+        self._init_scenes_and_views(
+            ImageItemClass, ImageSceneClass, ImageViewClass,
+            ImageViewContextualInfoItemClass,
+            HistogramItemClass, HistogramSceneClass, HistogramViewClass,
+            HistgramViewContextualInfoItemClass)
         self._init_actions()
         self._init_toolbars()
         self._init_menus()
@@ -115,15 +120,14 @@ class RisWidget(Qt.QMainWindow):
         m.addAction(self.image_view.zoom_to_fit_action)
         m.addAction(self.image_view.zoom_one_to_one_action)
 
-    def _init_scenes_and_views(self):
-        self.image_scene = ImageScene(self)
-        self.image_view = ImageView(self.image_scene, self)
-        self.image_view.image_item.image_changed.connect(self.image_changed)
+    def _init_scenes_and_views(self, ImageItemClass, ImageSceneClass, ImageViewClass, ImageViewContextualInfoItemClass,
+                               HistogramItemClass, HistogramSceneClass, HistogramViewClass, HistgramViewContextualInfoItemClass):
+        self.image_scene = ImageSceneClass(self, ImageItemClass, ImageViewContextualInfoItemClass)
+        self.image_view = ImageViewClass(self.image_scene, self)
         self.setCentralWidget(self.image_view)
-        self.histogram_scene = HistogramScene(self)
-        self.image_scene.histogram_scene = self.histogram_scene
+        self.histogram_scene = HistogramSceneClass(self, HistogramItemClass, HistgramViewContextualInfoItemClass)
         self._histogram_dock_widget = Qt.QDockWidget('Histogram', self)
-        self.histogram_view, self._histogram_frame = HistogramView.make_histogram_view_and_frame(self.histogram_scene, self._histogram_dock_widget)
+        self.histogram_view, self._histogram_frame = HistogramViewClass.make_histogram_view_and_frame(self.histogram_scene, self._histogram_dock_widget)
         self._histogram_dock_widget.setWidget(self._histogram_frame)
         self._histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
         self._histogram_dock_widget.setFeatures(
@@ -207,68 +211,6 @@ class RisWidget(Qt.QMainWindow):
 
     def close_flipbook(self, name):
         self._flipbooks[name].parent().deleteLater()
-
-    @property
-    def image_data(self):
-        """image_data property:
-        The input assigned to this property may be None, in which case the current image and histogram views are cleared,
-        and otherwise must be convertable to a 2D or 3D numpy array of shape (w, h) or (w, h, c), respectively*.  2D input
-        is interpreted as grayscale.  3D input, depending on the value of c, is iterpreted as grayscale & alpha (c of 2),
-        red & blue & green (c of 3), or red & blue & green & alpha (c of 4).
-
-        The following dtypes are directly supported (data of any other type is converted to 32-bit floating point,
-        and an exception is thrown if conversion fails):
-        numpy.uint8
-        numpy.uint16
-        numpy.float32
-
-        Supplying a numpy array of one of the above types as input may avoid an intermediate copy step by allowing RisWidget
-        to keep a reference to the supplied array, allowing its data to be accessed directly.
-
-
-        * IE, the iterable assigned to the image property is interpreted as an iterable of columns (image left to right), each
-        containing an iterable of rows (image top to bottom), each of which is either a grayscale intensity value or an
-        iterable of color channel intensity values (gray & alpha, or red & green & blue, or red & green & blue & alpha)."""
-        return self.image_scene.image_item.image_data
-
-    @image_data.setter
-    def image_data(self, image_data):
-        self.image_scene.image_item.image_data = image_data
-
-    @property
-    def image_data_T(self):
-        """image_data_T property:
-        The input assigned to this property may be None, in which case the current image and histogram views are cleared,
-        and otherwise must be convertable to a 2D or 3D numpy array of shape (h, w) or (h, w, c), respectively*.  2D input
-        is interpreted as grayscale.  3D input, depending on the value of c, is iterpreted as grayscale & alpha (c of 2),
-        red & blue & green (c of 3), or red & blue & green & alpha (c of 4).
-
-        The following dtypes are directly supported (data of any other type is converted to 32-bit floating point,
-        and an exception is thrown if conversion fails):
-        numpy.uint8
-        numpy.uint16
-        numpy.float32
-
-        Supplying a numpy array of one of the above types as input may avoid an intermediate copy step by allowing RisWidget
-        to keep a reference to the supplied array, allowing its data to be accessed directly.
-
-
-        * IE, the iterable assigned to the image property is interpreted as an iterable of columns (image left to right), each
-        containing an iterable of rows (image top to bottom), each of which is either a grayscale intensity value or an
-        iterable of color channel intensity values (gray & alpha, or red & green & blue, or red & green & blue & alpha)."""
-        return self.image_scene.image_item.image_data_T
-
-    @image_data_T.setter
-    def image_data_T(self, image_data_T):
-        self.image_scene.image_item.image_data_T = image_data_T
-
-    @property
-    def image(self):
-        return self.image_scene.image_item.image
-
-    @image.setter
-    def image(self, image):
-        self.image_scene.image_item.image = image
 
     def _image_view_zoom_changed(self, zoom_preset_idx, custom_zoom):
         assert zoom_preset_idx == -1 and custom_zoom != 0 or zoom_preset_idx != -1 and custom_zoom == 0, \

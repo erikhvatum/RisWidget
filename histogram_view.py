@@ -22,7 +22,6 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from .histogram_scene import MinMaxArrowItem
 from .shader_view import ShaderView
 from PyQt5 import Qt
 
@@ -40,14 +39,7 @@ class HistogramView(ShaderView):
         histogram_frame.layout().addWidget(histogram_view)
         return (histogram_view, histogram_frame)
 
-    def on_resize(self, size):
-        super().on_resize(size)
-        # Adjust this view's transform such that unit square scene rect fills resized viewport
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
         self.resetTransform()
         self.scale(size.width(), size.height())
-
-    def on_resize_done(self, size):
-        """HistogramView always displays the same region of the scene (the unit square) regardless of
-        view size, so there is no need for our base class's implementation of this function to
-        emit scene_view_rect_changed.  For this reason, this override does not call super().on_resize_done(..)."""
-        pass
