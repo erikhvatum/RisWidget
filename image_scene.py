@@ -28,18 +28,16 @@ from .shared_resources import GL, UNIQUE_QGRAPHICSITEM_TYPE
 from .shader_scene import ShaderScene, ItemWithImage, ShaderItemWithImage
 from .shader_view import ShaderView
 from contextlib import ExitStack
-import html
 import math
 import numpy
 from PyQt5 import Qt
 import sys
 
 class ImageScene(ShaderScene):
-    def __init__(self, parent, ImageItemClass):
-        super().__init__(parent)
+    def __init__(self, parent, ImageItemClass, ContextualInfoItemClass):
+        super().__init__(parent, ContextualInfoItemClass)
         self.image_item = ImageItemClass()
         self.addItem(self.image_item)
-        self.image_item.image_changing.connect(self._on_image_changing)
 
     def on_image_changing(self, image_item, old_image, new_image):
         assert self.image_item is image_item
@@ -224,28 +222,16 @@ class ImageItem(ShaderItemWithImage):
                 prog.setUniformValue('frag_to_tex', frag_to_tex)
                 prog.setUniformValue('tex_global_alpha', self.opacity())
                 prog.setUniformValue('viewport_height', float(widget.size().height()))
-                histogram_scene = view.scene().histogram_scene
 
 #               print('qpainter.transform():', qtransform_to_numpy(qpainter.transform()))
 #               print('self.deviceTransform(view.viewportTransform()):', qtransform_to_numpy(self.deviceTransform(view.viewportTransform())))
 
-                if image.is_grayscale:
-                    gamma = histogram_scene.gamma
-                    min_max = numpy.array((histogram_scene.min, histogram_scene.max), dtype=float)
-                    if image.dtype != numpy.float32:
-                        self._normalize_min_max(min_max)
-                    prog.setUniformValue('gammas', gamma)
-                    prog.setUniformValue('vcomponent_rescale_mins', min_max[0])
-                    prog.setUniformValue('vcomponent_rescale_ranges', min_max[1] - min_max[0])
-                else:
-                    gammas = (histogram_scene.gamma_red, histogram_scene.gamma_green, histogram_scene.gamma_blue)
-                    min_maxs = numpy.array(((histogram_scene.min_red, histogram_scene.min_green, histogram_scene.min_blue),
-                                            (histogram_scene.max_red, histogram_scene.max_green, histogram_scene.max_blue)), dtype=float)
-                    prog.setUniformValue('gammas', *gammas)
-                    if image.dtype != numpy.float32:
-                        self._normalize_min_max(min_maxs)
-                    prog.setUniformValue('vcomponent_rescale_mins', *min_maxs[0])
-                    prog.setUniformValue('vcomponent_rescale_ranges', *(min_maxs[1]-min_maxs[0]))
+                min_max = numpy.array((self._rescaling_min, self._rescaling_max), dtype=float)
+                if image.dtype != numpy.float32:
+                    min_max = self._renormalize_for_gl(min_max)
+                prog.setUniformValue('gammas', self.gamma)
+                prog.setUniformValue('vcomponent_rescale_mins', min_max[0])
+                prog.setUniformValue('vcomponent_rescale_ranges', min_max[1] - min_max[0])
                 if has_overlay:
                     overlay_item.update_tex()
                     overlay_item.tex.bind(1)
@@ -260,7 +246,7 @@ class ImageItem(ShaderItemWithImage):
                     prog.setUniformValue('overlay0_tex_global_alpha', overlay_item.opacity())
                 gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
                 gl.glDrawArrays(gl.GL_TRIANGLE_FAN, 0, 4)
-            self.paint_frame(qpainter)
+            self._paint_frame(qpainter)
 
     def hoverMoveEvent(self, event):
         if self._image is not None:
@@ -288,25 +274,7 @@ class ImageItem(ShaderItemWithImage):
                         ci = overlay_item.generate_contextual_info_for_pos(o_pos, overlay_stack_idx)
                         if ci is not None:
                             cis.append(ci)
-            if cis:
-                all_html = True
-                any_html = False
-                for string, is_html in cis:
-                    if is_html:
-                        any_html = True
-                    else:
-                        all_html = False
-                    if any_html and not all_html:
-                        # all_html and any_html values can not possibly change if we are here, so we can
-                        # stop early
-                        break
-                if any_html and not all_html:
-                    cis = (ci if ci[1] else (html.escape(ci[0]), True) for ci in cis)
-                    all_html = True
-                if all_html:
-                    self.scene().update_contextual_info('<br>'.join((ci[0] for ci in cis)), True, self)
-                else:
-                    self.scene().update_contextual_info('\n'.join((ci[0] for ci in cis)), False, self)
+            self.scene().update_contextual_info('\n'.join(cis), self)
 
     def generate_contextual_info_for_pos(self, pos):
         if Qt.QRect(Qt.QPoint(), self._image.size).contains(pos):
@@ -317,7 +285,7 @@ class ImageItem(ShaderItemWithImage):
                 vt = vt.format(self._image.data[pos.x(), pos.y()])
             else:
                 vt = vt.format(*self._image.data[pos.x(), pos.y()])
-            return '<div style="outline-style:solid">' + html.escape(mst+vt) + '</div>', True
+            return mst+vt
 
     def hoverLeaveEvent(self, event):
         self.scene().clear_contextual_info(self)
@@ -393,14 +361,14 @@ class ImageItem(ShaderItemWithImage):
 
     @property
     def rescaling_min(self):
-        return self.denormalize_to_image_range(self._rescaling_min)
+        return self._denormalize_to_image_range(self._rescaling_min)
 
     @rescaling_min.setter
     def rescaling_min(self, v):
-        v = self.normalize_from_image_range(float(v))
+        v = self._normalize_from_image_range(float(v))
         if v < 0.0 or v > 1.0:
             raise ValueError('The value assigned to rescaling_min must lie in the closed interval [{}, {}].'.format(
-                self.denormalize_to_image_range(0.0), self.denormalize_to_image_range(1.0)))
+                self._denormalize_to_image_range(0.0), self._denormalize_to_image_range(1.0)))
         if self._rescaling_min != v:
             self._rescaling_min = v
             self.rescaling_min_changed.emit(self, v)
@@ -411,18 +379,18 @@ class ImageItem(ShaderItemWithImage):
     @rescaling_min.deleter
     def rescaling_min(self):
         self._rescaling_min = 0.0
-        self.rescaling_min_changed(self, self.denormalize_to_image_range(0.0))
+        self.rescaling_min_changed(self, self._denormalize_to_image_range(0.0))
 
     @property
     def rescaling_max(self):
-        return self.denormalize_to_image_range(self._rescaling_max)
+        return self._denormalize_to_image_range(self._rescaling_max)
 
     @rescaling_max.setter
     def rescaling_max(self, v):
-        v = self.normalize_from_image_range(float(v))
+        v = self._normalize_from_image_range(float(v))
         if v < 0.0 or v > 1.0:
             raise ValueError('The value assigned to rescaling_max must lie in the closed interval [{}, {}].'.format(
-                self.denormalize_to_image_range(0.0), self.denormalize_to_image_range(1.0)))
+                self._denormalize_to_image_range(0.0), self._denormalize_to_image_range(1.0)))
         if self._rescaling_max != v:
             self._rescaling_max = v
             self.rescaling_max_changed.emit(self, v)
@@ -433,7 +401,7 @@ class ImageItem(ShaderItemWithImage):
     @rescaling_max.deleter
     def rescaling_max(self):
         self._rescaling_max = 1.0
-        self.rescaling_max_changed.emit(self, self.denormalize_to_image_range(1.0))
+        self.rescaling_max_changed.emit(self, self._denormalize_to_image_range(1.0))
 
     @property
     def gamma(self):
@@ -584,7 +552,7 @@ class ImageOverlayItem(Qt.QGraphicsObject):
                 vt = vt.format(oimage.data[pos.x(), pos.y()])
             else:
                 vt = vt.format(*oimage.data[pos.x(), pos.y()])
-            return mst+vt, False
+            return mst+vt
 
     @property
     def overlay_image(self):

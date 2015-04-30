@@ -40,9 +40,9 @@ import sys
 class RisWidget(Qt.QMainWindow):
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0),
                  ImageItemClass=ImageItem, ImageSceneClass=ImageScene, ImageViewClass=ImageView,
-                 ImageViewContextualInfoItemClass=ContextualInfoTextItem,
+                 ImageViewContextualInfoItemClass=ContextualInfoItem,
                  HistogramItemClass=HistogramItem, HistogramSceneClass=HistogramScene, HistogramViewClass=HistogramView,
-                 HistgramViewContextualInfoItemClass=ContextualInfoTextItem):
+                 HistgramViewContextualInfoItemClass=ContextualInfoItem):
         super().__init__(parent, window_flags)
         if window_title is not None:
             self.setWindowTitle(window_title)
@@ -104,10 +104,10 @@ class RisWidget(Qt.QMainWindow):
         self.image_view.zoom_changed.connect(self._image_view_zoom_changed)
         self._image_view_toolbar.addAction(self.image_view.zoom_to_fit_action)
         self._histogram_view_toolbar = self.addToolBar('Histogram View')
-        self._histogram_view_toolbar.addAction(self._histogram_dock_widget.toggleViewAction())
+#       self._histogram_view_toolbar.addAction(self._histogram_dock_widget.toggleViewAction())
         self._histogram_view_toolbar.addAction(self._histogram_view_reset_min_max_action)
         self._histogram_view_toolbar.addAction(self._histogram_view_reset_gamma_action)
-        self._histogram_view_toolbar.addAction(self.histogram_scene.auto_min_max_enabled_action)
+#       self._histogram_view_toolbar.addAction(self.histogram_scene.auto_min_max_enabled_action)
 #       self._image_name_toolbar = self.addToolBar('Image Name')
 #       self._image_name_toolbar.addAction(self.image_view.show_image_name_action)
 
@@ -125,15 +125,15 @@ class RisWidget(Qt.QMainWindow):
         self.image_scene = ImageSceneClass(self, ImageItemClass, ImageViewContextualInfoItemClass)
         self.image_view = ImageViewClass(self.image_scene, self)
         self.setCentralWidget(self.image_view)
-        self.histogram_scene = HistogramSceneClass(self, HistogramItemClass, HistgramViewContextualInfoItemClass)
-        self._histogram_dock_widget = Qt.QDockWidget('Histogram', self)
-        self.histogram_view, self._histogram_frame = HistogramViewClass.make_histogram_view_and_frame(self.histogram_scene, self._histogram_dock_widget)
-        self._histogram_dock_widget.setWidget(self._histogram_frame)
-        self._histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
-        self._histogram_dock_widget.setFeatures(
-            Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | \
-            Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
-        self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self._histogram_dock_widget)
+#       self.histogram_scene = HistogramSceneClass(self, HistogramItemClass, HistgramViewContextualInfoItemClass)
+#       self._histogram_dock_widget = Qt.QDockWidget('Histogram', self)
+#       self.histogram_view, self._histogram_frame = HistogramViewClass.make_histogram_view_and_frame(self.histogram_scene, self._histogram_dock_widget)
+#       self._histogram_dock_widget.setWidget(self._histogram_frame)
+#       self._histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
+#       self._histogram_dock_widget.setFeatures(
+#           Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | \
+#           Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
+#       self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self._histogram_dock_widget)
 
     def dragEnterEvent(self, event):
         event.acceptProposedAction()

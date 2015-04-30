@@ -25,6 +25,7 @@
 from .image import Image
 from .shared_resources import GL, UNIQUE_QGRAPHICSITEM_TYPE
 from .shader_view import ShaderView
+from contextlib import ExitStack
 from pathlib import Path
 from PyQt5 import Qt
 from string import Template
@@ -41,7 +42,7 @@ class ShaderScene(Qt.QGraphicsScene):
         self.addItem(self.contextual_info_item)
 
     def clear_contextual_info(self, requester):
-        self.update_contextual_info(None, False, requester)
+        self.update_contextual_info(None, requester)
 
     def update_contextual_info(self, text, requester):
         if text:
@@ -55,24 +56,26 @@ class ShaderScene(Qt.QGraphicsScene):
 class ContextualInfoItem(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
 
+    text_changed = Qt.pyqtSignal()
+
     def __init__(self, parent_item=None):
         super().__init__(parent_item)
         self.setFlag(Qt.QGraphicsItem.ItemIgnoresTransformations)
-        self._font = Qt.QFont('Courier', pointSize=14, weight=Qt.QFont.Bold)
+        self._font = Qt.QFont('Courier', pointSize=30, weight=Qt.QFont.Bold)
         self._font.setKerning(False)
         self._font.setStyleHint(Qt.QFont.Monospace, Qt.QFont.OpenGLCompatible | Qt.QFont.PreferQuality)
-        # Necessary to prevent context information from disappearing when mouse pointer passes over
-        # context info text
         self._pen = Qt.QPen(Qt.QColor(Qt.Qt.black))
         self._pen.setWidth(1)
         self._pen.setCosmetic(True)
         self._brush = Qt.QBrush(Qt.QColor(45,255,70,255))
         self._text = None
-        self._path = None
+        self._text_flags = Qt.Qt.AlignLeft | Qt.Qt.AlignTop | Qt.Qt.AlignAbsolute
+        self._picture = None
+        self._bounding_rect = None
+        # Necessary to prevent context information from disappearing when mouse pointer passes over
+        # context info text
         self.setAcceptHoverEvents(False)
         self.setAcceptedMouseButtons(Qt.Qt.NoButton)
-        self.setFont(f)
-        self.setDefaultTextColor()
         # Info text generally should appear over anything else rather than z-fighting
         self.setZValue(10)
         self.hide()
@@ -80,20 +83,108 @@ class ContextualInfoItem(Qt.QGraphicsObject):
     def type(self):
         return ContextualInfoItem.QGRAPHICSITEM_TYPE
 
-#   def paint(self, painter, option, widget):
-#       qpicture = Qt.QPicture()
-#       super().paint(painter, option, widget)
-#       painter.setBrush(Qt.Qt.transparent)
-#       color = Qt.QColor(Qt.Qt.black)
-#       color.setAlphaF(self.opacity())
-#       painter.setPen(Qt.QPen(color))
-#       painter.drawPath(self.shape())
+    def boundingRect(self):
+        if self._text:
+            self._update_picture()
+            return self._bounding_rect
+        else:
+            return Qt.QRectF(0,0,1,1)
+
+    def paint(self, painter, option, widget):
+        self._update_picture()
+        self._picture.play(painter)
 
     def _on_view_scene_region_changed(self, view):
         """Maintain position at top left corner of view."""
         topleft = Qt.QPoint()
         if view.mapFromScene(self.pos()) != topleft:
             self.setPos(view.mapToScene(topleft))
+
+    def _update_picture(self):
+        if self._picture is None:
+            self._picture = Qt.QPicture()
+            ppainter = Qt.QPainter()
+            with ExitStack() as stack:
+                ppainter.begin(self._picture)
+                stack.callback(ppainter.end)
+                # The Qt API calls required for formatting multiline text such that it can be rendered to
+                # a path are private, as can be seen in the implementation of
+                # QGraphicsSimpleTextItem::paint, pasted below.  (Specifically, QStackTextEngine is a private
+                # component and thus not available through PyQt).
+                #
+                # void QGraphicsSimpleTextItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
+                # {
+                #     Q_UNUSED(widget);
+                #     Q_D(QGraphicsSimpleTextItem);
+                #
+                #     painter->setFont(d->font);
+                #
+                #     QString tmp = d->text;
+                #     tmp.replace(QLatin1Char('\n'), QChar::LineSeparator);
+                #     QStackTextEngine engine(tmp, d->font);
+                #     QTextLayout layout(&engine);
+                #
+                #     QPen p;
+                #     p.setBrush(d->brush);
+                #     painter->setPen(p);
+                #     if (d->pen.style() == Qt::NoPen && d->brush.style() == Qt::SolidPattern) {
+                #         painter->setBrush(Qt::NoBrush);
+                #     } else {
+                #         QTextLayout::FormatRange range;
+                #         range.start = 0;
+                #         range.length = layout.text().length();
+                #         range.format.setTextOutline(d->pen);
+                #         QList<QTextLayout::FormatRange> formats;
+                #         formats.append(range);
+                #         layout.setAdditionalFormats(formats);
+                #     }
+                #
+                #     setupTextLayout(&layout);
+                #     layout.draw(painter, QPointF(0, 0));
+                #
+                #     if (option->state & (QStyle::State_Selected | QStyle::State_HasFocus))
+                #         qt_graphicsItem_highlightSelected(this, painter, option);
+                # }
+                #
+                # We would just use QGraphicsSimpleTextItem directly, but it is not derived from QGraphicsObject, so
+                # it lacks the QObject base class required for emitting signals.  It is not possible to add a QObject
+                # base to a QGraphicsItem derivative in Python (it can be done in C++ - this is how QGraphicsObject
+                # is implemented).
+                #
+                # Total lack of signal support is not acceptable; it would greatly complicate the task of
+                # positioning a non-child item relative to a ContextualInfoItem.
+                # 
+                # However, it's pretty easy to use that very paint function to generate paint commands that
+                # we cache in self._picture, so we do that.  For strings large enough that the relayout
+                # performed on each refresh by QGraphicsSimpleTextItem exceeds the CPython interpreter overhead 
+                # for initiating the QPicture replay, our paint function is faster.
+                #
+                # Additionally, QGraphicsTextItem is very featureful, has a QObject base, and would be the first
+                # choice, but the one thing it can not do is outline text, so it's out.
+                i = Qt.QGraphicsSimpleTextItem(self._text)
+                i.setPen(Qt.Qt.NoPen if self._pen is None else self._pen)
+                i.setBrush(Qt.Qt.NoBrush if self._brush is None else self._brush)
+                i.setFont(self._font)
+                i.paint(ppainter, Qt.QStyleOptionGraphicsItem(), None)
+                self._bounding_rect = i.boundingRect()
+
+    @property
+    def text(self):
+        return self._text
+
+    @text.setter
+    def text(self, v):
+        if self._text != v:
+            if v:
+                self.prepareGeometryChange()
+            self._text = v
+            self._picture = None
+            if self._text:
+                self.show()
+                self.update()
+            else:
+                self.hide()
+            self.text_changed.emit()
 
     @property
     def font(self):
@@ -103,28 +194,33 @@ class ContextualInfoItem(Qt.QGraphicsObject):
     def font(self, v):
         assert isinstance(v, Qt.QFont)
         self._font = v
-        self._path = None
+        self._picture = None
         self.update()
 
     @property
     def pen(self):
-        """pen used to draw text outline to provide contrast against any background.  If None,
+        """The pen used to draw text outline to provide contrast against any background.  If None,
         outline is not drawn."""
         return self._pen
 
     @pen.setter
-    def pen(self):
-        assert isinstance(v, (None, Qt.QPen))
+    def pen(self, v):
+        assert isinstance(v, Qt.QPen) or v is None
         self._pen = v
-        self._path = None
+        self._picture = None
         self.update()
 
     @property
     def brush(self):
-        """brush used to fill text.  If None, text is not filled."""
+        """The brush used to fill text.  If None, text is not filled."""
         return self._brush
 
-        #TODO: continue here
+    @brush.setter
+    def brush(self, v):
+        assert isinstance(v, Qt.QBrush) or v is None
+        self._brush = v
+        self._picture = None
+        self.update()
 
 class ItemWithImage(Qt.QGraphicsObject):
     """When the image_about_to_change(ItemWithImage, old_image, new_image) signal is emitted, ItemWithImage.image
@@ -273,33 +369,34 @@ class ItemWithImage(Qt.QGraphicsObject):
         subclass check."""
         pass
 
-    def normalize_from_image_range(self, v, for_gl=False):
+    def _renormalize_for_gl(self, v):
+        """OpenGL normalizes uint16 data uploaded to float32 texture for the full uint16 range.  We store
+        our unpacked 12-bit images in uint16 arrays.  Therefore, OpenGL will normalize by dividing by
+        65535, even though no 12-bit image will have a component value larger than 4095.  We normalize
+        rescaling min and max values for 12-bit images by dividing by 4095.  This function converts from
+        our normalized representation to that required by GL, when these two methods differ."""
+        image = self._image
+        if image is not None and image.is_twelve_bit:
+            v *= 4095/65535
+        return v
+
+    def _normalize_from_image_range(self, v):
         image = self._image
         if image is not None:
-            if for_gl and image.is_twelve_bit:
-                # OpenGL normalizes uint16 data uploaded to float32 texture for the full uint16 range.  We store
-                # our unpacked 12-bit images in uint16 arrays.  Therefore, OpenGL will normalize by dividing by
-                # 65535, and we must follow suit, even though no 12-bit image will have a component value larger
-                # than 4095.
-                r = (0, 65535)
-            else:
-                r = image.range
+            r = image.range
             v -= r[0]
             v /= r[1] - r[0]
         return v
 
-    def denormalize_to_image_range(self, v, from_gl=False):
+    def _denormalize_to_image_range(self, v):
         image = self._image
         if image is not None:
-            if from_gl and image.is_twelve_bit:
-                r = (0, 65535)
-            else:
-                r = image.range
+            r = image.range
             v *= r[1] - r[0]
             v += r[0]
         return v
 
-    def paint_frame(self, qpainter):
+    def _paint_frame(self, qpainter):
         if self._show_frame:
             qpainter.setBrush(Qt.QBrush(Qt.Qt.transparent))
             pen = Qt.QPen(self._frame_color)
@@ -330,7 +427,7 @@ class ItemWithImage(Qt.QGraphicsObject):
         self.update()
 
 class ShaderItemMixin:
-    def __init__(self, *va, **ka):
+    def __init__(self):
         self.progs = {}
 
     def build_shader_prog(self, desc, vert_fn, frag_fn, **frag_template_mapping):
@@ -356,16 +453,16 @@ class ShaderItemMixin:
 
 class ShaderItem(ShaderItemMixin, Qt.QGraphicsObject):
     def __init__(self, parent_item=None):
-        super(Qt.QGraphicsObject, self).__init__(parent_item)
-        super(ShaderItemMixin, self).__init__()
+        Qt.QGraphicsObject.__init__(self, parent_item)
+        ShaderItemMixin.__init__(self)
 
     def type(self):
         raise NotImplementedError()
 
 class ShaderItemWithImage(ShaderItemMixin, ItemWithImage):
     def __init__(self, parent_item=None):
-        super(ItemWithImage, self).__init__(parent_item)
-        super(ShaderItemMixin, self).__init__()
+        ItemWithImage.__init__(self, parent_item)
+        ShaderItemMixin.__init__(self)
 
 class ShaderTexture:
     """QOpenGLTexture does not support support GL_LUMINANCE*_EXT, etc, as specified by GL_EXT_texture_integer,

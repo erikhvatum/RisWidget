@@ -137,7 +137,7 @@ class ImageView(ShaderView):
                 self._ignore_zoom_to_fit_action_toggle = True
                 self.zoom_to_fit_action.setChecked(False)
                 self._ignore_zoom_to_fit_action_toggle = False
-            self.emit_shader_scene_view_rect_changed()
+            self.scene_region_changed.emit(self)
             self.zoom_changed.emit(self._zoom_preset_idx, self._custom_zoom)
 
     def mousePressEvent(self, event):
@@ -257,4 +257,4 @@ class ImageView(ShaderView):
             self.translate(old_transform.dx(), old_transform.dy())
             self.scale(zoom_factor, zoom_factor)
             self.zoom_changed.emit(self._zoom_preset_idx, self._custom_zoom)
-        self.emit_shader_scene_view_rect_changed()
+        self.scene_region_changed.emit(self)
