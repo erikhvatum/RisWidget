@@ -22,7 +22,7 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from ._qt_debug import qtransform_to_numpy
+#from ._qt_debug import qtransform_to_numpy
 from .image import Image
 from .shared_resources import GL, UNIQUE_QGRAPHICSITEM_TYPE
 from .shader_scene import ShaderScene, ItemWithImage, ShaderItemWithImage
@@ -468,12 +468,17 @@ class ImageOverlayItem(Qt.QGraphicsObject):
         self.overlay_name = overlay_name
         if overlayed_image_item is not None:
             overlayed_image_item.attach_overlay(self)
+        self._fill_overlayed_image_item_enabled = True
 
     def type(self):
         return ImageOverlayItem.QGRAPHICSITEM_TYPE
 
     def boundingRect(self):
-        return Qt.QRectF() if self._overlay_image is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self._overlay_image.size))
+        if self._overlay_image is None or self.parentItem()._image is None:
+            return Qt.QRectF()
+        if self._fill_overlayed_image_item_enabled:
+            return self.parentItem().boundingRect()
+        return Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self._overlay_image.size))
 
     def itemChange(self, change, value):
         if change == Qt.QGraphicsItem.ItemParentChange:
@@ -601,9 +606,7 @@ class ImageOverlayItem(Qt.QGraphicsObject):
                 self.overlay_image_id += 1
                 self.parentItem().update()
         else:
-            if self._overlay_image is None and overlay_image is not None or \
-               self._overlay_image is not None and (overlay_image is None or self._overlay_image.size != overlay_image.size):
-                self.prepareGeometryChange()
+            self.prepareGeometryChange()
             if overlay_image is None or issubclass(type(overlay_image), Image):
                 self._overlay_image = overlay_image
             else:
@@ -619,3 +622,15 @@ class ImageOverlayItem(Qt.QGraphicsObject):
         if show_frame != self.show_frame:
             self._show_frame = show_frame
             self.update()
+
+    @property
+    def fill_overlayed_image_item_enabled(self):
+        return self._fill_overlayed_image_item_enabled
+
+    @fill_overlayed_image_item_enabled.setter
+    def fill_overlayed_image_item_enabled(self, v):
+        v = bool(v)
+        if v != self._fill_overlayed_image_item_enabled:
+            if v:
+                self.prepareGeometryChange()
+            self._fill_overlayed_image_item_enabled = v
