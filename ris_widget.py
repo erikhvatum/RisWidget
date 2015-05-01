@@ -60,15 +60,15 @@ class RisWidget(Qt.QMainWindow):
         self._flipbooks = dict()
 
     def _init_actions(self):
-        self._histogram_view_reset_min_max_action = Qt.QAction(self)
-        self._histogram_view_reset_min_max_action.setText('Reset Min/Max')
-        self._histogram_view_reset_min_max_action.triggered.connect(self._on_reset_min_max)
-        self._histogram_view_reset_gamma_action = Qt.QAction(self)
-        self._histogram_view_reset_gamma_action.setText('Reset \u03b3')
-        self._histogram_view_reset_gamma_action.triggered.connect(self._on_reset_gamma)
+        self._image_view_reset_min_max_action = Qt.QAction(self)
+        self._image_view_reset_min_max_action.setText('Reset Min/Max')
+        self._image_view_reset_min_max_action.triggered.connect(self._on_reset_min_max)
+        self._image_view_reset_gamma_action = Qt.QAction(self)
+        self._image_view_reset_gamma_action.setText('Reset \u03b3')
+        self._image_view_reset_gamma_action.triggered.connect(self._on_reset_gamma)
         if sys.platform == 'darwin':
             self.exit_fullscreen_action = Qt.QAction(self)
-            # If self.exit_fullscreen_action's text were "Exit Full Screen Mode" as we ultimately desire,
+            # If self.exit_fullscreen_action's text were "Exit Full Screen Mode" as we desire,
             # we would not be able to add it as a menu entry (http://doc.qt.io/qt-5/qmenubar.html#qmenubar-on-os-x).
             # "Leave Full Screen Mode" is a compromise.
             self.exit_fullscreen_action.setText('Leave Full Screen Mode')
@@ -103,11 +103,11 @@ class RisWidget(Qt.QMainWindow):
         self._image_view_zoom_combo.lineEdit().returnPressed.connect(self._image_view_zoom_combo_custom_value_entered)
         self.image_view.zoom_changed.connect(self._image_view_zoom_changed)
         self._image_view_toolbar.addAction(self.image_view.zoom_to_fit_action)
+        self._image_view_toolbar.addAction(self._image_view_reset_min_max_action)
+        self._image_view_toolbar.addAction(self._image_view_reset_gamma_action)
+        self._image_view_toolbar.addAction(self.image_scene.image_item.auto_rescaling_min_max_enabled_action)
         self._histogram_view_toolbar = self.addToolBar('Histogram View')
-#       self._histogram_view_toolbar.addAction(self._histogram_dock_widget.toggleViewAction())
-        self._histogram_view_toolbar.addAction(self._histogram_view_reset_min_max_action)
-        self._histogram_view_toolbar.addAction(self._histogram_view_reset_gamma_action)
-#       self._histogram_view_toolbar.addAction(self.histogram_scene.auto_min_max_enabled_action)
+        self._histogram_view_toolbar.addAction(self._histogram_dock_widget.toggleViewAction())
 #       self._image_name_toolbar = self.addToolBar('Image Name')
 #       self._image_name_toolbar.addAction(self.image_view.show_image_name_action)
 
@@ -125,15 +125,15 @@ class RisWidget(Qt.QMainWindow):
         self.image_scene = ImageSceneClass(self, ImageItemClass, ImageViewContextualInfoItemClass)
         self.image_view = ImageViewClass(self.image_scene, self)
         self.setCentralWidget(self.image_view)
-#       self.histogram_scene = HistogramSceneClass(self, HistogramItemClass, HistgramViewContextualInfoItemClass)
-#       self._histogram_dock_widget = Qt.QDockWidget('Histogram', self)
-#       self.histogram_view, self._histogram_frame = HistogramViewClass.make_histogram_view_and_frame(self.histogram_scene, self._histogram_dock_widget)
-#       self._histogram_dock_widget.setWidget(self._histogram_frame)
-#       self._histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
-#       self._histogram_dock_widget.setFeatures(
-#           Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | \
-#           Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
-#       self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self._histogram_dock_widget)
+        self.histogram_scene = HistogramSceneClass(self, self.image_scene.image_item, HistogramItemClass, HistgramViewContextualInfoItemClass)
+        self._histogram_dock_widget = Qt.QDockWidget('Histogram', self)
+        self.histogram_view, self._histogram_frame = HistogramViewClass.make_histogram_view_and_frame(self.histogram_scene, self._histogram_dock_widget)
+        self._histogram_dock_widget.setWidget(self._histogram_frame)
+        self._histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
+        self._histogram_dock_widget.setFeatures(
+            Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | \
+            Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
+        self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self._histogram_dock_widget)
 
     def dragEnterEvent(self, event):
         event.acceptProposedAction()
@@ -238,12 +238,12 @@ class RisWidget(Qt.QMainWindow):
             self._image_view_zoom_combo.lineEdit().selectAll()
 
     def _on_reset_min_max(self):
-        self.histogram_scene.auto_min_max_enabled = False
-        del self.histogram_scene.min
-        del self.histogram_scene.max
+#       self.image_scene.image_item.auto_min_max_enabled = False
+        del self.image_scene.image_item.rescaling_min
+        del self.image_scene.image_item.rescaling_max
 
     def _on_reset_gamma(self):
-        del self.histogram_scene.gamma
+        del self.image_scene.image_item.gamma
 
     def _uniqueify_flipbook_name(self, name):
         if name not in self._flipbooks:

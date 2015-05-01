@@ -26,6 +26,7 @@ from .image import Image
 from .shared_resources import GL, UNIQUE_QGRAPHICSITEM_TYPE
 from .shader_view import ShaderView
 from contextlib import ExitStack
+import numpy
 from pathlib import Path
 from PyQt5 import Qt
 from string import Template
@@ -394,6 +395,8 @@ class ItemWithImage(Qt.QGraphicsObject):
             r = image.range
             v *= r[1] - r[0]
             v += r[0]
+            if image.dtype is not numpy.float32:
+                v = int(v)
         return v
 
     def _paint_frame(self, qpainter):
@@ -455,6 +458,7 @@ class ShaderItem(ShaderItemMixin, Qt.QGraphicsObject):
     def __init__(self, parent_item=None):
         Qt.QGraphicsObject.__init__(self, parent_item)
         ShaderItemMixin.__init__(self)
+        self.setAcceptHoverEvents(True)
 
     def type(self):
         raise NotImplementedError()

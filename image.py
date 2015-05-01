@@ -93,7 +93,7 @@ class Image:
         self._size = Qt.QSize(self._data.shape[0], self._data.shape[1])
         self._is_grayscale = self._type in ('g', 'ga')
 
-        if dt == numpy.float32:
+        if dt is numpy.float32:
             if float_range is None:
                 # We end up waiting for our futures, now, in this case.  If displaying float images with unspecified range turns out
                 # to be common enough that this slowdown is unacceptable, future-ify range computation.

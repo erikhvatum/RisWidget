@@ -42,4 +42,5 @@ class HistogramView(ShaderView):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.resetTransform()
+        size = event.size()
         self.scale(size.width(), size.height())
