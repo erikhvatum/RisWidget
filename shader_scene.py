@@ -444,7 +444,7 @@ class ItemWithImage(Qt.QGraphicsObject):
             qpainter.drawRect(self.boundingRect())
 
     def _on_image_about_to_change(self, self_, old_image, new_image):
-        if old_image is None or new_image is None or old_image.image.size != new_image.size:
+        if old_image is None or new_image is None or old_image.size != new_image.size:
             self.prepareGeometryChange()
 
     def _on_image_changing(self):
