@@ -51,13 +51,13 @@ class HistogramScene(ShaderScene):
         if image_item is not self._image_item:
             if self._image_item is not None:
                 self._image_item.image_changed.disconnect(self.histogram_item._on_image_changed)
-                self._image_item.rescaling_min_changed.disconnect(self.histogram_item.min_item.arrow_item._on_value_changed)
-                self._image_item.rescaling_max_changed.disconnect(self.histogram_item.max_item.arrow_item._on_value_changed)
+                self._image_item.min_changed.disconnect(self.histogram_item.min_item.arrow_item._on_value_changed)
+                self._image_item.max_changed.disconnect(self.histogram_item.max_item.arrow_item._on_value_changed)
                 self._image_item.gamma_changed.disconnect(self.histogram_item.gamma_item._on_value_changed)
             self._image_item = image_item
             self._image_item.image_changed.connect(self.histogram_item._on_image_changed)
-            self._image_item.rescaling_min_changed.connect(self.histogram_item.min_item.arrow_item._on_value_changed)
-            self._image_item.rescaling_max_changed.connect(self.histogram_item.max_item.arrow_item._on_value_changed)
+            self._image_item.min_changed.connect(self.histogram_item.min_item.arrow_item._on_value_changed)
+            self._image_item.max_changed.connect(self.histogram_item.max_item.arrow_item._on_value_changed)
             self._image_item.gamma_changed.connect(self.histogram_item.gamma_item._on_value_changed)
             self.histogram_item.min_item.arrow_item._on_value_changed()
             self.histogram_item.max_item.arrow_item._on_value_changed()
@@ -71,8 +71,8 @@ class HistogramItem(ShaderItem):
         self._image_id = 0
         self._bounding_rect = Qt.QRectF(0, 0, 1, 1)
         self._tex = None
-        self.min_item = MinMaxItem(self, 'min', ImageItem.rescaling_min, ImageItem.normalized_rescaling_min)
-        self.max_item = MinMaxItem(self, 'max', ImageItem.rescaling_max, ImageItem.normalized_rescaling_max)
+        self.min_item = MinMaxItem(self, 'min', ImageItem.min, ImageItem.normalized_min)
+        self.max_item = MinMaxItem(self, 'max', ImageItem.max, ImageItem.normalized_max)
         self.gamma_item = GammaItem(self, ImageItem.gamma, self.min_item, self.max_item)
 
     def type(self):

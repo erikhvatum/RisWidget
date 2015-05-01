@@ -70,8 +70,8 @@ class ImageItem(ShaderItemWithImage):
         'rgb' : 'vec4(vcomponents.rgb, tex_global_alpha)',
         'rgba': 'vec4(vcomponents.rgb, tcomponents.a * tex_global_alpha)'}
 
-    rescaling_min_changed = Qt.pyqtSignal()
-    rescaling_max_changed = Qt.pyqtSignal()
+    min_changed = Qt.pyqtSignal()
+    max_changed = Qt.pyqtSignal()
     gamma_changed = Qt.pyqtSignal()
 
     def __init__(self, parent_item=None):
@@ -80,19 +80,19 @@ class ImageItem(ShaderItemWithImage):
         self._overlay_items = []
         self._overlay_items_z_sort_is_current = True
         self._trilinear_filtering_enabled = True
-        self._normalized_rescaling_min = 0.0
-        self._normalized_rescaling_max = 1.0
+        self._normalized_min = 0.0
+        self._normalized_max = 1.0
         self._gamma = 1.0
         self.image_about_to_change.connect(self._on_image_about_to_change)
         self.image_changing.connect(self._on_image_changing)
         self.image_changed.connect(self.update)
-        self.auto_rescaling_min_max_enabled_action = Qt.QAction('Auto Min/Max', self)
-        self.auto_rescaling_min_max_enabled_action.setCheckable(True)
-        self.auto_rescaling_min_max_enabled_action.setChecked(True)
-        self.auto_rescaling_min_max_enabled_action.toggled.connect(self._on_auto_rescaling_min_max_enabled_action_toggled)
-        self._keep_auto_rescaling_min_max_on_min_max_value_change = False
-        self.rescaling_min_changed.connect(self._on_rescaling_min_or_max_changed)
-        self.rescaling_max_changed.connect(self._on_rescaling_min_or_max_changed)
+        self.auto_min_max_enabled_action = Qt.QAction('Auto Min/Max', self)
+        self.auto_min_max_enabled_action.setCheckable(True)
+        self.auto_min_max_enabled_action.setChecked(True)
+        self.auto_min_max_enabled_action.toggled.connect(self._on_auto_min_max_enabled_action_toggled)
+        self._keep_auto_min_max_on_min_max_value_change = False
+        self.min_changed.connect(self._on_min_or_max_changed)
+        self.max_changed.connect(self._on_min_or_max_changed)
 
     def type(self):
         return ImageItem.QGRAPHICSITEM_TYPE
@@ -227,7 +227,7 @@ class ImageItem(ShaderItemWithImage):
 #               print('qpainter.transform():', qtransform_to_numpy(qpainter.transform()))
 #               print('self.deviceTransform(view.viewportTransform()):', qtransform_to_numpy(self.deviceTransform(view.viewportTransform())))
 
-                min_max = numpy.array((self._normalized_rescaling_min, self._normalized_rescaling_max), dtype=float)
+                min_max = numpy.array((self._normalized_min, self._normalized_max), dtype=float)
                 min_max = self._renormalize_for_gl(min_max)
                 prog.setUniformValue('gammas', self.gamma)
                 prog.setUniformValue('vcomponent_rescale_mins', min_max[0])
@@ -292,25 +292,25 @@ class ImageItem(ShaderItemWithImage):
             self.prepareGeometryChange()
 
     def _on_image_changing(self):
-        if self.auto_rescaling_min_max_enabled:
-            self.do_auto_rescaling_min_max()
+        if self.auto_min_max_enabled:
+            self.do_auto_min_max()
 
-    def _on_auto_rescaling_min_max_enabled_action_toggled(self, v):
+    def _on_auto_min_max_enabled_action_toggled(self, v):
         if v:
-            self.do_auto_rescaling_min_max()
+            self.do_auto_min_max()
 
-    def do_auto_rescaling_min_max(self):
+    def do_auto_min_max(self):
         image = self._image
         if image is not None:
-            self._keep_auto_rescaling_min_max_on_min_max_value_change = True
+            self._keep_auto_min_max_on_min_max_value_change = True
             try:
-                self.rescaling_min, self.rescaling_max = image.min_max
+                self.min, self.max = image.min_max
             finally:
-                self._keep_auto_rescaling_min_max_on_min_max_value_change = False
+                self._keep_auto_min_max_on_min_max_value_change = False
 
-    def _on_rescaling_min_or_max_changed(self):
-        if self.auto_rescaling_min_max_enabled and not self._keep_auto_rescaling_min_max_on_min_max_value_change:
-            self.auto_rescaling_min_max_enabled = False
+    def _on_min_or_max_changed(self):
+        if self.auto_min_max_enabled and not self._keep_auto_min_max_on_min_max_value_change:
+            self.auto_min_max_enabled = False
 
     def attach_overlay(self, overlay_item):
         assert overlay_item not in self._overlay_items
@@ -353,86 +353,86 @@ class ImageItem(ShaderItemWithImage):
             self.update()
 
     @property
-    def auto_rescaling_min_max_enabled(self):
-        return self.auto_rescaling_min_max_enabled_action.isChecked()
+    def auto_min_max_enabled(self):
+        return self.auto_min_max_enabled_action.isChecked()
 
-    @auto_rescaling_min_max_enabled.setter
-    def auto_rescaling_min_max_enabled(self, v):
-        self.auto_rescaling_min_max_enabled_action.setChecked(v)
+    @auto_min_max_enabled.setter
+    def auto_min_max_enabled(self, v):
+        self.auto_min_max_enabled_action.setChecked(v)
 
     @property
-    def normalized_rescaling_min(self):
-        return self._normalized_rescaling_min
+    def normalized_min(self):
+        return self._normalized_min
 
-    @normalized_rescaling_min.setter
-    def normalized_rescaling_min(self, v):
+    @normalized_min.setter
+    def normalized_min(self, v):
         v = float(v)
-        if self._normalized_rescaling_min != v:
-            self._normalized_rescaling_min = v
-            self.rescaling_min_changed.emit()
-            if self._normalized_rescaling_min > self._normalized_rescaling_max:
-                self._normalized_rescaling_max = v
-                self.rescaling_max_changed.emit()
+        if self._normalized_min != v:
+            self._normalized_min = v
+            self.min_changed.emit()
+            if self._normalized_min > self._normalized_max:
+                self._normalized_max = v
+                self.max_changed.emit()
             self.update()
 
-    @normalized_rescaling_min.deleter
-    def normalized_rescaling_min(self):
-        self._normalized_rescaling_min = 0.0
-        self.rescaling_min_changed.emit()
+    @normalized_min.deleter
+    def normalized_min(self):
+        self._normalized_min = 0.0
+        self.min_changed.emit()
         self.update()
 
     @property
-    def rescaling_min(self):
-        return self._denormalize_to_image_range(self._normalized_rescaling_min)
+    def min(self):
+        return self._denormalize_to_image_range(self._normalized_min)
 
-    @rescaling_min.setter
-    def rescaling_min(self, v):
+    @min.setter
+    def min(self, v):
         v = self._normalize_from_image_range(float(v))
         if v < 0.0 or v > 1.0:
-            raise ValueError('The value assigned to rescaling_min must lie in the interval [{}, {}].'.format(
+            raise ValueError('The value assigned to min must lie in the interval [{}, {}].'.format(
                 self._denormalize_to_image_range(0.0), self._denormalize_to_image_range(1.0)))
-        self.normalized_rescaling_min = v
+        self.normalized_min = v
 
-    @rescaling_min.deleter
-    def rescaling_min(self):
-        del self.normalized_rescaling_min
+    @min.deleter
+    def min(self):
+        del self.normalized_min
 
     @property
-    def normalized_rescaling_max(self):
-        return self._normalized_rescaling_max
+    def normalized_max(self):
+        return self._normalized_max
 
-    @normalized_rescaling_max.setter
-    def normalized_rescaling_max(self, v):
+    @normalized_max.setter
+    def normalized_max(self, v):
         v = float(v)
-        if self._normalized_rescaling_max != v:
-            self._normalized_rescaling_max = v
-            self.rescaling_max_changed.emit()
-            if self._normalized_rescaling_max < self._normalized_rescaling_min:
-                self._normalized_rescaling_min = v
-                self.rescaling_min_changed.emit()
+        if self._normalized_max != v:
+            self._normalized_max = v
+            self.max_changed.emit()
+            if self._normalized_max < self._normalized_min:
+                self._normalized_min = v
+                self.min_changed.emit()
             self.update()
 
-    @normalized_rescaling_max.deleter
-    def normalized_rescaling_max(self):
-        self._normalized_rescaling_max = 1.0
-        self.rescaling_max_changed.emit()
+    @normalized_max.deleter
+    def normalized_max(self):
+        self._normalized_max = 1.0
+        self.max_changed.emit()
         self.update()
 
     @property
-    def rescaling_max(self):
-        return self._denormalize_to_image_range(self._normalized_rescaling_max)
+    def max(self):
+        return self._denormalize_to_image_range(self._normalized_max)
 
-    @rescaling_max.setter
-    def rescaling_max(self, v):
+    @max.setter
+    def max(self, v):
         v = self._normalize_from_image_range(float(v))
         if v < 0.0 or v > 1.0:
-            raise ValueError('The value assigned to rescaling_max must lie in the closed interval [{}, {}].'.format(
+            raise ValueError('The value assigned to max must lie in the closed interval [{}, {}].'.format(
                 self._denormalize_to_image_range(0.0), self._denormalize_to_image_range(1.0)))
-        self.normalized_rescaling_max = v
+        self.normalized_max = v
 
-    @rescaling_max.deleter
-    def rescaling_max(self):
-        del self.normalized_rescaling_max
+    @max.deleter
+    def max(self):
+        del self.normalized_max
 
     @property
     def gamma(self):

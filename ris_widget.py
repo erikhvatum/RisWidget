@@ -105,7 +105,7 @@ class RisWidget(Qt.QMainWindow):
         self._image_view_toolbar.addAction(self.image_view.zoom_to_fit_action)
         self._image_view_toolbar.addAction(self._image_view_reset_min_max_action)
         self._image_view_toolbar.addAction(self._image_view_reset_gamma_action)
-        self._image_view_toolbar.addAction(self.image_scene.image_item.auto_rescaling_min_max_enabled_action)
+        self._image_view_toolbar.addAction(self.image_scene.image_item.auto_min_max_enabled_action)
         self._histogram_view_toolbar = self.addToolBar('Histogram View')
         self._histogram_view_toolbar.addAction(self._histogram_dock_widget.toggleViewAction())
 #       self._image_name_toolbar = self.addToolBar('Image Name')
@@ -239,8 +239,8 @@ class RisWidget(Qt.QMainWindow):
 
     def _on_reset_min_max(self):
 #       self.image_scene.image_item.auto_min_max_enabled = False
-        del self.image_scene.image_item.rescaling_min
-        del self.image_scene.image_item.rescaling_max
+        del self.image_scene.image_item.min
+        del self.image_scene.image_item.max
 
     def _on_reset_gamma(self):
         del self.image_scene.image_item.gamma
