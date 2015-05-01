@@ -48,51 +48,17 @@ class ImageScene(ShaderScene):
 
 class ImageItem(ShaderItemWithImage):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
-    GAMMA_RANGE = (0.0625, 16.0)
-    NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
-        numpy.bool8  : Qt.QOpenGLTexture.UInt8,
-        numpy.uint8  : Qt.QOpenGLTexture.UInt8,
-        numpy.uint16 : Qt.QOpenGLTexture.UInt16,
-        numpy.float32: Qt.QOpenGLTexture.Float32}
-    IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT = {
-        'g'   : Qt.QOpenGLTexture.R32F,
-        'ga'  : Qt.QOpenGLTexture.RG32F,
-        'rgb' : Qt.QOpenGLTexture.RGB32F,
-        'rgba': Qt.QOpenGLTexture.RGBA32F}
-    IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT = {
-        'g'   : Qt.QOpenGLTexture.Red,
-        'ga'  : Qt.QOpenGLTexture.RG,
-        'rgb' : Qt.QOpenGLTexture.RGB,
-        'rgba': Qt.QOpenGLTexture.RGBA}
     IMAGE_TYPE_TO_COMBINE_VT_COMPONENTS = {
         'g'   : 'vec4(vcomponents, vcomponents, vcomponents, tex_global_alpha)',
         'ga'  : 'vec4(vcomponents, vcomponents, vcomponents, tcomponents.a * tex_global_alpha)',
         'rgb' : 'vec4(vcomponents.rgb, tex_global_alpha)',
         'rgba': 'vec4(vcomponents.rgb, tcomponents.a * tex_global_alpha)'}
 
-    min_changed = Qt.pyqtSignal()
-    max_changed = Qt.pyqtSignal()
-    gamma_changed = Qt.pyqtSignal()
-
     def __init__(self, parent_item=None):
         super().__init__(parent_item)
         self.tex = None
         self._overlay_items = []
         self._overlay_items_z_sort_is_current = True
-        self._trilinear_filtering_enabled = True
-        self._normalized_min = 0.0
-        self._normalized_max = 1.0
-        self._gamma = 1.0
-        self.image_about_to_change.connect(self._on_image_about_to_change)
-        self.image_changing.connect(self._on_image_changing)
-        self.image_changed.connect(self.update)
-        self.auto_min_max_enabled_action = Qt.QAction('Auto Min/Max', self)
-        self.auto_min_max_enabled_action.setCheckable(True)
-        self.auto_min_max_enabled_action.setChecked(True)
-        self.auto_min_max_enabled_action.toggled.connect(self._on_auto_min_max_enabled_action_toggled)
-        self._keep_auto_min_max_on_min_max_value_change = False
-        self.min_changed.connect(self._on_min_or_max_changed)
-        self.max_changed.connect(self._on_min_or_max_changed)
 
     def type(self):
         return ImageItem.QGRAPHICSITEM_TYPE
@@ -287,31 +253,6 @@ class ImageItem(ShaderItemWithImage):
     def hoverLeaveEvent(self, event):
         self.scene().clear_contextual_info(self)
 
-    def _on_image_about_to_change(self, self_, old_image, new_image):
-        if old_image is None or new_image is None or old_image.image.size != new_image.size:
-            self.prepareGeometryChange()
-
-    def _on_image_changing(self):
-        if self.auto_min_max_enabled:
-            self.do_auto_min_max()
-
-    def _on_auto_min_max_enabled_action_toggled(self, v):
-        if v:
-            self.do_auto_min_max()
-
-    def do_auto_min_max(self):
-        image = self._image
-        if image is not None:
-            self._keep_auto_min_max_on_min_max_value_change = True
-            try:
-                self.min, self.max = image.min_max
-            finally:
-                self._keep_auto_min_max_on_min_max_value_change = False
-
-    def _on_min_or_max_changed(self):
-        if self.auto_min_max_enabled and not self._keep_auto_min_max_on_min_max_value_change:
-            self.auto_min_max_enabled = False
-
     def attach_overlay(self, overlay_item):
         assert overlay_item not in self._overlay_items
         if not isinstance(overlay_item, ImageOverlayItem):
@@ -331,128 +272,6 @@ class ImageItem(ShaderItemWithImage):
         if not self._overlay_items_z_sort_is_current:
             self._overlay_items.sort(key=lambda i: i.zValue())
             self._overlay_items_z_sort_is_current = True
-
-    @property
-    def trilinear_filtering_enabled(self):
-        """If set to True (the default), trilinear filtering is used for minification (zooming out).  This is
-        somewhat higher quality than simple linear filtering, but it requires mipmap computation, which is too slow
-        for 30fps display of 2560x2160 16bpp grayscale images on the ZPLAB acquisition computer.  Trilinear filtering
-        as a minification filter tends to preserve some representation of small image details that simply disappear
-        with linear filtering, so it is therefore desirable when frame rate is not of paramount importance.
-
-        As compared to trilinear filtering, bilinear filtering would provide higher textured fragment fill rate - 
-        which is not our bottleneck - at slightly lower quality while still requiring mipmap computation - which 
-        is our bottleneck.  So, for the purposes of ZPLAB, trilinear and linear minification filters are the sensible
-        choices, and this property selects between the two."""
-        return self._trilinear_filtering_enabled
-
-    @trilinear_filtering_enabled.setter
-    def trilinear_filtering_enabled(self, trilinear_filtering_enabled):
-        if trilinear_filtering_enabled != self._trilinear_filtering_enabled:
-            self._trilinear_filtering_enabled = trilinear_filtering_enabled
-            self.update()
-
-    @property
-    def auto_min_max_enabled(self):
-        return self.auto_min_max_enabled_action.isChecked()
-
-    @auto_min_max_enabled.setter
-    def auto_min_max_enabled(self, v):
-        self.auto_min_max_enabled_action.setChecked(v)
-
-    @property
-    def normalized_min(self):
-        return self._normalized_min
-
-    @normalized_min.setter
-    def normalized_min(self, v):
-        v = float(v)
-        if self._normalized_min != v:
-            self._normalized_min = v
-            self.min_changed.emit()
-            if self._normalized_min > self._normalized_max:
-                self._normalized_max = v
-                self.max_changed.emit()
-            self.update()
-
-    @normalized_min.deleter
-    def normalized_min(self):
-        self._normalized_min = 0.0
-        self.min_changed.emit()
-        self.update()
-
-    @property
-    def min(self):
-        return self._denormalize_to_image_range(self._normalized_min)
-
-    @min.setter
-    def min(self, v):
-        v = self._normalize_from_image_range(float(v))
-        if v < 0.0 or v > 1.0:
-            raise ValueError('The value assigned to min must lie in the interval [{}, {}].'.format(
-                self._denormalize_to_image_range(0.0), self._denormalize_to_image_range(1.0)))
-        self.normalized_min = v
-
-    @min.deleter
-    def min(self):
-        del self.normalized_min
-
-    @property
-    def normalized_max(self):
-        return self._normalized_max
-
-    @normalized_max.setter
-    def normalized_max(self, v):
-        v = float(v)
-        if self._normalized_max != v:
-            self._normalized_max = v
-            self.max_changed.emit()
-            if self._normalized_max < self._normalized_min:
-                self._normalized_min = v
-                self.min_changed.emit()
-            self.update()
-
-    @normalized_max.deleter
-    def normalized_max(self):
-        self._normalized_max = 1.0
-        self.max_changed.emit()
-        self.update()
-
-    @property
-    def max(self):
-        return self._denormalize_to_image_range(self._normalized_max)
-
-    @max.setter
-    def max(self, v):
-        v = self._normalize_from_image_range(float(v))
-        if v < 0.0 or v > 1.0:
-            raise ValueError('The value assigned to max must lie in the closed interval [{}, {}].'.format(
-                self._denormalize_to_image_range(0.0), self._denormalize_to_image_range(1.0)))
-        self.normalized_max = v
-
-    @max.deleter
-    def max(self):
-        del self.normalized_max
-
-    @property
-    def gamma(self):
-        return self._gamma
-
-    @gamma.setter
-    def gamma(self, v):
-        v = float(v)
-        if v != self._gamma:
-            if v < ImageItem.GAMMA_RANGE[0] or v > ImageItem.GAMMA_RANGE[1]:
-                raise ValueError('The value assigned to ImageItem.gamma must lie in the interval [{}, {}].'.format(*ImageItem.GAMMA_RANGE))
-            self._gamma = v
-            self.gamma_changed.emit()
-            self.update()
-
-    @gamma.deleter
-    def gamma(self):
-        self._gamma = 1.0
-        self.gamma_changed.emit()
-        self.update()
 
 class ImageOverlayItem(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
