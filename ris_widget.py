@@ -165,7 +165,7 @@ class RisWidget(Qt.QMainWindow):
                     # indicating that the various transponse operations just shift around elements of shape and strides rather than
                     # causing memcpys.
                     image.qimage = qimage
-                self.image = image
+                self.image_scene.image_item.image = image
                 event.accept()
         elif mime_data.hasUrls():
             # Note: if the URL is a "file://..." representing a local file, toLocalFile returns a string
@@ -180,7 +180,7 @@ class RisWidget(Qt.QMainWindow):
             if freeimage is None:
                 return
             if len(fpaths) == 1:
-                self.image = Image(freeimage.read(fpaths[0]), fpaths[0])
+                self.image_scene.image_item.image = Image(freeimage.read(fpaths[0]), fpaths[0])
                 event.accept()
             else:
                 # TODO: read images in background thread and display modal progress bar dialog with cancel button
@@ -194,7 +194,7 @@ class RisWidget(Qt.QMainWindow):
         If None is supplied for images, an empty flipbook is created.
         If None is supplied for name, a unique name is generated.
         If the value supplied for name is not unique, a suffix is appended such that the resulting name is unique."""
-        flipbook = Flipbook(self._uniqueify_flipbook_name, lambda image: RisWidget.image.fset(self, image), images, name)
+        flipbook = Flipbook(self._uniqueify_flipbook_name, lambda image: ImageItem.image.fset(self.image_scene.image_item, image), images, name)
         assert flipbook.name not in self._flipbooks
         self._flipbooks[flipbook.name] = flipbook
         flipbook.name_changed.connect(self._on_flipbook_name_changed)
