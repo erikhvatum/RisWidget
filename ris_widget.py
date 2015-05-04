@@ -33,17 +33,18 @@ from .image import Image
 from .image_scene import ImageScene, ImageItem
 from .image_view import ImageView
 from .shader_scene import ContextualInfoItem
-from .shared_resources import FREEIMAGE
+from .shared_resources import FREEIMAGE, GL_QSURFACE_FORMAT
 import ctypes
 import sys
 
 class RisWidget(Qt.QMainWindow):
-    def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0),
+    def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0), msaa_sample_count=2,
                  ImageItemClass=ImageItem, ImageSceneClass=ImageScene, ImageViewClass=ImageView,
                  ImageViewContextualInfoItemClass=ContextualInfoItem,
                  HistogramItemClass=HistogramItem, HistogramSceneClass=HistogramScene, HistogramViewClass=HistogramView,
                  HistgramViewContextualInfoItemClass=ContextualInfoItem):
         super().__init__(parent, window_flags)
+        GL_QSURFACE_FORMAT(msaa_sample_count)
         if window_title is not None:
             self.setWindowTitle(window_title)
         self.setAcceptDrops(True)

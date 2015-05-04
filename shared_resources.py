@@ -52,7 +52,7 @@ def UNIQUE_QLISTWIDGETITEM_TYPE():
 
 _GL_QSURFACE_FORMAT = None
 
-def GL_QSURFACE_FORMAT():
+def GL_QSURFACE_FORMAT(msaa_sample_count=None):
     global _GL_QSURFACE_FORMAT
     if _GL_QSURFACE_FORMAT is None:
         _GL_QSURFACE_FORMAT = Qt.QSurfaceFormat()
@@ -62,6 +62,8 @@ def GL_QSURFACE_FORMAT():
         _GL_QSURFACE_FORMAT.setSwapBehavior(Qt.QSurfaceFormat.DoubleBuffer)
         _GL_QSURFACE_FORMAT.setStereo(False)
         _GL_QSURFACE_FORMAT.setSwapInterval(1)
+        if msaa_sample_count is not None:
+            _GL_QSURFACE_FORMAT.setSamples(msaa_sample_count)
 
         # Specifically enabling alpha channel is not sufficient for enabling QPainter composition modes that
         # use destination alpha (ie, nothing drawn in CompositionMode_DestinationOver will be visible in

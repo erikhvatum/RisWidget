@@ -287,6 +287,7 @@ class ItemWithImage(Qt.QGraphicsObject):
         super().__init__(parent_item)
         self._image = None
         self._image_id = 0
+        self._tex = None
         self._show_frame = False
         self._frame_color = Qt.QColor(255, 0, 0, 128)
         self._trilinear_filtering_enabled = True
@@ -303,7 +304,6 @@ class ItemWithImage(Qt.QGraphicsObject):
         self._keep_auto_min_max_on_min_max_value_change = False
         self.min_changed.connect(self._on_min_or_max_changed)
         self.max_changed.connect(self._on_min_or_max_changed)
-        self.setAcceptHoverEvents(True)
 
     def type(self):
         raise NotImplementedError()
@@ -468,6 +468,57 @@ class ItemWithImage(Qt.QGraphicsObject):
         if self.auto_min_max_enabled and not self._keep_auto_min_max_on_min_max_value_change:
             self.auto_min_max_enabled = False
 
+    def _update_tex(self, estack, texture_unit=0):
+        """Meant to be executed between a pair of QPainter.beginNativePainting() QPainter.endNativePainting() calls or,
+        at the very least, when an OpenGL context is current, _update_tex does whatever is required for self._tex to
+        represent self._image, including texture object creation and texture data uploading, and it leaves self._tex bound
+        to the specified texture unit if possible.  Additionally, if self._image, is None and self._tex is not, self._tex
+        is destroyed."""
+        if self._image is None:
+            if self._tex is not None:
+                self._tex.destroy()
+                self._tex = None
+        else:
+            tex = self._tex
+            image = self._image
+            desired_texture_format = self.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[image.type]
+            desired_minification_filter = Qt.QOpenGLTexture.LinearMipMapLinear if self._trilinear_filtering_enabled else Qt.QOpenGLTexture.Linear
+            if tex is not None:
+                if image.size != Qt.QSize(tex.width(), tex.height()) or tex.format() != desired_texture_format or tex.minificationFilter() != desired_minification_filter:
+                    tex.destroy()
+                    tex = self._tex = None
+            if tex is None:
+                tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
+                tex.setFormat(desired_texture_format)
+                tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
+                if self._trilinear_filtering_enabled:
+                    tex.setMipLevels(6)
+                    tex.setAutoMipMapGenerationEnabled(True)
+                else:
+                    tex.setMipLevels(1)
+                    tex.setAutoMipMapGenerationEnabled(False)
+                tex.setSize(image.size.width(), image.size.height(), 1)
+                tex.allocateStorage()
+                tex.setMinMagFilters(desired_minification_filter, Qt.QOpenGLTexture.Nearest)
+                tex.image_id = -1
+            tex.bind(texture_unit)
+            estack.callback(lambda: tex.release(texture_unit))
+            if tex.image_id != self._image_id:
+#               import time
+#               t0=time.time()
+                pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
+                pixel_transfer_opts.setAlignment(1)
+                tex.setData(self.IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT[image.type],
+                            self.NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[image.dtype],
+                            image.data.ctypes.data,
+                            pixel_transfer_opts)
+#               t1=time.time()
+#               print('tex.setData {}ms / {}fps'.format(1000*(t1-t0), 1/(t1-t0)))
+                tex.image_id = self._image_id
+                # self._tex is updated here and not before so that any failure preparing tex results in a retry the next time self._tex
+                # is needed
+                self._tex = tex
+
     @property
     def show_frame(self):
         return self._show_frame
@@ -581,8 +632,9 @@ class ItemWithImage(Qt.QGraphicsObject):
     @max.setter
     def max(self, v):
         v = self._normalize_from_image_range(float(v))
-        if v < 0.0 or v > 1.0:
-            raise ValueError('The value assigned to max must lie in the closed interval [{}, {}].'.format(
+        if not 0 < v < 1:
+            raise ValueError('The value assigned to {}.max must lie in the closed interval [{}, {}].'.format(
+                type(self).__name__,
                 self._denormalize_to_image_range(0.0), self._denormalize_to_image_range(1.0)))
         self.normalized_max = v
 
@@ -598,7 +650,7 @@ class ItemWithImage(Qt.QGraphicsObject):
     def gamma(self, v):
         v = float(v)
         if v != self._gamma:
-            if v < ItemWithImage.GAMMA_RANGE[0] or v > ItemWithImage.GAMMA_RANGE[1]:
+            if not ItemWithImage.GAMMA_RANGE[0] <= v <= ItemWithImage.GAMMA_RANGE[1]:
                 raise ValueError('The value assigned to {}.gamma must lie in the interval [{}, {}].'.format(type(self).__name__, *ItemWithImage.GAMMA_RANGE))
             self._gamma = v
             self.gamma_changed.emit()

@@ -44,6 +44,8 @@ class ShaderView(Qt.QGraphicsView):
         # reference is evidentally weak or perhaps just a pointer.
         self._glw = glw
         self.setViewport(glw)
+        if GL_QSURFACE_FORMAT().samples() > 0:
+            self.setRenderHint(Qt.QPainter.Antialiasing)
         self.scene_region_changed.connect(shader_scene.contextual_info_item._on_view_scene_region_changed)
 
     def _on_gl_initializing(self):

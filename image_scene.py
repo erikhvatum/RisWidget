@@ -56,9 +56,9 @@ class ImageItem(ShaderItemWithImage):
 
     def __init__(self, parent_item=None):
         super().__init__(parent_item)
-        self.tex = None
         self._overlay_items = []
         self._overlay_items_z_sort_is_current = True
+        self.setAcceptHoverEvents(True)
 
     def type(self):
         return ImageItem.QGRAPHICSITEM_TYPE
@@ -68,24 +68,21 @@ class ImageItem(ShaderItemWithImage):
             raise ValueError('image_scene.ImageItem supports grayscale (single channel, ie MxN, not MxNxc) images.')
 
     def paint(self, qpainter, option, widget):
-        if widget is None:
-            print('WARNING: image_view.ImageItem.paint called with widget=None.  Ensure that view caching is disabled.')
-        elif self._image is None:
-            if self.tex is not None:
-                self.tex.destroy()
-                self.tex = None
-        else:
-            with ExitStack() as stack:
-                qpainter.beginNativePainting()
-                stack.callback(qpainter.endNativePainting)
+        assert widget is not None, 'image_view.HistogramItem.paint called with widget=None.  Ensure that view caching is disabled.'
+        qpainter.beginNativePainting()
+        with ExitStack() as estack:
+            estack.callback(qpainter.endNativePainting)
+            self._update_tex(estack)
+            if self._tex is not None:
                 gl = GL()
                 image = self._image
                 if len(self._overlay_items) > 1:
                     raise RuntimeError('Only one overlay per ImageItem is supported at the moment.')
-                if len(self._overlay_items) == 1 and self._overlay_items[0].isVisible():
+                self._update_overlay_items_z_sort()
+                if len(self._overlay_items) == 1 and self._overlay_items[0].isVisible() and self._overlay_items[0]._image is not None:
                     overlay_item = self._overlay_items[0]
                     has_overlay = True
-                    overlay_type = 'g' if overlay_item.overlay_image.is_grayscale else 'rgb'
+                    overlay_type = 'g' if overlay_item._image.is_grayscale else 'rgb'
                 else:
                     overlay_item = None
                     has_overlay = False
@@ -109,8 +106,8 @@ class ImageItem(ShaderItemWithImage):
     vec2 overlay0_tex_coord = transform_frag_to_tex(overlay0_frag_to_tex);
     if(overlay0_tex_coord.x >= 0 && overlay0_tex_coord.x < 1 && overlay0_tex_coord.y >= 0 && overlay0_tex_coord.y < 1)
     {
-        vec4 o = texture2D(overlay0_tex, overlay0_tex_coord);""" + ('o.g=o.b=o.r;' if overlay_item.overlay_image.is_grayscale else '\nvec3 oc = 1.0f - o.rgb;') + """
-        """ + ('o.a = overlay0_tex_global_alpha * o.a;' if overlay_item.overlay_image.has_alpha_channel else 'o.a = overlay0_tex_global_alpha;') + """
+        vec4 o = texture2D(overlay0_tex, overlay0_tex_coord);""" + ('o.g=o.b=o.r;' if overlay_item._image.is_grayscale else '\nvec3 oc = 1.0f - o.rgb;') + """
+        """ + ('o.a = overlay0_tex_global_alpha * o.a;' if overlay_item._image.has_alpha_channel else 'o.a = overlay0_tex_global_alpha;') + """
         vec3 ipm = t_transformed.rgb * t_transformed.a;
         vec3 opm = o.rgb * o.a;
         vec3 dpm = ipm + opm - ipm * opm;
@@ -134,50 +131,12 @@ class ImageItem(ShaderItemWithImage):
                                                   do_overlay_blending=do_overlay_blending,
                                                   gl_FragColor=gl_FragColor)
                 prog.bind()
-                stack.callback(prog.release)
-                desired_texture_format = ImageItem.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[image.type]
-                tex = self.tex
-                desired_minification_filter = Qt.QOpenGLTexture.LinearMipMapLinear if self._trilinear_filtering_enabled else Qt.QOpenGLTexture.Linear
-                if tex is not None:
-                    if image.size != Qt.QSize(tex.width(), tex.height()) or tex.format() != desired_texture_format or tex.minificationFilter() != desired_minification_filter:
-                        tex.destroy()
-                        tex = self.tex = None
-                if tex is None:
-                    tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
-                    tex.setFormat(desired_texture_format)
-                    tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
-                    if self._trilinear_filtering_enabled:
-                        tex.setMipLevels(6)
-                        tex.setAutoMipMapGenerationEnabled(True)
-                    else:
-                        tex.setMipLevels(1)
-                        tex.setAutoMipMapGenerationEnabled(False)
-                    tex.setSize(image.size.width(), image.size.height(), 1)
-                    tex.allocateStorage()
-                    tex.setMinMagFilters(desired_minification_filter, Qt.QOpenGLTexture.Nearest)
-                    tex.image_id = -1
-                tex.bind()
-                stack.callback(lambda: tex.release(0))
-                if tex.image_id != self._image_id:
-#                   import time
-#                   t0=time.time()
-                    pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
-                    pixel_transfer_opts.setAlignment(1)
-                    tex.setData(ImageItem.IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT[image.type],
-                                ImageItem.NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[image.dtype],
-                                image.data.ctypes.data,
-                                pixel_transfer_opts)
-#                   t1=time.time()
-#                   print('tex.setData {}ms / {}fps'.format(1000*(t1-t0), 1/(t1-t0)))
-                    tex.image_id = self._image_id
-                    # self.tex is updated here and not before so that any failure preparing tex results in a retry the next time self.tex
-                    # is needed
-                    self.tex = tex
+                estack.callback(prog.release)
                 view = widget.view
                 view.quad_buffer.bind()
-                stack.callback(view.quad_buffer.release)
+                estack.callback(view.quad_buffer.release)
                 view.quad_vao.bind()
-                stack.callback(view.quad_vao.release)
+                estack.callback(view.quad_vao.release)
                 vert_coord_loc = prog.attributeLocation('vert_coord')
                 prog.enableAttributeArray(vert_coord_loc)
                 prog.setAttributeBuffer(vert_coord_loc, gl.GL_FLOAT, 0, 2, 0)
@@ -199,9 +158,7 @@ class ImageItem(ShaderItemWithImage):
                 prog.setUniformValue('vcomponent_rescale_mins', min_max[0])
                 prog.setUniformValue('vcomponent_rescale_ranges', min_max[1] - min_max[0])
                 if has_overlay:
-                    overlay_item.update_tex()
-                    overlay_item.tex.bind(1)
-                    stack.callback(lambda: overlay_item.tex.release(1))
+                    overlay_item._update_tex(estack, 1)
                     overlay_frag_to_tex = Qt.QTransform()
                     overlay_frame = Qt.QPolygonF(view.mapFromScene(Qt.QPolygonF(overlay_item.sceneTransform().mapToPolygon(overlay_item.boundingRect().toRect()))))
                     overlay_qpainter_transform = overlay_item.deviceTransform(view.viewportTransform())
@@ -228,7 +185,7 @@ class ImageItem(ShaderItemWithImage):
             ci = self.generate_contextual_info_for_pos(pos)
             if ci is not None:
                 cis.append(ci)
-            self.update_overlay_items_z_sort()
+            self._update_overlay_items_z_sort()
             for overlay_stack_idx, overlay_item in enumerate(self._overlay_items):
                 if overlay_item.isVisible():
                     # For a number of potential reasons including overlay rotation, differing resolution
@@ -253,158 +210,168 @@ class ImageItem(ShaderItemWithImage):
     def hoverLeaveEvent(self, event):
         self.scene().clear_contextual_info(self)
 
+    def make_and_attach_overlay(self, overlay_image=None, overlay_image_data=None, overlay_image_data_T=None, overlay_name=None, zValue=0, ImageOverlayItemClass=None):
+        """If None is supplied for ImageOverlayItemClass, ImageOverlayItem is used."""
+        overlay_item = (ImageOverlayItem if ImageOverlayItemClass is None else ImageOverlayItemClass)\
+                       (self, overlay_image, overlay_image_data, overlay_image_data_T, overlay_name)
+        overlay_item.setZValue(zValue)
+        return overlay_item
+
     def attach_overlay(self, overlay_item):
         assert overlay_item not in self._overlay_items
         if not isinstance(overlay_item, ImageOverlayItem):
             raise ValueError('overlay_item argument must be or must be derived from ris_widget.image_scene.ImageOverlayItem.')
         if overlay_item.parentItem() is not self:
             raise RuntimeError('ImageItem must be parent of overlay_item to be attached.')
+        overlay_item.zChanged.connect(self._on_overlay_z_changed)
+        self.image_changing.connect(overlay_item._on_overlayed_image_changing)
         self._overlay_items.append(overlay_item)
         self._overlay_items_z_sort_is_current = False
         self.update()
 
     def detach_overlay(self, overlay_item):
+        overlay_item.zChanged.disconnect(self._on_overlay_z_changed)
+        self.image_changing.disconnect(overlay_item._on_overlayed_image_changing)
         idx = self._overlay_items.index(overlay_item)
         del self._overlay_items[idx]
         self.update()
 
-    def update_overlay_items_z_sort(self):
+    def _update_overlay_items_z_sort(self):
         if not self._overlay_items_z_sort_is_current:
             self._overlay_items.sort(key=lambda i: i.zValue())
             self._overlay_items_z_sort_is_current = True
 
-class ImageOverlayItem(Qt.QGraphicsObject):
+    def _on_overlay_z_changed(self):
+        self._overlay_items_z_sort_is_current = False
+
+    @property
+    def overlays(self):
+        """A tuple of ImageOverlayItems in ascending Z value order."""
+        self._update_overlay_items_z_sort()
+        return tuple(self._overlay_items)
+
+class ImageOverlayItem(ItemWithImage):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
 
-    def __init__(self, overlayed_image_item, overlay_image=None, overlay_name=None):
+    def __init__(self, overlayed_image_item, overlay_image=None, overlay_image_data=None, overlay_image_data_T=None, overlay_name=None):
         super().__init__(overlayed_image_item)
-        self._show_frame = False
-        self.overlay_image_id = 0
-        self.tex = None
-        self._overlay_image = None
-        self.overlay_image = overlay_image
+        self._itemChange_handlers = {
+            Qt.QGraphicsItem.ItemParentChange : self._on_itemParentChange,
+            Qt.QGraphicsItem.ItemParentHasChanged : self._on_itemParentHasChanged,
+            Qt.QGraphicsItem.ItemTransformChange : self._on_itemTransformChange,
+            Qt.QGraphicsItem.ItemPositionChange : self._on_itemPositionChange,
+            Qt.QGraphicsItem.ItemRotationChange : self._on_itemRotationChange,
+            Qt.QGraphicsItem.ItemScaleChange : self._on_itemScaleChange}
+        if sum(map(lambda v: v is not None, (overlay_image, overlay_image_data, overlay_image_data_T))) > 1:
+            raise ValueError('At most one of overlay_image, overlay_image_data, or overlay_image_data_T may be specified.')
         self.setFlag(Qt.QGraphicsItem.ItemIgnoresParentOpacity)
-        self.overlay_name = overlay_name
+        self.name = overlay_name
         if overlayed_image_item is not None:
             overlayed_image_item.attach_overlay(self)
         self._fill_overlayed_image_item_enabled = True
+        self._allow_transform_change_with_fill_enabled = False
+        self.setFlag(Qt.QGraphicsItem.ItemSendsGeometryChanges)
+        self._frame_color = Qt.QColor(0,0,255,128)
+        if overlay_image is not None:
+            self.image = overlay_image
+        elif overlay_image_data is not None:
+            self.image_data = overlay_image_data
+        elif overlay_image_data_T is not None:
+            self.image_data_T = overlay_image_data_T
 
     def type(self):
         return ImageOverlayItem.QGRAPHICSITEM_TYPE
 
     def boundingRect(self):
-        if self._overlay_image is None or self.parentItem()._image is None:
+        if self._image is None or self.parentItem()._image is None:
             return Qt.QRectF()
-        if self._fill_overlayed_image_item_enabled:
-            return self.parentItem().boundingRect()
-        return Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self._overlay_image.size))
+        return Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self._image.size))
 
     def itemChange(self, change, value):
-        if change == Qt.QGraphicsItem.ItemParentChange:
-            parent = self.parentItem()
-            if parent is not None:
-                parent.detach_overlay(self)
-            if self.tex is not None and self.tex.isCreated():
-                scene = self.scene()
-                if scene is not None:
-                    views = scene.views()
-                    if views:
-                        views[0].makeCurrent()
-                        try:
-                            self.tex.destroy()
-                        finally:
-                            views[0].doneCurrent()
-        elif change == Qt.QGraphicsItem.ItemParentHasChanged:
-            parent = value
-            if parent is not None:
-                parent.attach_overlay(self)
+        ret = None
+        try:
+            ret = self._itemChange_handlers[change](change, value)
+        except KeyError:
+            pass
         # Omitting the following line results in numerous subtle misbehaviors such as being unable to make this item visible
         # after hiding it.  This is a result of the return value from itemChange sometimes mattering: certain item changes
         # may be cancelled or modified by returning something other than the value argument.  In the case of
         # Qt.QGraphicsItem.ItemVisibleChange, returning something that casts to False overrides a visibility -> True state
         # change, causing the item to remain hidden.
-        return value
+        return value if ret is None else ret
+
+    def _on_itemParentChange(self, change, value):
+        parent = self.parentItem()
+        if parent is not None:
+            parent.detach_overlay(self)
+        if self.tex is not None and self.tex.isCreated():
+            scene = self.scene()
+            if scene is not None:
+                views = scene.views()
+                if views:
+                    views[0].makeCurrent()
+                    try:
+                        self.tex.destroy()
+                    finally:
+                        views[0].doneCurrent()
+
+    def _on_itemParentHasChanged(self, change, value):
+        parent = value
+        if parent is not None:
+            parent.attach_overlay(self)
+
+    def _on_itemTransformChange(self, change, value):
+        # Do not allow any movement relative to parent if set to fill parent, except for when adjusting to new parent size
+        if self._fill_overlayed_image_item_enabled and not self._allow_transform_change_with_fill_enabled:
+            # At this instant, value contains the new transformation that something would like us to move to, and self.transform()
+            # contains the current transformation.  In order to reject transitioning to the new transformation, we simply
+            # return the current transformation, causing our current transformation to be replaced with itself.
+            return self.transform()
+
+    def _on_itemPositionChange(self, change, value):
+        # Although their name suggests that listening for and rejecting ItemTransformChange notifications should be sufficient to
+        # prevent any alteration of ImageOverlayItem's transformation matrix, ItemTransformChange notifications are dispatched
+        # only when an item's transformation matrix is modified by a direct call to setTransform (as far as I can tell).  Therefore,
+        # it is necessary to listen for and reject ItemTransformChange, ItemPositionChange, ItemRotationChange, and ItemScaleChange as
+        # well.
+        if self._fill_overlayed_image_item_enabled and not self._allow_transform_change_with_fill_enabled:
+            # As with ItemTransformChange, returning the current position in response to ItemPositionChange causes the current
+            # position to be replaced with itself and the proposed new position to be ignored.
+            return self.pos()
+
+    def _on_itemRotationChange(self, change, value):
+        if self._fill_overlayed_image_item_enabled and not self._allow_transform_change_with_fill_enabled:
+            # As with ItemTransformChange ...
+            return self.rotation()
+
+    def _on_itemScaleChange(self, change, value):
+        if self._fill_overlayed_image_item_enabled and not self._allow_transform_change_with_fill_enabled:
+            # As with ItemTransformChange ...
+            return self.scale()
 
     def paint(self, qpainter, option, widget):
-        """This QGraphicsItem (from which QGraphicsObject is derived, from which this class, in turn, is derived) is primarily
-        drawn by its parent, an ImageItem, in order that it may be composited with that ImageItem in more advanced ways than
-        supported by QPainter when rendering to an OpenGL context (QPainter in software mode supports a galaxy of various blend
-        modes, but QPainter in software mode is far too slow for our purposes, namely, drawing full screen images transformed
-        in real time - not unlike AGG, which would also be too slow.  Use matplotlib.pyplot.imshow to see how slow is slow).
+        """This item is primarily drawn by its parent, an ImageItem, in order that it may be composited with that ImageItem
+        in more advanced ways than supported by QPainter when rendering to an OpenGL context (QPainter in software mode
+        supports a galaxy of various blend modes, but QPainter in software mode is far too slow for our purposes, namely, 
+        drawing full screen images transformed in real time - not unlike AGG, which would also be too slow.
+        Use matplotlib.pyplot.imshow to see how slow is slow).
         
         The only drawing that ImageOverlayItem actually does in its own right is to paint a stippled border two pixels wide,
-        with one pixel inside and one pixel outside, and it only does this if the show_frame attribute has been set to True
-        or something that evaluated to True when coerced to bool."""
-        if self._show_frame and self.overlay_image is not None and (self.parentItem() is None or self.parentItem().image is not None):
-            qpainter.setBrush(Qt.QBrush(Qt.Qt.transparent))
-            color = Qt.QColor(Qt.Qt.blue)
-            color.setAlphaF(0.5)
-            pen = Qt.QPen(color)
-            pen.setWidth(2)
-            pen.setCosmetic(True)
-            pen.setStyle(Qt.Qt.DotLine)
-            qpainter.setPen(pen)
-            qpainter.drawRect(self.boundingRect())
-#       if self.parentItem() is not None:
-#           self.parentItem().update()
+        vwith one pixel inside and one pixel outside, via the _paint_frame call below."""
+        overlayed_image_item = self.parentItem()
+        if self._image is not None and (overlayed_image_item is None or overlayed_image_item._image is not None):
+            self._paint_frame(qpainter)
 
 #   def wheelEvent(self, event):
 #       wheel_delta = event.delta()
 #       if wheel_delta != 0:
 #           self.setRotation(self.rotation() + (1 if wheel_delta > 0 else -1))
 
-    def update_tex(self):
-        """This function is intended to be called from ImageItem's paint function and relies upon an OpenGL context being
-        current (eg, via QOpenGLWidget.setCurrent, QOpenGLContext.setCurrent, QPainter.beginNativePainting, glXMakeCurrent
-        C call on *nix, WglMakeCurrent C call on win32, [NSOpenGLContext makeCurrent] obj-C method on Darwin, or any other
-        equivalent)."""
-        if self._overlay_image is None:
-            if self.tex is not None:
-                self.tex.destroy()
-                self.tex = None
-        else:
-            oimage = self._overlay_image
-            tex = self.tex
-            desired_texture_format = ImageItem.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[oimage.type]
-            if tex is not None:
-                if oimage.size != Qt.QSize(tex.width(), tex.height()) or tex.format() != desired_texture_format:
-                    tex.destroy()
-                    tex = self.tex = None
-            if tex is None:
-                tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
-                tex.setFormat(desired_texture_format)
-                tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
-                tex.setMipLevels(6)
-                tex.setAutoMipMapGenerationEnabled(True)
-                tex.setSize(oimage.size.width(), oimage.size.height(), 1)
-                tex.allocateStorage()
-                # Overylay display should be as accurate as reasonably possible.  Trilinear filtering for normal
-                # images is not reasonably possible - the required mipmap computation is too slow for live mode
-                # viewing of 2560x2160 16bpp grayscale images.  Trilinear filtering for overlay images, however,
-                # is fine so long as the overlay is not updated with every 2560x2160 16bpp image, which is not
-                # expected to occur for live streams.
-                tex.setMinMagFilters(Qt.QOpenGLTexture.LinearMipMapLinear, Qt.QOpenGLTexture.Nearest)
-                tex.overlay_image_id = -1
-            if tex.overlay_image_id != self.overlay_image_id:
-                with ExitStack() as stack:
-                    tex.bind()
-                    stack.callback(lambda: tex.release(0))
-                    pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
-                    pixel_transfer_opts.setAlignment(1)
-                    tex.setData(ImageItem.IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT[oimage.type],
-                                ImageItem.NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[oimage.dtype],
-                                oimage.data.ctypes.data,
-                                pixel_transfer_opts)
-                    tex.overlay_image_id = self.overlay_image_id
-                    # self.tex is updated here and not before so that any failure preparing tex results in a retry the next time self.tex
-                    # is needed
-                    self.tex = tex
-
     def generate_contextual_info_for_pos(self, pos, overlay_stack_idx):
         pos = Qt.QPoint(pos.x(), pos.y())
-        oimage = self._overlay_image
+        oimage = self._image
         if Qt.QRect(Qt.QPoint(), oimage.size).contains(pos):
-            mst = 'overlay {}: '.format(overlay_stack_idx) if self.overlay_name is None else (self.overlay_name + ': ')
+            mst = 'overlay {}: '.format(overlay_stack_idx) if self.name is None else (self.name + ': ')
             mst+= 'x:{} y:{} '.format(pos.x(), pos.y())
             oimage_type = oimage.type
             vt = '(' + ' '.join((c + ':{}' for c in oimage_type)) + ')'
@@ -414,36 +381,38 @@ class ImageOverlayItem(Qt.QGraphicsObject):
                 vt = vt.format(*oimage.data[pos.x(), pos.y()])
             return mst+vt
 
-    @property
-    def overlay_image(self):
-        return self._overlay_image
+    def _on_image_changing(self, self_, old_image, new_image):
+        parent_image_item = self.parentItem()
+        if parent_image_item is not None and \
+           self._fill_overlayed_image_item_enabled and \
+           new_image is not None and (old_image is None or old_image.size != new_image.size):
+            self._do_fill_parent(self.parentItem())
 
-    @overlay_image.setter
-    def overlay_image(self, overlay_image):
-        if overlay_image is self._overlay_image:
-            if overlay_image is not None:
-                self.overlay_image_id += 1
-                self.parentItem().update()
-        else:
-            self.prepareGeometryChange()
-            if overlay_image is None or issubclass(type(overlay_image), Image):
-                self._overlay_image = overlay_image
-            else:
-                self._overlay_image = Image(overlay_image)
-            self.parentItem().update()
+    def _on_overlayed_image_changing(self, image_item, old_image, new_image):
+        assert image_item is self.parentItem()
+        if self._fill_overlayed_image_item_enabled and new_image is not None and (old_image is None or old_image.size != new_image.size):
+            self._do_fill_parent()
 
-    @property
-    def show_frame(self):
-        return self._show_frame
+    def _do_fill_parent(self, parent_image_item):
+        t = Qt.QTransform()
+        o_s = self._image.size
+        i_s = parent_image_item._image.size
+        t.scale(i_s.width() / o_s.width(), i_s.height() / o_s.height())
+        self._allow_transform_change_with_fill_enabled = True
+        try:
+            self.setTransform(t)
+        finally:
+            self._allow_transform_change_with_fill_enabled = False
 
-    @show_frame.setter
-    def show_frame(self, show_frame):
-        if show_frame != self.show_frame:
-            self._show_frame = show_frame
-            self.update()
+    def do_fill_parent(self):
+        parent_image_item = self.parentItem()
+        if parent_image_item is not None and self._image is not None:
+            self._do_fill_parent(parent_image_item)
 
     @property
     def fill_overlayed_image_item_enabled(self):
+        """If enabled, overlay is stretched to match the dimensions of the overlayed image, and all attempts
+        to translate, scale, rotate, or otherwise change the overlay's transformation matrix are silently ignored."""
         return self._fill_overlayed_image_item_enabled
 
     @fill_overlayed_image_item_enabled.setter

@@ -216,9 +216,9 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
         self._path = Qt.QPainterPath()
         self._min_max_item = min_max_item
         if self.name.startswith('min'):
-            polygonf = Qt.QPolygonF((Qt.QPointF(0.5, -10), Qt.QPointF(6, 0), Qt.QPointF(0.5, 10)))
+            polygonf = Qt.QPolygonF((Qt.QPointF(0.5, -12), Qt.QPointF(8, 0), Qt.QPointF(0.5, 12)))
         else:
-            polygonf = Qt.QPolygonF((Qt.QPointF(-0.5, -10), Qt.QPointF(-6, 0), Qt.QPointF(-0.5, 10)))
+            polygonf = Qt.QPolygonF((Qt.QPointF(-0.5, -12), Qt.QPointF(-8, 0), Qt.QPointF(-0.5, 12)))
         self._path.addPolygon(polygonf)
         self._path.closeSubpath()
         self._bounding_rect = self._path.boundingRect()
@@ -321,7 +321,7 @@ class GammaItem(Qt.QGraphicsObject):
     def paint(self, qpainter, option, widget):
         if not self._path.isEmpty():
             pen = Qt.QPen(Qt.QColor(255,255,0,128))
-            pen.setWidth(1)
+            pen.setWidth(2)
             pen.setCosmetic(True)
             qpainter.setPen(pen)
             qpainter.setBrush(Qt.Qt.NoBrush)
