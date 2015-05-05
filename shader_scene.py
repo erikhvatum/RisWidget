@@ -63,11 +63,11 @@ class ContextualInfoItem(Qt.QGraphicsObject):
     def __init__(self, parent_item=None):
         super().__init__(parent_item)
         self.setFlag(Qt.QGraphicsItem.ItemIgnoresTransformations)
-        self._font = Qt.QFont('Courier', pointSize=30, weight=Qt.QFont.Bold)
+        self._font = Qt.QFont('Courier', pointSize=16, weight=Qt.QFont.Bold)
         self._font.setKerning(False)
         self._font.setStyleHint(Qt.QFont.Monospace, Qt.QFont.OpenGLCompatible | Qt.QFont.PreferQuality)
         self._pen = Qt.QPen(Qt.QColor(Qt.Qt.black))
-        self._pen.setWidth(1)
+        self._pen.setWidth(2)
         self._pen.setCosmetic(True)
         self._brush = Qt.QBrush(Qt.QColor(45,255,70,255))
         self._text = None
@@ -164,11 +164,25 @@ class ContextualInfoItem(Qt.QGraphicsObject):
                 # Additionally, QGraphicsTextItem is very featureful, has a QObject base, and would be the first
                 # choice, but the one thing it can not do is outline text, so it's out.
                 i = Qt.QGraphicsSimpleTextItem(self._text)
-                
-                i.setPen(Qt.Qt.NoPen if self._pen is None else self._pen)
-                i.setBrush(Qt.Qt.NoBrush if self._brush is None else self._brush)
                 i.setFont(self._font)
-                i.paint(ppainter, Qt.QStyleOptionGraphicsItem(), None)
+                # Disabling brush/pen via setBrush/Pen(Qt.QBrush/Pen(Qt.Qt.NoBrush/Pen)) ought to be more intelligent
+                # than disablind via setting to transparent color.  However, using NoBrush or NoPen here seems to
+                # cause extreme painting slowdowns on OS X.
+                transparent_color = Qt.QColor(Qt.Qt.transparent)
+                if self._pen is None or self._brush is None:
+                    i.setPen(Qt.QPen(transparent_color) if self._pen is None else self._pen)
+                    i.setBrush(Qt.QBrush(transparent_color) if self._brush is None else self._brush)
+                    i.paint(ppainter, Qt.QStyleOptionGraphicsItem(), None)
+                else:
+                    # To ensure that character outlines never obscure the entirety of character interior, outline
+                    # is drawn first and interior second.  If both brush and pen are nonempty, Qt draws interior first
+                    # and outline second.
+                    i.setBrush(Qt.QBrush(transparent_color))
+                    i.setPen(self._pen)
+                    i.paint(ppainter, Qt.QStyleOptionGraphicsItem(), None)
+                    i.setBrush(self._brush)
+                    i.setPen(Qt.QPen(transparent_color))
+                    i.paint(ppainter, Qt.QStyleOptionGraphicsItem(), None)
                 self._bounding_rect = i.boundingRect()
 
     @property
