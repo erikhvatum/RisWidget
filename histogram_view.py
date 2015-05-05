@@ -39,8 +39,6 @@ class HistogramView(ShaderView):
         histogram_frame.layout().addWidget(histogram_view)
         return (histogram_view, histogram_frame)
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
+    def _on_resize(self, size):
         self.resetTransform()
-        size = event.size()
         self.scale(size.width(), size.height())

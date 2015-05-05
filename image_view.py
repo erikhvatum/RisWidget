@@ -79,8 +79,7 @@ class ImageView(ShaderView):
         if self.zoom_to_fit:
             self._apply_zoom()
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
+    def _on_resize(self, size):
         if self.zoom_to_fit:
             self._apply_zoom()
 

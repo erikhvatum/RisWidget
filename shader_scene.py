@@ -56,6 +56,7 @@ class ShaderScene(Qt.QGraphicsScene):
 
 class ContextualInfoItem(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
+    FIXED_POSITION_IN_VIEW = Qt.QPoint(10, 5)
 
     text_changed = Qt.pyqtSignal()
 
@@ -95,9 +96,9 @@ class ContextualInfoItem(Qt.QGraphicsObject):
         self._update_picture()
         self._picture.play(painter)
 
-    def _on_view_scene_region_changed(self, view):
-        """Maintain position at top left corner of view."""
-        topleft = Qt.QPoint()
+    def return_to_fixed_position(self, view):
+        """Maintain position self.FIXED_POSITION_IN_VIEW relative to view's top left corner."""
+        topleft = self.FIXED_POSITION_IN_VIEW
         if view.mapFromScene(self.pos()) != topleft:
             self.setPos(view.mapToScene(topleft))
 
@@ -163,6 +164,7 @@ class ContextualInfoItem(Qt.QGraphicsObject):
                 # Additionally, QGraphicsTextItem is very featureful, has a QObject base, and would be the first
                 # choice, but the one thing it can not do is outline text, so it's out.
                 i = Qt.QGraphicsSimpleTextItem(self._text)
+                
                 i.setPen(Qt.Qt.NoPen if self._pen is None else self._pen)
                 i.setBrush(Qt.Qt.NoBrush if self._brush is None else self._brush)
                 i.setFont(self._font)

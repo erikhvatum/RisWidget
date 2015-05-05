@@ -46,7 +46,8 @@ class ShaderView(Qt.QGraphicsView):
         self.setViewport(glw)
         if GL_QSURFACE_FORMAT().samples() > 0:
             self.setRenderHint(Qt.QPainter.Antialiasing)
-        self.scene_region_changed.connect(shader_scene.contextual_info_item._on_view_scene_region_changed)
+        self.scene_region_changed.connect(shader_scene.contextual_info_item.return_to_fixed_position)
+        self.scene_region_changed.emit(self)
 
     def _on_gl_initializing(self):
         self._make_quad_vao()
@@ -85,6 +86,17 @@ class ShaderView(Qt.QGraphicsView):
         # here will be corrected in response to resizeEvent(..)'s scene_view_rect_changed emission
         # before the next repaint.  Thus, nothing repositioned in response to our emission should be
         # visible to the user in an incorrect position.
+        self.scene_region_changed.emit(self)
+
+    def _on_resize(self, size):
+        """_on_resize is called after self.size has been updated and before scene_region_changed is emitted,
+        providing an opportunity for subclasses to modify view transform in response to view resize without
+        causing incorrect positioning of view-relative items."""
+        pass
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._on_resize(event.size())
         self.scene_region_changed.emit(self)
 
     def drawBackground(self, p, rect):
