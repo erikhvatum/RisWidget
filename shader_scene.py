@@ -284,6 +284,11 @@ class ItemWithImage(Qt.QGraphicsObject):
         'ga'  : Qt.QOpenGLTexture.RG,
         'rgb' : Qt.QOpenGLTexture.RGB,
         'rgba': Qt.QOpenGLTexture.RGBA}
+    IMAGE_TYPE_TO_GETCOLOR_EXPRESSION = {
+        'g'   : 'vec4(s.r, s.r, s.r, 1.0f)',
+        'ga'  : 'vec4(s.r, s.r, s.r, s.a)',
+        'rgb' : 'vec4(s.r, s.g, s.b, 1.0f)',
+        'rgba': 's'}
 
     # Signal arguments: ItemWithImage subclass instance, old_image, new_image.  Either old_image or
     # new_image may be None, but not both - changing from having no image to having no image does not
@@ -295,6 +300,10 @@ class ItemWithImage(Qt.QGraphicsObject):
     image_changing = Qt.pyqtSignal(object, object, object)
     # Signal arguments: ItemWithImage subclass instance, image
     image_changed = Qt.pyqtSignal(object, object)
+    trilinear_filtering_enabled_changed = Qt.pyqtSignal()
+    auto_getcolor_expression_enabled_changed = Qt.pyqtSignal()
+    getcolor_expression_changed = Qt.pyqtSignal()
+    extra_transformation_expression_changed = Qt.pyqtSignal()
     min_changed = Qt.pyqtSignal()
     max_changed = Qt.pyqtSignal()
     gamma_changed = Qt.pyqtSignal()
@@ -313,6 +322,12 @@ class ItemWithImage(Qt.QGraphicsObject):
         self.image_about_to_change.connect(self._on_image_about_to_change)
         self.image_changing.connect(self._on_image_changing)
         self.image_changed.connect(self.update)
+        self._keep_auto_getcolor_expression_enabled_on_getcolor_expression_change = False
+        self._auto_getcolor_expression_enabled = True
+        self._getcolor_expression = None
+        self._extra_transformation_expression = None
+        self.auto_getcolor_expression_enabled_changed.connect(self._on_auto_getcolor_expression_enabled_changed)
+        self.getcolor_expression_changed.connect(self._on_getcolor_expression_changed)
         self.auto_min_max_enabled_action = Qt.QAction('Auto Min/Max', self)
         self.auto_min_max_enabled_action.setCheckable(True)
         self.auto_min_max_enabled_action.setChecked(True)
@@ -326,92 +341,6 @@ class ItemWithImage(Qt.QGraphicsObject):
 
     def boundingRect(self):
         return Qt.QRectF(0,0,1,1) if self._image is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self._image.size))
-
-    @property
-    def image_data(self):
-        """image_data property:
-        The input assigned to this property may be None, in which case the current image and histogram views are cleared,
-        and otherwise must be convertable to a 2D or 3D numpy array of shape (w, h) or (w, h, c), respectively*.  2D input
-        is interpreted as grayscale.  3D input, depending on the value of c, is iterpreted as grayscale & alpha (c of 2),
-        red & blue & green (c of 3), or red & blue & green & alpha (c of 4).
-
-        The following dtypes are directly supported (data of any other type is converted to 32-bit floating point,
-        and an exception is thrown if conversion fails):
-        numpy.uint8
-        numpy.uint16
-        numpy.float32
-
-        Supplying a numpy array of one of the above types as input may avoid an intermediate copy step by allowing RisWidget
-        to keep a reference to the supplied array, allowing its data to be accessed directly.
-
-
-        * IE, the iterable assigned to the image property is interpreted as an iterable of columns (image left to right), each
-        containing an iterable of rows (image top to bottom), each of which is either a grayscale intensity value or an
-        iterable of color channel intensity values (gray & alpha, or red & green & blue, or red & green & blue & alpha)."""
-        return None if self._image is None else self._image.data
-
-    @image_data.setter
-    def image_data(self, image_data):
-        self.image = None if image_data is None else Image(image_data)
-
-    @property
-    def image_data_T(self):
-        """image_data_T property:
-        The input assigned to this property may be None, in which case the current image and histogram views are cleared,
-        and otherwise must be convertable to a 2D or 3D numpy array of shape (h, w) or (h, w, c), respectively*.  2D input
-        is interpreted as grayscale.  3D input, depending on the value of c, is iterpreted as grayscale & alpha (c of 2),
-        red & blue & green (c of 3), or red & blue & green & alpha (c of 4).
-
-        The following dtypes are directly supported (data of any other type is converted to 32-bit floating point,
-        and an exception is thrown if conversion fails):
-        numpy.uint8
-        numpy.uint16
-        numpy.float32
-
-        Supplying a numpy array of one of the above types as input may avoid an intermediate copy step by allowing RisWidget
-        to keep a reference to the supplied array, allowing its data to be accessed directly.
-
-
-        * IE, the iterable assigned to the image property is interpreted as an iterable of columns (image left to right), each
-        containing an iterable of rows (image top to bottom), each of which is either a grayscale intensity value or an
-        iterable of color channel intensity values (gray & alpha, or red & green & blue, or red & green & blue & alpha)."""
-        if self._image is not None:
-            return self._image.data_T
-
-    @image_data_T.setter
-    def image_data_T(self, image_data_T):
-        self.image = None if image_data_T is None else Image(image_data_T, shape_is_width_height=False)
-
-    @property
-    def image(self):
-        return self._image
-
-    @image.setter
-    def image(self, image):
-        if image is self._image:
-            if image is not None:
-                # The same image is being reassigned, presumably because its data has been modified.  In case other aspects
-                # of the image has changed in ways that would cause texture upload or stats recomputation to fail, subclasses
-                # are given the opportunity to reject the refresh.
-                self.validate_image(image)
-                self.image_about_to_change.emit(self, image, image)
-                self._image.recompute_stats()
-                self._image_id += 1
-                self.image_changing.emit(self, image, image)
-                self.image_changed.emit(self, image)
-        else:
-            if image is not None and not issubclass(type(image), Image):
-                e = 'The value assigned to the image property must either be derived '
-                e+= 'from ris_widget.image.Image or must be None.  Did you mean to assign '
-                e+= 'to the image_data property?'
-                raise ValueError(e)
-            self.validate_image(image)
-            old_image = self._image
-            self.image_about_to_change.emit(self, old_image, image)
-            self._image = image
-            self._image_id += 1
-            self.image_changing.emit(self, old_image, image)
-            self.image_changed.emit(self, image)
 
     def validate_image(self, image):
         """validate_image is provided for subclasses to override.  validate_image is called by the image property setter before
@@ -463,9 +392,27 @@ class ItemWithImage(Qt.QGraphicsObject):
         if old_image is None or new_image is None or old_image.size != new_image.size:
             self.prepareGeometryChange()
 
-    def _on_image_changing(self):
+    def _on_image_changing(self, self_, old_image, new_image):
+        print('b')
         if self.auto_min_max_enabled:
             self.do_auto_min_max()
+        if self.auto_getcolor_expression_enabled:
+            self.do_auto_getcolor_expression()
+
+    def _on_auto_getcolor_expression_enabled_changed(self):
+        if self._auto_getcolor_expression_enabled:
+            self.do_auto_getcolor_expression()
+
+    def _on_getcolor_expression_changed(self):
+        if self._auto_getcolor_expression_enabled and not self._keep_auto_getcolor_expression_enabled_on_getcolor_expression_change:
+            self.auto_getcolor_expression_enabled = False
+
+    def do_auto_getcolor_expression(self):
+        self._keep_auto_getcolor_expression_enabled_on_getcolor_expression_change = True
+        try:
+            self.getcolor_expression = None if self._image is None else self.IMAGE_TYPE_TO_GETCOLOR_EXPRESSION[self._image.type]
+        finally:
+            self._keep_auto_getcolor_expression_enabled_on_getcolor_expression_change = False
 
     def _on_auto_min_max_enabled_action_toggled(self, v):
         if v:
@@ -556,6 +503,92 @@ class ItemWithImage(Qt.QGraphicsObject):
         self.update()
 
     @property
+    def image_data(self):
+        """image_data property:
+        The input assigned to this property may be None, in which case the current image and histogram views are cleared,
+        and otherwise must be convertable to a 2D or 3D numpy array of shape (w, h) or (w, h, c), respectively*.  2D input
+        is interpreted as grayscale.  3D input, depending on the value of c, is iterpreted as grayscale & alpha (c of 2),
+        red & blue & green (c of 3), or red & blue & green & alpha (c of 4).
+
+        The following dtypes are directly supported (data of any other type is converted to 32-bit floating point,
+        and an exception is thrown if conversion fails):
+        numpy.uint8
+        numpy.uint16
+        numpy.float32
+
+        Supplying a numpy array of one of the above types as input may avoid an intermediate copy step by allowing RisWidget
+        to keep a reference to the supplied array, allowing its data to be accessed directly.
+
+
+        * IE, the iterable assigned to the image property is interpreted as an iterable of columns (image left to right), each
+        containing an iterable of rows (image top to bottom), each of which is either a grayscale intensity value or an
+        iterable of color channel intensity values (gray & alpha, or red & green & blue, or red & green & blue & alpha)."""
+        return None if self._image is None else self._image.data
+
+    @image_data.setter
+    def image_data(self, image_data):
+        self.image = None if image_data is None else Image(image_data)
+
+    @property
+    def image_data_T(self):
+        """image_data_T property:
+        The input assigned to this property may be None, in which case the current image and histogram views are cleared,
+        and otherwise must be convertable to a 2D or 3D numpy array of shape (h, w) or (h, w, c), respectively*.  2D input
+        is interpreted as grayscale.  3D input, depending on the value of c, is iterpreted as grayscale & alpha (c of 2),
+        red & blue & green (c of 3), or red & blue & green & alpha (c of 4).
+
+        The following dtypes are directly supported (data of any other type is converted to 32-bit floating point,
+        and an exception is thrown if conversion fails):
+        numpy.uint8
+        numpy.uint16
+        numpy.float32
+
+        Supplying a numpy array of one of the above types as input may avoid an intermediate copy step by allowing RisWidget
+        to keep a reference to the supplied array, allowing its data to be accessed directly.
+
+
+        * IE, the iterable assigned to the image property is interpreted as an iterable of columns (image left to right), each
+        containing an iterable of rows (image top to bottom), each of which is either a grayscale intensity value or an
+        iterable of color channel intensity values (gray & alpha, or red & green & blue, or red & green & blue & alpha)."""
+        if self._image is not None:
+            return self._image.data_T
+
+    @image_data_T.setter
+    def image_data_T(self, image_data_T):
+        self.image = None if image_data_T is None else Image(image_data_T, shape_is_width_height=False)
+
+    @property
+    def image(self):
+        return self._image
+
+    @image.setter
+    def image(self, image):
+        if image is self._image:
+            if image is not None:
+                # The same image is being reassigned, presumably because its data has been modified.  In case other aspects
+                # of the image has changed in ways that would cause texture upload or stats recomputation to fail, subclasses
+                # are given the opportunity to reject the refresh.
+                self.validate_image(image)
+                self.image_about_to_change.emit(self, image, image)
+                self._image.recompute_stats()
+                self._image_id += 1
+                self.image_changing.emit(self, image, image)
+                self.image_changed.emit(self, image)
+        else:
+            if image is not None and not issubclass(type(image), Image):
+                e = 'The value assigned to the image property must either be derived '
+                e+= 'from ris_widget.image.Image or must be None.  Did you mean to assign '
+                e+= 'to the image_data property?'
+                raise ValueError(e)
+            self.validate_image(image)
+            old_image = self._image
+            self.image_about_to_change.emit(self, old_image, image)
+            self._image = image
+            self._image_id += 1
+            self.image_changing.emit(self, old_image, image)
+            self.image_changed.emit(self, image)
+
+    @property
     def trilinear_filtering_enabled(self):
         """If set to True (the default), trilinear filtering is used for minification (zooming out).  This is
         somewhat higher quality than simple linear filtering, but it requires mipmap computation, which is too slow
@@ -573,7 +606,57 @@ class ItemWithImage(Qt.QGraphicsObject):
     def trilinear_filtering_enabled(self, trilinear_filtering_enabled):
         if trilinear_filtering_enabled != self._trilinear_filtering_enabled:
             self._trilinear_filtering_enabled = trilinear_filtering_enabled
-            self.update()
+            self.trilinear_filtering_enabled_changed.emit()
+
+    @property
+    def auto_getcolor_expression_enabled(self):
+        """If set to True (the default), self.getcolor_expression is set automatically to a value appropriate for
+        the type of the current image."""
+        return self._auto_getcolor_expression_enabled
+
+    @auto_getcolor_expression_enabled.setter
+    def auto_getcolor_expression_enabled(self, v):
+        if v != self._auto_getcolor_expression_enabled:
+            self._auto_getcolor_expression_enabled = v
+            self.auto_getcolor_expression_enabled_changed.emit()
+
+    @property
+    def getcolor_expression(self):
+        """This property contains the GLSL 1.2 expression executed to transform fetched image texture (self._tex) data
+        prior to applying min/max rescaling, gamma adjustment, and possibly composition with overlays.  In the case
+        of a single channel image, this is particularly important: the fetched data will contain zeros for all color
+        components except for red, making it necessary to use the red component value for green and blue as well in
+        order for the image to be rendered in grayscale.  For images without an alpha channel, it is recommended that
+        getcolor_expression should supply 1 for alpha component value.
+
+        The four channel, raw texture fetch result is available in the variable "s", and the result of evaluating
+        the getcolor_expression is used directly as input for the next step in the fragment shader (min/max scaling
+        and gamma transform).  So, to display a single channel image as grayscale, getcolor_expression may be
+        "vec4(s.r, s.r, s.r, 1.0f)".  To display a four channel RGBA image as is, getcolor_expression may be simply
+        "s", or, equivalently, "vec4(s.r, s.g, s.b, s.a)"."""
+        return self._getcolor_expression
+
+    @getcolor_expression.setter
+    def getcolor_expression(self, v):
+        if v != self._getcolor_expression:
+            self._getcolor_expression = v
+            self.getcolor_expression_changed.emit()
+
+    @property
+    def extra_transformation_expression(self):
+        """This property contains the optional GLSL 1.2 expression that transforms the output of min/max rescaling and
+        gamma transformation (available in the rgb vector "sc").  For example, to invert after rescaling and gamma
+        have been applied, extra_transformation_expression should be "vec3(1,1,1) - sc".
+
+        If the extra_transformation_expression property is None, the extra transformation step is skipped and the output
+        min/max rescaling and gamma are used without modification."""
+        return self._extra_transformation_expression
+
+    @extra_transformation_expression.setter
+    def extra_transformation_expression(self, v):
+        if self._extra_transformation_expression != v:
+            self._extra_transformation_expression = v
+            self.extra_transformation_expression_changed.emit()
 
     @property
     def auto_min_max_enabled(self):
@@ -596,13 +679,11 @@ class ItemWithImage(Qt.QGraphicsObject):
             if self._normalized_min > self._normalized_max:
                 self._normalized_max = v
                 self.max_changed.emit()
-            self.update()
 
     @normalized_min.deleter
     def normalized_min(self):
         self._normalized_min = 0.0
         self.min_changed.emit()
-        self.update()
 
     @property
     def min(self):
@@ -611,7 +692,7 @@ class ItemWithImage(Qt.QGraphicsObject):
     @min.setter
     def min(self, v):
         v = self._normalize_from_image_range(float(v))
-        if v < 0.0 or v > 1.0:
+        if not 0 <= v <= 1:
             raise ValueError('The value assigned to min must lie in the interval [{}, {}].'.format(
                 self._denormalize_to_image_range(0.0), self._denormalize_to_image_range(1.0)))
         self.normalized_min = v
@@ -633,13 +714,11 @@ class ItemWithImage(Qt.QGraphicsObject):
             if self._normalized_max < self._normalized_min:
                 self._normalized_min = v
                 self.min_changed.emit()
-            self.update()
 
     @normalized_max.deleter
     def normalized_max(self):
         self._normalized_max = 1.0
         self.max_changed.emit()
-        self.update()
 
     @property
     def max(self):
@@ -648,7 +727,7 @@ class ItemWithImage(Qt.QGraphicsObject):
     @max.setter
     def max(self, v):
         v = self._normalize_from_image_range(float(v))
-        if not 0 < v < 1:
+        if not 0 <= v <= 1:
             raise ValueError('The value assigned to {}.max must lie in the closed interval [{}, {}].'.format(
                 type(self).__name__,
                 self._denormalize_to_image_range(0.0), self._denormalize_to_image_range(1.0)))
@@ -670,13 +749,11 @@ class ItemWithImage(Qt.QGraphicsObject):
                 raise ValueError('The value assigned to {}.gamma must lie in the interval [{}, {}].'.format(type(self).__name__, *ItemWithImage.GAMMA_RANGE))
             self._gamma = v
             self.gamma_changed.emit()
-            self.update()
 
     @gamma.deleter
     def gamma(self):
         self._gamma = 1.0
         self.gamma_changed.emit()
-        self.update()
 
 class ShaderItemMixin:
     def __init__(self):

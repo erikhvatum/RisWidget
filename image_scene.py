@@ -31,6 +31,7 @@ from contextlib import ExitStack
 import math
 import numpy
 from PyQt5 import Qt
+from string import Template
 import sys
 
 class ImageScene(ShaderScene):
@@ -48,17 +49,45 @@ class ImageScene(ShaderScene):
 
 class ImageItem(ShaderItemWithImage):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
-    IMAGE_TYPE_TO_COMBINE_VT_COMPONENTS = {
-        'g'   : 'vec4(vcomponents, vcomponents, vcomponents, tex_global_alpha)',
-        'ga'  : 'vec4(vcomponents, vcomponents, vcomponents, tcomponents.a * tex_global_alpha)',
-        'rgb' : 'vec4(vcomponents.rgb, tex_global_alpha)',
-        'rgba': 'vec4(vcomponents.rgb, tcomponents.a * tex_global_alpha)'}
+    _OVERLAY_UNIFORMS_TEMPLATE = Template(
+"""uniform sampler2D overlay${idx}_tex;
+uniform mat3 overlay${idx}_frag_to_tex;
+uniform float overlay${idx}_tex_global_alpha;
+uniform float overlay${idx}_rescale_min;
+uniform float overlay${idx}_rescale_range;
+uniform float overlay${idx}_gamma;
+""")
+    _OVERLAY_BLENDING_TEMPLATE = Template(#TODO: fix min/max/gamma transform for overlay
+"""    tex_coord = transform_frag_to_tex(overlay${idx}_frag_to_tex);
+    if(tex_coord.x >= 0 && tex_coord.x < 1 && tex_coord.y >= 0 && tex_coord.y < 1)
+    {
+        s = texture2D(overlay${idx}_tex, tex_coord);
+        s = ${getcolor_expression};
+        sa = clamp(s.a, 0, 1) * overlay${idx}_tex_global_alpha;
+        //sc = min_max_gamma_transform(s.rgb, overlay${idx}_rescale_min, overlay${idx}_rescale_range, overlay${idx}_gamma);
+        sc = s.rgb;
+        ${extra_transformation_expression};
+        sca = sc * sa;
+        ${blend_function}
+        da = clamp(da, 0, 1);
+        dca = clamp(dca, 0, 1);
+    }
+""")
+
+    overlay_attaching = Qt.pyqtSignal(ItemWithImage)
+    overlay_detaching = Qt.pyqtSignal(ItemWithImage)
 
     def __init__(self, parent_item=None):
         super().__init__(parent_item)
         self._overlay_items = []
         self._overlay_items_z_sort_is_current = True
         self.setAcceptHoverEvents(True)
+        self.trilinear_filtering_enabled_changed.connect(self.update)
+        self.getcolor_expression_changed.connect(self.update)
+        self.extra_transformation_expression_changed.connect(self.update)
+        self.min_changed.connect(self.update)
+        self.max_changed.connect(self.update)
+        self.gamma_changed.connect(self.update)
 
     def type(self):
         return ImageItem.QGRAPHICSITEM_TYPE
@@ -73,63 +102,36 @@ class ImageItem(ShaderItemWithImage):
         with ExitStack() as estack:
             estack.callback(qpainter.endNativePainting)
             self._update_tex(estack)
-            if self._tex is not None:
+            if self._tex is not None and self._getcolor_expression is not None:
                 gl = GL()
                 image = self._image
-                if len(self._overlay_items) > 1:
-                    raise RuntimeError('Only one overlay per ImageItem is supported at the moment.')
                 self._update_overlay_items_z_sort()
-                if len(self._overlay_items) == 1 and self._overlay_items[0].isVisible() and self._overlay_items[0]._image is not None:
-                    overlay_item = self._overlay_items[0]
-                    has_overlay = True
-                    overlay_type = 'g' if overlay_item._image.is_grayscale else 'rgb'
+                prog_desc = [self._getcolor_expression, self._extra_transformation_expression]
+                visible_overlays = []
+                for overlay_item in self._overlay_items:
+                    if overlay_item.isVisible() and overlay_item._image is not None:
+                        prog_desc += [overlay_item._getcolor_expression, overlay_item._blend_function, overlay_item._extra_transformation_expression]
+                        visible_overlays.append(overlay_item)
+                prog_desc = tuple(prog_desc)
+                if prog_desc in self.progs:
+                    prog = self.progs[prog_desc]
                 else:
-                    overlay_item = None
-                    has_overlay = False
-                    overlay_type = None
-                if (image.type, has_overlay) in self.progs:
-                    prog = self.progs[(image.type, overlay_type)]
-                else:
-                    if image.is_grayscale:
-                        vcomponents_t = 'float'
-                        extract_vcomponents = 'tcomponents.r'
-                        vcomponents_ones_vector = '1.0f'
-                    else:
-                        vcomponents_t = 'vec3'
-                        extract_vcomponents = 'tcomponents.rgb'
-                        vcomponents_ones_vector = 'vec3(1.0f, 1.0f, 1.0f)'
-                    if has_overlay:
-                        overlay_samplers = ''
-                        overlay_uniforms = 'uniform sampler2D overlay0_tex; uniform mat3 overlay0_frag_to_tex; uniform float overlay0_tex_global_alpha;'
-                        do_overlay_blending = \
-"""
-    vec2 overlay0_tex_coord = transform_frag_to_tex(overlay0_frag_to_tex);
-    if(overlay0_tex_coord.x >= 0 && overlay0_tex_coord.x < 1 && overlay0_tex_coord.y >= 0 && overlay0_tex_coord.y < 1)
-    {
-        vec4 o = texture2D(overlay0_tex, overlay0_tex_coord);""" + ('o.g=o.b=o.r;' if overlay_item._image.is_grayscale else '\nvec3 oc = 1.0f - o.rgb;') + """
-        """ + ('o.a = overlay0_tex_global_alpha * o.a;' if overlay_item._image.has_alpha_channel else 'o.a = overlay0_tex_global_alpha;') + """
-        vec3 ipm = t_transformed.rgb * t_transformed.a;
-        vec3 opm = o.rgb * o.a;
-        vec3 dpm = ipm + opm - ipm * opm;
-        vec4 d = vec4(dpm, t_transformed.a + o.a - t_transformed.a * o.a);
-        t_transformed = clamp(d, 0, 1);
-    }
-"""
-                        gl_FragColor = 't_transformed'
-                    else:
-                        overlay_uniforms = ''
-                        do_overlay_blending = ''
-                        gl_FragColor = 't_transformed'
-                    prog = self.build_shader_prog((image.type, overlay_type),
+                    overlay_uniforms = ''
+                    do_overlay_blending = ''
+                    for overlay_idx, overlay_item in enumerate(visible_overlays):
+                        overlay_uniforms += self._OVERLAY_UNIFORMS_TEMPLATE.substitute(idx=overlay_idx)
+                        do_overlay_blending += self._OVERLAY_BLENDING_TEMPLATE.substitute(
+                            idx=overlay_idx,
+                            getcolor_expression=overlay_item._getcolor_expression,
+                            extra_transformation_expression='' if overlay_item._extra_transformation_expression is None else overlay_item._extra_transformation_expression,
+                            blend_function=overlay_item._blend_function_impl)
+                    prog = self.build_shader_prog(prog_desc,
                                                   'image_widget_vertex_shader.glsl',
                                                   'image_widget_fragment_shader_template.glsl',
-                                                  vcomponents_t=vcomponents_t,
-                                                  extract_vcomponents=extract_vcomponents,
-                                                  vcomponents_ones_vector=vcomponents_ones_vector,
-                                                  combine_vt_components=ImageItem.IMAGE_TYPE_TO_COMBINE_VT_COMPONENTS[image.type],
                                                   overlay_uniforms=overlay_uniforms,
-                                                  do_overlay_blending=do_overlay_blending,
-                                                  gl_FragColor=gl_FragColor)
+                                                  getcolor_expression=self._getcolor_expression,
+                                                  extra_transformation_expression='' if self._extra_transformation_expression is None else self._extra_transformation_expression,
+                                                  do_overlay_blending=do_overlay_blending)
                 prog.bind()
                 estack.callback(prog.release)
                 view = widget.view
@@ -142,7 +144,7 @@ class ImageItem(ShaderItemWithImage):
                 prog.setAttributeBuffer(vert_coord_loc, gl.GL_FLOAT, 0, 2, 0)
                 prog.setUniformValue('tex', 0)
                 frag_to_tex = Qt.QTransform()
-                frame = Qt.QPolygonF(view.mapFromScene(Qt.QPolygonF(self.sceneTransform().mapToPolygon(self.boundingRect().toRect())))) #Qt.QPolygonF(view.mapFromScene(self.boundingRect()))
+                frame = Qt.QPolygonF(view.mapFromScene(Qt.QPolygonF(self.sceneTransform().mapToPolygon(self.boundingRect().toRect()))))
                 if not qpainter.transform().quadToSquare(frame, frag_to_tex):
                     raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix.')
                 prog.setUniformValue('frag_to_tex', frag_to_tex)
@@ -154,19 +156,25 @@ class ImageItem(ShaderItemWithImage):
 
                 min_max = numpy.array((self._normalized_min, self._normalized_max), dtype=float)
                 min_max = self._renormalize_for_gl(min_max)
-                prog.setUniformValue('gammas', self.gamma)
-                prog.setUniformValue('vcomponent_rescale_mins', min_max[0])
-                prog.setUniformValue('vcomponent_rescale_ranges', min_max[1] - min_max[0])
-                if has_overlay:
-                    overlay_item._update_tex(estack, 1)
-                    overlay_frag_to_tex = Qt.QTransform()
-                    overlay_frame = Qt.QPolygonF(view.mapFromScene(Qt.QPolygonF(overlay_item.sceneTransform().mapToPolygon(overlay_item.boundingRect().toRect()))))
-                    overlay_qpainter_transform = overlay_item.deviceTransform(view.viewportTransform())
-                    if not overlay_qpainter_transform.quadToSquare(overlay_frame, overlay_frag_to_tex):
-                        raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix for overlay.')
-                    prog.setUniformValue('overlay0_frag_to_tex', overlay_frag_to_tex)
-                    prog.setUniformValue('overlay0_tex', 1)
-                    prog.setUniformValue('overlay0_tex_global_alpha', overlay_item.opacity())
+                prog.setUniformValue('gamma', self.gamma)
+                prog.setUniformValue('rescale_min', min_max[0])
+                prog.setUniformValue('rescale_range', min_max[1] - min_max[0])
+                for overlay_idx, overlay_item in enumerate(visible_overlays):
+                    texture_unit = overlay_idx + 1 # +1 because first texture unit is occupied by image texture
+                    overlay_item._update_tex(estack, texture_unit) 
+                    frag_to_tex = Qt.QTransform()
+                    frame = Qt.QPolygonF(view.mapFromScene(Qt.QPolygonF(overlay_item.sceneTransform().mapToPolygon(overlay_item.boundingRect().toRect()))))
+                    qpainter_transform = overlay_item.deviceTransform(view.viewportTransform())
+                    if not qpainter_transform.quadToSquare(frame, frag_to_tex):
+                        raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix for overlay {}.'.format(overlay_idx))
+                    prog.setUniformValue('overlay{}_frag_to_tex'.format(overlay_idx), frag_to_tex)
+                    prog.setUniformValue('overlay{}_tex'.format(overlay_idx), texture_unit)
+                    prog.setUniformValue('overlay{}_tex_global_alpha'.format(overlay_idx), overlay_item.opacity())
+                    prog.setUniformValue('overlay{}_gamma'.format(overlay_idx), overlay_item.gamma)
+                    min_max[0], min_max[1] = overlay_item.min, overlay_item.max
+                    min_max = overlay_item._renormalize_for_gl(min_max)
+                    prog.setUniformValue('overlay{}_rescale_min'.format(overlay_idx), min_max[0])
+                    prog.setUniformValue('overlay{}_rescale_range'.format(overlay_idx), min_max[1] - min_max[0])
                 gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
                 gl.glDrawArrays(gl.GL_TRIANGLE_FAN, 0, 4)
             self._paint_frame(qpainter)
@@ -225,13 +233,30 @@ class ImageItem(ShaderItemWithImage):
             raise RuntimeError('ImageItem must be parent of overlay_item to be attached.')
         overlay_item.zChanged.connect(self._on_overlay_z_changed)
         self.image_changing.connect(overlay_item._on_overlayed_image_changing)
+        overlay_item.blend_function_changed.connect(self.update)
+        overlay_item.trilinear_filtering_enabled_changed.connect(self.update)
+        overlay_item.getcolor_expression_changed.connect(self.update)
+        overlay_item.extra_transformation_expression_changed.connect(self.update)
+        overlay_item.min_changed.connect(self.update)
+        overlay_item.max_changed.connect(self.update)
+        overlay_item.gamma_changed.connect(self.update)
         self._overlay_items.append(overlay_item)
         self._overlay_items_z_sort_is_current = False
+        self.overlay_attaching.emit(overlay_item)
         self.update()
 
     def detach_overlay(self, overlay_item):
+        assert overlay_item in self._overlay_items
         overlay_item.zChanged.disconnect(self._on_overlay_z_changed)
         self.image_changing.disconnect(overlay_item._on_overlayed_image_changing)
+        overlay_item.blend_function_changed.disconnect(self.update)
+        overlay_item.trilinear_filtering_enabled_changed.disconnect(self.update)
+        overlay_item.getcolor_expression_changed.disconnect(self.update)
+        overlay_item.extra_transformation_expression_changed.disconnect(self.update)
+        overlay_item.min_changed.disconnect(self.update)
+        overlay_item.max_changed.disconnect(self.update)
+        overlay_item.gamma_changed.disconnect(self.update)
+        self.overlay_detaching(overlay_item)
         idx = self._overlay_items.index(overlay_item)
         del self._overlay_items[idx]
         self.update()
@@ -252,6 +277,34 @@ class ImageItem(ShaderItemWithImage):
 
 class ImageOverlayItem(ItemWithImage):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
+    # Blend functions adapted from http://dev.w3.org/SVG/modules/compositing/master/ 
+    _BLEND_FUNCTIONS = {
+        'src-over' : ('dca = sca + dca * (1.0f - sa);',
+                      'da = sa + da - sa * da;'),
+        'dst-over' : ('dca = dca + sca * (1.0f - da);',
+                      'da = sa + da - sa * da;'),
+        'plus'     : ('dca += sca;',
+                      'da += sa;'),
+        'multiply' : ('dca = sca * dca + sca * (1.0f - da) + dca * (1.0f - sa);',
+                      'da = sa + da - sa * da;'),
+        'screen'   : ('dca = sca + dca - sca * dca;',
+                      'da = sa + da - sa * da;'),
+        'overlay'  : ('isa = 1.0f - sa; osa = 1.0f + sa;',
+                      'ida = 1.0f - da; oda = 1.0f + da;',
+                      'sada = sa * da;',
+                      'for(i = 0; i < 3; ++i){',
+                      '    dca[i] = (dca[i] + dca[i] <= da) ?',
+                      '             (sca[i] + sca[i]) * dca[i] + sca[i] * ida + dca[i] * isa :',
+                      '             sca * oda + dca * osa - (dca[i] + dca[i]) * sca[i] - sada;}',
+                      'da = sa + da - sada;'),
+        'difference':('dca = (sca * da + dca * sa - (sca + sca) * dca) + sca * (1.0f - da) + dca * (1.0f - sa);',
+                      'da = sa + da - sa * da;')}
+    for k, v in _BLEND_FUNCTIONS.items():
+        _BLEND_FUNCTIONS[k] = '    ' + '    \n'.join(v)
+    del k, v
+
+    blend_function_changed = Qt.pyqtSignal()
+    fill_overlayed_image_enabled_changed = Qt.pyqtSignal()
 
     def __init__(self, overlayed_image_item, overlay_image=None, overlay_image_data=None, overlay_image_data_T=None, overlay_name=None):
         super().__init__(overlayed_image_item)
@@ -272,6 +325,8 @@ class ImageOverlayItem(ItemWithImage):
         self._allow_transform_change_with_fill_enabled = False
         self.setFlag(Qt.QGraphicsItem.ItemSendsGeometryChanges)
         self._frame_color = Qt.QColor(0,0,255,128)
+        self._blend_function = 'src-over'
+        self._blend_function_impl = ImageOverlayItem._BLEND_FUNCTIONS[self._blend_function]
         if overlay_image is not None:
             self.image = overlay_image
         elif overlay_image_data is not None:
@@ -362,11 +417,6 @@ class ImageOverlayItem(ItemWithImage):
         if self._image is not None and (overlayed_image_item is None or overlayed_image_item._image is not None):
             self._paint_frame(qpainter)
 
-#   def wheelEvent(self, event):
-#       wheel_delta = event.delta()
-#       if wheel_delta != 0:
-#           self.setRotation(self.rotation() + (1 if wheel_delta > 0 else -1))
-
     def generate_contextual_info_for_pos(self, pos, overlay_stack_idx):
         pos = Qt.QPoint(pos.x(), pos.y())
         oimage = self._image
@@ -382,6 +432,8 @@ class ImageOverlayItem(ItemWithImage):
             return mst+vt
 
     def _on_image_changing(self, self_, old_image, new_image):
+        super()._on_image_changing(self_, old_image, new_image)
+        print(self._getcolor_expression)
         parent_image_item = self.parentItem()
         if parent_image_item is not None and \
            self._fill_overlayed_image_item_enabled and \
@@ -409,6 +461,19 @@ class ImageOverlayItem(ItemWithImage):
         if parent_image_item is not None and self._image is not None:
             self._do_fill_parent(parent_image_item)
 
+    def _blend_function_getter(self):
+        return self._blend_function
+
+    def _blend_function_setter(self, v):
+        if v != self._blend_function:
+            if v not in self._BLEND_FUNCTIONS:
+                raise KeyError('The string assigned to .blend_function must be present in ._BLEND_FUNCTIONS.')
+            self._blend_function = v
+            self._blend_function_impl = self.BLEND_FUNCTIONS[v]
+            self.blend_function_changed.emit()
+
+    blend_function = property(_blend_function_getter, _blend_function_setter, doc='Must be one of:\n' + '\n'.join(sorted(_BLEND_FUNCTIONS.keys())))
+
     @property
     def fill_overlayed_image_item_enabled(self):
         """If enabled, overlay is stretched to match the dimensions of the overlayed image, and all attempts
@@ -422,3 +487,4 @@ class ImageOverlayItem(ItemWithImage):
             if v:
                 self.prepareGeometryChange()
             self._fill_overlayed_image_item_enabled = v
+            self.fill_overlayed_image_enabled_changed.emit()

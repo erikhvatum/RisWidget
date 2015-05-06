@@ -30,26 +30,15 @@ uniform float tex_global_alpha;
 // 2D homogeneous transformation matrix for transforming gl_FragCoord viewport coordinates into image texture
 // coordinates
 uniform mat3 frag_to_tex;
-uniform $vcomponents_t vcomponent_rescale_mins;
-uniform $vcomponents_t vcomponent_rescale_ranges;
-uniform $vcomponents_t gammas;
+uniform float rescale_min;
+uniform float rescale_range;
+uniform float gamma;
 uniform float viewport_height;
 $overlay_uniforms
 
-$vcomponents_t extract_vcomponents(vec4 tcomponents)
+vec3 min_max_gamma_transform(vec3 cc, float rescale_min, float rescale_range, float gamma)
 {
-    return $extract_vcomponents;
-}
-
-$vcomponents_t transform_vcomponents($vcomponents_t vcomponents)
-{
-    return gammas == $vcomponents_ones_vector ? clamp((vcomponents - vcomponent_rescale_mins) / vcomponent_rescale_ranges, 0, 1) :
-                                                pow(clamp((vcomponents - vcomponent_rescale_mins) / vcomponent_rescale_ranges, 0, 1), gammas);
-}
-
-vec4 combine_vt_components($vcomponents_t vcomponents, vec4 tcomponents)
-{
-    return $combine_vt_components;
+    return pow(clamp((cc.rgb - rescale_min) / rescale_range, 0, 1), vec3(gamma, gamma, gamma));
 }
 
 vec2 transform_frag_to_tex(mat3 frag_to_tex_mat)
@@ -73,12 +62,19 @@ void main()
         discard;
     }
 
-    vec4 tcomponents = texture2D(tex, tex_coord);
-    $vcomponents_t vcomponents = extract_vcomponents(tcomponents);
-    $vcomponents_t transformed_vcomponents = transform_vcomponents(vcomponents);
-    vec4 t_transformed = combine_vt_components(transformed_vcomponents, tcomponents);
+    vec4 s = texture2D(tex, tex_coord);
+    s = ${getcolor_expression};
+    float sa = clamp(s.a, 0, 1) * tex_global_alpha;
+    vec3 sc = min_max_gamma_transform(s.rgb, rescale_min, rescale_range, gamma);
+    ${extra_transformation_expression};
+    vec3 sca = sc * sa;
+    float da = sa;
+    vec3 dca = sca;
+
+    int i;
+    float isa, ida, osa, oda, sada;
 
     $do_overlay_blending
 
-    gl_FragColor = ${gl_FragColor};
+    gl_FragColor = vec4(dca / da, da);
 }
