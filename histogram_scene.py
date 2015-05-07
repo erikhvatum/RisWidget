@@ -285,8 +285,7 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
 
 class GammaItem(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
-    CURVE_VERTEX_COUNT = 62
-    CURVE_VERTEX_COMPUTE_POSITIONS = numpy.linspace(0, 1, num=CURVE_VERTEX_COUNT, endpoint=True)[1:-1]
+    CURVE_VERTEX_Y_INCREMENT = 1 / 100
 
     def __init__(self, histogram_item, value_prop, min_item, max_item):
         super().__init__(histogram_item)
@@ -351,7 +350,18 @@ class GammaItem(Qt.QGraphicsObject):
     def _on_value_changed(self):
         self.prepareGeometryChange()
         self._path = Qt.QPainterPath(Qt.QPointF(0, 1))
-        for x, y in zip(GammaItem.CURVE_VERTEX_COMPUTE_POSITIONS, GammaItem.CURVE_VERTEX_COMPUTE_POSITIONS**self._value_prop.fget(self.scene()._image_item)):
+        gamma = self._value_prop.fget(self.scene()._image_item)
+        # Compute sample point x locations such that the y increment from one sample point to the next is approximately
+        # the constant, resulting in a fairly smooth gamma plot.  This is not particularly fast, but it only happens when 
+        # gamma value changes, and it's fast enough that there is no noticable choppiness when dragging the gamma curve
+        # up and down on a mac mini.
+        xs = []
+        x = 0
+        while x < 1:
+            xs.append(x)
+            x += (GammaItem.CURVE_VERTEX_Y_INCREMENT + x**gamma)**(1/gamma) - x
+        del xs[0]
+        for x, y in zip(xs, (x**gamma for x in xs)):
             self._path.lineTo(x, 1.0-y)
         self._path.lineTo(1, 0)
         self.update()

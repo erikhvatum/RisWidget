@@ -393,7 +393,6 @@ class ItemWithImage(Qt.QGraphicsObject):
             self.prepareGeometryChange()
 
     def _on_image_changing(self, self_, old_image, new_image):
-        print('b')
         if self.auto_min_max_enabled:
             self.do_auto_min_max()
         if self.auto_getcolor_expression_enabled:
