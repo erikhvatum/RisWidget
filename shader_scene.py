@@ -92,9 +92,9 @@ class ContextualInfoItem(Qt.QGraphicsObject):
         else:
             return Qt.QRectF(0,0,1,1)
 
-    def paint(self, painter, option, widget):
+    def paint(self, qpainter, option, widget):
         self._update_picture()
-        self._picture.play(painter)
+        self._picture.play(qpainter)
 
     def return_to_fixed_position(self, view):
         """Maintain position self.FIXED_POSITION_IN_VIEW relative to view's top left corner."""
@@ -422,7 +422,12 @@ class ItemWithImage(Qt.QGraphicsObject):
         if image is not None:
             self._keep_auto_min_max_on_min_max_value_change = True
             try:
-                self.min, self.max = image.min_max
+                mm = image.min_max
+                if image.has_alpha_channel:
+                    self.min = mm[:-1, 0].min()
+                    self.max = mm[:-1, 1].max()
+                else:
+                    self.min, self.max = mm
             finally:
                 self._keep_auto_min_max_on_min_max_value_change = False
 

@@ -57,14 +57,14 @@ uniform float overlay${idx}_rescale_min;
 uniform float overlay${idx}_rescale_range;
 uniform float overlay${idx}_gamma;
 """)
-    _OVERLAY_BLENDING_TEMPLATE = Template(#TODO: fix min/max/gamma transform for overlay
+    _OVERLAY_BLENDING_TEMPLATE = Template(
 """    tex_coord = transform_frag_to_tex(overlay${idx}_frag_to_tex);
     if(tex_coord.x >= 0 && tex_coord.x < 1 && tex_coord.y >= 0 && tex_coord.y < 1)
     {
         s = texture2D(overlay${idx}_tex, tex_coord);
         s = ${getcolor_expression};
         sa = clamp(s.a, 0, 1) * overlay${idx}_tex_global_alpha;
-        //sc = min_max_gamma_transform(s.rgb, overlay${idx}_rescale_min, overlay${idx}_rescale_range, overlay${idx}_gamma);
+        sc = min_max_gamma_transform(s.rgb, overlay${idx}_rescale_min, overlay${idx}_rescale_range, overlay${idx}_gamma);
         sc = s.rgb;
         ${extra_transformation_expression};
         sca = sc * sa;
@@ -177,7 +177,7 @@ uniform float overlay${idx}_gamma;
                     prog.setUniformValue('overlay{}_rescale_range'.format(overlay_idx), min_max[1] - min_max[0])
                 gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
                 gl.glDrawArrays(gl.GL_TRIANGLE_FAN, 0, 4)
-            self._paint_frame(qpainter)
+        self._paint_frame(qpainter)
 
     def hoverMoveEvent(self, event):
         if self._image is not None:
@@ -218,10 +218,12 @@ uniform float overlay${idx}_gamma;
     def hoverLeaveEvent(self, event):
         self.scene().clear_contextual_info(self)
 
-    def make_and_attach_overlay(self, overlay_image=None, overlay_image_data=None, overlay_image_data_T=None, overlay_name=None, zValue=0, ImageOverlayItemClass=None):
+    def make_and_attach_overlay(self, overlay_image=None, overlay_image_data=None, overlay_image_data_T=None, overlay_name=None,
+                                fill_overlayed_image_item_enabled=True, blend_function='src-over', zValue=0, ImageOverlayItemClass=None):
         """If None is supplied for ImageOverlayItemClass, ImageOverlayItem is used."""
         overlay_item = (ImageOverlayItem if ImageOverlayItemClass is None else ImageOverlayItemClass)\
-                       (self, overlay_image, overlay_image_data, overlay_image_data_T, overlay_name)
+                       (self, overlay_image, overlay_image_data, overlay_image_data_T, overlay_name,
+                        fill_overlayed_image_item_enabled, blend_function)
         overlay_item.setZValue(zValue)
         return overlay_item
 
@@ -306,7 +308,8 @@ class ImageOverlayItem(ItemWithImage):
     blend_function_changed = Qt.pyqtSignal()
     fill_overlayed_image_enabled_changed = Qt.pyqtSignal()
 
-    def __init__(self, overlayed_image_item, overlay_image=None, overlay_image_data=None, overlay_image_data_T=None, overlay_name=None):
+    def __init__(self, overlayed_image_item, overlay_image=None, overlay_image_data=None, overlay_image_data_T=None, overlay_name=None,
+                 fill_overlayed_image_item_enabled=True, blend_function='src-over'):
         super().__init__(overlayed_image_item)
         self._itemChange_handlers = {
             Qt.QGraphicsItem.ItemParentChange : self._on_itemParentChange,
@@ -321,11 +324,11 @@ class ImageOverlayItem(ItemWithImage):
         self.name = overlay_name
         if overlayed_image_item is not None:
             overlayed_image_item.attach_overlay(self)
-        self._fill_overlayed_image_item_enabled = True
+        self._fill_overlayed_image_item_enabled = fill_overlayed_image_item_enabled
         self._allow_transform_change_with_fill_enabled = False
         self.setFlag(Qt.QGraphicsItem.ItemSendsGeometryChanges)
         self._frame_color = Qt.QColor(0,0,255,128)
-        self._blend_function = 'src-over'
+        self._blend_function = blend_function
         self._blend_function_impl = ImageOverlayItem._BLEND_FUNCTIONS[self._blend_function]
         if overlay_image is not None:
             self.image = overlay_image
@@ -433,7 +436,6 @@ class ImageOverlayItem(ItemWithImage):
 
     def _on_image_changing(self, self_, old_image, new_image):
         super()._on_image_changing(self_, old_image, new_image)
-        print(self._getcolor_expression)
         parent_image_item = self.parentItem()
         if parent_image_item is not None and \
            self._fill_overlayed_image_item_enabled and \
@@ -469,10 +471,10 @@ class ImageOverlayItem(ItemWithImage):
             if v not in self._BLEND_FUNCTIONS:
                 raise KeyError('The string assigned to .blend_function must be present in ._BLEND_FUNCTIONS.')
             self._blend_function = v
-            self._blend_function_impl = self.BLEND_FUNCTIONS[v]
+            self._blend_function_impl = self._BLEND_FUNCTIONS[v]
             self.blend_function_changed.emit()
 
-    blend_function = property(_blend_function_getter, _blend_function_setter, doc='Must be one of:\n' + '\n'.join(sorted(_BLEND_FUNCTIONS.keys())))
+    blend_function = property(_blend_function_getter, _blend_function_setter, doc='Must be one of:\n' + '\n'.join("'" + s + "'" for s in sorted(_BLEND_FUNCTIONS.keys())))
 
     @property
     def fill_overlayed_image_item_enabled(self):
