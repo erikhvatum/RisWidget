@@ -27,13 +27,14 @@
 from distutils.core import setup
 import numpy
 import os
+from pathlib import Path
 import subprocess
 import sys
 
-cpp_source = 'cython/_ndimage_statistics_impl.cpp'
-cython_source = 'cython/_ndimage_statistics.pyx'
-cythoned_source = 'cython/_ndimage_statistics.cpp'
-cython_source_deps = ['cython/_ndimage_statistics_impl.h']
+cpp_source = 'ris_widget/_ndimage_statistics_impl.cpp'
+cython_source = 'ris_widget/_ndimage_statistics.pyx'
+cythoned_source = 'ris_widget/_ndimage_statistics.cpp'
+cython_source_deps = ['ris_widget/_ndimage_statistics_impl.h']
 
 include_dirs = [numpy.get_include()]
 
@@ -41,8 +42,37 @@ extra_compile_args = []
 extra_link_args = []
 define_macros = []
 
-if sys.platform != 'win32':
-    extra_compile_args.extend(('-O3', '-march=native'))
+common_setup_args = {
+    'classifiers' : [
+        'Environment :: MacOS X',
+        'Environment :: Win32 (MS Windows)',
+        'Environment :: X11 Applications :: Qt',
+        'Intended Audience :: Developers',
+        'Intended Audience :: Education'
+        'Intended Audience :: End Users/Desktop',
+        'Intended Audience :: Science/Research',
+        'Natural Language :: English',
+        'Programming Language :: C++',
+        'Programming Language :: Cython',
+        'Programming Language :: Python :: 3 :: Only',
+        'Programming Language :: Python :: Implementation :: CPython',
+        'Topic :: Multimedia :: Graphics :: Viewers',
+        'Topic :: Multimedia :: Video :: Display',
+        'Topic :: Scientific/Engineering :: Medical Science Apps.',
+        'Topic :: Scientific/Engineering :: Visualization',
+        'Topic :: Software Development :: Widget Sets'],
+    'package_data' : {
+        'ris_widget' : [
+            'shaders/histogram_widget_fragment_shader_g.glsl',
+            'shaders/histogram_widget_fragment_shader_rgb.glsl',
+            'shaders/histogram_widget_vertex_shader.glsl',
+            'shaders/image_widget_fragment_shader_template.glsl',
+            'shaders/image_widget_vertex_shader.glsl']},
+    'description' : 'ris_widget (rapid image streaming widget) package',
+    'name' : 'ris_widget',
+    'packages' : ['ris_widget'],
+    'version' : '1.1'
+    }
 
 try:
     from Cython.Distutils import build_ext
@@ -53,7 +83,7 @@ try:
             super().__init__(*va, **ka)
             self.force = True
 
-    ext_modules = [Extension('_ndimage_statistics',
+    ext_modules = [Extension('ris_widget._ndimage_statistics',
                              sources = [cython_source, cpp_source],
                              include_dirs = include_dirs,
                              define_macros = define_macros,
@@ -64,14 +94,14 @@ try:
                              cython_directives={'language_level' : 3}
                              )]
 
-    setup(name = 'ris_widget',
-          cmdclass = {'build_ext' : build_ext_forced_rebuild},
-          ext_modules = ext_modules)
+    setup(cmdclass = {'build_ext' : build_ext_forced_rebuild},
+          ext_modules = ext_modules,
+          **common_setup_args)
 except ImportError:
     print('Cython does not appear to be installed.  Attempting to use pre-made cpp file...')
     from distutils.extension import Extension
 
-    ext_modules = [Extension('_ndimage_statistics',
+    ext_modules = [Extension('ris_widget._ndimage_statistics',
                              sources = [cythoned_source, cpp_source],
                              include_dirs = include_dirs,
                              define_macros = define_macros,
@@ -81,5 +111,5 @@ except ImportError:
                              extra_link_args = extra_link_args
                              )]
 
-    setup(name = 'ris_widget',
-          ext_modules = ext_modules)
+    setup(ext_modules = ext_modules,
+          **common_setup_args)

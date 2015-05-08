@@ -74,7 +74,7 @@ void main()
     int i;
     float isa, ida, osa, oda, sada;
 
-    $do_overlay_blending
+$do_overlay_blending
 
     gl_FragColor = vec4(dca / da, da);
 }

@@ -221,9 +221,10 @@ uniform float overlay${idx}_gamma;
     def make_and_attach_overlay(self, overlay_image=None, overlay_image_data=None, overlay_image_data_T=None, overlay_name=None,
                                 fill_overlayed_image_item_enabled=True, blend_function='src-over', zValue=0, ImageOverlayItemClass=None):
         """If None is supplied for ImageOverlayItemClass, ImageOverlayItem is used."""
-        overlay_item = (ImageOverlayItem if ImageOverlayItemClass is None else ImageOverlayItemClass)\
-                       (self, overlay_image, overlay_image_data, overlay_image_data_T, overlay_name,
-                        fill_overlayed_image_item_enabled, blend_function)
+        ImageOverlayItemClass = ImageOverlayItem if ImageOverlayItemClass is None else ImageOverlayItemClass
+        overlay_item = ImageOverlayItemClass(
+            self, overlay_image, overlay_image_data, overlay_image_data_T, overlay_name,
+            fill_overlayed_image_item_enabled, blend_function)
         overlay_item.setZValue(zValue)
         return overlay_item
 
@@ -297,12 +298,12 @@ class ImageOverlayItem(ItemWithImage):
                       'for(i = 0; i < 3; ++i){',
                       '    dca[i] = (dca[i] + dca[i] <= da) ?',
                       '             (sca[i] + sca[i]) * dca[i] + sca[i] * ida + dca[i] * isa :',
-                      '             sca * oda + dca * osa - (dca[i] + dca[i]) * sca[i] - sada;}',
+                      '             sca[i] * oda + dca[i] * osa - (dca[i] + dca[i]) * sca[i] - sada;}',
                       'da = sa + da - sada;'),
         'difference':('dca = (sca * da + dca * sa - (sca + sca) * dca) + sca * (1.0f - da) + dca * (1.0f - sa);',
                       'da = sa + da - sa * da;')}
     for k, v in _BLEND_FUNCTIONS.items():
-        _BLEND_FUNCTIONS[k] = '    ' + '    \n'.join(v)
+        _BLEND_FUNCTIONS[k] = '\n        ' + '\n        '.join(v)
     del k, v
 
     blend_function_changed = Qt.pyqtSignal()

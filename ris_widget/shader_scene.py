@@ -426,6 +426,9 @@ class ItemWithImage(Qt.QGraphicsObject):
                 if image.has_alpha_channel:
                     self.min = mm[:-1, 0].min()
                     self.max = mm[:-1, 1].max()
+                elif image.num_channels > 1:
+                    self.min = mm[:, 0].min()
+                    self.max = mm[:, 1].max()
                 else:
                     self.min, self.max = mm
             finally:
@@ -776,7 +779,9 @@ class ShaderItemMixin:
         else:
             with (source_dpath / frag_fn).open('r') as f:
                 frag_template = Template(f.read())
-            if not prog.addShaderFromSourceCode(Qt.QOpenGLShader.Fragment, frag_template.substitute(frag_template_mapping)):
+            s=frag_template.substitute(frag_template_mapping)
+            print(s)
+            if not prog.addShaderFromSourceCode(Qt.QOpenGLShader.Fragment, s):
                 raise RuntimeError('Failed to compile fragment shader "{}" for {} {} shader program.'.format(frag_fn, type(self).__name__, desc))
 
         if not prog.link():
