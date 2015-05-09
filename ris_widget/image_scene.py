@@ -65,7 +65,6 @@ uniform float overlay${idx}_gamma;
         s = ${getcolor_expression};
         sa = clamp(s.a, 0, 1) * overlay${idx}_tex_global_alpha;
         sc = min_max_gamma_transform(s.rgb, overlay${idx}_rescale_min, overlay${idx}_rescale_range, overlay${idx}_gamma);
-        sc = s.rgb;
         ${extra_transformation_expression};
         sca = sc * sa;
         ${blend_function}
@@ -171,7 +170,7 @@ uniform float overlay${idx}_gamma;
                     prog.setUniformValue('overlay{}_tex'.format(overlay_idx), texture_unit)
                     prog.setUniformValue('overlay{}_tex_global_alpha'.format(overlay_idx), overlay_item.opacity())
                     prog.setUniformValue('overlay{}_gamma'.format(overlay_idx), overlay_item.gamma)
-                    min_max[0], min_max[1] = overlay_item.min, overlay_item.max
+                    min_max[0], min_max[1] = overlay_item._normalized_min, overlay_item._normalized_max
                     min_max = overlay_item._renormalize_for_gl(min_max)
                     prog.setUniformValue('overlay{}_rescale_min'.format(overlay_idx), min_max[0])
                     prog.setUniformValue('overlay{}_rescale_range'.format(overlay_idx), min_max[1] - min_max[0])
@@ -219,7 +218,7 @@ uniform float overlay${idx}_gamma;
         self.scene().clear_contextual_info(self)
 
     def make_and_attach_overlay(self, overlay_image=None, overlay_image_data=None, overlay_image_data_T=None, overlay_name=None,
-                                fill_overlayed_image_item_enabled=True, blend_function='src-over', zValue=0, ImageOverlayItemClass=None):
+                                fill_overlayed_image_item_enabled=True, blend_function='screen', zValue=0, ImageOverlayItemClass=None):
         """If None is supplied for ImageOverlayItemClass, ImageOverlayItem is used."""
         ImageOverlayItemClass = ImageOverlayItem if ImageOverlayItemClass is None else ImageOverlayItemClass
         overlay_item = ImageOverlayItemClass(
@@ -310,7 +309,7 @@ class ImageOverlayItem(ItemWithImage):
     fill_overlayed_image_enabled_changed = Qt.pyqtSignal()
 
     def __init__(self, overlayed_image_item, overlay_image=None, overlay_image_data=None, overlay_image_data_T=None, overlay_name=None,
-                 fill_overlayed_image_item_enabled=True, blend_function='src-over'):
+                 fill_overlayed_image_item_enabled=True, blend_function='screen'):
         super().__init__(overlayed_image_item)
         self._itemChange_handlers = {
             Qt.QGraphicsItem.ItemParentChange : self._on_itemParentChange,
@@ -455,6 +454,7 @@ class ImageOverlayItem(ItemWithImage):
         t.scale(i_s.width() / o_s.width(), i_s.height() / o_s.height())
         self._allow_transform_change_with_fill_enabled = True
         try:
+            self.setPos(0,0)
             self.setTransform(t)
         finally:
             self._allow_transform_change_with_fill_enabled = False
@@ -488,6 +488,6 @@ class ImageOverlayItem(ItemWithImage):
         v = bool(v)
         if v != self._fill_overlayed_image_item_enabled:
             if v:
-                self.prepareGeometryChange()
+                self._do_fill_parent(self.parentItem())
             self._fill_overlayed_image_item_enabled = v
             self.fill_overlayed_image_enabled_changed.emit()
