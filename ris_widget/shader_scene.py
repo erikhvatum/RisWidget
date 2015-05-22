@@ -452,9 +452,11 @@ class ItemWithImage(Qt.QGraphicsObject):
             tex = self._tex
             image = self._image
             desired_texture_format = self.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[image.type]
+            even_width = image.size.width() % 2 == 0
+            desired_texture_size = Qt.QSize(image.size) if even_width else Qt.QSize(image.size.width()+1, image.size.height())
             desired_minification_filter = Qt.QOpenGLTexture.LinearMipMapLinear if self._trilinear_filtering_enabled else Qt.QOpenGLTexture.Linear
             if tex is not None:
-                if image.size != Qt.QSize(tex.width(), tex.height()) or tex.format() != desired_texture_format or tex.minificationFilter() != desired_minification_filter:
+                if image.size != desired_texture_size or tex.format() != desired_texture_format or tex.minificationFilter() != desired_minification_filter:
                     tex.destroy()
                     tex = self._tex = None
             if tex is None:
@@ -467,7 +469,7 @@ class ItemWithImage(Qt.QGraphicsObject):
                 else:
                     tex.setMipLevels(1)
                     tex.setAutoMipMapGenerationEnabled(False)
-                tex.setSize(image.size.width(), image.size.height(), 1)
+                tex.setSize(desired_texture_size.width(), desired_texture_size.height(), 1)
                 tex.allocateStorage()
                 tex.setMinMagFilters(desired_minification_filter, Qt.QOpenGLTexture.Nearest)
                 tex.image_id = -1
@@ -476,12 +478,44 @@ class ItemWithImage(Qt.QGraphicsObject):
             if tex.image_id != self._image_id:
 #               import time
 #               t0=time.time()
-                pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
-                pixel_transfer_opts.setAlignment(1)
-                tex.setData(self.IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT[image.type],
-                            self.NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[image.dtype],
-                            image.data.ctypes.data,
-                            pixel_transfer_opts)
+                if even_width:
+                    pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
+                    pixel_transfer_opts.setAlignment(1)
+                    tex.setData(self.IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT[image.type],
+                                self.NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[image.dtype],
+                                image.data.ctypes.data,
+                                pixel_transfer_opts)
+                else:
+                    gl = GL()
+                    NUMPY_DTYPE_TO_GL_PIXEL_TYPE = {
+                        numpy.bool8  : gl.GL_UNSIGNED_BYTE,
+                        numpy.uint8  : gl.GL_UNSIGNED_BYTE,
+                        numpy.uint16 : gl.GL_UNSIGNED_SHORT,
+                        numpy.float32: gl.GL_FLOAT}
+                    IMAGE_TYPE_TO_GL_TEX_FORMAT = {
+                        'g'   : gl.GL_R32F,
+                        'ga'  : gl.GL_RG32F,
+                        'rgb' : gl.GL_RGB32F,
+                        'rgba': gl.GL_RGBA32F}
+                    IMAGE_TYPE_TO_GL_SRC_PIX_FORMAT = {
+                        'g'   : gl.GL_RED,
+                        'ga'  : gl.GL_RG,
+                        'rgb' : gl.GL_RGB,
+                        'rgba': gl.GL_RGBA}
+                    orig_unpack_alignment = gl.glGetIntegerv(gl.GL_UNPACK_ALIGNMENT)
+                    if orig_unpack_alignment != 1:
+                        gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
+                        # QPainter font rendering for OpenGL surfaces will become broken if we do not restore GL_UNPACK_ALIGNMENT
+                        # to whatever QPainter had it set to (when it prepared the OpenGL context for our use as a result of
+                        # qpainter.beginNativePainting()).
+                        estack.callback(lambda oua=orig_unpack_alignment: gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, oua))
+                    gl.glTexSubImage2D(
+                        gl.GL_TEXTURE_2D, 0, 0, 0, image.size.width(), image.size.height(),
+                        IMAGE_TYPE_TO_GL_SRC_PIX_FORMAT[image.type],
+                        NUMPY_DTYPE_TO_GL_PIXEL_TYPE[image.dtype],
+                        memoryview(image.data_T.flatten()))
+                    if self._trilinear_filtering_enabled:
+                        tex.generateMipMaps(0)
 #               t1=time.time()
 #               print('tex.setData {}ms / {}fps'.format(1000*(t1-t0), 1/(t1-t0)))
                 tex.image_id = self._image_id
