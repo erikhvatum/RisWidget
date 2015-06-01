@@ -11,7 +11,8 @@
 		DebugCallbackName="gdb"
 		Version="1"
 		OutputFile="%bdris_widget"
-		CompilerConfigName="Latest Version">
+		CompilerConfigName="Latest Version"
+		Defines="">
 		<Menu>
 			<Target
 				Name="Compile"
@@ -22,7 +23,7 @@
 				OutputExts="*.o"
 				SaveOption="SaveCurrent"
 				RunFromDir="%rw">
-				<Exec CmdLine='g++ -c %xup  %defd -g -o "%bd%n%oe" %i "%f"'/>
+				<Exec CmdLine='g++ -c %xup %defd -g -o "%bd%n%oe" %i %f'/>
 			</Target>
 			<Target
 				Name="Link"
@@ -33,7 +34,7 @@
 				Deletable="0"
 				SaveOption="SaveCurrent"
 				RunFromDir="%rw">
-				<Exec CmdLine='g++ %xup -g -o "%o" %f %libs'/>
+				<Exec CmdLine='g++ %xup -g -o "%o" %objs'/>
 			</Target>
 			<Target
 				Name="Build"
@@ -64,7 +65,7 @@
 				Deletable="0"
 				SaveOption="SaveNone"
 				RunFromDir="%rw">
-				<Exec CmdLine='vsdebugio -prog "%o"'/>
+				<Exec CmdLine='gdb "%o"'/>
 			</Target>
 			<Target
 				Name="Execute"
@@ -99,6 +100,8 @@
 				Name="LinkerOutputType"
 				Value="Executable"/>
 		</List>
+		<Includes/>
+		<Libs PreObjects="0"/>
 	</Config>
 	<Config
 		Name="Release"
@@ -106,7 +109,8 @@
 		DebugCallbackName="gdb"
 		Version="1"
 		OutputFile="%bdris_widget"
-		CompilerConfigName="Latest Version">
+		CompilerConfigName="Latest Version"
+		Defines="">
 		<Menu>
 			<Target
 				Name="Compile"
@@ -117,7 +121,7 @@
 				OutputExts="*.o"
 				SaveOption="SaveCurrent"
 				RunFromDir="%rw">
-				<Exec CmdLine='g++ -c %xup %defd -o "%bd%n%oe" %i "%f"'/>
+				<Exec CmdLine='g++ -c %xup %defd -o "%bd%n%oe" %i %f'/>
 			</Target>
 			<Target
 				Name="Link"
@@ -128,7 +132,7 @@
 				Deletable="0"
 				SaveOption="SaveCurrent"
 				RunFromDir="%rw">
-				<Exec CmdLine='g++ %xup -o "%o" %f %libs'/>
+				<Exec CmdLine='g++ %xup -o "%o" %objs'/>
 			</Target>
 			<Target
 				Name="Build"
@@ -159,7 +163,7 @@
 				Deletable="0"
 				SaveOption="SaveNone"
 				RunFromDir="%rw">
-				<Exec CmdLine='vsdebugio -prog "%o"'/>
+				<Exec CmdLine='gdb "%o"'/>
 			</Target>
 			<Target
 				Name="Execute"
@@ -194,6 +198,8 @@
 				Name="LinkerOutputType"
 				Value="Executable"/>
 		</List>
+		<Includes/>
+		<Libs PreObjects="0"/>
 	</Config>
 	<CustomFolders></CustomFolders>
 	<Files AutoFolders="PackageView">
