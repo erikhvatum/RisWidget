@@ -23,38 +23,24 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from .ndimage_statistics import compute_ndimage_statistics, compute_multichannel_ndimage_statistics
-import datetime
 import numpy
 from PyQt5 import Qt
-import time
 
-class Image:
-    _previous_anon_name_timestamp = None
-    _previous_anon_name_timestamp_dupe_count = None
+class ImmutableImage:
+    """An instance of the ImmutableImage class is a wrapper around a Numpy ndarray representing a single image, along with
+    data describing that image or computed from it.  If an ndarray of supported dtype and striding is supplied as the data argument to
+    ImmutableImage's constructor, a reference to that ndarray is kept rather than a copy of it.
 
-    @staticmethod
-    def _generate_anon_name():
-        timestamp = time.time()
-        if timestamp == Image._previous_anon_name_timestamp:
-            Image._previous_anon_name_timestamp_dupe_count += 1
-        else:
-            Image._previous_anon_name_timestamp = timestamp
-            Image._previous_anon_name_timestamp_dupe_count = 0
-        name = str(timestamp)
-        if Image._previous_anon_name_timestamp_dupe_count > 0:
-            name += '-{:04}'.format(Image._previous_anon_name_timestamp_dupe_count)
-        name += ' ({})'.format(datetime.datetime.fromtimestamp(timestamp).strftime('%c'))
-        return name
+    Modifying the content of an ndarray that is currently wrapped by an ImmutableImage instance is not recommended, however: there is no mechanism
+    for detecting changes to the ndarray after an ImmutableImage has been constructed.  If content is altered, histogram data, min-max values, and
+    any OpenGL textures representing the image will not be automatically updated to reflect the changes."""
 
-    def __init__(self, data, name=None, is_twelve_bit=False, float_range=None, shape_is_width_height=True):
+    def __init__(self, data, is_twelve_bit=False, float_range=None, shape_is_width_height=True):
         """All Python code written in Zach Pincus's lab that manipulates images must interpret the first 
         element of any image data array's shape tuple to represent width.  This program was written
         in Zach Pincus's lab, and so it defaults to that behavior.  If you are supplying image data
         that does not follow this convention, specify the argument shape_is_width_height=False, and
         your image will be displayed correctly rather than mirrored over the X/Y axis."""
-        if name is None:
-            name = Image._generate_anon_name()
-        self.name = name
         self._data = numpy.asarray(data)
         self._is_twelve_bit = is_twelve_bit
         dt = self._data.dtype.type
@@ -128,13 +114,9 @@ class Image:
             ' (per-channel binary)' if self.is_binary else '',
             self.name)
 
-    def recompute_stats(self):
-        if self._data.ndim == 2:
-            self.stats_future = compute_ndimage_statistics(self._data, self._is_twelve_bit, return_future=True)
-        elif self._data.ndim == 3:
-            self.stats_future = compute_multichannel_ndimage_statistics(self._data, self._is_twelve_bit, return_future=True)
-        else:
-            raise ValueError('self._data must be a 2D or 3D ndarray.')
+    @property
+    def name(self):
+        return self._name
 
     @property
     def type(self):

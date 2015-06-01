@@ -213,14 +213,15 @@
 			<F N="ris_widget/flipbook.py"/>
 			<F N="ris_widget/histogram_scene.py"/>
 			<F N="ris_widget/histogram_view.py"/>
-			<F N="ris_widget/image.py"/>
 			<F N="ris_widget/image_scene.py"/>
 			<F N="ris_widget/image_view.py"/>
+			<F N="ris_widget/immutable_image.py"/>
 			<F N="ris_widget/ndimage_statistics.py"/>
 			<F N="ris_widget/ris_widget.py"/>
 			<F N="ris_widget/shader_scene.py"/>
 			<F N="ris_widget/shader_view.py"/>
 			<F N="ris_widget/shared_resources.py"/>
+			<F N="ris_widget/immutable_image_with_mutable_properties.py"/>
 		</Folder>
 		<Folder Name="ris_widget/shaders">
 			<F N="ris_widget/shaders/histogram_widget_fragment_shader_g.glsl"/>
