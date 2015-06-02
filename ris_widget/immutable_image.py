@@ -104,15 +104,14 @@ class ImmutableImage:
 
     def __repr__(self):
         num_channels = self.num_channels
-        return '{}; {}x{}, {} channel{} ({}){}, with name "{}">'.format(
+        return '{}; {}x{}, {} channel{} ({}){}>'.format(
             super().__repr__()[:-1],
             self._size.width(),
             self._size.height(),
             num_channels,
             '' if num_channels == 1 else 's',
             self._type,
-            ' (per-channel binary)' if self.is_binary else '',
-            self.name)
+            ' (per-channel binary)' if self.is_binary else '')
 
     @property
     def type(self):
