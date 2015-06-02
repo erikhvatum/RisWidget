@@ -48,6 +48,10 @@ class ImageScene(ShaderScene):
             view._on_image_stack_bounding_box_changed()
 
 class ImageStack(ShaderItem):
+    """The image_objects member variable of an ImageStack instance contains a list of ImmutableImageWithMutableProperties
+    instances (or instances of subclasses or compatible alternative implementations of ImmutableImageWithMutableProperties).
+    In terms of composition ordering, these are in ascending Z-order, with the positive Z axis pointing out of the screen.
+    So, the first element of image_objects is blended into the secondSo, the last element of image_objects is blended into the second-to-last, and that result """
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
     NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
         numpy.bool8  : Qt.QOpenGLTexture.UInt8,
@@ -65,20 +69,20 @@ class ImageStack(ShaderItem):
         'rgb' : Qt.QOpenGLTexture.RGB,
         'rgba': Qt.QOpenGLTexture.RGBA}
     _OVERLAY_UNIFORMS_TEMPLATE = Template('\n'.join(
-        'uniform sampler2D overlay${idx}_tex;',
-        'uniform mat3 overlay${idx}_frag_to_tex;',
-        'uniform float overlay${idx}_tex_global_alpha;',
-        'uniform float overlay${idx}_rescale_min;',
-        'uniform float overlay${idx}_rescale_range;',
-        'uniform float overlay${idx}_gamma;'))
+        'uniform sampler2D image${idx}_tex;',
+        'uniform mat3 image${idx}_frag_to_tex;',
+        'uniform float image${idx}_tex_global_alpha;',
+        'uniform float image${idx}_rescale_min;',
+        'uniform float image${idx}_rescale_range;',
+        'uniform float image${idx}_gamma;'))
     _OVERLAY_BLENDING_TEMPLATE = Template('    ' + '\n    '.join(
-        'tex_coord = transform_frag_to_tex(overlay${idx}_frag_to_tex);',
+        'tex_coord = transform_frag_to_tex(image${idx}_frag_to_tex);',
         'if(tex_coord.x >= 0 && tex_coord.x < 1 && tex_coord.y >= 0 && tex_coord.y < 1)',
         '{',
-        '    s = texture2D(overlay${idx}_tex, tex_coord);',
+        '    s = texture2D(image${idx}_tex, tex_coord);',
         '    s = ${getcolor_expression};',
-        '    sa = clamp(s.a, 0, 1) * overlay${idx}_tex_global_alpha;',
-        '    sc = min_max_gamma_transform(s.rgb, overlay${idx}_rescale_min, overlay${idx}_rescale_range, overlay${idx}_gamma);',
+        '    sa = clamp(s.a, 0, 1) * image${idx}_tex_global_alpha;',
+        '    sc = min_max_gamma_transform(s.rgb, image${idx}_rescale_min, image${idx}_rescale_range, image${idx}_gamma);',
         '    ${extra_transformation_expression};',
         '    sca = sc * sa;',
         '    ${blend_function}',
