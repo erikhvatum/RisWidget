@@ -81,6 +81,31 @@ class ImmutableImageWithMutableProperties(ImmutableImage, Qt.QObject):
         'ga'  : 'vec4(s.r, s.r, s.r, s.a)',
         'rgb' : 'vec4(s.r, s.g, s.b, 1.0f)',
         'rgba': 's'}
+    # Blend functions adapted from http://dev.w3.org/SVG/modules/compositing/master/ 
+    BLEND_FUNCTIONS = {
+        'src-over' : ('dca = sca + dca * (1.0f - sa);',
+                      'da = sa + da - sa * da;'),
+        'dst-over' : ('dca = dca + sca * (1.0f - da);',
+                      'da = sa + da - sa * da;'),
+        'plus'     : ('dca += sca;',
+                      'da += sa;'),
+        'multiply' : ('dca = sca * dca + sca * (1.0f - da) + dca * (1.0f - sa);',
+                      'da = sa + da - sa * da;'),
+        'screen'   : ('dca = sca + dca - sca * dca;',
+                      'da = sa + da - sa * da;'),
+        'overlay'  : ('isa = 1.0f - sa; osa = 1.0f + sa;',
+                      'ida = 1.0f - da; oda = 1.0f + da;',
+                      'sada = sa * da;',
+                      'for(i = 0; i < 3; ++i){',
+                      '    dca[i] = (dca[i] + dca[i] <= da) ?',
+                      '             (sca[i] + sca[i]) * dca[i] + sca[i] * ida + dca[i] * isa :',
+                      '             sca[i] * oda + dca[i] * osa - (dca[i] + dca[i]) * sca[i] - sada;}',
+                      'da = sa + da - sada;'),
+        'difference':('dca = (sca * da + dca * sa - (sca + sca) * dca) + sca * (1.0f - da) + dca * (1.0f - sa);',
+                      'da = sa + da - sa * da;')}
+    for k, v in BLEND_FUNCTIONS.items():
+        BLEND_FUNCTIONS[k] = '\n        ' + '\n        '.join(v)
+    del k, v
     # A change to any mutable property potentially impacts image presentation.  For convenience, property_changed is emitted whenever
     # any of the more specific mutable-property-changed signals are emitted.
     # 
@@ -107,9 +132,6 @@ class ImmutableImageWithMutableProperties(ImmutableImage, Qt.QObject):
         ImmutableImage.__init__(self, data, is_twelve_bit, float_range, shape_is_width_height)
         self._retain_auto_min_max_enabled_on_min_max_change = False
         self._retain_auto_getcolor_expression_enabled_on_getcolor_expression_change = False
-        for property in ImmutableImageWithMutableProperties.properties:
-            property.instantiate(self)
-
         mm = self.min_max
         if self.has_alpha_channel:
             self._default_min_max_values = mm[:-1, 0].min(), mm[:-1, 1].max()
@@ -117,9 +139,11 @@ class ImmutableImageWithMutableProperties(ImmutableImage, Qt.QObject):
             self._default_min_max_values = mm[:, 0].min(), mm[:, 1].max()
         else:
             self._default_min_max_values = tuple(mm)
-
+        for property in ImmutableImageWithMutableProperties.properties:
+            property.instantiate(self)
         if self.auto_min_max_enabled:
             self.do_auto_min_max()
+        self._blend_function_impl = self.BLEND_FUNCTIONS[self._blend_function]
 
     properties = []
 
@@ -208,6 +232,15 @@ class ImmutableImageWithMutableProperties(ImmutableImage, Qt.QObject):
         properties, 'extra_transformation_expression',
         default_value_callback = lambda iiwmp: None,
         transform_callback = lambda iiwmp, v: str(v))
+
+    def _blend_function_pre_set(self, v):
+        if v not in self.BLEND_FUNCTIONS:
+            raise ValueError('The string assigned to blend_function must be one of:\n' + '\n'.join("'" + s + "'" for s in sorted(self.BLEND_FUNCTIONS.keys())))
+    blend_function = _Property(
+        properties, 'blend_function',
+        default_value_callback = lambda iiwmp: 'src-over',
+        transform_callback = lambda iiwmp, v: str(v),
+        pre_set_callback = lambda iiwmp, v, f=_blend_function_pre_set: f(iiwmp, v))
 
     for property in properties:
         exec(property.changed_signal_name + ' = Qt.pyqtSignal()')

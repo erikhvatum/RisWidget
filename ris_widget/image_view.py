@@ -75,7 +75,7 @@ class ImageView(ShaderView):
         self._panning = False
         self.setAcceptDrops(True)
 
-    def _on_image_changing(self):
+    def _on_image_stack_bounding_box_changed(self):
         if self.zoom_to_fit:
             self._apply_zoom()
 

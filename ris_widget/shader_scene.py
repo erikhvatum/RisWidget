@@ -275,11 +275,6 @@ class ShaderItem(ShaderItemMixin, Qt.QGraphicsObject):
     def type(self):
         raise NotImplementedError()
 
-class ShaderItemWithImage(ShaderItemMixin, ItemWithImage):
-    def __init__(self, parent_item=None):
-        ItemWithImage.__init__(self, parent_item)
-        ShaderItemMixin.__init__(self)
-
 class ShaderTexture:
     """QOpenGLTexture does not support support GL_LUMINANCE*_EXT, etc, as specified by GL_EXT_texture_integer,
     which is required for integer textures in OpenGL 2.1 (QOpenGLTexture does support GL_RGB*U/I formats,

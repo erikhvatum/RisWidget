@@ -31,7 +31,7 @@ import sys
 #from ._qt_debug import qtransform_to_numpy
 from .immutable_image_with_mutable_properties import ImmutableImageWithMutableProperties
 from .shared_resources import GL, UNIQUE_QGRAPHICSITEM_TYPE
-from .shader_scene import ShaderScene, ShaderItemMixin
+from .shader_scene import ShaderItem, ShaderScene
 from .shader_view import ShaderView
 
 class ImageScene(ShaderScene):
@@ -42,13 +42,13 @@ class ImageScene(ShaderScene):
         self.image_stack.bounding_box_changed.connect(self._on_image_stack_bounding_box_changed)
         self.addItem(self.image_stack)
 
-    def _on_image_changing(self, image_item, old_image, new_image):
-        assert self.image_item is image_item
-        self.setSceneRect(image_item.boundingRect())
+    def _on_image_stack_bounding_box_changed(self):
+        self.setSceneRect(self.image_item.boundingRect())
         for view in self.views():
-            view._on_image_changing()
+            view._on_image_stack_bounding_box_changed()
 
-class ImageStack():
+class ImageStack(ShaderItem):
+    QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
     NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
         numpy.bool8  : Qt.QOpenGLTexture.UInt8,
         numpy.uint8  : Qt.QOpenGLTexture.UInt8,
@@ -64,32 +64,57 @@ class ImageStack():
         'ga'  : Qt.QOpenGLTexture.RG,
         'rgb' : Qt.QOpenGLTexture.RGB,
         'rgba': Qt.QOpenGLTexture.RGBA}
+    _OVERLAY_UNIFORMS_TEMPLATE = Template('\n'.join(
+        'uniform sampler2D overlay${idx}_tex;',
+        'uniform mat3 overlay${idx}_frag_to_tex;',
+        'uniform float overlay${idx}_tex_global_alpha;',
+        'uniform float overlay${idx}_rescale_min;',
+        'uniform float overlay${idx}_rescale_range;',
+        'uniform float overlay${idx}_gamma;'))
+    _OVERLAY_BLENDING_TEMPLATE = Template('    ' + '\n    '.join(
+        'tex_coord = transform_frag_to_tex(overlay${idx}_frag_to_tex);',
+        'if(tex_coord.x >= 0 && tex_coord.x < 1 && tex_coord.y >= 0 && tex_coord.y < 1)',
+        '{',
+        '    s = texture2D(overlay${idx}_tex, tex_coord);',
+        '    s = ${getcolor_expression};',
+        '    sa = clamp(s.a, 0, 1) * overlay${idx}_tex_global_alpha;',
+        '    sc = min_max_gamma_transform(s.rgb, overlay${idx}_rescale_min, overlay${idx}_rescale_range, overlay${idx}_gamma);',
+        '    ${extra_transformation_expression};',
+        '    sca = sc * sa;',
+        '    ${blend_function}',
+        '    da = clamp(da, 0, 1);',
+        '    dca = clamp(dca, 0, 1);',
+        '}'))
+
+    bounding_box_changed = Qt.pyqtSignal()
+
+    def __init__(self, parent_item=None):
+        self.images = [] # In ascending order, with bottom image (backmost) as element 0
+        self.setAcceptHoverEvents(True)
+
+    def type(self):
+        return ImageItem.QGRAPHICSITEM_TYPE
+
+    def append_image(self, image_data, *va, **ka):
+        self.insert_image_object(len(self.images), self.ImageClass(image_data, *va, **ka))
+
+    def insert_image(self, idx, image_data, *va, **ka):
+        self.insert_image_object(idx, self.ImageClass(image_data, *va, **ka))
+
+    def replace_image(self, idx, image_data, *va, **ka):
+        self.replace_image_object(idx, self.ImageClass(image_data, *va, **ka))
+
+    def insert_image_object(self, idx, image):
+        #todo: impl more
+        image.property_changed.connect(self.update)
+
+
+    def ():
+
 
 class ImageItem(ShaderItemWithImage):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
-    _OVERLAY_UNIFORMS_TEMPLATE = Template(
-"""uniform sampler2D overlay${idx}_tex;
-uniform mat3 overlay${idx}_frag_to_tex;
-uniform float overlay${idx}_tex_global_alpha;
-uniform float overlay${idx}_rescale_min;
-uniform float overlay${idx}_rescale_range;
-uniform float overlay${idx}_gamma;
-""")
-    _OVERLAY_BLENDING_TEMPLATE = Template(
-"""    tex_coord = transform_frag_to_tex(overlay${idx}_frag_to_tex);
-    if(tex_coord.x >= 0 && tex_coord.x < 1 && tex_coord.y >= 0 && tex_coord.y < 1)
-    {
-        s = texture2D(overlay${idx}_tex, tex_coord);
-        s = ${getcolor_expression};
-        sa = clamp(s.a, 0, 1) * overlay${idx}_tex_global_alpha;
-        sc = min_max_gamma_transform(s.rgb, overlay${idx}_rescale_min, overlay${idx}_rescale_range, overlay${idx}_gamma);
-        ${extra_transformation_expression};
-        sca = sc * sa;
-        ${blend_function}
-        da = clamp(da, 0, 1);
-        dca = clamp(dca, 0, 1);
-    }
-""")
+    
 
     overlay_attaching = Qt.pyqtSignal(ItemWithImage)
     overlay_detaching = Qt.pyqtSignal(ItemWithImage)
@@ -297,31 +322,7 @@ uniform float overlay${idx}_gamma;
 
 class ImageOverlayItem(ItemWithImage):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
-    # Blend functions adapted from http://dev.w3.org/SVG/modules/compositing/master/ 
-    _BLEND_FUNCTIONS = {
-        'src-over' : ('dca = sca + dca * (1.0f - sa);',
-                      'da = sa + da - sa * da;'),
-        'dst-over' : ('dca = dca + sca * (1.0f - da);',
-                      'da = sa + da - sa * da;'),
-        'plus'     : ('dca += sca;',
-                      'da += sa;'),
-        'multiply' : ('dca = sca * dca + sca * (1.0f - da) + dca * (1.0f - sa);',
-                      'da = sa + da - sa * da;'),
-        'screen'   : ('dca = sca + dca - sca * dca;',
-                      'da = sa + da - sa * da;'),
-        'overlay'  : ('isa = 1.0f - sa; osa = 1.0f + sa;',
-                      'ida = 1.0f - da; oda = 1.0f + da;',
-                      'sada = sa * da;',
-                      'for(i = 0; i < 3; ++i){',
-                      '    dca[i] = (dca[i] + dca[i] <= da) ?',
-                      '             (sca[i] + sca[i]) * dca[i] + sca[i] * ida + dca[i] * isa :',
-                      '             sca[i] * oda + dca[i] * osa - (dca[i] + dca[i]) * sca[i] - sada;}',
-                      'da = sa + da - sada;'),
-        'difference':('dca = (sca * da + dca * sa - (sca + sca) * dca) + sca * (1.0f - da) + dca * (1.0f - sa);',
-                      'da = sa + da - sa * da;')}
-    for k, v in _BLEND_FUNCTIONS.items():
-        _BLEND_FUNCTIONS[k] = '\n        ' + '\n        '.join(v)
-    del k, v
+    
 
     blend_function_changed = Qt.pyqtSignal()
     fill_overlayed_image_enabled_changed = Qt.pyqtSignal()
