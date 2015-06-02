@@ -66,11 +66,21 @@ class ImmutableImageWithMutableProperties(ImmutableImage, Qt.QObject):
     """ImmutableImageWithMutableProperties contains immutable (read-only) image data and metadata inherited from ImmutableImage
     plus mutable (modifyable) properties controling image presentation and naming.
 
-    Note that the property_changed signal is emitted when any of the specific property changed signals are emitted.  In the case
+    The property_changed signal is emitted when any of the specific property changed signals are emitted.  In the case
     where any property change should cause a function to be executed, do property_changed.connect(your_function) rather than
-    min_changed.connect(your_function); max_changed.connect(your_function); etc."""
+    min_changed.connect(your_function); max_changed.connect(your_function); etc.
+
+    Although ImmutableImageWithMutableProperties uses _Property descriptors, subclasses adding properties are not obligated
+    to use _Property to represent the additional properties.  The regular @property decorator syntax or property(..) builtin
+    remain available - _Property provides an abstraction that is potentially convenient and worth understanding & using when
+    defining a large number of properties."""
 
     GAMMA_RANGE = (0.0625, 16.0)
+    IMAGE_TYPE_TO_GETCOLOR_EXPRESSION = {
+        'g'   : 'vec4(s.r, s.r, s.r, 1.0f)',
+        'ga'  : 'vec4(s.r, s.r, s.r, s.a)',
+        'rgb' : 'vec4(s.r, s.g, s.b, 1.0f)',
+        'rgba': 's'}
     # A change to any mutable property potentially impacts image presentation.  For convenience, property_changed is emitted whenever
     # any of the more specific mutable-property-changed signals are emitted.
     # 
@@ -96,13 +106,33 @@ class ImmutableImageWithMutableProperties(ImmutableImage, Qt.QObject):
         self.setObjectName(name)
         ImmutableImage.__init__(self, data, is_twelve_bit, float_range, shape_is_width_height)
         self._retain_auto_min_max_enabled_on_min_max_change = False
+        self._retain_auto_getcolor_expression_enabled_on_getcolor_expression_change = False
         for property in ImmutableImageWithMutableProperties.properties:
             property.instantiate(self)
+
+        mm = self.min_max
+        if self.has_alpha_channel:
+            self._default_min_max_values = mm[:-1, 0].min(), mm[:-1, 1].max()
+        elif self.num_channels > 1:
+            self._default_min_max_values = mm[:, 0].min(), mm[:, 1].max()
+        else:
+            self._default_min_max_values = tuple(mm)
+
         if self.auto_min_max_enabled:
             self.do_auto_min_max()
 
     properties = []
 
+    # Considering that image data is immutable, an auto_min_max_enabled property may seem a strange thing to have.  It
+    # does have an effect, even in strictly in the context this class: if the min and max properties are not equal
+    # to the min and max channel intensity values (excluding alpha) and True is assigned to auto_min_max_enabled,
+    # the min and max channel intensity values are assigned to the min and max properties.
+    #
+    # In the larger context, where ImageStack contains a number of layers, each represented by an ImmutableImageWithMutableProperties
+    # (or subclass) instance, additional utility is apparent: if the content of a layer is replaced by direct assignment of
+    # a numpy array, implicitly causing a new ImmutableImageWithMutableProperties to be instaniated, the auto_min_max_enabled
+    # value may be used by the new instance, preventing auto min/maxness from being forgotten exactly when it is typically
+    # desired.
     def _auto_min_max_enabled_post_set(self, v):
         if v:
             self.do_auto_min_max()
@@ -112,8 +142,6 @@ class ImmutableImageWithMutableProperties(ImmutableImage, Qt.QObject):
         transform_callback = lambda iiwmp, v: bool(v),
         post_set_callback = _auto_min_max_enabled_post_set)
 
-    def _min_max_default_value(self, is_max):
-        return self.range[is_max]
     def _min_max_pre_set(self, v):
         r = self.range
         if not r[0] <= v <= r[1]:
@@ -129,13 +157,13 @@ class ImmutableImageWithMutableProperties(ImmutableImage, Qt.QObject):
             self.auto_min_max_enabled = False
     min = _Property(
         properties, 'min',
-        default_value_callback = lambda iiwmp, f=_min_max_default_value: f(iiwmp, False),
+        default_value_callback = lambda iiwmp: iiwmp._default_min_max_values[0],
         transform_callback = lambda iiwmp, v: float(v),
         pre_set_callback = _min_max_pre_set,
         post_set_callback = lambda iiwmp, v, f=_min_max_post_set: f(iiwmp, v, False))
     max = _Property(
         properties, 'max',
-        default_value_callback = lambda iiwmp, f=_min_max_default_value: f(iiwmp, True),
+        default_value_callback = lambda iiwmp: iiwmp._default_min_max_values[1],
         transform_callback = lambda iiwmp, v: float(v),
         pre_set_callback = _min_max_pre_set,
         post_set_callback = lambda iiwmp, v, f=_min_max_post_set: f(iiwmp, v, True))
@@ -149,6 +177,37 @@ class ImmutableImageWithMutableProperties(ImmutableImage, Qt.QObject):
         default_value_callback = lambda iiwmp: 1.0,
         transform_callback = lambda iiwmp, v: float(v),
         pre_set_callback = _gamma_pre_set)
+
+    trilinear_filtering_enabled = _Property(
+        properties, 'trilinear_filtering_enabled',
+        default_value_callback = lambda iiwmp: True,
+        transform_callback = lambda iiwmp, v: bool(v))
+
+    # The rationale for auto_getcolor_expression_enabled is the same as for auto_min_max_enabled:
+    # so that it may be preserved and applied when an implicitly created instance of
+    # ImmutableImageWithMutableProperties replaces and existing instance.
+    def _auto_getcolor_expression_enabled_post_set(self, v):
+        if v:
+            self.do_auto_getcolor_expression()
+    auto_getcolor_expression_enabled = _Property(
+        properties, 'auto_getcolor_expression_enabled',
+        default_value_callback = lambda iiwmp: True,
+        transform_callback = lambda iiwmp, v: bool(v),
+        post_set_callback = _auto_getcolor_expression_enabled_post_set)
+
+    def _getcolor_expression_post_set(self, v):
+        if not self._retain_auto_getcolor_expression_enabled_on_getcolor_expression_change:
+            self.auto_getcolor_expression_enabled = False
+    getcolor_expression = _Property(
+        properties, 'getcolor_expression',
+        default_value_callback = lambda iiwmp: iiwmp.IMAGE_TYPE_TO_GETCOLOR_EXPRESSION[iiwmp.type],
+        transform_callback = lambda iiwmp, v: str(v),
+        post_set_callback = lambda iiwmp, v, f=_getcolor_expression_post_set: f(iiwmp, v))
+
+    extra_transformation_expression = _Property(
+        properties, 'extra_transformation_expression',
+        default_value_callback = lambda iiwmp: None,
+        transform_callback = lambda iiwmp, v: str(v))
 
     for property in properties:
         exec(property.changed_signal_name + ' = Qt.pyqtSignal()')
@@ -168,9 +227,16 @@ class ImmutableImageWithMutableProperties(ImmutableImage, Qt.QObject):
     def do_auto_min_max(self):
         self._retain_auto_min_max_enabled_on_min_max_change = True
         try:
-            self.min, self.max = self.min_max
+            del self.min, self.max
         finally:
             self._retain_auto_min_max_enabled_on_min_max_change = False
+
+    def do_auto_getcolor_expression(self):
+        self._retain_auto_getcolor_expression_enabled_on_getcolor_expression_change = True
+        try:
+            self.getcolor_expression = self.IMAGE_TYPE_TO_GETCOLOR_EXPRESSION[self.type]
+        finally:
+            self._retain_auto_getcolor_expression_enabled_on_getcolor_expression_change = False
 
     _previous_anon_name_timestamp = None
     _previous_anon_name_timestamp_dupe_count = None

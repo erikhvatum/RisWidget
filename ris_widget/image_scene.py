@@ -22,30 +22,48 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-#from ._qt_debug import qtransform_to_numpy
-from .image import Image
-from .shared_resources import GL, UNIQUE_QGRAPHICSITEM_TYPE
-from .shader_scene import ShaderScene, ItemWithImage, ShaderItemWithImage
-from .shader_view import ShaderView
 from contextlib import ExitStack
 import math
 import numpy
 from PyQt5 import Qt
 from string import Template
 import sys
+#from ._qt_debug import qtransform_to_numpy
+from .immutable_image_with_mutable_properties import ImmutableImageWithMutableProperties
+from .shared_resources import GL, UNIQUE_QGRAPHICSITEM_TYPE
+from .shader_scene import ShaderScene, ShaderItemMixin
+from .shader_view import ShaderView
 
 class ImageScene(ShaderScene):
-    def __init__(self, parent, ImageItemClass, ContextualInfoItemClass):
+    def __init__(self, parent, ImageClass, ImageStackClass, ContextualInfoItemClass):
         super().__init__(parent, ContextualInfoItemClass)
-        self.image_item = ImageItemClass()
-        self.image_item.image_changing.connect(self._on_image_changing)
-        self.addItem(self.image_item)
+        self.ImageClass = ImageClass
+        self.image_stack = ImageStackClass()
+        self.image_stack.bounding_box_changed.connect(self._on_image_stack_bounding_box_changed)
+        self.addItem(self.image_stack)
 
     def _on_image_changing(self, image_item, old_image, new_image):
         assert self.image_item is image_item
         self.setSceneRect(image_item.boundingRect())
         for view in self.views():
             view._on_image_changing()
+
+class ImageStack():
+    NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
+        numpy.bool8  : Qt.QOpenGLTexture.UInt8,
+        numpy.uint8  : Qt.QOpenGLTexture.UInt8,
+        numpy.uint16 : Qt.QOpenGLTexture.UInt16,
+        numpy.float32: Qt.QOpenGLTexture.Float32}
+    IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT = {
+        'g'   : Qt.QOpenGLTexture.R32F,
+        'ga'  : Qt.QOpenGLTexture.RG32F,
+        'rgb' : Qt.QOpenGLTexture.RGB32F,
+        'rgba': Qt.QOpenGLTexture.RGBA32F}
+    IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT = {
+        'g'   : Qt.QOpenGLTexture.Red,
+        'ga'  : Qt.QOpenGLTexture.RG,
+        'rgb' : Qt.QOpenGLTexture.RGB,
+        'rgba': Qt.QOpenGLTexture.RGBA}
 
 class ImageItem(ShaderItemWithImage):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
