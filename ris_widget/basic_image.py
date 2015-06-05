@@ -26,21 +26,42 @@ from .ndimage_statistics import compute_ndimage_statistics, compute_multichannel
 import numpy
 from PyQt5 import Qt
 
-class ImmutableImage:
-    """An instance of the ImmutableImage class is a wrapper around a Numpy ndarray representing a single image, along with
-    data describing that image or computed from it.  If an ndarray of supported dtype and striding is supplied as the data argument to
-    ImmutableImage's constructor, a reference to that ndarray is kept rather than a copy of it.
+class BasicImage:
+    """An instance of the BasicImage class is a wrapper around a Numpy ndarray representing a single image.  BasicImage's properties
+    are all either computed from that ndarray, provide views into that ndarray's data (in the case of .data and .data_T), or, in the
+    special cases of .is_twelve_bit for uint16 images and .range for floating-point images, represent unenforced constraints limiting
+    the domain of valid values expected to be assumed by elements of the ndarray.
 
-    Modifying the content of an ndarray that is currently wrapped by an ImmutableImage instance is not recommended, however: there is no mechanism
-    for detecting changes to the ndarray after an ImmutableImage has been constructed.  If content is altered, histogram data, min-max values, and
-    any OpenGL textures representing the image will not be automatically updated to reflect the changes."""
+    If an ndarray of supported dtype and striding is supplied as the data argument to BasicImage's constructor or set_data function,
+    a reference to that ndarray is kept rather than a copy of it.  In such cases, if the wrapped data is subsequently modified, 
+    care must be taken to call the BasicImage's .refresh method before querying its .histogram property or any subclass's properties
+    derived from the data, as changes to the wrapped data are not automatically detected."""
 
     def __init__(self, data, is_twelve_bit=False, float_range=None, shape_is_width_height=True):
-        """All Python code written in Zach Pincus's lab that manipulates images must interpret the first 
-        element of any image data array's shape tuple to represent width.  This program was written
-        in Zach Pincus's lab, and so it defaults to that behavior.  If you are supplying image data
-        that does not follow this convention, specify the argument shape_is_width_height=False, and
-        your image will be displayed correctly rather than mirrored over the X/Y axis."""
+        """RisWidget defaults to the convention that the first element of the shape vector of a Numpy
+        array represents width.  If you are supplying image data that does not follow this convention,
+        specify the argument shape_is_width_height=False, and your image will be displayed correctly
+        rather than mirrored over the X/Y axis."""
+        self.set_data(data, is_twelve_bit, float_range, shape_is_width_height, False)
+
+    def __repr__(self):
+        num_channels = self.num_channels
+        return '{}; {}x{}, {} channel{} ({}){}>'.format(
+            super().__repr__()[:-1],
+            self._size.width(),
+            self._size.height(),
+            num_channels,
+            '' if num_channels == 1 else 's',
+            self._type,
+            ' (per-channel binary)' if self.is_binary else '')
+
+    def refresh(self):
+        if self._is_grayscale:
+            self.stats_future = compute_ndimage_statistics(self._data, self._is_twelve_bit, return_future=True)
+        else:
+            self.stats_future = compute_multichannel_ndimage_statistics(self._data, self._is_twelve_bit, return_future=True)
+
+    def set_data(self, data, is_twelve_bit=False, float_range=None, shape_is_width_height=True):
         self._data = numpy.asarray(data)
         self._is_twelve_bit = is_twelve_bit
         dt = self._data.dtype.type
@@ -102,16 +123,7 @@ class ImmutableImage:
             else:
                 raise NotImplementedError('Support for another numpy dtype was added without implementing self._range calculation for it...')
 
-    def __repr__(self):
-        num_channels = self.num_channels
-        return '{}; {}x{}, {} channel{} ({}){}>'.format(
-            super().__repr__()[:-1],
-            self._size.width(),
-            self._size.height(),
-            num_channels,
-            '' if num_channels == 1 else 's',
-            self._type,
-            ' (per-channel binary)' if self.is_binary else '')
+    set_data.__doc__ = __init__.__doc__
 
     @property
     def type(self):
@@ -144,7 +156,10 @@ class ImmutableImage:
         return self.stats_future.result().max_bin
 
     @property
-    def min_max(self):
+    def extremae(self):
+        """The actual per-channel minimum and maximum intensity values.  The max intensity value of 4095 for 12-bit-per-channel images
+        and the range optionally supplied with floating-point images are not enforced, so it is possible for min and/or max to fall
+        outside of the interval represented by the value of the .range property."""
         return self.stats_future.result().min_max_intensity
 
     @property
