@@ -77,7 +77,7 @@ class _Property:
             getattr(display_image, self.changed_signal_name).emit()
 
     def __delete__(self, display_image):
-        """Reset to default value."""
+        """Reset to default value by way of removing the explicitly set override, causing the apparent value to be default."""
         try:
             old_value = getattr(display_image, self.var_name)
             delattr(display_image, self.var_name)
