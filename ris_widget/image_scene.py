@@ -107,14 +107,17 @@ class ImageStack(ShaderItem):
     bounding_box_changed = Qt.pyqtSignal()
     # First parameter of image_* signals is 0-based index into image_objects
     image_inserted = Qt.pyqtSignal(int)
-    # Second parameter is image object that was replaced or removed
+    # Second parameter is image object that was removed
     image_replaced = Qt.pyqtSignal(int, object)
     image_removed = Qt.pyqtSignal(int, object)
 
     def __init__(self, parent_item=None):
         self.image_objects = [] # In ascending order, with bottom image (backmost) as element 0
-        self._image_object_ids = []
-        self._next_image_object_id = -1
+        self._texs = []
+        self._dead_texs = [] # Textures queued for deletion when an OpenGL context is available
+        self._image_object_data_ids = {}
+        self._next_image_object_data_id = -1
+        self._image_change_signal_mapper = Qt.QSignalMapper(self)
 
     def type(self):
         return ImageItem.QGRAPHICSITEM_TYPE
@@ -128,57 +131,40 @@ class ImageStack(ShaderItem):
     def insert_image(self, idx, image_data, *va, **ka):
         self.insert_image_object(idx, self.ImageClass(image_data, *va, **ka))
 
-    def replace_image(self, idx, image_data, *va, **ka):
-        self.replace_image_object(idx, self.ImageClass(image_data, *va, **ka), True)
-
     def remove_image(self, idx):
         self.remove_image_object(idx)
 
     def insert_image_object(self, idx, image_object):
         assert idx <= len(self.image_objects)
+        assert image_object not in self.image_objects
         if idx == 0:
             self.prepareGeometryChange()
         image_object.property_changed.connect(self.update)
+        image_object.image_changed.
         self.image_objects.insert(idx, image_object)
-        self._image_object_ids.insert(idx, self._generate_image_object_id)
+        self._image_object_data_ids[image_object] = self._generate_image_object_data_id()
+        self._texs.insert(idx, None)
         self.image_inserted.emit(idx)
         self.update()
-
-    def replace_image_object(self, idx, image_object, preserve_properties=False):
-        if idx == 0:
-            self.prepareGeometryChange()
-        old_image_object = self.image_objects[idx]
-        old_image_object.property_changed.disconnect(self.update)
-        self.image_objects[idx] = image_object
-        self._image_object_ids[idx] = self._generate_image_object_id()
-        image_object.property_changed.connect(self.update)
-        try:
-            if preserve_properties:
-                # Todo: abstract property copying or make image object data mutable so that it can be avoided
-                image_object.trilinear_filtering_enabled = old_image_object.trilinear_filtering_enabled
-                image_object.gamma = old_image_object.gamma
-                if image_object.type == old_image_object.type:
-                    image_object.min, image_object.max = old_image_object.min, old_image_object.max
-                if old_image_object.auto_getcolor_expression_enabled:
-                    image_object.auto_getcolor_expression_enabled = True
-                else:
-                    image_object.auto_getcolor_expression_enabled = False
-                    image_object.getcolor_expression = old_image_object.getcolor_expression
-                image_object.extra_transformation_expression = old_image_object.extra_transformation_expression
-                image_object.blend_function = old_image_object.blend_function
-        finally:
-            self.image_replaced.emit(idx, old_image_object)
-            self.update()
 
     def remove_image_object(self, idx):
         if idx == 0:
             self.prepareGeometryChange()
         image_object = self.image_objects[idx]
         image_object.property_changed.disconnect(self.update)
+        image_object.image_changed.disconnect(self._image_change_signal_mapper.map)
+        self._image_change_signal_mapper.removeMappings(image_object)
         del self.image_objects[idx]
-        del self._image_object_ids[idx]
+        del self._image_object_data_ids[image_object]
+        dead_tex = self._texs[idx]
+        if dead_tex is not None:
+            self._dead_texs.append(dead_tex)
+        del self._texs[idx]
         self.image_removed.emit(idx, image_object)
         self.update()
+
+    def _on_image_changed(self, image_object):
+        self._image_object_data_ids[image_object] = self._generate_image_object_data_id()
 
     def hoverMoveEvent(self, event):
         pass
@@ -216,9 +202,12 @@ class ImageStack(ShaderItem):
         qpainter.beginNativePainting()
         with ExitStack() as estack:
             estack.callback(qpainter.endNativePainting)
-            self._update_tex(estack)
+            self._destroy_dead_texs()
+            gl = GL()
+            for idx, image_object in enumerate(self.image_objects):
+                self._update_tex(idx, estack)
+
             if self._tex is not None and self._getcolor_expression is not None:
-                gl = GL()
                 image = self._image
                 self._update_overlay_items_z_sort()
                 prog_desc = [self._getcolor_expression, self._extra_transformation_expression]
@@ -294,12 +283,12 @@ class ImageStack(ShaderItem):
                 gl.glDrawArrays(gl.GL_TRIANGLE_FAN, 0, 4)
         self._paint_frame(qpainter)
 
-    def _generate_image_object_id(self):
-        r = self._next_image_object_id
-        self._next_image_object_id += 1
+    def _generate_image_object_data_id(self):
+        r = self._next_image_object_data_id
+        self._next_image_object_data_id += 1
         return r
 
-    def _update_tex(self, estack, idx):
+    def _update_tex(self, idx, estack):
         """Meant to be executed between a pair of QPainter.beginNativePainting() QPainter.endNativePainting() calls or,
         at the very least, when an OpenGL context is current, _update_tex does whatever is required for self._tex[idx] to
         represent self._image_objects[idx], including texture object creation and texture data uploading, and it leaves
@@ -383,3 +372,10 @@ class ImageStack(ShaderItem):
                 # self._tex is updated here and not before so that any failure preparing tex results in a retry the next time self._tex
                 # is needed
                 self._tex = tex
+
+    def _destroy_dead_texs(self):
+        """Meant to be executed between a pair of QPainter.beginNativePainting() QPainter.endNativePainting() calls or,
+        at the very least, when an OpenGL context is current."""
+        while self._dead_texs:
+            dead_tex = self._dead_texs.pop()
+            dead_tex.destroy()

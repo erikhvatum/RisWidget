@@ -42,7 +42,7 @@ class _Property:
 
     def instantiate(self, display_image):
         setattr(display_image, self.default_val_var_name, self.default_value_callback(display_image))
-        display_image.property_changed.connect(getattr(display_image, self.changed_signal_name))
+        display_image.changed.connect(getattr(display_image, self.changed_signal_name))
 
     def update_default(self, display_image):
         if hasattr(display_image, self.var_name):
@@ -103,8 +103,8 @@ class DisplayImage(BasicImage, Qt.QObject):
     BasicImage: raw image data and essential information for interpreting that data in any context
     DisplayImage: BasicImage + presentation data and metadata for RisWidget such as rescaling min/max/gamma values and an informative name
 
-    The property_changed signal is emitted when any of the specific property changed signals are emitted.  In the case
-    where any property change should cause a function to be executed, do property_changed.connect(your_function) rather than
+    The changed signal is emitted when any property impacting image presentation is modified or image data is explicitly changed or refreshed.
+    In the case where any image appearence change should cause a function to be executed, do changed.connect(your_function) rather than
     min_changed.connect(your_function); max_changed.connect(your_function); etc.
 
     Although DisplayImage uses _Property descriptors, subclasses adding properties are not obligated
@@ -143,11 +143,11 @@ class DisplayImage(BasicImage, Qt.QObject):
     for k, v in BLEND_FUNCTIONS.items():
         BLEND_FUNCTIONS[k] = '\n        ' + '\n        '.join(v)
     del k, v
-    # A call to .set_data or a change to any mutable property potentially impacts image presentation.  For convenience, property_changed is emitted whenever
+    # A call to .set_data or a change to any mutable property potentially impacts image presentation.  For convenience, changed is emitted whenever
     # .set_data is called or any of the more specific mutable-property-changed signals are emitted.
     # 
     # For example, this single call supports extensibility by subclassing:
-    # display_image_instance.property_changed.connect(something.refresh)
+    # display_image_instance.changed.connect(something.refresh)
     # And that single call replaces the following set of calls, which is not even complete if DisplayImage is subclassed:
     # display_image_instance.objectNameChanged.connect(something.refresh)
     # display_image_instance.image_changed.connect(something.refresh)
@@ -160,8 +160,8 @@ class DisplayImage(BasicImage, Qt.QObject):
     # display_image_instance.extra_transformation_expression_changed.connect(something.refresh)
     #
     # In the __init__ function of any DisplayImage subclass that adds presentation-affecting properties
-    # and associated change notification signals, do not forget to connect the subclass's change signals to property_changed.
-    property_changed = Qt.pyqtSignal()
+    # and associated change notification signals, do not forget to connect the subclass's change signals to changed.
+    changed = Qt.pyqtSignal()
     image_changed = Qt.pyqtSignal()
 
     def __init__(self, data, is_twelve_bit=False, float_range=None, shape_is_width_height=True, name=None, parent=None):
@@ -174,12 +174,11 @@ class DisplayImage(BasicImage, Qt.QObject):
         if name is None:
             name = self._generate_anon_name()
         self.setObjectName(name)
-        
         if self.auto_min_max_enabled:
             self.do_auto_min_max()
         self._blend_function_impl = self.BLEND_FUNCTIONS[self.blend_function]
-        self.objectNameChanged.connect(self.property_changed)
-        self.image_changed.connect(self.property_changed)
+        self.objectNameChanged.connect(self.changed)
+        self.image_changed.connect(self.changed)
 
     def set_data(self, data, is_twelve_bit=False, float_range=None, shape_is_width_height=True, keep_name=True, name=None):
         """If keep_name is True, the existing name is not changed, and the value supplied for the name argument is ignored.
@@ -192,11 +191,13 @@ class DisplayImage(BasicImage, Qt.QObject):
             self.setObjectName(name)
         for property in self.properties:
             property.update_default(self)
+        self.image_changed.emit()
 
     def refresh(self):
         BasicImage.refresh(self)
         if self.auto_min_max_enabled:
             self.do_auto_min_max()
+        self.image_changed.emit()
 
     properties = []
 

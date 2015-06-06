@@ -35,7 +35,7 @@ class BasicImage:
     If an ndarray of supported dtype and striding is supplied as the data argument to BasicImage's constructor or set_data function,
     a reference to that ndarray is kept rather than a copy of it.  In such cases, if the wrapped data is subsequently modified, 
     care must be taken to call the BasicImage's .refresh method before querying its .histogram property or any subclass's properties
-    derived from the data, as changes to the wrapped data are not automatically detected."""
+    derived from the data, as changes to the data are not automatically detected."""
 
     def __init__(self, data, is_twelve_bit=False, float_range=None, shape_is_width_height=True):
         """RisWidget defaults to the convention that the first element of the shape vector of a Numpy
