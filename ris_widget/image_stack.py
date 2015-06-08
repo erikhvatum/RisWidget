@@ -91,7 +91,7 @@ class ImageStack(ShaderItem):
         '    dca = clamp(dca, 0, 1);',
         '}')))
 
-    bounding_box_changed = Qt.pyqtSignal()
+    bounding_rect_changed = Qt.pyqtSignal()
     # First parameter of image_* signals is 0-based index into image_objects
     image_inserted = Qt.pyqtSignal(int)
     # Second parameter is image object that was removed
@@ -148,6 +148,8 @@ class ImageStack(ShaderItem):
         image_object.data_changed.connect(self._image_data_changed_signal_mapper.map)
         self._image_data_serials[image_object] = self._generate_data_serial()
         self._texs.insert(idx, None)
+        if idx == 0:
+            self.bounding_rect_changed.emit()
         self.image_inserted.emit(idx)
         self.update()
 
@@ -164,6 +166,8 @@ class ImageStack(ShaderItem):
         if dead_tex is not None:
             self._dead_texs.append(dead_tex)
         del self._texs[idx]
+        if idx == 0:
+            self.bounding_rect_changed.emit()
         self.image_removed.emit(idx, image_object)
         self.update()
 

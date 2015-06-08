@@ -30,10 +30,10 @@ class MainScene(ShaderScene):
         super().__init__(parent, ContextualInfoItemClass)
         self.ImageClass = ImageClass
         self.image_stack = ImageStackClass()
-        self.image_stack.bounding_box_changed.connect(self._on_image_stack_bounding_box_changed)
+        self.image_stack.bounding_rect_changed.connect(self._on_image_stack_bounding_rect_changed)
         self.addItem(self.image_stack)
 
-    def _on_image_stack_bounding_box_changed(self):
-        self.setSceneRect(self.image_item.boundingRect())
+    def _on_image_stack_bounding_rect_changed(self):
+        self.setSceneRect(self.image_stack.boundingRect())
         for view in self.views():
-            view._on_image_stack_bounding_box_changed()
+            view._on_image_stack_bounding_rect_changed()
