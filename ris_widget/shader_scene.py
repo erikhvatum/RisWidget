@@ -22,8 +22,8 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from .image import Image
-from .shared_resources import GL, UNIQUE_QGRAPHICSITEM_TYPE
+from .display_image import DisplayImage
+from .shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
 from .shader_view import ShaderView
 from contextlib import ExitStack
 import numpy
@@ -281,16 +281,17 @@ class ShaderTexture:
     but these were introduced with OpenGL 3.0 and should not be relied upon in 2.1 contexts).  So, in
     cases where GL_LUMINANCE*_EXT format textures may be required, we use ShaderTexture rather than
     QOpenGLTexture."""
-    def __init__(self, target):
-        self.texture_id = GL().glGenTextures(1)
+    def __init__(self, target, GL):
+        self._GL = GL
+        self.texture_id = GL.glGenTextures(1)
         self.target = target
 
     def bind(self):
-        GL().glBindTexture(self.target, self.texture_id)
+        self.GL.glBindTexture(self.target, self.texture_id)
 
     def release(self):
-        GL().glBindTexture(self.target, 0)
+        self.GL.glBindTexture(self.target, 0)
 
     def destroy(self):
-        GL().glDeleteTextures(1, (self.texture_id,))
+        self.GL.glDeleteTextures(1, (self.texture_id,))
         del self.texture_id

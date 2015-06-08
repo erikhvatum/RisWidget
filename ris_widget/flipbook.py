@@ -22,7 +22,7 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from .image import Image
+from .display_image import DisplayImage
 from .shared_resources import UNIQUE_QLISTWIDGETITEM_TYPE
 from PyQt5 import Qt
 import sys

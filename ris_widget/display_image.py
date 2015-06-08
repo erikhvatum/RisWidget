@@ -144,13 +144,13 @@ class DisplayImage(BasicImage, Qt.QObject):
         BLEND_FUNCTIONS[k] = '\n        ' + '\n        '.join(v)
     del k, v
     # A call to .set_data or a change to any mutable property potentially impacts image presentation.  For convenience, changed is emitted whenever
-    # .set_data is called or any of the more specific mutable-property-changed signals are emitted.
+    # .set_data or .refresh is called or any of the more specific mutable-property-changed signals are emitted.
     # 
     # For example, this single call supports extensibility by subclassing:
     # display_image_instance.changed.connect(something.refresh)
     # And that single call replaces the following set of calls, which is not even complete if DisplayImage is subclassed:
     # display_image_instance.objectNameChanged.connect(something.refresh)
-    # display_image_instance.image_changed.connect(something.refresh)
+    # display_image_instance.data_changed.connect(something.refresh)
     # display_image_instance.min_changed.connect(something.refresh)
     # display_image_instance.max_changed.connect(something.refresh)
     # display_image_instance.gamma_changed.connect(something.refresh)
@@ -158,11 +158,12 @@ class DisplayImage(BasicImage, Qt.QObject):
     # display_image_instance.auto_getcolor_expression_enabled_changed.connect(something.refresh)
     # display_image_instance.getcolor_expression_changed.connect(something.refresh)
     # display_image_instance.extra_transformation_expression_changed.connect(something.refresh)
+    # display_image_instance.global_alpha_changed.connect(something.refresh)
     #
     # In the __init__ function of any DisplayImage subclass that adds presentation-affecting properties
     # and associated change notification signals, do not forget to connect the subclass's change signals to changed.
     changed = Qt.pyqtSignal()
-    image_changed = Qt.pyqtSignal()
+    data_changed = Qt.pyqtSignal()
 
     def __init__(self, data, is_twelve_bit=False, float_range=None, shape_is_width_height=True, name=None, parent=None):
         Qt.QObject.__init__(self, parent)
@@ -178,7 +179,7 @@ class DisplayImage(BasicImage, Qt.QObject):
             self.do_auto_min_max()
         self._blend_function_impl = self.BLEND_FUNCTIONS[self.blend_function]
         self.objectNameChanged.connect(self.changed)
-        self.image_changed.connect(self.changed)
+        self.data_changed.connect(self.changed)
 
     def set_data(self, data, is_twelve_bit=False, float_range=None, shape_is_width_height=True, keep_name=True, name=None):
         """If keep_name is True, the existing name is not changed, and the value supplied for the name argument is ignored.
@@ -191,13 +192,13 @@ class DisplayImage(BasicImage, Qt.QObject):
             self.setObjectName(name)
         for property in self.properties:
             property.update_default(self)
-        self.image_changed.emit()
+        self.data_changed.emit()
 
     def refresh(self):
         BasicImage.refresh(self)
         if self.auto_min_max_enabled:
             self.do_auto_min_max()
-        self.image_changed.emit()
+        self.data_changed.emit()
 
     properties = []
 
@@ -299,6 +300,15 @@ class DisplayImage(BasicImage, Qt.QObject):
     def blend_function_impl(self):
         return self.BLEND_FUNCTIONS[self.blend_function]
 
+    def _global_alpha_pre_set(self, v):
+        if not 0.0 <= v <= 1.0:
+            raise ValueError('The value assigned to global_alpha must be in the closed interval [0, 1].')
+    global_alpha = _Property(
+        properties, 'global_alpha',
+        default_value_callback = lambda display_image: 1.0,
+        transform_callback = lambda display_image, v: float(v),
+        pre_set_callback = lambda display_image, v, f=_global_alpha_pre_set: f(display_image, v))
+
     for property in properties:
         exec(property.changed_signal_name + ' = Qt.pyqtSignal()')
     del property
@@ -319,12 +329,12 @@ class DisplayImage(BasicImage, Qt.QObject):
         try:
             extremae = self.extremae
             if self.has_alpha_channel:
-                mm = extremae[:-1, 0].min(), extremae[:-1, 1].max()
+                eae = extremae[:-1, 0].min(), extremae[:-1, 1].max()
             elif self.num_channels > 1:
-                mm = extremae[:, 0].min(), extremae[:, 1].max()
+                eae = extremae[:, 0].min(), extremae[:, 1].max()
             else:
-                mm = extremae
-            self.min, self.max = mm
+                eae = extremae
+            self.min, self.max = eae
         finally:
             self._retain_auto_min_max_enabled_on_min_max_change = False
 

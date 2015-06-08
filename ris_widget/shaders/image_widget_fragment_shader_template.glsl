@@ -27,6 +27,7 @@
 
 uniform sampler2D tex;
 uniform float tex_global_alpha;
+uniform float item_opacity;
 // 2D homogeneous transformation matrix for transforming gl_FragCoord viewport coordinates into image texture
 // coordinates
 uniform mat3 frag_to_tex;
@@ -76,5 +77,5 @@ void main()
 
 $do_overlay_blending
 
-    gl_FragColor = vec4(dca / da, da);
+    gl_FragColor = vec4(dca / da, da * item_opacity);
 }

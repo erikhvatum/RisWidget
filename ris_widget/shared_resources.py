@@ -74,43 +74,6 @@ def GL_QSURFACE_FORMAT(msaa_sample_count=None):
 #       _GL_QSURFACE_FORMAT.setAlphaBufferSize(8)
     return _GL_QSURFACE_FORMAT
 
-# _GL is set to instance of QOpenGLFunctions_2_1 (or QOpenGLFunctions_2_0 for old PyQt5 versions) during
-# creation of first OpenGL widget.  QOpenGLFunctions_VER are obese namespaces containing all OpenGL
-# plain procedural C functions and #define values valid for the associated OpenGL version, in Python
-# wrappers.  It doesn't matter which context birthed the QOpenGLFunctions_VER object, only that
-# an OpenGL context is current for the thread executing a QOpenGLFunctions_VER method.
-_GL = None
-
-def GL():
-    global _GL
-    if _GL is None:
-        context = Qt.QOpenGLContext.currentContext()
-        if context is not None:
-            try:
-                _GL = context.versionFunctions()
-                if _GL is None:
-                    # Some platforms seem to need version profile specification
-                    vp = Qt.QOpenGLVersionProfile()
-                    vp.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
-                    vp.setVersion(2, 1)
-                    _GL = context.versionFunctions(vp)
-            except ImportError:
-                # PyQt5 v5.4.0 and v5.4.1 provide access to OpenGL functions up to OpenGL 2.0, but we have made
-                # an OpenGL 2.1 context.  QOpenGLContext.versionFunctions(..) will, by default, attempt to return
-                # a wrapper around QOpenGLFunctions2_1, which has failed in the try block above.  Therefore,
-                # we fall back to explicitly requesting 2.0 functions.  We don't need any of the C _GL 2.1
-                # constants or calls, anyway - these address non-square shader uniform transformation matrices and
-                # specification of sRGB texture formats, neither of which we use.
-                vp = Qt.QOpenGLVersionProfile()
-                vp.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
-                vp.setVersion(2, 0)
-                _GL = context.versionFunctions(vp)
-            if not _GL:
-                raise RuntimeError('Failed to retrieve OpenGL wrapper namespace.')
-            if not _GL.initializeOpenGLFunctions():
-                raise RuntimeError('Failed to initialize OpenGL wrapper namespace.')
-    return _GL
-
 _freeimage = None
 
 def FREEIMAGE(show_messagebox_on_error=False, error_messagebox_owner=None):
