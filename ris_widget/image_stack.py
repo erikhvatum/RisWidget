@@ -131,11 +131,19 @@ class ImageStack(ShaderItem):
     def replace_image_data(self, idx, image_data, *va, **ka):
         """In the special case where idx == len(self.image_objects), ie when replacing one-beyond-the-last,
         the effect of calling replace_image_data(idx...) is the same as append_image_data(...)."""
+        if idx == 0:
+            self.prepareGeometryChange()
         if idx == len(self.image_objects):
-            self.append_image(image_data, *va, **ka)
+            if 'keep_name' in ka:
+                kka = ka.copy()
+                del kka['keep_name']
+                ka = kka
+            self.append_image_data(image_data, *va, **ka)
         else:
             image_object = self.image_objects[idx]
             image_object.set_data(image_data, *va, **ka)
+        if idx == 0:
+            self.bounding_rect_changed.emit()
 
     def remove_image(self, idx):
         self.remove_image_object(idx)
@@ -151,7 +159,6 @@ class ImageStack(ShaderItem):
         self.image_objects.insert(idx, image_object)
         # Any change, including image data change, may change result of rendering image and therefore requires refresh
         image_object.changed.connect(self._do_update)
-        print(image_object, 'connect')
         # Only change to image data invalidates a texture.  Texture uploading is deferred until rendering, and rendering is
         # deferred until the next iteration of the event loop.  When image_object emits image_changed, it will also emit
         # changed.  In effect, self.update marks the scene as requiring refresh while self._on_image_changed marks the
@@ -184,7 +191,6 @@ class ImageStack(ShaderItem):
             image_object.data_changed.connect(self._image_data_changed_signal_mapper.map)
             self._image_data_serials[image_object] = self._generate_data_serial()
             self.image_objects[idx] = image_object
-            print(old_image_object, 'disconnect')
             old_image_object.changed.disconnect(self._do_update)
             old_image_object.data_changed.disconnect(self._image_data_changed_signal_mapper.map)
             self._image_data_changed_signal_mapper.removeMappings(old_image_object)
@@ -358,9 +364,9 @@ class ImageStack(ShaderItem):
         desired_texture_size = Qt.QSize(image.size) #if even_width else Qt.QSize(image.size.width()+1, image.size.height())
         desired_minification_filter = Qt.QOpenGLTexture.LinearMipMapLinear if image.trilinear_filtering_enabled else Qt.QOpenGLTexture.Linear
         if tex is not None:
-            if image.size != desired_texture_size or tex.format() != desired_texture_format or tex.minificationFilter() != desired_minification_filter:
+            if Qt.QSize(tex.width(), tex.height()) != desired_texture_size or tex.format() != desired_texture_format or tex.minificationFilter() != desired_minification_filter:
                 tex.destroy()
-                tex = self._tex[idx] = None
+                tex = self._texs[idx] = None
         if tex is None:
             tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
             tex.setFormat(desired_texture_format)

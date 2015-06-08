@@ -153,24 +153,38 @@ class RisWidget(Qt.QMainWindow):
                     channel_count = 3
                 if qimage.format() != desired_format:
                     qimage = qimage.convertToFormat(desired_format)
-                npyimage = numpy.ctypeslib.as_array(
-                    ctypes.cast(int(qimage.bits()), ctypes.POINTER(ctypes.c_uint8)),
-                    shape=(qimage.height(), qimage.width(), channel_count))
+                if channel_count == 3:
+                    # 24-bit RGB QImage rows are padded to 32-bit chunks, which we must match
+                    row_stride = qimage.width() * 3
+                    row_stride += 4 - (row_stride % 4)
+                    padded = numpy.ctypeslib.as_array(ctypes.cast(int(qimage.bits()), ctypes.POINTER(ctypes.c_uint8)), shape=(qimage.height(), row_stride))
+                    padded = padded[:, qimage.width() * 3].reshape((qimage.height(), qimage.width(), 3))
+                    npyimage = numpy.empty((qimage.height(), qimage.width(), 3), dtype=numpy.uint8)
+                    npyimage.flat = padded.flat
+                else:
+                    npyimage = numpy.ctypeslib.as_array(
+                        ctypes.cast(int(qimage.bits()), ctypes.POINTER(ctypes.c_uint8)),
+                        shape=(qimage.height(), qimage.width(), channel_count))
                 if qimage.isGrayscale():
                     npyimage=npyimage[...,0]
-                # TODO: handle 24/32 RGB888 padding
-                self.image_data_T = npyimage
-                if self.main_scene.image_stack_item.image_objects:
-                    image = self.main_scene.image_stack_item.image_objects[0]
-                    image.set_data(image, shape_is_width_height=False, keep_name=False, name=mime_data.urls()[0] if mime_data.hasUrls() else None)
-                else:
-                    image = DisplayImage(npyimage, name=mime_data.urls()[0] if mime_data.hasUrls() else None, shape_is_width_height=False)
-                    self.main_scene.image_stack.append_image_object(image)
-                if image.data.ctypes.data == npyimage.ctypes.data:
+                self.main_scene.image_stack.replace_image_data(0, npyimage, keep_name=False, shape_is_width_height=False, name=str(mime_data.urls()[0]) if mime_data.hasUrls() else None)
+                image_object = self.main_scene.image_stack.image_objects[0]
+                if image_object.data.ctypes.data == npyimage.ctypes.data:
+                    def del_qimage():
+                        try:
+                            del image_object.qimage
+                            print('del image_object.qimage')
+                        except AttributeError:
+                            pass
+                        try:
+                            image_object.data_changed.disconnect(del_qimage)
+                        except TypeError:
+                            pass
+                    image_object.data_changed.connect(del_qimage)
                     # Retain reference to prevent deallocation of underlying buffer owned by Qt and wrapped by numpy.  This does happen,
                     # indicating that the various transponse operations just shift around elements of shape and strides rather than
                     # causing memcpys.
-                    image.qimage = qimage
+                    image_object.qimage = qimage
                 event.accept()
         elif mime_data.hasUrls():
             # Note: if the URL is a "file://..." representing a local file, toLocalFile returns a string
@@ -186,13 +200,12 @@ class RisWidget(Qt.QMainWindow):
                 return
             if len(fpaths) == 1:
                 image_data = freeimage.read(fpaths[0])
-                self.image_data = image_data
-                event.accept()
+                self.main_scene.image_stack.replace_image_data(0, image_data, keep_name=False, name=fpaths[0])
             else:
                 # TODO: read images in background thread and display modal progress bar dialog with cancel button
                 images = [DisplayImage(freeimage.read(fpath), name=fpath) for fpath in fpaths]
                 self.make_flipbook(images)
-                event.accept()
+            event.accept()
 
     @property
     def image_object(self):
