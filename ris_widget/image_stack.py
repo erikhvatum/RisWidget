@@ -93,10 +93,10 @@ class ImageStack(ShaderItem):
 
     bounding_rect_changed = Qt.pyqtSignal()
     # First parameter of image_* signals is 0-based index into image_objects
-    image_inserted = Qt.pyqtSignal(int)
-    # Second parameter is image object that was removed
-    image_replaced = Qt.pyqtSignal(int, object)
-    image_removed = Qt.pyqtSignal(int, object)
+    image_object_inserted = Qt.pyqtSignal(int)
+    # Second parameter is image object that was removed/replaced
+    image_object_replaced = Qt.pyqtSignal(int, object)
+    image_object_removed = Qt.pyqtSignal(int, object)
 
     def __init__(self, parent_item=None, DisplayImageClass=DisplayImage):
         super().__init__(parent_item)
@@ -122,11 +122,20 @@ class ImageStack(ShaderItem):
         else:
             return Qt.QRectF(Qt.QPointF(), Qt.QSizeF(1, 1))
 
-    def append_image(self, image_data, *va, **ka):
+    def append_image_data(self, image_data, *va, **ka):
         self.insert_image_object(len(self.image_objects), self.DisplayImageClass(image_data, *va, **ka))
 
-    def insert_image(self, idx, image_data, *va, **ka):
+    def insert_image_data(self, idx, image_data, *va, **ka):
         self.insert_image_object(idx, self.DisplayImageClass(image_data, *va, **ka))
+
+    def replace_image_data(self, idx, image_data, *va, **ka):
+        """In the special case where idx == len(self.image_objects), ie when replacing one-beyond-the-last,
+        the effect of calling replace_image_data(idx...) is the same as append_image_data(...)."""
+        if idx == len(self.image_objects):
+            self.append_image(image_data, *va, **ka)
+        else:
+            image_object = self.image_objects[idx]
+            image_object.set_data(image_data, *va, **ka)
 
     def remove_image(self, idx):
         self.remove_image_object(idx)
@@ -141,7 +150,8 @@ class ImageStack(ShaderItem):
             self.prepareGeometryChange()
         self.image_objects.insert(idx, image_object)
         # Any change, including image data change, may change result of rendering image and therefore requires refresh
-        image_object.changed.connect(self.update)
+        image_object.changed.connect(self._do_update)
+        print(image_object, 'connect')
         # Only change to image data invalidates a texture.  Texture uploading is deferred until rendering, and rendering is
         # deferred until the next iteration of the event loop.  When image_object emits image_changed, it will also emit
         # changed.  In effect, self.update marks the scene as requiring refresh while self._on_image_changed marks the
@@ -153,14 +163,39 @@ class ImageStack(ShaderItem):
         self._texs.insert(idx, None)
         if idx == 0:
             self.bounding_rect_changed.emit()
-        self.image_inserted.emit(idx)
+        self.image_object_inserted.emit(idx)
+        self.update()
+
+    def _do_update(self):
+        self.update()
+
+    def replace_image_object(self, idx, image_object):
+        """In the special case where idx == len(self.image_objects), ie when replacing one-beyond-the-last,
+        the effect of calling replace_image_object(idx...) is the same as append_image_object(...)."""
+        if idx == 0:
+            self.prepareGeometryChange()
+        if idx == len(self.image_objects):
+            self.append_image_object(image_object)
+        else:
+            assert image_object not in self.image_objects
+            old_image_object = self.image_objects[idx]
+            image_object.changed.connect(self._do_update)
+            self._image_data_changed_signal_mapper.setMapping(image_object, image_object)
+            image_object.data_changed.connect(self._image_data_changed_signal_mapper.map)
+            self._image_data_serials[image_object] = self._generate_data_serial()
+            self.image_objects[idx] = image_object
+            print(old_image_object, 'disconnect')
+            old_image_object.changed.disconnect(self._do_update)
+            old_image_object.data_changed.disconnect(self._image_data_changed_signal_mapper.map)
+            self._image_data_changed_signal_mapper.removeMappings(old_image_object)
+            self.image_object_replaced.emit(idx, old_image_object)
         self.update()
 
     def remove_image_object(self, idx):
         if idx == 0:
             self.prepareGeometryChange()
         image_object = self.image_objects[idx]
-        image_object.property_changed.disconnect(self.update)
+        image_object.disconnect(self._do_update)
         image_object.data_changed.disconnect(self._image_data_changed_signal_mapper.map)
         self._image_data_changed_signal_mapper.removeMappings(image_object)
         del self.image_objects[idx]
@@ -171,7 +206,7 @@ class ImageStack(ShaderItem):
         del self._texs[idx]
         if idx == 0:
             self.bounding_rect_changed.emit()
-        self.image_removed.emit(idx, image_object)
+        self.image_object_removed.emit(idx, image_object)
         self.update()
 
     def _on_image_data_changed(self, image_object):

@@ -159,6 +159,7 @@ class RisWidget(Qt.QMainWindow):
                 if qimage.isGrayscale():
                     npyimage=npyimage[...,0]
                 # TODO: handle 24/32 RGB888 padding
+                self.image_data_T = npyimage
                 if self.main_scene.image_stack_item.image_objects:
                     image = self.main_scene.image_stack_item.image_objects[0]
                     image.set_data(image, shape_is_width_height=False, keep_name=False, name=mime_data.urls()[0] if mime_data.hasUrls() else None)
@@ -185,12 +186,7 @@ class RisWidget(Qt.QMainWindow):
                 return
             if len(fpaths) == 1:
                 image_data = freeimage.read(fpaths[0])
-                if self.main_scene.image_stack.image_objects:
-                    image = self.main_scene.image_stack.image_objects[0]
-                    image.set_data(image_data, keep_name=False, name=fpaths[0])
-                else:
-                    image = DisplayImage(image_data, name=fpaths[0])
-                    self.main_scene.image_stack.append_image_object(image)
+                self.image_data = image_data
                 event.accept()
             else:
                 # TODO: read images in background thread and display modal progress bar dialog with cancel button
@@ -198,13 +194,42 @@ class RisWidget(Qt.QMainWindow):
                 self.make_flipbook(images)
                 event.accept()
 
+    @property
+    def image_object(self):
+        image_objects = self.main_scene.image_stack.image_objects
+        return image_objects[0] if image_objects else None
+
+    @image_object.setter
+    def image_object(self, image_object):
+        self.main_scene.image_stack.replace_image_object(0, image_object)
+
+    @property
+    def image_data(self):
+        image_objects = self.main_scene.image_stack.image_objects
+        if image_objects:
+            return image_objects[0].data
+
+    @image_data.setter
+    def image_data(self, image_data):
+        self.main_scene.image_stack.replace_image_data(0, image_data)
+
+    @property
+    def image_data_T(self):
+        image_objects = self.main_scene.image_stack.image_objects
+        if image_objects:
+            return image_objects[0].data_T
+
+    @image_data.setter
+    def image_data_T(self, image_data_T):
+        self.main_scene.image_stack.replace_image_data(0, image_data_T, shape_is_width_height=False)
+
     def make_flipbook(self, images=None, name=None):
         """The images argument may be any mixture of ris_widget.image.DisplayImage objects and raw data iterables of the sort that
         may be assigned to RisWidget.image_data or RisWidget.image_data_T.
         If None is supplied for images, an empty flipbook is created.
         If None is supplied for name, a unique name is generated.
         If the value supplied for name is not unique, a suffix is appended such that the resulting name is unique."""
-        flipbook = Flipbook(self._uniqueify_flipbook_name, lambda image: ImageItem.image.fset(self.main_scene.image_item, image), images, name)
+        flipbook = Flipbook(self._uniqueify_flipbook_name, lambda image_object: RisWidget.image_object.fset(self, image_object), images, name)
         assert flipbook.name not in self._flipbooks
         self._flipbooks[flipbook.name] = flipbook
         flipbook.name_changed.connect(self._on_flipbook_name_changed)
