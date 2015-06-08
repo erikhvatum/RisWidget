@@ -39,12 +39,12 @@ class ShaderView(Qt.QGraphicsView):
     def __init__(self, shader_scene, parent):
         super().__init__(shader_scene, parent)
         self.setMouseTracking(True)
-        glw = _ShaderViewGLViewport(self)
+        gl_widget = _ShaderViewGLViewport(self)
         # It seems necessary to retain this reference.  It is available via self.viewport() after
         # the setViewport call completes, suggesting that PyQt keeps a reference to it, but this 
         # reference is evidentally weak or perhaps just a pointer.
-        self.gl_widget = glw
-        self.setViewport(glw)
+        self.gl_widget = gl_widget
+        self.setViewport(gl_widget)
         if GL_QSURFACE_FORMAT().samples() > 0:
             self.setRenderHint(Qt.QPainter.Antialiasing)
         self.scene_region_changed.connect(shader_scene.contextual_info_item.return_to_fixed_position)
