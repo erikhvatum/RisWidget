@@ -141,56 +141,62 @@ class RisWidget(Qt.QMainWindow):
         event.acceptProposedAction()
 
     def dropEvent(self, event):
-        pass
-#       mime_data = event.mimeData()
-#       if mime_data.hasImage():
-#           qimage = mime_data.imageData()
-#           if not qimage.isNull() and qimage.format() != Qt.QImage.Format_Invalid:
-#               if qimage.hasAlphaChannel():
-#                   desired_format = Qt.QImage.Format_RGBA8888
-#                   channel_count = 4
-#               else:
-#                   desired_format = Qt.QImage.Format_RGB888
-#                   channel_count = 3
-#               if qimage.format() != desired_format:
-#                   qimage = qimage.convertToFormat(desired_format)
-#               npyimage = numpy.ctypeslib.as_array(
-#                   ctypes.cast(int(qimage.bits()), ctypes.POINTER(ctypes.c_uint8)),
-#                   shape=(qimage.height(), qimage.width(), channel_count))
-#               if qimage.isGrayscale():
-#                   npyimage=npyimage[...,0]
-#               # TODO: handle 24/32 RGB888 padding
-#               if self.main_scene.image_stack_item.image_objects:
-#
-#               image = DisplayImage(npyimage, name=mime_data.urls()[0] if mime_data.hasUrls() else None, shape_is_width_height=False)
-#               if image.data.ctypes.data == npyimage.ctypes.data:
-#                   # Retain reference to prevent deallocation of underlying buffer owned by Qt and wrapped by numpy.  This does happen,
-#                   # indicating that the various transponse operations just shift around elements of shape and strides rather than
-#                   # causing memcpys.
-#                   image.qimage = qimage
-#                   self.main_scene.image_stack_item.()
-#               self.main_scene.image_stack_item.image = image
-#               event.accept()
-#       elif mime_data.hasUrls():
-#           # Note: if the URL is a "file://..." representing a local file, toLocalFile returns a string
-#           # appropriate for feeding to Python's open() function.  If the URL does not refer to a local file,
-#           # toLocalFile returns None.
-#           fpaths = list(map(lambda url: url.toLocalFile(), mime_data.urls()))
-#           if len(fpaths) > 0 and fpaths[0].startswith('file:///.file/id=') and sys.platform == 'darwin':
-#               e = 'In order for image file drag & drop to work on OS X >=10.10 (Yosemite), please upgrade to at least Qt 5.4.1.'
-#               Qt.QMessageBox.information(self, 'Qt Upgrade Required', e)
-#               return
-#           freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
-#           if freeimage is None:
-#               return
-#           if len(fpaths) == 1:
-#               self.main_scene.image_item.image = DisplayImage(freeimage.read(fpaths[0]), fpaths[0])
-#               event.accept()
-#           else:
-#               # TODO: read images in background thread and display modal progress bar dialog with cancel button
-#               images = [DisplayImage(freeimage.read(fpath), fpath) for fpath in fpaths]
-#               self.make_flipbook(images)
-#               event.accept()
+        mime_data = event.mimeData()
+        if mime_data.hasImage():
+            qimage = mime_data.imageData()
+            if not qimage.isNull() and qimage.format() != Qt.QImage.Format_Invalid:
+                if qimage.hasAlphaChannel():
+                    desired_format = Qt.QImage.Format_RGBA8888
+                    channel_count = 4
+                else:
+                    desired_format = Qt.QImage.Format_RGB888
+                    channel_count = 3
+                if qimage.format() != desired_format:
+                    qimage = qimage.convertToFormat(desired_format)
+                npyimage = numpy.ctypeslib.as_array(
+                    ctypes.cast(int(qimage.bits()), ctypes.POINTER(ctypes.c_uint8)),
+                    shape=(qimage.height(), qimage.width(), channel_count))
+                if qimage.isGrayscale():
+                    npyimage=npyimage[...,0]
+                # TODO: handle 24/32 RGB888 padding
+                if self.main_scene.image_stack_item.image_objects:
+                    image = self.main_scene.image_stack_item.image_objects[0]
+                    image.set_data(image, shape_is_width_height=False, keep_name=False, name=mime_data.urls()[0] if mime_data.hasUrls() else None)
+                else:
+                    image = DisplayImage(npyimage, name=mime_data.urls()[0] if mime_data.hasUrls() else None, shape_is_width_height=False)
+                    self.main_scene.image_stack.append_image_object(image)
+                if image.data.ctypes.data == npyimage.ctypes.data:
+                    # Retain reference to prevent deallocation of underlying buffer owned by Qt and wrapped by numpy.  This does happen,
+                    # indicating that the various transponse operations just shift around elements of shape and strides rather than
+                    # causing memcpys.
+                    image.qimage = qimage
+                event.accept()
+        elif mime_data.hasUrls():
+            # Note: if the URL is a "file://..." representing a local file, toLocalFile returns a string
+            # appropriate for feeding to Python's open() function.  If the URL does not refer to a local file,
+            # toLocalFile returns None.
+            fpaths = list(map(lambda url: url.toLocalFile(), mime_data.urls()))
+            if len(fpaths) > 0 and fpaths[0].startswith('file:///.file/id=') and sys.platform == 'darwin':
+                e = 'In order for image file drag & drop to work on OS X >=10.10 (Yosemite), please upgrade to at least Qt 5.4.1.'
+                Qt.QMessageBox.information(self, 'Qt Upgrade Required', e)
+                return
+            freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
+            if freeimage is None:
+                return
+            if len(fpaths) == 1:
+                image_data = freeimage.read(fpaths[0])
+                if self.main_scene.image_stack.image_objects:
+                    image = self.main_scene.image_stack.image_objects[0]
+                    image.set_data(image_data, keep_name=False, name=fpaths[0])
+                else:
+                    image = DisplayImage(image_data, name=fpaths[0])
+                    self.main_scene.image_stack.append_image_object(image)
+                event.accept()
+            else:
+                # TODO: read images in background thread and display modal progress bar dialog with cancel button
+                images = [DisplayImage(freeimage.read(fpath), name=fpath) for fpath in fpaths]
+                self.make_flipbook(images)
+                event.accept()
 
     def make_flipbook(self, images=None, name=None):
         """The images argument may be any mixture of ris_widget.image.DisplayImage objects and raw data iterables of the sort that

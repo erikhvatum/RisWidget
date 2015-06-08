@@ -187,9 +187,7 @@ class DisplayImage(BasicImage, Qt.QObject):
         is omitted or if None is supplied for name."""
         BasicImage.set_data(self, data, is_twelve_bit, float_range, shape_is_width_height)
         if not keep_name:
-            if name is None:
-                name = self._generate_anon_name()
-            self.setObjectName(name)
+            self.name = name
         for property in self.properties:
             property.update_default(self)
         self.data_changed.emit()
@@ -315,7 +313,7 @@ class DisplayImage(BasicImage, Qt.QObject):
 
     name = property(
         Qt.QObject.objectName,
-        Qt.QObject.setObjectName,
+        lambda self, name: self.setObjectName(self._generate_anon_name() if name is None else name),
         doc='Property proxy for QObject::objectName Qt property, which is directly accessible via the objectName getter and '
             'setObjectName setter.  Upon change, objectNameChanged is emitted.')
 

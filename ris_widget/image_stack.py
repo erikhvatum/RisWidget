@@ -131,6 +131,9 @@ class ImageStack(ShaderItem):
     def remove_image(self, idx):
         self.remove_image_object(idx)
 
+    def append_image_object(self, image_object):
+        self.insert_image_object(len(self.image_objects), image_object)
+
     def insert_image_object(self, idx, image_object):
         assert idx <= len(self.image_objects)
         assert image_object not in self.image_objects
