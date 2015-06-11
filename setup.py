@@ -31,10 +31,10 @@ from pathlib import Path
 import subprocess
 import sys
 
-cpp_source = 'ris_widget/_ndimage_statistics_impl.cpp'
-cython_source = 'ris_widget/_ndimage_statistics.pyx'
-cythoned_source = 'ris_widget/_ndimage_statistics.cpp'
-cython_source_deps = ['ris_widget/_ndimage_statistics_impl.h']
+cpp_source = 'ris_widget/image/ndimage_statistics/_ndimage_statistics_impl.cpp'
+cython_source = 'ris_widget/image/ndimage_statistics/_ndimage_statistics.pyx'
+cythoned_source = 'ris_widget/image/ndimage_statistics/_ndimage_statistics.cpp'
+cython_source_deps = ['ris_widget/image/ndimage_statistics/_ndimage_statistics_impl.h']
 
 include_dirs = [numpy.get_include()]
 
