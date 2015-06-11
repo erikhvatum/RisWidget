@@ -27,11 +27,11 @@ import math
 import numpy
 from PyQt5 import Qt
 import sys
-from .image_stack import ImageStack
-from .shader_scene import ShaderItem, ShaderScene, ShaderTexture
+from .qgraphicsitems.shader_item import ShaderItem, ShaderTexture
+from .qgraphicsscenes.base_scene import BaseScene
 from .shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
 
-class HistogramScene(ShaderScene):
+class HistogramScene(BaseScene):
     def __init__(self, parent, image_item, HistogramItemClass, ContextualInfoItemClass):
         super().__init__(parent, ContextualInfoItemClass)
         self.setSceneRect(0, 0, 1, 1)

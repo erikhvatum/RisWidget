@@ -202,34 +202,53 @@
 		<Libs PreObjects="0"/>
 	</Config>
 	<CustomFolders></CustomFolders>
-	<Files AutoFolders="PackageView">
+	<Files AutoFolders="DirectoryView">
 		<Folder Name="ris_widget">
+			<Folder Name="image">
+				<Folder Name="ndimage_statistics">
+					<F N="ris_widget/image/ndimage_statistics/__init__.py"/>
+					<F N="ris_widget/image/ndimage_statistics/_ndimage_statistics.cpp"/>
+					<F N="ris_widget/image/ndimage_statistics/_ndimage_statistics.pyx"/>
+					<F N="ris_widget/image/ndimage_statistics/_ndimage_statistics_impl.cpp"/>
+					<F N="ris_widget/image/ndimage_statistics/_ndimage_statistics_impl.h"/>
+					<F N="ris_widget/image/ndimage_statistics/ndimage_statistics.py"/>
+				</Folder>
+				<F N="ris_widget/image/__init__.py"/>
+				<F N="ris_widget/image/basic_image.py"/>
+				<F N="ris_widget/image/image.py"/>
+				<F N="ris_widget/image/image_stack.py"/>
+			</Folder>
+			<Folder Name="qgraphicsitems">
+				<F N="ris_widget/qgraphicsitems/__init__.py"/>
+				<F N="ris_widget/qgraphicsitems/contextual_info_item.py"/>
+				<F N="ris_widget/qgraphicsitems/histogram_items.py"/>
+				<F N="ris_widget/qgraphicsitems/image_stack_item.py"/>
+				<F N="ris_widget/qgraphicsitems/shader_item.py"/>
+			</Folder>
+			<Folder Name="qgraphicsscenes">
+				<F N="ris_widget/qgraphicsscenes/__init__.py"/>
+				<F N="ris_widget/qgraphicsscenes/base_scene.py"/>
+				<F N="ris_widget/qgraphicsscenes/general_scene.py"/>
+				<F N="ris_widget/qgraphicsscenes/histogram_scene.py"/>
+			</Folder>
+			<Folder Name="qgraphicsviews">
+				<F N="ris_widget/qgraphicsviews/__init__.py"/>
+				<F N="ris_widget/qgraphicsviews/base_view.py"/>
+				<F N="ris_widget/qgraphicsviews/general_view.py"/>
+				<F N="ris_widget/qgraphicsviews/histogram_view.py"/>
+			</Folder>
+			<Folder Name="shaders">
+				<F N="ris_widget/shaders/histogram_widget_fragment_shader_g.glsl"/>
+				<F N="ris_widget/shaders/histogram_widget_fragment_shader_rgb.glsl"/>
+				<F N="ris_widget/shaders/histogram_widget_vertex_shader.glsl"/>
+				<F N="ris_widget/shaders/image_widget_fragment_shader_template.glsl"/>
+				<F N="ris_widget/shaders/image_widget_vertex_shader.glsl"/>
+			</Folder>
 			<F N="ris_widget/__init__.py"/>
-			<F N="ris_widget/_ndimage_statistics.cpp"/>
-			<F N="ris_widget/_ndimage_statistics.pyx"/>
-			<F N="ris_widget/_ndimage_statistics_impl.cpp"/>
-			<F N="ris_widget/_ndimage_statistics_impl.h"/>
 			<F N="ris_widget/_qt_debug.py"/>
-			<F N="ris_widget/basic_image.py"/>
-			<F N="ris_widget/display_image.py"/>
 			<F N="ris_widget/flipbook.py"/>
-			<F N="ris_widget/histogram_scene.py"/>
-			<F N="ris_widget/histogram_view.py"/>
-			<F N="ris_widget/image_stack.py"/>
-			<F N="ris_widget/main_scene.py"/>
-			<F N="ris_widget/main_view.py"/>
-			<F N="ris_widget/ndimage_statistics.py"/>
 			<F N="ris_widget/ris_widget.py"/>
-			<F N="ris_widget/shader_scene.py"/>
-			<F N="ris_widget/shader_view.py"/>
 			<F N="ris_widget/shared_resources.py"/>
-		</Folder>
-		<Folder Name="ris_widget/shaders">
-			<F N="ris_widget/shaders/histogram_widget_fragment_shader_g.glsl"/>
-			<F N="ris_widget/shaders/histogram_widget_fragment_shader_rgb.glsl"/>
-			<F N="ris_widget/shaders/histogram_widget_vertex_shader.glsl"/>
-			<F N="ris_widget/shaders/image_widget_fragment_shader_template.glsl"/>
-			<F N="ris_widget/shaders/image_widget_vertex_shader.glsl"/>
 		</Folder>
 		<F N="LICENSE"/>
 		<F N="MANIFEST.in"/>

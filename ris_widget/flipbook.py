@@ -22,7 +22,7 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from .display_image import DisplayImage
+from .image.image import Image
 from .shared_resources import UNIQUE_QLISTWIDGETITEM_TYPE
 from PyQt5 import Qt
 import sys
@@ -62,8 +62,8 @@ class Flipbook(Qt.QWidget):
     def insert_images(self, idx, images):
         """Insert images before table widget item at position idx (counting from zero)."""
         for image in images:
-            if not issubclass(type(image), DisplayImage):
-                image = DisplayImage(image, name=str(self._next_anon_idx))
+            if not issubclass(type(image), Image):
+                image = Image(image, name=str(self._next_anon_idx))
                 self._next_anon_idx += 1
             self._list_widget.insertItem(idx, _ListWidgetImageItem(image))
             idx += 1

@@ -29,14 +29,14 @@ from PyQt5 import Qt
 from string import Template
 import sys
 #from ._qt_debug import qtransform_to_numpy
-from .display_image import DisplayImage
+from .image import Image
 from .shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
-from .shader_scene import ShaderItem, ShaderScene
-from .shader_view import ShaderView
+from .shader_scene import ShaderItem, BaseScene
+from .shader_view import BaseView
 
-class ImageStack(ShaderItem):
-    """The image_objects member variable of an ImageStack instance contains a list of DisplayImage
-    instances (or instances of subclasses or compatible alternative implementations of DisplayImage).
+class ImageStackItem(ShaderItem):
+    """The image_objects member variable of an ImageStackItem instance contains a list of Image
+    instances (or instances of subclasses or compatible alternative implementations of Image).
     In terms of composition ordering, these are in ascending Z-order, with the positive Z axis pointing out of the screen.
 
     The blend_function of the first (0th) element of image_objects is ignored, although its getcolor_expression and
@@ -48,9 +48,9 @@ class ImageStack(ShaderItem):
     When no elements remain to be blended, dca is divided element-wise by da, un-premultiplying it, and these three values and
     da are returned to OpenGL for src-over blending into the view.
 
-    ImageStack's boundingRect has its top left at (0, 0) and has same dimensions as the first (0th) element of image_objects,
-    or is 1x1 if image_objects is empty.  Therefore, if the scale of an ImageStack instance containing at least one image
-    has not been modified, that ImageStack instance will be the same width and height in scene units as the first element
+    ImageStackItem's boundingRect has its top left at (0, 0) and has same dimensions as the first (0th) element of image_objects,
+    or is 1x1 if image_objects is empty.  Therefore, if the scale of an ImageStackItem instance containing at least one image
+    has not been modified, that ImageStackItem instance will be the same width and height in scene units as the first element
     of image_objects is in pixel units, making the mapping between scene units and pixel units 1:1 for the image at the bottom
     of the stack."""
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
@@ -98,9 +98,9 @@ class ImageStack(ShaderItem):
     image_object_replaced = Qt.pyqtSignal(int, object)
     image_object_removed = Qt.pyqtSignal(int, object)
 
-    def __init__(self, parent_item=None, DisplayImageClass=DisplayImage):
+    def __init__(self, parent_item=None, ImageClass=Image):
         super().__init__(parent_item)
-        self.DisplayImageClass = DisplayImageClass
+        self.ImageClass = ImageClass
         self.image_objects = [] # In ascending order, with bottom image (backmost) as element 0
         self._texs = [] # 1:1 correspondance with self.image_objects
         self._dead_texs = [] # Textures queued for deletion when an OpenGL context is available
@@ -114,7 +114,7 @@ class ImageStack(ShaderItem):
         self._image_data_changed_signal_mapper.mapped[Qt.QObject].connect(self._on_image_data_changed)
 
     def type(self):
-        return ImageStack.QGRAPHICSITEM_TYPE
+        return ImageStackItem.QGRAPHICSITEM_TYPE
 
     def boundingRect(self):
         if self.image_objects:
@@ -123,10 +123,10 @@ class ImageStack(ShaderItem):
             return Qt.QRectF(Qt.QPointF(), Qt.QSizeF(1, 1))
 
     def append_image_data(self, image_data, *va, **ka):
-        self.insert_image_object(len(self.image_objects), self.DisplayImageClass(image_data, *va, **ka))
+        self.insert_image_object(len(self.image_objects), self.ImageClass(image_data, *va, **ka))
 
     def insert_image_data(self, idx, image_data, *va, **ka):
-        self.insert_image_object(idx, self.DisplayImageClass(image_data, *va, **ka))
+        self.insert_image_object(idx, self.ImageClass(image_data, *va, **ka))
 
     def replace_image_data(self, idx, image_data, *va, **ka):
         """In the special case where idx == len(self.image_objects), ie when replacing one-beyond-the-last,
@@ -219,38 +219,37 @@ class ImageStack(ShaderItem):
         self._image_data_serials[image_object] = self._generate_data_serial()
 
     def hoverMoveEvent(self, event):
-        pass
-#        if self.image_objects:
-#            # NB: event.pos() is a QPointF, and one may call QPointF.toPoint(), as in the following line,
-#            # to get a QPoint from it.  However, toPoint() rounds x and y coordinates to the nearest int,
-#            # which would cause us to erroneously report mouse position as being over the pixel to the
-#            # right and/or below if the view with the mouse cursor is zoomed in such that an image pixel
-#            # occupies more than one screen pixel and the cursor is over the right and/or bottom half
-#            # of a pixel.
-##           pos = event.pos().toPoint()
-#            pos = Qt.QPoint(event.pos().x(), event.pos().y())
-#            cis = []
-#            ci = self.generate_contextual_info_for_pos(pos)
-#            if ci is not None:
-#                cis.append(ci)
-#            self._update_overlay_items_z_sort()
-#            for overlay_stack_idx, overlay_item in enumerate(self._overlay_items):
-#                if overlay_item.isVisible():
-#                    # For a number of potential reasons including overlay rotation, differing resolution
-#                    # or scale, and fractional offset relative to parent, it is necessary to project floating
-#                    # point coordinates and not integer coordinates into overlay item space in order to
-#                    # accurately determine which overlay image pixel contains the mouse pointer
-#                    o_pos = self.mapToItem(overlay_item, event.pos())
-#                    if overlay_item.boundingRect().contains(o_pos):
-#                        ci = overlay_item.generate_contextual_info_for_pos(o_pos, overlay_stack_idx)
-#                        if ci is not None:
-#                            cis.append(ci)
-#            self.scene().update_contextual_info('\n'.join(cis), self)
-#        else:
-#            self.scene().clear_contextual_info(self)
+        if self.image_objects:
+            # NB: event.pos() is a QPointF, and one may call QPointF.toPoint(), as in the following line,
+            # to get a QPoint from it.  However, toPoint() rounds x and y coordinates to the nearest int,
+            # which would cause us to erroneously report mouse position as being over the pixel to the
+            # right and/or below if the view with the mouse cursor is zoomed in such that an image pixel
+            # occupies more than one screen pixel and the cursor is over the right and/or bottom half
+            # of a pixel.
+#           pos = event.pos().toPoint()
+            fpos = event.pos()
+            ipos = Qt.QPoint(event.pos().x(), event.pos().y())
+            cis = []
+            if self.opacity() > 0:
+                ci = self.image_objects[0].generate_contextual_info_for_pos(pos, ipos.x(), ipos.y(), 0 if len(self.image_objects) > 1 else None)
+            if ci is not None:
+                cis.append(ci)
+            for idx, image_object in enumerate(self.image_objects[1:], 1):
+                if image_object.global_alpha > 0:
+                    # For a number of potential reasons including overlay rotation, differing resolution
+                    # or scale, and fractional offset relative to parent, it is necessary to project floating
+                    # point coordinates and not integer coordinates into overlay item space in order to
+                    # accurately determine which overlay image pixel contains the mouse pointer
+#                   o_pos = self.mapToItem(overlay_item, event.pos())
+                    ci = image_object.generate_contextual_info_for_pos(ipos.x(), ipos.y(), idx)
+                    if ci is not None:
+                        cis.append(ci)
+            self.scene().update_contextual_info('\n'.join(cis), self)
+        else:
+            self.scene().clear_contextual_info(self)
 
     def paint(self, qpainter, option, widget):
-        assert widget is not None, 'main_view.ImageStack.paint called with widget=None.  Ensure that view caching is disabled.'
+        assert widget is not None, 'general_view.ImageStackItem.paint called with widget=None.  Ensure that view caching is disabled.'
         if not self.image_objects:
             return
         qpainter.beginNativePainting()

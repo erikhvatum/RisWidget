@@ -27,9 +27,9 @@ import numpy
 from PyQt5 import Qt
 from .shared_resources import GL_QSURFACE_FORMAT
 
-class ShaderView(Qt.QGraphicsView):
+class BaseView(Qt.QGraphicsView):
     """Updates to things depending directly on the view's size (eg, in many cases, the view's own transformation), if any,
-    are initiated by the ShaderView subclass's resizeEvent handler.
+    are initiated by the BaseView subclass's resizeEvent handler.
 
     Updates to things depending directly on the view's transformation and/or the region of the scene visible in the view
     (eg, the position of the scene's context_info_item relative to the top left of its view) occur in response to the
@@ -75,7 +75,7 @@ class ShaderView(Qt.QGraphicsView):
     def scrollContentsBy(self, dx, dy):
         """This function is never actually called for HistogramView as HistogramView always displays
         a unit-square view into HistogramScene.  However, if zooming and panning and whatnot are ever
-        implemented for HistogramView, then this function will swing into action as it does for MainView,
+        implemented for HistogramView, then this function will swing into action as it does for GeneralView,
         and HistogramView's add_contextual_info_item's resize signal's disconnect call should be removed."""
         super().scrollContentsBy(dx, dy)
         # In the case of scrollContentsBy(..) execution in response to view resize, self.resizeEvent(..)

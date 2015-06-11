@@ -22,7 +22,7 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from .ndimage_statistics import compute_ndimage_statistics, compute_multichannel_ndimage_statistics
+from .ndimage_statistics.ndimage_statistics import compute_ndimage_statistics, compute_multichannel_ndimage_statistics
 import numpy
 from PyQt5 import Qt
 

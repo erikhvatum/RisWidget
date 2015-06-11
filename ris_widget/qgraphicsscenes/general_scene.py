@@ -22,23 +22,18 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from .shader_view import ShaderView
 from PyQt5 import Qt
+from .shader_scene import BaseScene
 
-class HistogramView(ShaderView):
-    @classmethod
-    def make_histogram_view_and_frame(cls, shader_scene, parent):
-        histogram_frame = Qt.QFrame(parent)
-        histogram_frame.setMinimumSize(Qt.QSize(120, 60))
-        histogram_frame.setFrameShape(Qt.QFrame.StyledPanel)
-        histogram_frame.setFrameShadow(Qt.QFrame.Sunken)
-        histogram_frame.setLayout(Qt.QHBoxLayout())
-        histogram_frame.layout().setSpacing(0)
-        histogram_frame.layout().setContentsMargins(Qt.QMargins(0,0,0,0))
-        histogram_view = cls(shader_scene, histogram_frame)
-        histogram_frame.layout().addWidget(histogram_view)
-        return (histogram_view, histogram_frame)
+class GeneralScene(BaseScene):
+    def __init__(self, parent, ImageClass, ImageStackClass, ContextualInfoItemClass):
+        super().__init__(parent, ContextualInfoItemClass)
+        self.ImageClass = ImageClass
+        self.image_stack = ImageStackClass()
+        self.image_stack.bounding_rect_changed.connect(self._on_image_stack_bounding_rect_changed)
+        self.addItem(self.image_stack)
 
-    def _on_resize(self, size):
-        self.resetTransform()
-        self.scale(size.width(), size.height())
+    def _on_image_stack_bounding_rect_changed(self):
+        self.setSceneRect(self.image_stack.boundingRect())
+        for view in self.views():
+            view._on_image_stack_bounding_rect_changed()

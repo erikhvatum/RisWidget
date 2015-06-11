@@ -22,11 +22,11 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from .shader_view import ShaderView
+from .shader_view import BaseView
 import numpy
 from PyQt5 import Qt
 
-class MainView(ShaderView):
+class GeneralView(BaseView):
     def _make_zoom_presets(self=None):
         def f(x, step_zoomout=0.125, step_zoomin=0.2):
             if x == 0:
@@ -59,7 +59,7 @@ class MainView(ShaderView):
         self.zoom_one_to_one_action = Qt.QAction('1:1 Zoom', self)
         self.zoom_one_to_one_action.setShortcut(Qt.Qt.Key_1)
         self.zoom_one_to_one_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
-        self.zoom_one_to_one_action.triggered.connect(lambda: MainView.zoom_preset_idx.fset(self, MainView._ZOOM_ONE_TO_ONE_PRESET_IDX))
+        self.zoom_one_to_one_action.triggered.connect(lambda: GeneralView.zoom_preset_idx.fset(self, GeneralView._ZOOM_ONE_TO_ONE_PRESET_IDX))
 
 #       self.show_image_name_action = Qt.QAction(self)
 #       self.show_image_name_action.setText('Show Image Name')
@@ -92,30 +92,30 @@ class MainView(ShaderView):
                 if zoom_in:
                     if self._zoom_preset_idx == 0:
                         self._zoom_preset_idx = -1
-                        self._custom_zoom = MainView._ZOOM_PRESETS[0]
+                        self._custom_zoom = GeneralView._ZOOM_PRESETS[0]
                         switched_to_custom = True
                     else:
                         self._zoom_preset_idx -= 1
                 else:
-                    if self._zoom_preset_idx == MainView._ZOOM_PRESETS.shape[0] - 1:
+                    if self._zoom_preset_idx == GeneralView._ZOOM_PRESETS.shape[0] - 1:
                         self._zoom_preset_idx = -1
-                        self._custom_zoom = MainView._ZOOM_PRESETS[-1]
+                        self._custom_zoom = GeneralView._ZOOM_PRESETS[-1]
                         switched_to_custom = True
                     else:
                         self._zoom_preset_idx += 1
             if self._zoom_preset_idx == -1:
-                self._custom_zoom *= MainView._ZOOM_INCREMENT_BEYOND_PRESETS_FACTORS[zoom_in]
-                if not switched_to_custom and self._custom_zoom <= MainView._ZOOM_PRESETS[0] and self._custom_zoom >= MainView._ZOOM_PRESETS[-1]:
+                self._custom_zoom *= GeneralView._ZOOM_INCREMENT_BEYOND_PRESETS_FACTORS[zoom_in]
+                if not switched_to_custom and self._custom_zoom <= GeneralView._ZOOM_PRESETS[0] and self._custom_zoom >= GeneralView._ZOOM_PRESETS[-1]:
                     # Jump to nearest preset if we are re-entering preset range
-                    self._zoom_preset_idx = numpy.argmin(numpy.abs(MainView._ZOOM_PRESETS - self._custom_zoom))
+                    self._zoom_preset_idx = numpy.argmin(numpy.abs(GeneralView._ZOOM_PRESETS - self._custom_zoom))
                     self._custom_zoom = 0
             if self._zoom_preset_idx == -1:
                 if zoom_in:
-                    if self._custom_zoom > MainView._ZOOM_MIN_MAX[1]:
-                        self._custom_zoom = MainView._ZOOM_MIN_MAX[1]
+                    if self._custom_zoom > GeneralView._ZOOM_MIN_MAX[1]:
+                        self._custom_zoom = GeneralView._ZOOM_MIN_MAX[1]
                 else:
-                    if self._custom_zoom < MainView._ZOOM_MIN_MAX[0]:
-                        self._custom_zoom = MainView._ZOOM_MIN_MAX[0]
+                    if self._custom_zoom < GeneralView._ZOOM_MIN_MAX[0]:
+                        self._custom_zoom = GeneralView._ZOOM_MIN_MAX[0]
                 desired_zoom = self._custom_zoom
             else:
                 desired_zoom = self._ZOOM_PRESETS[self._zoom_preset_idx]
@@ -215,8 +215,8 @@ class MainView(ShaderView):
 
     @custom_zoom.setter
     def custom_zoom(self, custom_zoom):
-        if custom_zoom < MainView._ZOOM_MIN_MAX[0] or custom_zoom > MainView._ZOOM_MIN_MAX[1]:
-            raise ValueError('Value must be in the range [{}, {}].'.format(*MainView._ZOOM_MIN_MAX))
+        if custom_zoom < GeneralView._ZOOM_MIN_MAX[0] or custom_zoom > GeneralView._ZOOM_MIN_MAX[1]:
+            raise ValueError('Value must be in the range [{}, {}].'.format(*GeneralView._ZOOM_MIN_MAX))
         self._custom_zoom = custom_zoom
         self._zoom_preset_idx = -1
         if self.zoom_to_fit:
@@ -231,8 +231,8 @@ class MainView(ShaderView):
 
     @zoom_preset_idx.setter
     def zoom_preset_idx(self, idx):
-        if idx < 0 or idx >= MainView._ZOOM_PRESETS.shape[0]:
-            raise ValueError('idx must be in the range [0, {}).'.format(MainView._ZOOM_PRESETS.shape[0]))
+        if idx < 0 or idx >= GeneralView._ZOOM_PRESETS.shape[0]:
+            raise ValueError('idx must be in the range [0, {}).'.format(GeneralView._ZOOM_PRESETS.shape[0]))
         self._zoom_preset_idx = idx
         self._custom_zoom = 0
         if self.zoom_to_fit:
@@ -250,7 +250,7 @@ class MainView(ShaderView):
                 self._zoom_preset_idx = -1
                 self.zoom_changed.emit(self._zoom_preset_idx, self._custom_zoom)
         else:
-            zoom_factor = self._custom_zoom if self._zoom_preset_idx == -1 else MainView._ZOOM_PRESETS[self._zoom_preset_idx]
+            zoom_factor = self._custom_zoom if self._zoom_preset_idx == -1 else GeneralView._ZOOM_PRESETS[self._zoom_preset_idx]
             old_transform = Qt.QTransform(self.transform())
             self.resetTransform()
             self.translate(old_transform.dx(), old_transform.dy())

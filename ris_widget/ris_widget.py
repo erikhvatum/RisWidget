@@ -27,19 +27,19 @@ from PyQt5 import Qt
 import numpy
 import sys
 from .flipbook import Flipbook
-from .histogram_scene import HistogramScene, HistogramItem
-from .histogram_view import HistogramView
-from .display_image import DisplayImage
-from .image_stack import ImageStack
-from .main_scene import MainScene
-from .main_view import MainView
-from .shader_scene import ContextualInfoItem
+from .image.image import Image
+from .qgrahpicsitems.contextual_info_item import ContextualInfoItem
+from .qgraphicsitems.histogram_items import HistogramItem
+from .qgraphicsitems.image_stack import ImageStackItem
+from .qgraphicsscenes.general_scene import GeneralScene
+from .qgraphicsscenes.histogram_scene import HistogramScene
+from .qgraphicsviews.histogram_view import HistogramView
 from .shared_resources import FREEIMAGE, GL_QSURFACE_FORMAT
 
 class RisWidget(Qt.QMainWindow):
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0), msaa_sample_count=2,
-                 DisplayImageClass=DisplayImage, ImageStackClass=ImageStack, MainSceneClass=MainScene, MainViewClass=MainView,
-                 MainViewContextualInfoItemClass=ContextualInfoItem,
+                 ImageClass=Image, ImageStackClass=ImageStackItem, GeneralSceneClass=GeneralScene, GeneralViewClass=GeneralView,
+                 GeneralViewContextualInfoItemClass=ContextualInfoItem,
                  HistogramItemClass=HistogramItem, HistogramSceneClass=HistogramScene, HistogramViewClass=HistogramView,
                  HistgramViewContextualInfoItemClass=ContextualInfoItem):
         super().__init__(parent, window_flags)
@@ -48,8 +48,8 @@ class RisWidget(Qt.QMainWindow):
             self.setWindowTitle(window_title)
         self.setAcceptDrops(True)
         self._init_scenes_and_views(
-            DisplayImageClass, ImageStackClass, MainSceneClass, MainViewClass,
-            MainViewContextualInfoItemClass,
+            ImageClass, ImageStackClass, GeneralSceneClass, GeneralViewClass,
+            GeneralViewContextualInfoItemClass,
             HistogramItemClass, HistogramSceneClass, HistogramViewClass,
             HistgramViewContextualInfoItemClass)
         self._init_actions()
@@ -95,9 +95,9 @@ class RisWidget(Qt.QMainWindow):
         self._main_view_zoom_combo.setInsertPolicy(Qt.QComboBox.NoInsert)
         self._main_view_zoom_combo.setDuplicatesEnabled(True)
         self._main_view_zoom_combo.setSizeAdjustPolicy(Qt.QComboBox.AdjustToContents)
-        for zoom in MainView._ZOOM_PRESETS:
+        for zoom in GeneralView._ZOOM_PRESETS:
             self._main_view_zoom_combo.addItem(self._format_zoom(zoom * 100) + '%')
-        self._main_view_zoom_combo.setCurrentIndex(MainView._ZOOM_ONE_TO_ONE_PRESET_IDX)
+        self._main_view_zoom_combo.setCurrentIndex(GeneralView._ZOOM_ONE_TO_ONE_PRESET_IDX)
         self._main_view_zoom_combo.activated[int].connect(self._main_view_zoom_combo_changed)
         self._main_view_zoom_combo.lineEdit().returnPressed.connect(self._main_view_zoom_combo_custom_value_entered)
         self.main_view.zoom_changed.connect(self._main_view_zoom_changed)
@@ -119,10 +119,10 @@ class RisWidget(Qt.QMainWindow):
         m.addAction(self.main_view.zoom_to_fit_action)
         m.addAction(self.main_view.zoom_one_to_one_action)
 
-    def _init_scenes_and_views(self, DisplayImageClass, ImageStackClass, MainSceneClass, MainViewClass, MainViewContextualInfoItemClass,
+    def _init_scenes_and_views(self, ImageClass, ImageStackClass, GeneralSceneClass, GeneralViewClass, GeneralViewContextualInfoItemClass,
                                HistogramItemClass, HistogramSceneClass, HistogramViewClass, HistgramViewContextualInfoItemClass):
-        self.main_scene = MainSceneClass(self, DisplayImageClass, ImageStackClass, MainViewContextualInfoItemClass)
-        self.main_view = MainViewClass(self.main_scene, self)
+        self.main_scene = GeneralSceneClass(self, ImageClass, ImageStackClass, GeneralViewContextualInfoItemClass)
+        self.main_view = GeneralViewClass(self.main_scene, self)
         self.setCentralWidget(self.main_view)
         self.histogram_scene = HistogramSceneClass(self, self.main_scene.image_stack, HistogramItemClass, HistgramViewContextualInfoItemClass)
         self._histogram_dock_widget = Qt.QDockWidget('Histogram', self)
@@ -203,7 +203,7 @@ class RisWidget(Qt.QMainWindow):
                 self.main_scene.image_stack.replace_image_data(0, image_data, keep_name=False, name=fpaths[0])
             else:
                 # TODO: read images in background thread and display modal progress bar dialog with cancel button
-                images = [DisplayImage(freeimage.read(fpath), name=fpath) for fpath in fpaths]
+                images = [Image(freeimage.read(fpath), name=fpath) for fpath in fpaths]
                 self.make_flipbook(images)
             event.accept()
 
@@ -237,7 +237,7 @@ class RisWidget(Qt.QMainWindow):
         self.main_scene.image_stack.replace_image_data(0, image_data_T, shape_is_width_height=False)
 
     def make_flipbook(self, images=None, name=None):
-        """The images argument may be any mixture of ris_widget.image.DisplayImage objects and raw data iterables of the sort that
+        """The images argument may be any mixture of ris_widget.image.Image objects and raw data iterables of the sort that
         may be assigned to RisWidget.image_data or RisWidget.image_data_T.
         If None is supplied for images, an empty flipbook is created.
         If None is supplied for name, a unique name is generated.
@@ -279,8 +279,8 @@ class RisWidget(Qt.QMainWindow):
             self.main_view.custom_zoom = float(scale_txt) * 0.01
         except ValueError:
             e = 'Please enter a number between {} and {}.'.format(
-                self._format_zoom(MainView._ZOOM_MIN_MAX[0] * 100),
-                self._format_zoom(MainView._ZOOM_MIN_MAX[1] * 100))
+                self._format_zoom(GeneralView._ZOOM_MIN_MAX[0] * 100),
+                self._format_zoom(GeneralView._ZOOM_MIN_MAX[1] * 100))
             Qt.QMessageBox.information(self, 'self.windowTitle() Input Error', e)
             self._main_view_zoom_combo.setFocus()
             self._main_view_zoom_combo.lineEdit().selectAll()

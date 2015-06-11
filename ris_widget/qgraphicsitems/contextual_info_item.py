@@ -22,37 +22,10 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from .display_image import DisplayImage
 from .shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
-from .shader_view import ShaderView
 from contextlib import ExitStack
-import numpy
 from pathlib import Path
 from PyQt5 import Qt
-from string import Template
-
-class ShaderScene(Qt.QGraphicsScene):
-    """Although the Qt Graphics View Framework supports multiple views into a single scene, we don't
-    have a need for this capability, and we do not go out of our way to make it work correctly (which
-    would entail signficant additional code complexity)."""
-
-    def __init__(self, parent, ContextualInfoItemClass):
-        super().__init__(parent)
-        self._requester_of_current_nonempty_mouseover_info = None
-        self.contextual_info_item = ContextualInfoItemClass()
-        self.addItem(self.contextual_info_item)
-
-    def clear_contextual_info(self, requester):
-        self.update_contextual_info(None, requester)
-
-    def update_contextual_info(self, text, requester):
-        if text:
-            self._requester_of_current_nonempty_mouseover_info = requester
-            self.contextual_info_item.text = text
-        else:
-            if self._requester_of_current_nonempty_mouseover_info is None or self._requester_of_current_nonempty_mouseover_info is requester:
-                self._requester_of_current_nonempty_mouseover_info = None
-                self.contextual_info_item.text = None
 
 class ContextualInfoItem(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
@@ -238,60 +211,3 @@ class ContextualInfoItem(Qt.QGraphicsObject):
         self._brush = v
         self._picture = None
         self.update()
-
-class ShaderItemMixin:
-    def __init__(self):
-        self.progs = {}
-
-    def build_shader_prog(self, desc, vert_fn, frag_fn, **frag_template_mapping):
-        source_dpath = Path(__file__).parent / 'shaders'
-        prog = Qt.QOpenGLShaderProgram(self)
-
-        if not prog.addShaderFromSourceFile(Qt.QOpenGLShader.Vertex, str(source_dpath / vert_fn)):
-            raise RuntimeError('Failed to compile vertex shader "{}" for {} {} shader program.'.format(vert_fn, type(self).__name__, desc))
-
-        if len(frag_template_mapping) == 0:
-            if not prog.addShaderFromSourceFile(Qt.QOpenGLShader.Fragment, str(source_dpath / frag_fn)):
-                raise RuntimeError('Failed to compile fragment shader "{}" for {} {} shader program.'.format(frag_fn, type(self).__name__, desc))
-        else:
-            with (source_dpath / frag_fn).open('r') as f:
-                frag_template = Template(f.read())
-            s=frag_template.substitute(frag_template_mapping)
-            print(s)
-            if not prog.addShaderFromSourceCode(Qt.QOpenGLShader.Fragment, s):
-                raise RuntimeError('Failed to compile fragment shader "{}" for {} {} shader program.'.format(frag_fn, type(self).__name__, desc))
-
-        if not prog.link():
-            raise RuntimeError('Failed to link {} {} shader program.'.format(type(self).__name__, desc))
-        self.progs[desc] = prog
-        return prog
-
-class ShaderItem(ShaderItemMixin, Qt.QGraphicsObject):
-    def __init__(self, parent_item=None):
-        Qt.QGraphicsObject.__init__(self, parent_item)
-        ShaderItemMixin.__init__(self)
-        self.setAcceptHoverEvents(True)
-
-    def type(self):
-        raise NotImplementedError()
-
-class ShaderTexture:
-    """QOpenGLTexture does not support support GL_LUMINANCE*_EXT, etc, as specified by GL_EXT_texture_integer,
-    which is required for integer textures in OpenGL 2.1 (QOpenGLTexture does support GL_RGB*U/I formats,
-    but these were introduced with OpenGL 3.0 and should not be relied upon in 2.1 contexts).  So, in
-    cases where GL_LUMINANCE*_EXT format textures may be required, we use ShaderTexture rather than
-    QOpenGLTexture."""
-    def __init__(self, target, GL):
-        self._GL = GL
-        self.texture_id = GL.glGenTextures(1)
-        self.target = target
-
-    def bind(self):
-        self.GL.glBindTexture(self.target, self.texture_id)
-
-    def release(self):
-        self.GL.glBindTexture(self.target, 0)
-
-    def destroy(self):
-        self.GL.glDeleteTextures(1, (self.texture_id,))
-        del self.texture_id
