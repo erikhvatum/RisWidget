@@ -55,10 +55,10 @@ class ImageStack(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
         assert len(self._list) == len(self._set), 'argument images_iterable contains duplicate images.'
 
     def __repr__(self):
+        r = super().__repr__()[:-1]
         if self._list:
-            return super().__repr__()[:-1] + '\n[\n    ' + ',\n    '.join(image.__repr__() for image in self._list) + '\n]>'
-#       return MutableSequence.__repr__(self)
-#       return 
+            r += '\n[\n    ' + ',\n    '.join(image.__repr__() for image in self._list) + '\n]'
+        return r + '>'
 
     def __iter__(self):
         return iter(self._list)
