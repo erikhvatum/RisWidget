@@ -22,6 +22,7 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+from pathlib import Path
 from PyQt5 import Qt
 from string import Template
 
@@ -30,7 +31,7 @@ class ShaderItemMixin:
         self.progs = {}
 
     def build_shader_prog(self, desc, vert_fn, frag_fn, **frag_template_mapping):
-        source_dpath = Path(__file__).parent / 'shaders'
+        source_dpath = Path(__file__).parent.parent / 'shaders'
         prog = Qt.QOpenGLShaderProgram(self)
 
         if not prog.addShaderFromSourceFile(Qt.QOpenGLShader.Vertex, str(source_dpath / vert_fn)):

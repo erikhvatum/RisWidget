@@ -31,9 +31,8 @@ class _QtAbcMeta(Qt.pyqtWrapperType, ABCMeta):
     pass
 
 class ImageStack(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
-    """ImageStack: a list-like container representing an ordered collection of Image objects
-    blended together sequentially by ImageStackItem.  ImageStack's "in" operator queries a hash
-    set of contained Image instances and may therefore be used liberally.
+    """ImageStack: a list-like container representing an ordered collection of Image objects to be
+    blended together sequentially by ImageStackItem.
 
     Signals:
     inserted(index of inserted Image, the Image inserted)

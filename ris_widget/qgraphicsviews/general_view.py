@@ -22,7 +22,7 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from .shader_view import BaseView
+from .base_view import BaseView
 import numpy
 from PyQt5 import Qt
 
@@ -44,8 +44,8 @@ class GeneralView(BaseView):
 
     zoom_changed = Qt.pyqtSignal(int, float)
 
-    def __init__(self, shader_scene, parent):
-        super().__init__(shader_scene, parent)
+    def __init__(self, base_scene, parent):
+        super().__init__(base_scene, parent)
         self.setMinimumSize(Qt.QSize(100,100))
         self._zoom_preset_idx = self._ZOOM_ONE_TO_ONE_PRESET_IDX
         self._custom_zoom = 0
@@ -75,7 +75,7 @@ class GeneralView(BaseView):
         self._panning = False
         self.setAcceptDrops(True)
 
-    def _on_image_stack_bounding_rect_changed(self):
+    def _on_image_stack_item_bounding_rect_changed(self):
         if self.zoom_to_fit:
             self._apply_zoom()
 

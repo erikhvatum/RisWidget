@@ -23,17 +23,17 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from PyQt5 import Qt
-from .shader_scene import BaseScene
+from .base_scene import BaseScene
 
 class GeneralScene(BaseScene):
-    def __init__(self, parent, ImageClass, ImageStackClass, ContextualInfoItemClass):
+    def __init__(self, parent, ImageClass, ImageStackItemClass, ContextualInfoItemClass):
         super().__init__(parent, ContextualInfoItemClass)
         self.ImageClass = ImageClass
-        self.image_stack = ImageStackClass()
-        self.image_stack.bounding_rect_changed.connect(self._on_image_stack_bounding_rect_changed)
-        self.addItem(self.image_stack)
+        self.image_stack_item = ImageStackItemClass()
+        self.image_stack_item.bounding_rect_changed.connect(self._on_image_stack_item_bounding_rect_changed)
+        self.addItem(self.image_stack_item)
 
-    def _on_image_stack_bounding_rect_changed(self):
-        self.setSceneRect(self.image_stack.boundingRect())
+    def _on_image_stack_item_bounding_rect_changed(self):
+        self.setSceneRect(self.image_stack_item.boundingRect())
         for view in self.views():
-            view._on_image_stack_bounding_rect_changed()
+            view._on_image_stack_item_bounding_rect_changed()

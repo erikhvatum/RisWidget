@@ -27,8 +27,8 @@ import math
 import numpy
 from PyQt5 import Qt
 import sys
-from .shader_scene import ShaderItem, BaseScene, ShaderTexture
-from .shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
+from .shader_item import ShaderItem, ShaderTexture
+from ..shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
 
 class HistogramItem(ShaderItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()

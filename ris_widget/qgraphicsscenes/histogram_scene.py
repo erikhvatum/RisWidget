@@ -27,9 +27,9 @@ import math
 import numpy
 from PyQt5 import Qt
 import sys
-from .qgraphicsitems.shader_item import ShaderItem, ShaderTexture
-from .qgraphicsscenes.base_scene import BaseScene
-from .shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
+from ..qgraphicsitems.shader_item import ShaderItem, ShaderTexture
+from ..shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
+from .base_scene import BaseScene
 
 class HistogramScene(BaseScene):
     def __init__(self, parent, image_item, HistogramItemClass, ContextualInfoItemClass):

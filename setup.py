@@ -83,7 +83,7 @@ try:
             super().__init__(*va, **ka)
             self.force = True
 
-    ext_modules = [Extension('ris_widget._ndimage_statistics',
+    ext_modules = [Extension('ris_widget.image.ndimage_statistics._ndimage_statistics',
                              sources = [cython_source, cpp_source],
                              include_dirs = include_dirs,
                              define_macros = define_macros,

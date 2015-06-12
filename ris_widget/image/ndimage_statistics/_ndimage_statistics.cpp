@@ -242,8 +242,8 @@ class __Pyx_FakeReference {
 #define _USE_MATH_DEFINES
 #endif
 #include <math.h>
-#define __PYX_HAVE__ris_widget___ndimage_statistics
-#define __PYX_HAVE_API__ris_widget___ndimage_statistics
+#define __PYX_HAVE__ris_widget__image__ndimage_statistics___ndimage_statistics
+#define __PYX_HAVE_API__ris_widget__image__ndimage_statistics___ndimage_statistics
 #include "string.h"
 #include "stdio.h"
 #include "stdlib.h"
@@ -455,7 +455,7 @@ static const char *__pyx_filename;
 
 
 static const char *__pyx_f[] = {
-  "statistics/_ndimage_statistics.pyx",
+  "ris_widget/image/ndimage_statistics/_ndimage_statistics.pyx",
   "__init__.pxd",
   "stringsource",
   "type.pxd",
@@ -1453,7 +1453,7 @@ static PyTypeObject *__pyx_ptype_5numpy_ndarray = 0;
 static PyTypeObject *__pyx_ptype_5numpy_ufunc = 0;
 static CYTHON_INLINE char *__pyx_f_5numpy__util_dtypestring(PyArray_Descr *, char *, char *, int *); /*proto*/
 
-/* Module declarations from 'ris_widget._ndimage_statistics' */
+/* Module declarations from 'ris_widget.image.ndimage_statistics._ndimage_statistics' */
 static PyTypeObject *__pyx_array_type = 0;
 static PyTypeObject *__pyx_MemviewEnum_type = 0;
 static PyTypeObject *__pyx_memoryview_type = 0;
@@ -1463,10 +1463,10 @@ static PyObject *strided = 0;
 static PyObject *indirect = 0;
 static PyObject *contiguous = 0;
 static PyObject *indirect_contiguous = 0;
-static PyObject *__pyx_f_10ris_widget_19_ndimage_statistics_hist_min_max_uint16(__Pyx_memviewslice, __Pyx_memviewslice, __Pyx_memviewslice, int __pyx_skip_dispatch); /*proto*/
-static PyObject *__pyx_f_10ris_widget_19_ndimage_statistics_hist_min_max_uint12(__Pyx_memviewslice, __Pyx_memviewslice, __Pyx_memviewslice, int __pyx_skip_dispatch); /*proto*/
-static PyObject *__pyx_f_10ris_widget_19_ndimage_statistics_hist_min_max_uint8(__Pyx_memviewslice, __Pyx_memviewslice, __Pyx_memviewslice, int __pyx_skip_dispatch); /*proto*/
-static PyObject *__pyx_f_10ris_widget_19_ndimage_statistics_hist_min_max_float32(__Pyx_memviewslice, __Pyx_memviewslice, __Pyx_memviewslice, __pyx_t_5numpy_float32_t, __pyx_t_5numpy_float32_t, int __pyx_skip_dispatch); /*proto*/
+static PyObject *__pyx_f_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_hist_min_max_uint16(__Pyx_memviewslice, __Pyx_memviewslice, __Pyx_memviewslice, int __pyx_skip_dispatch); /*proto*/
+static PyObject *__pyx_f_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_hist_min_max_uint12(__Pyx_memviewslice, __Pyx_memviewslice, __Pyx_memviewslice, int __pyx_skip_dispatch); /*proto*/
+static PyObject *__pyx_f_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_hist_min_max_uint8(__Pyx_memviewslice, __Pyx_memviewslice, __Pyx_memviewslice, int __pyx_skip_dispatch); /*proto*/
+static PyObject *__pyx_f_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_hist_min_max_float32(__Pyx_memviewslice, __Pyx_memviewslice, __Pyx_memviewslice, __pyx_t_5numpy_float32_t, __pyx_t_5numpy_float32_t, int __pyx_skip_dispatch); /*proto*/
 static struct __pyx_array_obj *__pyx_array_new(PyObject *, Py_ssize_t, char *, char *, char *); /*proto*/
 static void *__pyx_align_pointer(void *, size_t); /*proto*/
 static PyObject *__pyx_memoryview_new(PyObject *, int, int, __Pyx_TypeInfo *); /*proto*/
@@ -1503,10 +1503,10 @@ static __Pyx_TypeInfo __Pyx_TypeInfo_nn___pyx_t_5numpy_uint16_t = { "uint16_t", 
 static __Pyx_TypeInfo __Pyx_TypeInfo_nn___pyx_t_5numpy_uint32_t = { "uint32_t", NULL, sizeof(__pyx_t_5numpy_uint32_t), { 0 }, 0, IS_UNSIGNED(__pyx_t_5numpy_uint32_t) ? 'U' : 'I', IS_UNSIGNED(__pyx_t_5numpy_uint32_t), 0 };
 static __Pyx_TypeInfo __Pyx_TypeInfo_nn___pyx_t_5numpy_uint8_t = { "uint8_t", NULL, sizeof(__pyx_t_5numpy_uint8_t), { 0 }, 0, IS_UNSIGNED(__pyx_t_5numpy_uint8_t) ? 'U' : 'I', IS_UNSIGNED(__pyx_t_5numpy_uint8_t), 0 };
 static __Pyx_TypeInfo __Pyx_TypeInfo_nn___pyx_t_5numpy_float32_t = { "float32_t", NULL, sizeof(__pyx_t_5numpy_float32_t), { 0 }, 0, 'R', 0, 0 };
-#define __Pyx_MODULE_NAME "ris_widget._ndimage_statistics"
-int __pyx_module_is_main_ris_widget___ndimage_statistics = 0;
+#define __Pyx_MODULE_NAME "ris_widget.image.ndimage_statistics._ndimage_statistics"
+int __pyx_module_is_main_ris_widget__image__ndimage_statistics___ndimage_statistics = 0;
 
-/* Implementation of 'ris_widget._ndimage_statistics' */
+/* Implementation of 'ris_widget.image.ndimage_statistics._ndimage_statistics' */
 static PyObject *__pyx_builtin_range;
 static PyObject *__pyx_builtin_ValueError;
 static PyObject *__pyx_builtin_RuntimeError;
@@ -1516,10 +1516,10 @@ static PyObject *__pyx_builtin_Ellipsis;
 static PyObject *__pyx_builtin_TypeError;
 static PyObject *__pyx_builtin_id;
 static PyObject *__pyx_builtin_IndexError;
-static PyObject *__pyx_pf_10ris_widget_19_ndimage_statistics_hist_min_max_uint16(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max); /* proto */
-static PyObject *__pyx_pf_10ris_widget_19_ndimage_statistics_2hist_min_max_uint12(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max); /* proto */
-static PyObject *__pyx_pf_10ris_widget_19_ndimage_statistics_4hist_min_max_uint8(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max); /* proto */
-static PyObject *__pyx_pf_10ris_widget_19_ndimage_statistics_6hist_min_max_float32(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max, __pyx_t_5numpy_float32_t __pyx_v_hist_min, __pyx_t_5numpy_float32_t __pyx_v_hist_max); /* proto */
+static PyObject *__pyx_pf_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_hist_min_max_uint16(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max); /* proto */
+static PyObject *__pyx_pf_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_2hist_min_max_uint12(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max); /* proto */
+static PyObject *__pyx_pf_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_4hist_min_max_uint8(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max); /* proto */
+static PyObject *__pyx_pf_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_6hist_min_max_float32(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max, __pyx_t_5numpy_float32_t __pyx_v_hist_min, __pyx_t_5numpy_float32_t __pyx_v_hist_max); /* proto */
 static int __pyx_pf_5numpy_7ndarray___getbuffer__(PyArrayObject *__pyx_v_self, Py_buffer *__pyx_v_info, int __pyx_v_flags); /* proto */
 static void __pyx_pf_5numpy_7ndarray_2__releasebuffer__(PyArrayObject *__pyx_v_self, Py_buffer *__pyx_v_info); /* proto */
 static int __pyx_array___pyx_pf_15View_dot_MemoryView_5array___cinit__(struct __pyx_array_obj *__pyx_v_self, PyObject *__pyx_v_shape, Py_ssize_t __pyx_v_itemsize, PyObject *__pyx_v_format, PyObject *__pyx_v_mode, int __pyx_v_allocate_buffer); /* proto */
@@ -1759,8 +1759,8 @@ static PyObject *__pyx_tuple__23;
  *     _hist_min_max_uint16(&arr[0][0], &arr.shape[0], &arr.strides[0],
  */
 
-static PyObject *__pyx_pw_10ris_widget_19_ndimage_statistics_1hist_min_max_uint16(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyObject *__pyx_f_10ris_widget_19_ndimage_statistics_hist_min_max_uint16(__Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max, CYTHON_UNUSED int __pyx_skip_dispatch) {
+static PyObject *__pyx_pw_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_1hist_min_max_uint16(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static PyObject *__pyx_f_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_hist_min_max_uint16(__Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max, CYTHON_UNUSED int __pyx_skip_dispatch) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   __Pyx_memviewslice __pyx_t_1 = { 0, 0, { 0 }, { 0 }, { 0 } };
@@ -1878,7 +1878,7 @@ __pyx_t_2 = 0;
   goto __pyx_L0;
   __pyx_L1_error:;
   __PYX_XDEC_MEMVIEW(&__pyx_t_1, 1);
-  __Pyx_AddTraceback("ris_widget._ndimage_statistics.hist_min_max_uint16", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("ris_widget.image.ndimage_statistics._ndimage_statistics.hist_min_max_uint16", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = 0;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -1887,8 +1887,8 @@ __pyx_t_2 = 0;
 }
 
 /* Python wrapper */
-static PyObject *__pyx_pw_10ris_widget_19_ndimage_statistics_1hist_min_max_uint16(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyObject *__pyx_pw_10ris_widget_19_ndimage_statistics_1hist_min_max_uint16(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static PyObject *__pyx_pw_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_1hist_min_max_uint16(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static PyObject *__pyx_pw_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_1hist_min_max_uint16(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   __Pyx_memviewslice __pyx_v_arr = { 0, 0, { 0 }, { 0 }, { 0 } };
   __Pyx_memviewslice __pyx_v_hist = { 0, 0, { 0 }, { 0 }, { 0 } };
   __Pyx_memviewslice __pyx_v_min_max = { 0, 0, { 0 }, { 0 }, { 0 } };
@@ -1945,18 +1945,18 @@ static PyObject *__pyx_pw_10ris_widget_19_ndimage_statistics_1hist_min_max_uint1
   __pyx_L5_argtuple_error:;
   __Pyx_RaiseArgtupleInvalid("hist_min_max_uint16", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 37; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
   __pyx_L3_error:;
-  __Pyx_AddTraceback("ris_widget._ndimage_statistics.hist_min_max_uint16", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("ris_widget.image.ndimage_statistics._ndimage_statistics.hist_min_max_uint16", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_10ris_widget_19_ndimage_statistics_hist_min_max_uint16(__pyx_self, __pyx_v_arr, __pyx_v_hist, __pyx_v_min_max);
+  __pyx_r = __pyx_pf_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_hist_min_max_uint16(__pyx_self, __pyx_v_arr, __pyx_v_hist, __pyx_v_min_max);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_10ris_widget_19_ndimage_statistics_hist_min_max_uint16(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max) {
+static PyObject *__pyx_pf_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_hist_min_max_uint16(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -1968,7 +1968,7 @@ static PyObject *__pyx_pf_10ris_widget_19_ndimage_statistics_hist_min_max_uint16
   if (unlikely(!__pyx_v_arr.memview)) { __Pyx_RaiseUnboundLocalError("arr"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 37; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
   if (unlikely(!__pyx_v_hist.memview)) { __Pyx_RaiseUnboundLocalError("hist"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 37; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
   if (unlikely(!__pyx_v_min_max.memview)) { __Pyx_RaiseUnboundLocalError("min_max"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 37; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  __pyx_t_1 = __pyx_f_10ris_widget_19_ndimage_statistics_hist_min_max_uint16(__pyx_v_arr, __pyx_v_hist, __pyx_v_min_max, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 37; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_1 = __pyx_f_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_hist_min_max_uint16(__pyx_v_arr, __pyx_v_hist, __pyx_v_min_max, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 37; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -1977,7 +1977,7 @@ static PyObject *__pyx_pf_10ris_widget_19_ndimage_statistics_hist_min_max_uint16
   /* function exit code */
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
-  __Pyx_AddTraceback("ris_widget._ndimage_statistics.hist_min_max_uint16", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("ris_widget.image.ndimage_statistics._ndimage_statistics.hist_min_max_uint16", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __PYX_XDEC_MEMVIEW(&__pyx_v_arr, 1);
@@ -1996,8 +1996,8 @@ static PyObject *__pyx_pf_10ris_widget_19_ndimage_statistics_hist_min_max_uint16
  *     _hist_min_max_uint12(&arr[0][0], &arr.shape[0], &arr.strides[0],
  */
 
-static PyObject *__pyx_pw_10ris_widget_19_ndimage_statistics_3hist_min_max_uint12(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyObject *__pyx_f_10ris_widget_19_ndimage_statistics_hist_min_max_uint12(__Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max, CYTHON_UNUSED int __pyx_skip_dispatch) {
+static PyObject *__pyx_pw_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_3hist_min_max_uint12(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static PyObject *__pyx_f_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_hist_min_max_uint12(__Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max, CYTHON_UNUSED int __pyx_skip_dispatch) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   __Pyx_memviewslice __pyx_t_1 = { 0, 0, { 0 }, { 0 }, { 0 } };
@@ -2115,7 +2115,7 @@ __pyx_t_2 = 0;
   goto __pyx_L0;
   __pyx_L1_error:;
   __PYX_XDEC_MEMVIEW(&__pyx_t_1, 1);
-  __Pyx_AddTraceback("ris_widget._ndimage_statistics.hist_min_max_uint12", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("ris_widget.image.ndimage_statistics._ndimage_statistics.hist_min_max_uint12", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = 0;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -2124,8 +2124,8 @@ __pyx_t_2 = 0;
 }
 
 /* Python wrapper */
-static PyObject *__pyx_pw_10ris_widget_19_ndimage_statistics_3hist_min_max_uint12(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyObject *__pyx_pw_10ris_widget_19_ndimage_statistics_3hist_min_max_uint12(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static PyObject *__pyx_pw_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_3hist_min_max_uint12(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static PyObject *__pyx_pw_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_3hist_min_max_uint12(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   __Pyx_memviewslice __pyx_v_arr = { 0, 0, { 0 }, { 0 }, { 0 } };
   __Pyx_memviewslice __pyx_v_hist = { 0, 0, { 0 }, { 0 }, { 0 } };
   __Pyx_memviewslice __pyx_v_min_max = { 0, 0, { 0 }, { 0 }, { 0 } };
@@ -2182,18 +2182,18 @@ static PyObject *__pyx_pw_10ris_widget_19_ndimage_statistics_3hist_min_max_uint1
   __pyx_L5_argtuple_error:;
   __Pyx_RaiseArgtupleInvalid("hist_min_max_uint12", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 42; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
   __pyx_L3_error:;
-  __Pyx_AddTraceback("ris_widget._ndimage_statistics.hist_min_max_uint12", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("ris_widget.image.ndimage_statistics._ndimage_statistics.hist_min_max_uint12", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_10ris_widget_19_ndimage_statistics_2hist_min_max_uint12(__pyx_self, __pyx_v_arr, __pyx_v_hist, __pyx_v_min_max);
+  __pyx_r = __pyx_pf_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_2hist_min_max_uint12(__pyx_self, __pyx_v_arr, __pyx_v_hist, __pyx_v_min_max);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_10ris_widget_19_ndimage_statistics_2hist_min_max_uint12(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max) {
+static PyObject *__pyx_pf_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_2hist_min_max_uint12(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -2205,7 +2205,7 @@ static PyObject *__pyx_pf_10ris_widget_19_ndimage_statistics_2hist_min_max_uint1
   if (unlikely(!__pyx_v_arr.memview)) { __Pyx_RaiseUnboundLocalError("arr"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 42; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
   if (unlikely(!__pyx_v_hist.memview)) { __Pyx_RaiseUnboundLocalError("hist"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 42; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
   if (unlikely(!__pyx_v_min_max.memview)) { __Pyx_RaiseUnboundLocalError("min_max"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 42; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  __pyx_t_1 = __pyx_f_10ris_widget_19_ndimage_statistics_hist_min_max_uint12(__pyx_v_arr, __pyx_v_hist, __pyx_v_min_max, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 42; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_1 = __pyx_f_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_hist_min_max_uint12(__pyx_v_arr, __pyx_v_hist, __pyx_v_min_max, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 42; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -2214,7 +2214,7 @@ static PyObject *__pyx_pf_10ris_widget_19_ndimage_statistics_2hist_min_max_uint1
   /* function exit code */
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
-  __Pyx_AddTraceback("ris_widget._ndimage_statistics.hist_min_max_uint12", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("ris_widget.image.ndimage_statistics._ndimage_statistics.hist_min_max_uint12", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __PYX_XDEC_MEMVIEW(&__pyx_v_arr, 1);
@@ -2233,8 +2233,8 @@ static PyObject *__pyx_pf_10ris_widget_19_ndimage_statistics_2hist_min_max_uint1
  *     _hist_min_max_uint8(&arr[0][0], &arr.shape[0], &arr.strides[0],
  */
 
-static PyObject *__pyx_pw_10ris_widget_19_ndimage_statistics_5hist_min_max_uint8(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyObject *__pyx_f_10ris_widget_19_ndimage_statistics_hist_min_max_uint8(__Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max, CYTHON_UNUSED int __pyx_skip_dispatch) {
+static PyObject *__pyx_pw_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_5hist_min_max_uint8(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static PyObject *__pyx_f_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_hist_min_max_uint8(__Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max, CYTHON_UNUSED int __pyx_skip_dispatch) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   __Pyx_memviewslice __pyx_t_1 = { 0, 0, { 0 }, { 0 }, { 0 } };
@@ -2352,7 +2352,7 @@ __pyx_t_2 = 0;
   goto __pyx_L0;
   __pyx_L1_error:;
   __PYX_XDEC_MEMVIEW(&__pyx_t_1, 1);
-  __Pyx_AddTraceback("ris_widget._ndimage_statistics.hist_min_max_uint8", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("ris_widget.image.ndimage_statistics._ndimage_statistics.hist_min_max_uint8", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = 0;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -2361,8 +2361,8 @@ __pyx_t_2 = 0;
 }
 
 /* Python wrapper */
-static PyObject *__pyx_pw_10ris_widget_19_ndimage_statistics_5hist_min_max_uint8(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyObject *__pyx_pw_10ris_widget_19_ndimage_statistics_5hist_min_max_uint8(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static PyObject *__pyx_pw_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_5hist_min_max_uint8(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static PyObject *__pyx_pw_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_5hist_min_max_uint8(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   __Pyx_memviewslice __pyx_v_arr = { 0, 0, { 0 }, { 0 }, { 0 } };
   __Pyx_memviewslice __pyx_v_hist = { 0, 0, { 0 }, { 0 }, { 0 } };
   __Pyx_memviewslice __pyx_v_min_max = { 0, 0, { 0 }, { 0 }, { 0 } };
@@ -2419,18 +2419,18 @@ static PyObject *__pyx_pw_10ris_widget_19_ndimage_statistics_5hist_min_max_uint8
   __pyx_L5_argtuple_error:;
   __Pyx_RaiseArgtupleInvalid("hist_min_max_uint8", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 47; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
   __pyx_L3_error:;
-  __Pyx_AddTraceback("ris_widget._ndimage_statistics.hist_min_max_uint8", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("ris_widget.image.ndimage_statistics._ndimage_statistics.hist_min_max_uint8", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_10ris_widget_19_ndimage_statistics_4hist_min_max_uint8(__pyx_self, __pyx_v_arr, __pyx_v_hist, __pyx_v_min_max);
+  __pyx_r = __pyx_pf_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_4hist_min_max_uint8(__pyx_self, __pyx_v_arr, __pyx_v_hist, __pyx_v_min_max);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_10ris_widget_19_ndimage_statistics_4hist_min_max_uint8(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max) {
+static PyObject *__pyx_pf_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_4hist_min_max_uint8(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -2442,7 +2442,7 @@ static PyObject *__pyx_pf_10ris_widget_19_ndimage_statistics_4hist_min_max_uint8
   if (unlikely(!__pyx_v_arr.memview)) { __Pyx_RaiseUnboundLocalError("arr"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 47; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
   if (unlikely(!__pyx_v_hist.memview)) { __Pyx_RaiseUnboundLocalError("hist"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 47; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
   if (unlikely(!__pyx_v_min_max.memview)) { __Pyx_RaiseUnboundLocalError("min_max"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 47; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  __pyx_t_1 = __pyx_f_10ris_widget_19_ndimage_statistics_hist_min_max_uint8(__pyx_v_arr, __pyx_v_hist, __pyx_v_min_max, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 47; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_1 = __pyx_f_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_hist_min_max_uint8(__pyx_v_arr, __pyx_v_hist, __pyx_v_min_max, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 47; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -2451,7 +2451,7 @@ static PyObject *__pyx_pf_10ris_widget_19_ndimage_statistics_4hist_min_max_uint8
   /* function exit code */
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
-  __Pyx_AddTraceback("ris_widget._ndimage_statistics.hist_min_max_uint8", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("ris_widget.image.ndimage_statistics._ndimage_statistics.hist_min_max_uint8", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __PYX_XDEC_MEMVIEW(&__pyx_v_arr, 1);
@@ -2470,8 +2470,8 @@ static PyObject *__pyx_pf_10ris_widget_19_ndimage_statistics_4hist_min_max_uint8
  *     cdef numpy.uint32_t n_bins = hist.shape[0]
  */
 
-static PyObject *__pyx_pw_10ris_widget_19_ndimage_statistics_7hist_min_max_float32(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyObject *__pyx_f_10ris_widget_19_ndimage_statistics_hist_min_max_float32(__Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max, __pyx_t_5numpy_float32_t __pyx_v_hist_min, __pyx_t_5numpy_float32_t __pyx_v_hist_max, CYTHON_UNUSED int __pyx_skip_dispatch) {
+static PyObject *__pyx_pw_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_7hist_min_max_float32(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static PyObject *__pyx_f_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_hist_min_max_float32(__Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max, __pyx_t_5numpy_float32_t __pyx_v_hist_min, __pyx_t_5numpy_float32_t __pyx_v_hist_max, CYTHON_UNUSED int __pyx_skip_dispatch) {
   __pyx_t_5numpy_float32_t __pyx_v_v;
   __pyx_t_5numpy_uint32_t __pyx_v_n_bins;
   Py_ssize_t __pyx_v_i;
@@ -2726,7 +2726,7 @@ __pyx_t_1.strides[0] = __pyx_v_hist.strides[0];
   goto __pyx_L0;
   __pyx_L1_error:;
   __PYX_XDEC_MEMVIEW(&__pyx_t_1, 1);
-  __Pyx_AddTraceback("ris_widget._ndimage_statistics.hist_min_max_float32", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("ris_widget.image.ndimage_statistics._ndimage_statistics.hist_min_max_float32", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = 0;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -2735,8 +2735,8 @@ __pyx_t_1.strides[0] = __pyx_v_hist.strides[0];
 }
 
 /* Python wrapper */
-static PyObject *__pyx_pw_10ris_widget_19_ndimage_statistics_7hist_min_max_float32(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyObject *__pyx_pw_10ris_widget_19_ndimage_statistics_7hist_min_max_float32(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static PyObject *__pyx_pw_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_7hist_min_max_float32(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static PyObject *__pyx_pw_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_7hist_min_max_float32(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   __Pyx_memviewslice __pyx_v_arr = { 0, 0, { 0 }, { 0 }, { 0 } };
   __Pyx_memviewslice __pyx_v_hist = { 0, 0, { 0 }, { 0 }, { 0 } };
   __Pyx_memviewslice __pyx_v_min_max = { 0, 0, { 0 }, { 0 }, { 0 } };
@@ -2811,18 +2811,18 @@ static PyObject *__pyx_pw_10ris_widget_19_ndimage_statistics_7hist_min_max_float
   __pyx_L5_argtuple_error:;
   __Pyx_RaiseArgtupleInvalid("hist_min_max_float32", 1, 5, 5, PyTuple_GET_SIZE(__pyx_args)); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 55; __pyx_clineno = __LINE__; goto __pyx_L3_error;}
   __pyx_L3_error:;
-  __Pyx_AddTraceback("ris_widget._ndimage_statistics.hist_min_max_float32", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("ris_widget.image.ndimage_statistics._ndimage_statistics.hist_min_max_float32", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_10ris_widget_19_ndimage_statistics_6hist_min_max_float32(__pyx_self, __pyx_v_arr, __pyx_v_hist, __pyx_v_min_max, __pyx_v_hist_min, __pyx_v_hist_max);
+  __pyx_r = __pyx_pf_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_6hist_min_max_float32(__pyx_self, __pyx_v_arr, __pyx_v_hist, __pyx_v_min_max, __pyx_v_hist_min, __pyx_v_hist_max);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_10ris_widget_19_ndimage_statistics_6hist_min_max_float32(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max, __pyx_t_5numpy_float32_t __pyx_v_hist_min, __pyx_t_5numpy_float32_t __pyx_v_hist_max) {
+static PyObject *__pyx_pf_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_6hist_min_max_float32(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_arr, __Pyx_memviewslice __pyx_v_hist, __Pyx_memviewslice __pyx_v_min_max, __pyx_t_5numpy_float32_t __pyx_v_hist_min, __pyx_t_5numpy_float32_t __pyx_v_hist_max) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -2834,7 +2834,7 @@ static PyObject *__pyx_pf_10ris_widget_19_ndimage_statistics_6hist_min_max_float
   if (unlikely(!__pyx_v_arr.memview)) { __Pyx_RaiseUnboundLocalError("arr"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 55; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
   if (unlikely(!__pyx_v_hist.memview)) { __Pyx_RaiseUnboundLocalError("hist"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 55; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
   if (unlikely(!__pyx_v_min_max.memview)) { __Pyx_RaiseUnboundLocalError("min_max"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 55; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  __pyx_t_1 = __pyx_f_10ris_widget_19_ndimage_statistics_hist_min_max_float32(__pyx_v_arr, __pyx_v_hist, __pyx_v_min_max, __pyx_v_hist_min, __pyx_v_hist_max, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 55; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_1 = __pyx_f_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_hist_min_max_float32(__pyx_v_arr, __pyx_v_hist, __pyx_v_min_max, __pyx_v_hist_min, __pyx_v_hist_max, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 55; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -2843,7 +2843,7 @@ static PyObject *__pyx_pf_10ris_widget_19_ndimage_statistics_6hist_min_max_float
   /* function exit code */
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
-  __Pyx_AddTraceback("ris_widget._ndimage_statistics.hist_min_max_float32", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("ris_widget.image.ndimage_statistics._ndimage_statistics.hist_min_max_float32", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __PYX_XDEC_MEMVIEW(&__pyx_v_arr, 1);
@@ -15604,7 +15604,7 @@ static PyBufferProcs __pyx_tp_as_buffer_array = {
 
 static PyTypeObject __pyx_type___pyx_array = {
   PyVarObject_HEAD_INIT(0, 0)
-  "ris_widget._ndimage_statistics.array", /*tp_name*/
+  "ris_widget.image.ndimage_statistics._ndimage_statistics.array", /*tp_name*/
   sizeof(struct __pyx_array_obj), /*tp_basicsize*/
   0, /*tp_itemsize*/
   __pyx_tp_dealloc_array, /*tp_dealloc*/
@@ -15709,7 +15709,7 @@ static PyMethodDef __pyx_methods_Enum[] = {
 
 static PyTypeObject __pyx_type___pyx_MemviewEnum = {
   PyVarObject_HEAD_INIT(0, 0)
-  "ris_widget._ndimage_statistics.Enum", /*tp_name*/
+  "ris_widget.image.ndimage_statistics._ndimage_statistics.Enum", /*tp_name*/
   sizeof(struct __pyx_MemviewEnum_obj), /*tp_basicsize*/
   0, /*tp_itemsize*/
   __pyx_tp_dealloc_Enum, /*tp_dealloc*/
@@ -15955,7 +15955,7 @@ static PyBufferProcs __pyx_tp_as_buffer_memoryview = {
 
 static PyTypeObject __pyx_type___pyx_memoryview = {
   PyVarObject_HEAD_INIT(0, 0)
-  "ris_widget._ndimage_statistics.memoryview", /*tp_name*/
+  "ris_widget.image.ndimage_statistics._ndimage_statistics.memoryview", /*tp_name*/
   sizeof(struct __pyx_memoryview_obj), /*tp_basicsize*/
   0, /*tp_itemsize*/
   __pyx_tp_dealloc_memoryview, /*tp_dealloc*/
@@ -16079,7 +16079,7 @@ static struct PyGetSetDef __pyx_getsets__memoryviewslice[] = {
 
 static PyTypeObject __pyx_type___pyx_memoryviewslice = {
   PyVarObject_HEAD_INIT(0, 0)
-  "ris_widget._ndimage_statistics._memoryviewslice", /*tp_name*/
+  "ris_widget.image.ndimage_statistics._ndimage_statistics._memoryviewslice", /*tp_name*/
   sizeof(struct __pyx_memoryviewslice_obj), /*tp_basicsize*/
   0, /*tp_itemsize*/
   __pyx_tp_dealloc__memoryviewslice, /*tp_dealloc*/
@@ -16143,10 +16143,10 @@ static PyTypeObject __pyx_type___pyx_memoryviewslice = {
 };
 
 static PyMethodDef __pyx_methods[] = {
-  {"hist_min_max_uint16", (PyCFunction)__pyx_pw_10ris_widget_19_ndimage_statistics_1hist_min_max_uint16, METH_VARARGS|METH_KEYWORDS, 0},
-  {"hist_min_max_uint12", (PyCFunction)__pyx_pw_10ris_widget_19_ndimage_statistics_3hist_min_max_uint12, METH_VARARGS|METH_KEYWORDS, 0},
-  {"hist_min_max_uint8", (PyCFunction)__pyx_pw_10ris_widget_19_ndimage_statistics_5hist_min_max_uint8, METH_VARARGS|METH_KEYWORDS, 0},
-  {"hist_min_max_float32", (PyCFunction)__pyx_pw_10ris_widget_19_ndimage_statistics_7hist_min_max_float32, METH_VARARGS|METH_KEYWORDS, 0},
+  {"hist_min_max_uint16", (PyCFunction)__pyx_pw_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_1hist_min_max_uint16, METH_VARARGS|METH_KEYWORDS, 0},
+  {"hist_min_max_uint12", (PyCFunction)__pyx_pw_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_3hist_min_max_uint12, METH_VARARGS|METH_KEYWORDS, 0},
+  {"hist_min_max_uint8", (PyCFunction)__pyx_pw_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_5hist_min_max_uint8, METH_VARARGS|METH_KEYWORDS, 0},
+  {"hist_min_max_float32", (PyCFunction)__pyx_pw_10ris_widget_5image_18ndimage_statistics_19_ndimage_statistics_7hist_min_max_float32, METH_VARARGS|METH_KEYWORDS, 0},
   {0, 0, 0, 0}
 };
 
@@ -16596,14 +16596,14 @@ PyMODINIT_FUNC PyInit__ndimage_statistics(void)
   #if PY_MAJOR_VERSION < 3 && (__PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT)
   if (__Pyx_init_sys_getdefaultencoding_params() < 0) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   #endif
-  if (__pyx_module_is_main_ris_widget___ndimage_statistics) {
+  if (__pyx_module_is_main_ris_widget__image__ndimage_statistics___ndimage_statistics) {
     if (PyObject_SetAttrString(__pyx_m, "__name__", __pyx_n_s_main) < 0) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
   }
   #if PY_MAJOR_VERSION >= 3
   {
     PyObject *modules = PyImport_GetModuleDict(); if (unlikely(!modules)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
-    if (!PyDict_GetItemString(modules, "ris_widget._ndimage_statistics")) {
-      if (unlikely(PyDict_SetItemString(modules, "ris_widget._ndimage_statistics", __pyx_m) < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+    if (!PyDict_GetItemString(modules, "ris_widget.image.ndimage_statistics._ndimage_statistics")) {
+      if (unlikely(PyDict_SetItemString(modules, "ris_widget.image.ndimage_statistics._ndimage_statistics", __pyx_m) < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     }
   }
   #endif
@@ -16810,11 +16810,11 @@ PyMODINIT_FUNC PyInit__ndimage_statistics(void)
   __Pyx_XDECREF(__pyx_t_1);
   if (__pyx_m) {
     if (__pyx_d) {
-      __Pyx_AddTraceback("init ris_widget._ndimage_statistics", __pyx_clineno, __pyx_lineno, __pyx_filename);
+      __Pyx_AddTraceback("init ris_widget.image.ndimage_statistics._ndimage_statistics", __pyx_clineno, __pyx_lineno, __pyx_filename);
     }
     Py_DECREF(__pyx_m); __pyx_m = 0;
   } else if (!PyErr_Occurred()) {
-    PyErr_SetString(PyExc_ImportError, "init ris_widget._ndimage_statistics");
+    PyErr_SetString(PyExc_ImportError, "init ris_widget.image.ndimage_statistics._ndimage_statistics");
   }
   __pyx_L0:;
   __Pyx_RefNannyFinishContext();

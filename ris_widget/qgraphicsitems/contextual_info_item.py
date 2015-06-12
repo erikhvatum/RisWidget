@@ -22,10 +22,10 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from .shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
 from contextlib import ExitStack
 from pathlib import Path
 from PyQt5 import Qt
+from ..shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
 
 class ContextualInfoItem(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()

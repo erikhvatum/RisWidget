@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2014-2015 WUSTL ZPLAB
+# Copyright (c) 2015 WUSTL ZPLAB
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,23 +22,7 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from .base_view import BaseView
 from PyQt5 import Qt
 
-class HistogramView(BaseView):
-    @classmethod
-    def make_histogram_view_and_frame(cls, base_scene, parent):
-        histogram_frame = Qt.QFrame(parent)
-        histogram_frame.setMinimumSize(Qt.QSize(120, 60))
-        histogram_frame.setFrameShape(Qt.QFrame.StyledPanel)
-        histogram_frame.setFrameShadow(Qt.QFrame.Sunken)
-        histogram_frame.setLayout(Qt.QHBoxLayout())
-        histogram_frame.layout().setSpacing(0)
-        histogram_frame.layout().setContentsMargins(Qt.QMargins(0,0,0,0))
-        histogram_view = cls(base_scene, histogram_frame)
-        histogram_frame.layout().addWidget(histogram_view)
-        return (histogram_view, histogram_frame)
-
-    def _on_resize(self, size):
-        self.resetTransform()
-        self.scale(size.width(), size.height())
+class ImageStackListWidget(Qt.QListWidget):
+    pass

@@ -28,17 +28,18 @@ import numpy
 import sys
 from .flipbook import Flipbook
 from .image.image import Image
-from .qgrahpicsitems.contextual_info_item import ContextualInfoItem
+from .qgraphicsitems.contextual_info_item import ContextualInfoItem
 from .qgraphicsitems.histogram_items import HistogramItem
-from .qgraphicsitems.image_stack import ImageStackItem
+from .qgraphicsitems.image_stack_item import ImageStackItem
 from .qgraphicsscenes.general_scene import GeneralScene
+from .qgraphicsviews.general_view import GeneralView
 from .qgraphicsscenes.histogram_scene import HistogramScene
 from .qgraphicsviews.histogram_view import HistogramView
 from .shared_resources import FREEIMAGE, GL_QSURFACE_FORMAT
 
 class RisWidget(Qt.QMainWindow):
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0), msaa_sample_count=2,
-                 ImageClass=Image, ImageStackClass=ImageStackItem, GeneralSceneClass=GeneralScene, GeneralViewClass=GeneralView,
+                 ImageClass=Image, ImageStackItemClass=ImageStackItem, GeneralSceneClass=GeneralScene, GeneralViewClass=GeneralView,
                  GeneralViewContextualInfoItemClass=ContextualInfoItem,
                  HistogramItemClass=HistogramItem, HistogramSceneClass=HistogramScene, HistogramViewClass=HistogramView,
                  HistgramViewContextualInfoItemClass=ContextualInfoItem):
@@ -48,10 +49,11 @@ class RisWidget(Qt.QMainWindow):
             self.setWindowTitle(window_title)
         self.setAcceptDrops(True)
         self._init_scenes_and_views(
-            ImageClass, ImageStackClass, GeneralSceneClass, GeneralViewClass,
+            ImageClass, ImageStackItemClass, GeneralSceneClass, GeneralViewClass,
             GeneralViewContextualInfoItemClass,
             HistogramItemClass, HistogramSceneClass, HistogramViewClass,
             HistgramViewContextualInfoItemClass)
+        self.ImageClass = ImageClass
         self._init_actions()
         self._init_toolbars()
         self._init_menus()
@@ -119,12 +121,12 @@ class RisWidget(Qt.QMainWindow):
         m.addAction(self.main_view.zoom_to_fit_action)
         m.addAction(self.main_view.zoom_one_to_one_action)
 
-    def _init_scenes_and_views(self, ImageClass, ImageStackClass, GeneralSceneClass, GeneralViewClass, GeneralViewContextualInfoItemClass,
+    def _init_scenes_and_views(self, ImageClass, ImageStackItemClass, GeneralSceneClass, GeneralViewClass, GeneralViewContextualInfoItemClass,
                                HistogramItemClass, HistogramSceneClass, HistogramViewClass, HistgramViewContextualInfoItemClass):
-        self.main_scene = GeneralSceneClass(self, ImageClass, ImageStackClass, GeneralViewContextualInfoItemClass)
+        self.main_scene = GeneralSceneClass(self, ImageClass, ImageStackItemClass, GeneralViewContextualInfoItemClass)
         self.main_view = GeneralViewClass(self.main_scene, self)
         self.setCentralWidget(self.main_view)
-        self.histogram_scene = HistogramSceneClass(self, self.main_scene.image_stack, HistogramItemClass, HistgramViewContextualInfoItemClass)
+        self.histogram_scene = HistogramSceneClass(self, self.main_scene.image_stack_item, HistogramItemClass, HistgramViewContextualInfoItemClass)
         self._histogram_dock_widget = Qt.QDockWidget('Histogram', self)
         self.histogram_view, self._histogram_frame = HistogramViewClass.make_histogram_view_and_frame(self.histogram_scene, self._histogram_dock_widget)
         self._histogram_dock_widget.setWidget(self._histogram_frame)
@@ -167,17 +169,15 @@ class RisWidget(Qt.QMainWindow):
                         shape=(qimage.height(), qimage.width(), channel_count))
                 if qimage.isGrayscale():
                     npyimage=npyimage[...,0]
-                self.main_scene.image_stack.replace_image_data(0, npyimage, keep_name=False, shape_is_width_height=False, name=str(mime_data.urls()[0]) if mime_data.hasUrls() else None)
-                image_object = self.main_scene.image_stack.image_objects[0]
-                if image_object.data.ctypes.data == npyimage.ctypes.data:
+                image = self.ImageClass(npyimage, shape_is_width_height=False, name=str(mime_data.urls()[0]) if mime_data.hasUrls() else None)
+                if image.data.ctypes.data == npyimage.ctypes.data:
                     def del_qimage():
                         try:
-                            del image_object.qimage
-                            print('del image_object.qimage')
+                            del image.qimage
                         except AttributeError:
                             pass
                         try:
-                            image_object.data_changed.disconnect(del_qimage)
+                            image.data_changed.disconnect(del_qimage)
                         except TypeError:
                             pass
                     image_object.data_changed.connect(del_qimage)
@@ -185,6 +185,7 @@ class RisWidget(Qt.QMainWindow):
                     # indicating that the various transponse operations just shift around elements of shape and strides rather than
                     # causing memcpys.
                     image_object.qimage = qimage
+                self.image = image
                 event.accept()
         elif mime_data.hasUrls():
             # Note: if the URL is a "file://..." representing a local file, toLocalFile returns a string
@@ -200,7 +201,7 @@ class RisWidget(Qt.QMainWindow):
                 return
             if len(fpaths) == 1:
                 image_data = freeimage.read(fpaths[0])
-                self.main_scene.image_stack.replace_image_data(0, image_data, keep_name=False, name=fpaths[0])
+                self.image = self.ImageClass(image_data, name=fpaths[0])
             else:
                 # TODO: read images in background thread and display modal progress bar dialog with cancel button
                 images = [Image(freeimage.read(fpath), name=fpath) for fpath in fpaths]
@@ -208,33 +209,49 @@ class RisWidget(Qt.QMainWindow):
             event.accept()
 
     @property
-    def image_object(self):
-        image_objects = self.main_scene.image_stack.image_objects
-        return image_objects[0] if image_objects else None
+    def image_stack(self):
+        return self.main_scene.image_stack_item.image_stack
 
-    @image_object.setter
-    def image_object(self, image_object):
-        self.main_scene.image_stack.replace_image_object(0, image_object)
+    @property
+    def image(self):
+        image_stack = self.image_stack
+        return image_stack[0] if image_stack else None
+
+    @image.setter
+    def image(self, image):
+        image_stack = self.image_stack
+        if image_stack:
+            image_stack[0] = image
+        else:
+            image_stack.append(image)
 
     @property
     def image_data(self):
-        image_objects = self.main_scene.image_stack.image_objects
-        if image_objects:
-            return image_objects[0].data
+        image_stack = self.image_stack
+        if image_stack:
+            return image_stack[0].data
 
     @image_data.setter
     def image_data(self, image_data):
-        self.main_scene.image_stack.replace_image_data(0, image_data)
+        image_stack = self.image_stack
+        if image_stack:
+            image_stack[0].data = image_data
+        else:
+            image_stack.append(self.ImageClass(image_data))
 
     @property
     def image_data_T(self):
-        image_objects = self.main_scene.image_stack.image_objects
-        if image_objects:
-            return image_objects[0].data_T
+        image_stack = self.image_stack
+        if image_stack:
+            return image_stack[0].data_T
 
     @image_data.setter
     def image_data_T(self, image_data_T):
-        self.main_scene.image_stack.replace_image_data(0, image_data_T, shape_is_width_height=False)
+        image_stack = self.image_stack
+        if image_stack:
+            image_stack[0].data_T = image_data_T
+        else:
+            image_stack.append(self.ImageClass(image_data, shape_is_width_height=False))
 
     def make_flipbook(self, images=None, name=None):
         """The images argument may be any mixture of ris_widget.image.Image objects and raw data iterables of the sort that
@@ -242,7 +259,7 @@ class RisWidget(Qt.QMainWindow):
         If None is supplied for images, an empty flipbook is created.
         If None is supplied for name, a unique name is generated.
         If the value supplied for name is not unique, a suffix is appended such that the resulting name is unique."""
-        flipbook = Flipbook(self._uniqueify_flipbook_name, lambda image_object: RisWidget.image_object.fset(self, image_object), images, name)
+        flipbook = Flipbook(self._uniqueify_flipbook_name, lambda image: RisWidget.image.fset(self, image), images, name)
         assert flipbook.name not in self._flipbooks
         self._flipbooks[flipbook.name] = flipbook
         flipbook.name_changed.connect(self._on_flipbook_name_changed)

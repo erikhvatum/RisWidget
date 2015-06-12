@@ -25,7 +25,7 @@
 from contextlib import ExitStack
 import numpy
 from PyQt5 import Qt
-from .shared_resources import GL_QSURFACE_FORMAT
+from ..shared_resources import GL_QSURFACE_FORMAT
 
 class BaseView(Qt.QGraphicsView):
     """Updates to things depending directly on the view's size (eg, in many cases, the view's own transformation), if any,
@@ -36,8 +36,8 @@ class BaseView(Qt.QGraphicsView):
     scene_region_changed signal."""
     scene_region_changed = Qt.pyqtSignal(Qt.QGraphicsView)
 
-    def __init__(self, shader_scene, parent):
-        super().__init__(shader_scene, parent)
+    def __init__(self, base_scene, parent):
+        super().__init__(base_scene, parent)
         self.setMouseTracking(True)
         gl_widget = _ShaderViewGLViewport(self)
         # It seems necessary to retain this reference.  It is available via self.viewport() after
@@ -47,7 +47,7 @@ class BaseView(Qt.QGraphicsView):
         self.setViewport(gl_widget)
         if GL_QSURFACE_FORMAT().samples() > 0:
             self.setRenderHint(Qt.QPainter.Antialiasing)
-        self.scene_region_changed.connect(shader_scene.contextual_info_item.return_to_fixed_position)
+        self.scene_region_changed.connect(base_scene.contextual_info_item.return_to_fixed_position)
         self.scene_region_changed.emit(self)
 
     def _on_gl_initializing(self):
