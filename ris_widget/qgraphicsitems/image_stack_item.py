@@ -171,7 +171,7 @@ class ImageStackItem(ShaderItem):
         self.update()
 
     def _on_image_replaced(self, idx, replaced_image, image):
-        br_changed = replaced_image.size != image.size
+        br_change = replaced_image.size != image.size
         if br_change:
             self.prepareGeometryChange()
             self._bounding_rect = Qt.QRectF(Qt.QPointF(), Qt.QSizeF(image.size))
