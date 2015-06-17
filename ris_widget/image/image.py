@@ -359,7 +359,7 @@ class Image(BasicImage, Qt.QObject):
         name = self.name
         return '{}, {}{}>'.format(
             super().__repr__()[:-1],
-            'with name "{}">'.format(name) if name else 'unnamed',
+            'with name "{}"'.format(name) if name else 'unnamed',
             ', muted' if self.mute_enabled else '')
 
     def do_auto_min_max(self):

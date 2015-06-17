@@ -241,7 +241,7 @@ class ImageStackItem(ShaderItem):
                 uniforms, main = zip(*((self.UNIFORM_SECTION_TEMPLATE.substitute(idx=idx),
                                         self.MAIN_SECTION_TEMPLATE.substitute(idx=idx,
                                                                               getcolor_expression=image.getcolor_expression,
-                                                                              blend_function=type(image).BLEND_FUNCTIONS['src'] if tex_unit==0 else image.blend_function,
+                                                                              blend_function=type(image).BLEND_FUNCTIONS['src'] if tex_unit==0 else image.blend_function_impl,
                                                                               extra_transformation_expression='' if image.extra_transformation_expression is None
                                                                                                                  else image.extra_transformation_expression))
                                        for idx, tex_unit, image in ((idx, tex_unit, self.image_stack[idx]) for tex_unit, idx in enumerate(non_muted_idxs))))
