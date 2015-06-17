@@ -48,22 +48,22 @@ class BasicImage:
         num_channels = self.num_channels
         return '{}; {}x{}, {} channel{} ({}){}>'.format(
             super().__repr__()[:-1],
-            self._size.width(),
-            self._size.height(),
+            self.size.width(),
+            self.size.height(),
             num_channels,
             '' if num_channels == 1 else 's',
-            self._type,
+            self.type,
             ' (per-channel binary)' if self.is_binary else '')
 
     def refresh(self):
-        if self._is_grayscale:
-            self.stats_future = compute_ndimage_statistics(self._data, self._is_twelve_bit, return_future=True)
+        if self.is_grayscale:
+            self.stats_future = compute_ndimage_statistics(self._data, self.is_twelve_bit, return_future=True)
         else:
-            self.stats_future = compute_multichannel_ndimage_statistics(self._data, self._is_twelve_bit, return_future=True)
+            self.stats_future = compute_multichannel_ndimage_statistics(self._data, self.is_twelve_bit, return_future=True)
 
     def set_data(self, data, is_twelve_bit=False, float_range=None, shape_is_width_height=True):
         self._data = numpy.asarray(data)
-        self._is_twelve_bit = is_twelve_bit
+        self.is_twelve_bit = is_twelve_bit
         dt = self._data.dtype.type
         if dt not in (numpy.bool8, numpy.uint8, numpy.uint16, numpy.float32):
             self._data = self._data.astype(numpy.float32)
@@ -72,19 +72,19 @@ class BasicImage:
         if self._data.ndim == 2:
             if not shape_is_width_height:
                 self._data = self._data.transpose(1, 0)
-            self._type = 'g'
+            self.type = 'g'
             bpe = self._data.itemsize
             desired_strides = (bpe, self._data.shape[0]*bpe)
             if desired_strides != self._data.strides:
                 d = self._data
                 self._data = numpy.ndarray(d.shape, strides=desired_strides, dtype=d.dtype.type)
                 self._data.flat = d.flat
-            self.stats_future = compute_ndimage_statistics(self._data, self._is_twelve_bit, return_future=True)
+            self.stats_future = compute_ndimage_statistics(self._data, self.is_twelve_bit, return_future=True)
         elif self._data.ndim == 3:
             if not shape_is_width_height:
                 self._data = self._data.transpose(1, 0, 2)
-            self._type = {2: 'ga', 3: 'rgb', 4: 'rgba'}.get(self._data.shape[2])
-            if self._type is None:
+            self.type = {2: 'ga', 3: 'rgb', 4: 'rgba'}.get(self._data.shape[2])
+            if self.type is None:
                 e = '3D iterable supplied for image_data argument must be either MxNx2 (grayscale with alpha), '
                 e+= 'MxNx3 (rgb), or MxNx4 (rgba).'
                 raise ValueError(e)
@@ -94,11 +94,11 @@ class BasicImage:
                 d = self._data
                 self._data = numpy.ndarray(d.shape, strides=desired_strides, dtype=d.dtype.type)
                 self._data.flat = d.flat
-            self.stats_future = compute_multichannel_ndimage_statistics(self._data, self._is_twelve_bit, return_future=True)
+            self.stats_future = compute_multichannel_ndimage_statistics(self._data, self.is_twelve_bit, return_future=True)
         else:
             raise ValueError('data argument must be a 2D (grayscale) or 3D (grayscale with alpha, rgb, or rgba) iterable.')
-        self._size = Qt.QSize(self._data.shape[0], self._data.shape[1])
-        self._is_grayscale = self._type in ('g', 'ga')
+        self.size = Qt.QSize(self._data.shape[0], self._data.shape[1])
+        self.is_grayscale = self.type in ('g', 'ga')
 
         if dt is numpy.float32:
             if float_range is None:
@@ -116,7 +116,7 @@ class BasicImage:
             if dt == numpy.uint8:
                 self._range = (0, 255)
             elif dt == numpy.uint16:
-                if self._is_twelve_bit:
+                if self.is_twelve_bit:
                     self._range = (0, 4095)
                 else:
                     self._range = (0, 65535)
@@ -124,18 +124,6 @@ class BasicImage:
                 raise NotImplementedError('Support for another numpy dtype was added without implementing self._range calculation for it...')
 
     set_data.__doc__ = __init__.__doc__
-
-    @property
-    def type(self):
-        return self._type
-
-    @property
-    def dtype(self):
-        return self._data.dtype.type
-
-    @property
-    def strides(self):
-        return self._data.strides
 
     @property
     def data(self):
@@ -146,6 +134,14 @@ class BasicImage:
     def data_T(self):
         """Image data as numpy array in shape = (height, width, [channels]) convention."""
         return self._data.transpose(*(1,0,2)[:self._data.ndim])
+
+    @property
+    def dtype(self):
+        return self._data.dtype.type
+
+    @property
+    def strides(self):
+        return self._data.strides
 
     @property
     def histogram(self):
@@ -171,25 +167,13 @@ class BasicImage:
         return self._range
 
     @property
-    def size(self):
-        return self._size
-
-    @property
-    def is_grayscale(self):
-        return self._is_grayscale
-
-    @property
-    def is_twelve_bit(self):
-        return self._is_twelve_bit
-
-    @property
     def is_binary(self):
         return self.dtype is numpy.bool8
 
     @property
     def has_alpha_channel(self):
-        return self._type[-1] == 'a'
+        return self.type[-1] == 'a'
 
     @property
     def num_channels(self):
-        return len(self._type)
+        return len(self.type)

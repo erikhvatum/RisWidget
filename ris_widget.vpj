@@ -238,11 +238,9 @@
 				<F N="ris_widget/qgraphicsviews/histogram_view.py"/>
 			</Folder>
 			<Folder Name="shaders">
-				<F N="ris_widget/shaders/histogram_widget_fragment_shader_g.glsl"/>
-				<F N="ris_widget/shaders/histogram_widget_fragment_shader_rgb.glsl"/>
-				<F N="ris_widget/shaders/histogram_widget_vertex_shader.glsl"/>
-				<F N="ris_widget/shaders/image_widget_fragment_shader_template.glsl"/>
-				<F N="ris_widget/shaders/image_widget_vertex_shader.glsl"/>
+				<F N="ris_widget/shaders/histogram_item_fragment_shader.glsl"/>
+				<F N="ris_widget/shaders/image_stack_item_fragment_shader_template.glsl"/>
+				<F N="ris_widget/shaders/planar_quad_vertex_shader.glsl"/>
 			</Folder>
 			<F N="ris_widget/__init__.py"/>
 			<F N="ris_widget/_qt_debug.py"/>

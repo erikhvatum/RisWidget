@@ -25,11 +25,15 @@
 import datetime
 import numpy
 from PyQt5 import Qt
+import textwrap
 import time
 from .basic_image import BasicImage
 
-class _Property:
-    def __init__(self, properties, name, default_value_callback, transform_callback=None, pre_set_callback=None, post_set_callback=None):
+class _Property(property):
+    # Derived from "property" for the sole reason that IPython's question-mark magic is special-cased for
+    # properties.  Deriving from property causes _Property to receive the same treatment, providing
+    # useful output for something.prop? in IPython (where prop is a _Property instance).
+    def __init__(self, properties, name, default_value_callback, transform_callback=None, pre_set_callback=None, post_set_callback=None, doc=None):
         self.name = name
         self.var_name = '_' + name
         self.default_val_var_name = '_default_' + name
@@ -38,6 +42,8 @@ class _Property:
         self.transform_callback = transform_callback
         self.pre_set_callback = pre_set_callback
         self.post_set_callback = post_set_callback
+        if doc is not None:
+            self.__doc__ = doc
         properties.append(self)
 
     def instantiate(self, image):
@@ -120,6 +126,8 @@ class Image(BasicImage, Qt.QObject):
         'rgba': 's'}
     # Blend functions adapted from http://dev.w3.org/SVG/modules/compositing/master/ 
     BLEND_FUNCTIONS = {
+        'src' :      ('dca = sca;',
+                      'da = sa;'),
         'src-over' : ('dca = sca + dca * (1.0f - sa);',
                       'da = sa + da - sa * da;'),
         'dst-over' : ('dca = dca + sca * (1.0f - da);',
@@ -149,7 +157,7 @@ class Image(BasicImage, Qt.QObject):
     # For example, this single call supports extensibility by subclassing:
     # image_instance.changed.connect(something.refresh)
     # And that single call replaces the following set of calls, which is not even complete if Image is subclassed:
-    # image_instance.objectNameChanged.connect(something.refresh)
+    # image_instance.name_changed.connect(something.refresh)
     # image_instance.data_changed.connect(something.refresh)
     # image_instance.min_changed.connect(something.refresh)
     # image_instance.max_changed.connect(something.refresh)
@@ -159,6 +167,7 @@ class Image(BasicImage, Qt.QObject):
     # image_instance.getcolor_expression_changed.connect(something.refresh)
     # image_instance.extra_transformation_expression_changed.connect(something.refresh)
     # image_instance.global_alpha_changed.connect(something.refresh)
+    # image_instance.mute_enabled_changed.connect(something.refresh)
     #
     # In the __init__ function of any Image subclass that adds presentation-affecting properties
     # and associated change notification signals, do not forget to connect the subclass's change signals to changed.
@@ -177,7 +186,8 @@ class Image(BasicImage, Qt.QObject):
         if self.auto_min_max_enabled:
             self.do_auto_min_max()
         self._blend_function_impl = self.BLEND_FUNCTIONS[self.blend_function]
-        self.objectNameChanged.connect(self.changed)
+        self.objectNameChanged.connect(self.name_changed)
+        self.name_changed.connect(self.changed)
         self.data_changed.connect(self.changed)
 
     def set_data(self, data, is_twelve_bit=False, float_range=None, shape_is_width_height=True, keep_name=True, name=None):
@@ -198,6 +208,8 @@ class Image(BasicImage, Qt.QObject):
         self.data_changed.emit()
 
     def generate_contextual_info_for_pos(self, x, y, idx=None):
+        if self.mute_enabled:
+            return
         sz = self.size
         if 0 <= x < sz.width() and 0 <= y < sz.height():
             type_ = self.type
@@ -207,25 +219,32 @@ class Image(BasicImage, Qt.QObject):
             if name:
                 mst += '"' + name + '", '
             mst+= 'x:{} y:{} '.format(x, y)
-            vt = '(' + ' '.join((c + ':{}' for c in type)) + ')'
+            vt = '(' + ' '.join((c + ':{}' for c in self.type)) + ')'
             if num_channels == 1:
-                vt = vt.format(self.data[pos.x(), pos.y()])
+                vt = vt.format(self.data[x, y])
             else:
-                vt = vt.format(*self.data[pos.x(), pos.y()])
+                vt = vt.format(*self.data[x, y])
             return mst+vt
 
     properties = []
 
-    # Considering that image data is immutable, an auto_min_max_enabled property may seem a strange thing to have.  It
-    # does have an effect, even in strictly in the context this class: if the min and max properties are not equal
-    # to the min and max channel intensity values (excluding alpha) and True is assigned to auto_min_max_enabled,
-    # the min and max channel intensity values are assigned to the min and max properties.
-    #
-    # In the larger context, where ImageStackItem contains a number of layers, each represented by an Image
-    # (or subclass) instance, additional utility is apparent: if the content of a layer is replaced by direct assignment of
-    # a numpy array, implicitly causing a new Image to be instaniated, the auto_min_max_enabled
-    # value may be used by the new instance, preventing auto min/maxness from being forgotten exactly when it is typically
-    # desired.
+    mute_enabled = _Property(
+        properties, 'mute_enabled',
+        doc = textwrap.dedent(
+            """\
+            Generally, a muted image is not visible in the "main view" but does remain visible in specialized views,
+            such as the histogram view and image stack list widget.
+
+            If an Image's mute_enabled property is False, that Image does not contribute to mixed output.  For example,
+            any single pixel in an ImageStackItem rendering may represent the result of blending a number of Images,
+            whereas only one Image at a time may be associated with a HistogramItem, and no HistogramItem pixel in the
+            rendering of a HistogramItem is a function of more than one Image.  Therefore, a muted Image that is part
+            of an ImageStack that is associated with an ImageStackItem will not be visible in the output of that
+            ImageStackItem's render function, although the histogram of the Image will still be visible in the output
+            of the render function of a HistogramItem associated with the Image."""),
+        default_value_callback = lambda image: False,
+        transform_callback = lambda image, v: bool(v))
+
     def _auto_min_max_enabled_post_set(self, v):
         if v:
             self.do_auto_min_max()
@@ -327,6 +346,9 @@ class Image(BasicImage, Qt.QObject):
         exec(property.changed_signal_name + ' = Qt.pyqtSignal()')
     del property
 
+    # NB: This a property, not a _Property.  There is already a change signal, setter, and a getter for objectName, which
+    # we proxy/use.
+    name_changed = Qt.pyqtSignal()
     name = property(
         Qt.QObject.objectName,
         lambda self, name: self.setObjectName('' if name is None else name),
@@ -335,9 +357,10 @@ class Image(BasicImage, Qt.QObject):
 
     def __repr__(self):
         name = self.name
-        return '{}, {}'.format(
+        return '{}, {}{}>'.format(
             super().__repr__()[:-1],
-            'with name "{}">'.format(name) if name else 'unnamed>')
+            'with name "{}">'.format(name) if name else 'unnamed',
+            ', muted' if self.mute_enabled else '')
 
     def do_auto_min_max(self):
         self._retain_auto_min_max_enabled_on_min_max_change = True
