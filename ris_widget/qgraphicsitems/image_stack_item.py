@@ -88,7 +88,6 @@ class ImageStackItem(ShaderItem):
         uniform float gamma_${idx};"""))
     MAIN_SECTION_TEMPLATE = Template(textwrap.dedent("""\
             // image_stack[${idx}]
-            tex_coord = transform_frag_to_tex(frag_to_tex_${idx});
             s = texture2D(tex_${idx}, tex_coord);
             s = ${getcolor_expression};
             sa = clamp(s.a, 0, 1) * global_alpha_${idx};
@@ -264,20 +263,35 @@ class ImageStackItem(ShaderItem):
             prog.setAttributeBuffer(vert_coord_loc, GL.GL_FLOAT, 0, 2, 0)
             prog.setUniformValue('viewport_height', float(widget.size().height()))
             prog.setUniformValue('image_stack_item_opacity', self.opacity())
+            # The next few lines compute frag_to_tex, representing an affine transform in 2D space from pixel coordinates
+            # to normalized (unit square) texture coordinates.  That is, matrix multiplication of frag_to_tex and homogenous
+            # pixel coordinate vector <x, max_y-y, w> (using max_y-y to invert GL's Y axis which is upside-down, typically
+            # with 1 for w) yields <x_t, y_t, w_t>.  In non-homogenous coordinates, that's <x_t/w_t, y_t/w_t>, which is
+            # ready to be fed to the GLSL texture2D call.
+            # 
+            # So, GLSL's Texture2D accepts 0-1 element-wise-normalized coordinates (IE, unit square, not unit circle), and
+            # frag_to_tex maps from view pixel coordinates to texture coordinates.  If either element of the resulting coordinate
+            # vector is outside the interval [0,1], the associated pixel in the view is outside of ImageStackItem.
+            #
+            # Frame is computed from ImageStackItem's boundingRect, which is computed from the dimensions of the lowest
+            # image of the image_stack, image_stack[0].  Therefore, it is this lowest image that determines the aspect
+            # ratio of the unit square's projection onto the view.  Conveniently, any subsequent images in the stack use
+            # this same projection, with the result that they are stretched to fill the ImageStackItem.
             frag_to_tex = Qt.QTransform()
+            # Frame represents, in screen pixel coordinates with origin at the top left of the view, the virtual extent of
+            # the rectangular region containing ImageStackItem.  This rectangle may extend beyond any combination of the view's
+            # four edges.
+            frame = Qt.QPolygonF(view.mapFromScene(Qt.QPolygonF(self.sceneTransform().mapToPolygon(self.boundingRect().toRect()))))
+            # Find the matrix that transforms our ImageStackItem's virtual extents in view coordinates to the unit square...
+            if not qpainter.transform().quadToSquare(frame, frag_to_tex):
+                raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix.')
+            prog.setUniformValue('frag_to_tex', frag_to_tex)
             min_max = numpy.empty((2,), dtype=float)
             for idx, tex_unit, image in ((idx, tex_unit, self.image_stack[idx]) for tex_unit, idx in enumerate(non_muted_idxs)):
-                frame = Qt.QPolygonF(view.mapFromScene(Qt.QPolygonF(self.sceneTransform().mapToPolygon(self.boundingRect().toRect()))))
-                if not qpainter.transform().quadToSquare(frame, frag_to_tex):
-                    raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix.')
-#               frame = Qt.QPolygonF(view.mapFromScene(Qt.QPolygonF(overlay_image.sceneTransform().mapToPolygon(overlay_image.boundingRect().toRect()))))
-#               qpainter_transform = overlay_image.deviceTransform(view.viewportTransform())
-#               if not qpainter_transform.quadToSquare(frame, frag_to_tex):
-#                   raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix for overlay {}.'.format(overlay_idx))
                 min_max[0], min_max[1] = image.min, image.max
                 min_max = self._normalize_for_gl(min_max, image)
                 idxstr = str(idx)
-                prog.setUniformValue('tex_{}'.format(idx), tex_unit)
+                prog.setUniformValue('tex_'+idxstr, tex_unit)
                 prog.setUniformValue('frag_to_tex_'+idxstr, frag_to_tex)
                 prog.setUniformValue('global_alpha_'+idxstr, image.global_alpha)
                 prog.setUniformValue('rescale_min_'+idxstr, min_max[0])

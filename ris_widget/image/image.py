@@ -326,7 +326,7 @@ class Image(BasicImage, Qt.QObject):
             raise ValueError('The string assigned to blend_function must be one of:\n' + '\n'.join("'" + s + "'" for s in sorted(self.BLEND_FUNCTIONS.keys())))
     blend_function = _Property(
         properties, 'blend_function',
-        default_value_callback = lambda image: 'src-over',
+        default_value_callback = lambda image: 'screen',
         transform_callback = lambda image, v: str(v),
         pre_set_callback = lambda image, v, f=_blend_function_pre_set: f(image, v))
     @property
