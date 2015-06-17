@@ -149,7 +149,7 @@ class Image(BasicImage, Qt.QObject):
         'difference':('dca = (sca * da + dca * sa - (sca + sca) * dca) + sca * (1.0f - da) + dca * (1.0f - sa);',
                       'da = sa + da - sa * da;')}
     for k, v in BLEND_FUNCTIONS.items():
-        BLEND_FUNCTIONS[k] = '\n        ' + '\n        '.join(v)
+        BLEND_FUNCTIONS[k] = '    // blending function name: {}\n    '.format(k) + '\n    '.join(v)
     del k, v
     # A call to .set_data or a change to any mutable property potentially impacts image presentation.  For convenience, changed is emitted whenever
     # .set_data or .refresh is called or any of the more specific mutable-property-changed signals are emitted.

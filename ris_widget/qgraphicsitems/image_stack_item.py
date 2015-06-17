@@ -87,7 +87,7 @@ class ImageStackItem(ShaderItem):
         uniform float rescale_range_${idx};
         uniform float gamma_${idx};"""))
     MAIN_SECTION_TEMPLATE = Template(textwrap.dedent("""\
-        //
+            // image_stack[${idx}]
             tex_coord = transform_frag_to_tex(frag_to_tex_${idx});
             s = texture2D(tex_${idx}, tex_coord);
             s = ${getcolor_expression};
@@ -95,9 +95,10 @@ class ImageStackItem(ShaderItem):
             sc = min_max_gamma_transform(s.rgb, rescale_min_${idx}, rescale_range_${idx}, gamma_${idx});
             ${extra_transformation_expression};
             sca = sc * sa;
-            ${blend_function}
+        ${blend_function}
             da = clamp(da, 0, 1);
-            dca = clamp(dca, 0, 1);"""))
+            dca = clamp(dca, 0, 1);
+        """))
     DEFAULT_BOUNDING_RECT = Qt.QRectF(Qt.QPointF(), Qt.QSizeF(1, 1))
     TEXTURE_BORDER_COLOR = Qt.QColor(0, 0, 0, 0)
 

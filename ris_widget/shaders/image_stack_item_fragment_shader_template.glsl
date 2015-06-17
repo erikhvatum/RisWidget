@@ -51,6 +51,5 @@ void main()
     float isa, ida, osa, oda, sada;
 
 $main
-
     gl_FragColor = vec4(dca / da, da * image_stack_item_opacity);
 }
