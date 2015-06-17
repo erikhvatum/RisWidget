@@ -94,7 +94,7 @@ class ImageStackItem(ShaderItem):
             sa = clamp(s.a, 0, 1) * global_alpha_${idx};
             sc = min_max_gamma_transform(s.rgb, rescale_min_${idx}, rescale_range_${idx}, gamma_${idx});
             ${extra_transformation_expression};
-            //sca = sc * sa;
+            sca = sc * sa;
             ${blend_function}
             da = clamp(da, 0, 1);
             dca = clamp(dca, 0, 1);"""))
@@ -329,8 +329,10 @@ class ImageStackItem(ShaderItem):
             if tex is None:
                 tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
                 tex.setFormat(desired_texture_format)
-                tex.setBorderColor(self.TEXTURE_BORDER_COLOR)
                 tex.setWrapMode(Qt.QOpenGLTexture.ClampToBorder)
+                if sys.platform != 'darwin':
+                    # TODO: determine why the following call segfaults on OS X and remove the enclosing if statement
+                    tex.setBorderColor(self.TEXTURE_BORDER_COLOR)
                 if image.trilinear_filtering_enabled:
                     tex.setMipLevels(6)
                     tex.setAutoMipMapGenerationEnabled(True)
