@@ -24,5 +24,6 @@
 
 from PyQt5 import Qt
 
+#TODO: make list items drop targets so that layer contents can be replaced by dropping file on associated item
 class ImageStackListWidget(Qt.QListWidget):
     pass

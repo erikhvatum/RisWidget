@@ -210,13 +210,22 @@ class ImageStackItem(ShaderItem):
         fpos = event.pos()
         ipos = Qt.QPoint(event.pos().x(), event.pos().y())
         cis = []
-        for idx, image in ((idx, self.image_stack[idx]) for idx in non_muted_idxs):
-                # For a number of potential reasons including overlay rotation, differing resolution
-                # or scale, and fractional offset relative to parent, it is necessary to project floating
-                # point coordinates and not integer coordinates into overlay item space in order to
-                # accurately determine which overlay image pixel contains the mouse pointer
-#               o_pos = self.mapToItem(overlay_item, event.pos())
-                ci = image.generate_contextual_info_for_pos(ipos.x(), ipos.y(), idx if len(self.image_stack) > 1 else None)
+        it = iter((idx, self.image_stack[idx]) for idx in non_muted_idxs)
+        idx, image = next(it)
+        ci = image.generate_contextual_info_for_pos(ipos.x(), ipos.y(), idx if len(self.image_stack) > 1 else None)
+        if ci is not None:
+            cis.append(ci)
+        image0size = image.size
+        for idx, image in it:
+                # Because the aspect ratio of subsequent images may differ from the first, fractional
+                # offsets must be discarded only after projecting from lowest-image pixel coordinates
+                # to current image pixel coordinates.  It is easy to see why in the case of an overlay
+                # exactly half the width and height of the base: one base unit is two overlay units,
+                # so dropping base unit fractions would cause overlay units to be rounded to the preceeding
+                # even number in any case where an overlay coordinate component should be odd.
+                ci = image.generate_contextual_info_for_pos(int(fpos.x()*image.size.width()/image0size.width()),
+                                                            int(fpos.y()*image.size.height()/image0size.height()),
+                                                            idx)
                 if ci is not None:
                     cis.append(ci)
         self.scene().update_contextual_info('\n'.join(cis), self)
