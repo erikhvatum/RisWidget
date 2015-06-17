@@ -230,6 +230,9 @@ class ImageStackItem(ShaderItem):
                     cis.append(ci)
         self.scene().update_contextual_info('\n'.join(cis), self)
 
+    def hoverLeaveEvent(self, event):
+        self.scene().clear_contextual_info(self)
+
     def paint(self, qpainter, option, widget):
         assert widget is not None, 'ImageStackItem.paint called with widget=None.  Ensure that view caching is disabled.'
         qpainter.beginNativePainting()
