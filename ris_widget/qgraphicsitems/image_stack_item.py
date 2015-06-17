@@ -263,7 +263,7 @@ class ImageStackItem(ShaderItem):
             prog.setAttributeBuffer(vert_coord_loc, GL.GL_FLOAT, 0, 2, 0)
             prog.setUniformValue('viewport_height', float(widget.size().height()))
             prog.setUniformValue('image_stack_item_opacity', self.opacity())
-            # The next few lines compute frag_to_tex, representing an affine transform in 2D space from pixel coordinates
+            # The next few lines of code compute frag_to_tex, representing an affine transform in 2D space from pixel coordinates
             # to normalized (unit square) texture coordinates.  That is, matrix multiplication of frag_to_tex and homogenous
             # pixel coordinate vector <x, max_y-y, w> (using max_y-y to invert GL's Y axis which is upside-down, typically
             # with 1 for w) yields <x_t, y_t, w_t>.  In non-homogenous coordinates, that's <x_t/w_t, y_t/w_t>, which is
@@ -273,16 +273,16 @@ class ImageStackItem(ShaderItem):
             # frag_to_tex maps from view pixel coordinates to texture coordinates.  If either element of the resulting coordinate
             # vector is outside the interval [0,1], the associated pixel in the view is outside of ImageStackItem.
             #
-            # Frame is computed from ImageStackItem's boundingRect, which is computed from the dimensions of the lowest
-            # image of the image_stack, image_stack[0].  Therefore, it is this lowest image that determines the aspect
-            # ratio of the unit square's projection onto the view.  Conveniently, any subsequent images in the stack use
-            # this same projection, with the result that they are stretched to fill the ImageStackItem.
-            frag_to_tex = Qt.QTransform()
             # Frame represents, in screen pixel coordinates with origin at the top left of the view, the virtual extent of
             # the rectangular region containing ImageStackItem.  This rectangle may extend beyond any combination of the view's
             # four edges.
+            #
+            # Frame is computed from ImageStackItem's boundingRect, which is computed from the dimensions of the lowest
+            # image of the image_stack, image_stack[0].  Therefore, it is this lowest image that determines the aspect
+            # ratio of the unit square's projection onto the view.  Any subsequent images in the stack use this same projection,
+            # with the result that they are stretched to fill the ImageStackItem.
+            frag_to_tex = Qt.QTransform()
             frame = Qt.QPolygonF(view.mapFromScene(Qt.QPolygonF(self.sceneTransform().mapToPolygon(self.boundingRect().toRect()))))
-            # Find the matrix that transforms our ImageStackItem's virtual extents in view coordinates to the unit square...
             if not qpainter.transform().quadToSquare(frame, frag_to_tex):
                 raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix.')
             prog.setUniformValue('frag_to_tex', frag_to_tex)
