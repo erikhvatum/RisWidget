@@ -34,7 +34,12 @@ class ImageStack(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
     """ImageStack: a list-like container representing an ordered collection of Image objects to be
     blended together sequentially by ImageStackItem.
 
-    Signals:
+    Pre-change signals (handy for things like virtual table views that must know of certain changes
+    before they occur in order to maintain a consistent state):
+    inserting(index where Image will be inserted, the Image that will be inserted)
+    removing(index of Image to be removed, the Image that will be removed)
+
+    Post-change signals:
     inserted(index of inserted Image, the Image inserted)
     removed(index of removed Image, the Image removed)
     replaced(index of the replaced Image, the Image that was replaced, the Image that replaced it)
@@ -42,6 +47,9 @@ class ImageStack(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
     No signals are emitted for Images with indexes that change as a result of inserting or removing
     a preceeding Image.  If you require this, consider making a sequential container shadowing
     the ImageStack by updating that shadow in response to the inserted, removed, and replaced signals."""
+
+    inserting = Qt.pyqtSignal(int, Image)
+    removing = Qt.pyqtSignal(int, Image)
 
     inserted = Qt.pyqtSignal(int, Image)
     removed = Qt.pyqtSignal(int, Image)
@@ -83,12 +91,14 @@ class ImageStack(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
         assert isinstance(image, Image)
         assert idx <= len(self._list)
         assert image not in self._set
+        self.inserting.emit(idx, image)
         self._list.insert(idx, image)
         self._set.add(image)
         self.inserted.emit(idx, image)
 
     def __delitem__(self, idx):
         image = self._list[idx]
+        self.removing.emit(idx, image)
         del self._list[idx]
         self._set.remove(image)
         self.removed.emit(idx, image)

@@ -28,6 +28,7 @@ import numpy
 import sys
 from .flipbook import Flipbook
 from .image.image import Image
+from .image_stack_table_widget import ImageStackTableWidget
 from .qgraphicsitems.contextual_info_item import ContextualInfoItem
 from .qgraphicsitems.histogram_items import HistogramItem
 from .qgraphicsitems.image_stack_item import ImageStackItem
@@ -90,7 +91,7 @@ class RisWidget(Qt.QMainWindow):
             return txt
 
     def _init_toolbars(self):
-        self._main_view_toolbar = self.addToolBar('Image View')
+        self._main_view_toolbar = self.addToolBar('Main View')
         self._main_view_zoom_combo = Qt.QComboBox(self)
         self._main_view_toolbar.addWidget(self._main_view_zoom_combo)
         self._main_view_zoom_combo.setEditable(True)
@@ -106,6 +107,7 @@ class RisWidget(Qt.QMainWindow):
         self._main_view_toolbar.addAction(self.main_view.zoom_to_fit_action)
         self._main_view_toolbar.addAction(self._main_view_reset_min_max_action)
         self._main_view_toolbar.addAction(self._main_view_reset_gamma_action)
+        self._main_view_toolbar.addAction(self._image_stack_table_dock_widget.toggleViewAction())
 #       self._main_view_toolbar.addAction(self.main_scene.image_item.auto_min_max_enabled_action)
         self._histogram_view_toolbar = self.addToolBar('Histogram View')
         self._histogram_view_toolbar.addAction(self._histogram_dock_widget.toggleViewAction())
@@ -135,6 +137,13 @@ class RisWidget(Qt.QMainWindow):
             Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | \
             Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
         self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self._histogram_dock_widget)
+        self._image_stack_table_dock_widget = Qt.QDockWidget('Image Stack', self)
+        self.image_stack_table_widget = ImageStackTableWidget(image_stack=self.image_stack)
+        self._image_stack_table_dock_widget.setWidget(self.image_stack_table_widget)
+        self._image_stack_table_dock_widget.setAllowedAreas(Qt.Qt.AllDockWidgetAreas)
+        self._image_stack_table_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
+        # TODO: make image stack table widget default location be at window bottom, adjacent to histogram
+        self.addDockWidget(Qt.Qt.RightDockWidgetArea, self._image_stack_table_dock_widget)
 
     def dragEnterEvent(self, event):
         event.acceptProposedAction()

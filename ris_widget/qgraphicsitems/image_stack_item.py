@@ -81,7 +81,6 @@ class ImageStackItem(ShaderItem):
         'rgba': Qt.QOpenGLTexture.RGBA}
     UNIFORM_SECTION_TEMPLATE = Template(textwrap.dedent("""\
         uniform sampler2D tex_${idx};
-        uniform mat3 frag_to_tex_${idx};
         uniform float global_alpha_${idx};
         uniform float rescale_min_${idx};
         uniform float rescale_range_${idx};
@@ -304,7 +303,6 @@ class ImageStackItem(ShaderItem):
                 min_max = self._normalize_for_gl(min_max, image)
                 idxstr = str(idx)
                 prog.setUniformValue('tex_'+idxstr, tex_unit)
-                prog.setUniformValue('frag_to_tex_'+idxstr, frag_to_tex)
                 prog.setUniformValue('global_alpha_'+idxstr, image.global_alpha)
                 prog.setUniformValue('rescale_min_'+idxstr, min_max[0])
                 prog.setUniformValue('rescale_range_'+idxstr, min_max[1] - min_max[0])

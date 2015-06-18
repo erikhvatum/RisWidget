@@ -243,7 +243,7 @@ class GeneralView(BaseView):
 
     def _apply_zoom(self):
         if self.zoom_to_fit:
-            self.fitInView(self.scene().image_stack, Qt.Qt.KeepAspectRatio)
+            self.fitInView(self.scene().image_stack_item, Qt.Qt.KeepAspectRatio)
             current_zoom = self.transform().m22()
             if current_zoom != self._custom_zoom:
                 self._custom_zoom = current_zoom

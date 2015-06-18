@@ -245,7 +245,7 @@
 			<F N="ris_widget/__init__.py"/>
 			<F N="ris_widget/_qt_debug.py"/>
 			<F N="ris_widget/flipbook.py"/>
-			<F N="ris_widget/image_stack_list_widget.py"/>
+			<F N="ris_widget/image_stack_table_widget.py"/>
 			<F N="ris_widget/ris_widget.py"/>
 			<F N="ris_widget/shared_resources.py"/>
 		</Folder>

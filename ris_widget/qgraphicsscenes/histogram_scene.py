@@ -37,23 +37,22 @@ class HistogramScene(BaseScene):
         self.setSceneRect(0, 0, 1, 1)
 #       self.histogram_item = HistogramItemClass()
 #       self.addItem(self.histogram_item)
-#       self._image_item = None
+#       self._image = None
 #       self.image_item = image_item
 #       self.gamma_gamma = 1.0
 #
 #   @property
-#   def image_item(self):
-#       return self._image_item
+#   def image(self):
+#       return self._image
 #
-#   @image_item.setter
-#   def image_item(self, image_item):
-#       assert image_item is not None
-#       if image_item is not self._image_item:
-#           if self._image_item is not None:
-#               self._image_item.image_changed.disconnect(self.histogram_item._on_image_changed)
-#               self._image_item.min_changed.disconnect(self.histogram_item.min_item.arrow_item._on_value_changed)
-#               self._image_item.max_changed.disconnect(self.histogram_item.max_item.arrow_item._on_value_changed)
-#               self._image_item.gamma_changed.disconnect(self.histogram_item.gamma_item._on_value_changed)
+#   @image.setter
+#   def image(self, image):
+#       if image is not self._image:
+#           if self._image is not None:
+#               self._image.data_changed.disconnect(self.histogram_item._on_image_changed)
+#               self._image.min_changed.disconnect(self.histogram_item.min_item.arrow_item._on_value_changed)
+#               self._image.max_changed.disconnect(self.histogram_item.max_item.arrow_item._on_value_changed)
+#               self._image.gamma_changed.disconnect(self.histogram_item.gamma_item._on_value_changed)
 #           self._image_item = image_item
 #           self._image_item.image_changed.connect(self.histogram_item._on_image_changed)
 #           self._image_item.min_changed.connect(self.histogram_item.min_item.arrow_item._on_value_changed)
