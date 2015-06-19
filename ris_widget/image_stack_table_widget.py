@@ -48,9 +48,10 @@ class ImageStackTableWidget(Qt.QTableView):
                     old_model.deleteLater()
 
 class _ImageStackTableModel(Qt.QAbstractTableModel):
+    COLUMNS = 'idx', 'muted', 'name', 'size', 'type', 'dtype'
+
     def __init__(self, parent, image_stack):
         super().__init__(parent)
-        self.headers = 'idx', 'muted', 'name', 'size', 'type', 'dtype'
         image_stack.inserting.connect(self._on_inserting)
         image_stack.inserted.connect(self._on_inserted)
         image_stack.removing.connect(self._on_removing)
@@ -69,29 +70,40 @@ class _ImageStackTableModel(Qt.QAbstractTableModel):
         return 6
 
     def data(self, midx, role=Qt.Qt.DisplayRole):
-        if role != Qt.Qt.DisplayRole\
-          or not 0 <= midx.row() < self.rowCount()\
-          or not 0 <= midx.column() < self.columnCount():
-            return Qt.QVariant()
-        if midx.column() == 0:
-            return Qt.QVariant(midx.row())
+        if role == Qt.Qt.DisplayRole:
+            if midx.column() == 0:
+                return Qt.QVariant(midx.row())
+            if midx.column() == 2:
+                return Qt.QVariant(self.image_stack[midx.row()].name)
+            if midx.column() == 3:
+                return Qt.QVariant(self.image_stack[midx.row()].size)
+            if midx.column() == 4:
+                return Qt.QVariant(self.image_stack[midx.row()].type)
+            if midx.column() == 5:
+                return Qt.QVariant(str(self.image_stack[midx.row()].dtype))
+        if role == Qt.Qt.CheckStateRole:
+            if midx.column() == 1:
+                return Qt.QVariant(self.image_stack[midx.row()].mute_enabled)
+        return Qt.QVariant()
+
+    def setData(self, midx, value, role=Qt.Qt.EditRole):
+        if midx.column() == 1 and role == Qt.Qt.CheckStateRole:
+            image = self.image_stack[midx.row()]
+            image.mute_enabled = not image.mute_enabled
+            return True
+        return False
+
+    def flags(self, midx):
         if midx.column() == 1:
-            return Qt.QVariant(self.image_stack[midx.row()].mute_enabled)
-        if midx.column() == 2:
-            return Qt.QVariant(self.image_stack[midx.row()].name)
-        if midx.column() == 3:
-            return Qt.QVariant(self.image_stack[midx.row()].size)
-        if midx.column() == 4:
-            return Qt.QVariant(self.image_stack[midx.row()].type)
-        if midx.column() == 5:
-            return Qt.QVariant(str(self.image_stack[midx.row()].dtype))
+            return Qt.Qt.ItemIsUserCheckable | Qt.Qt.ItemIsEnabled
+        return Qt.Qt.ItemIsEnabled
 
     def headerData(self, section, orientation, role=Qt.Qt.DisplayRole):
         if role != Qt.Qt.DisplayRole\
           or orientation != Qt.Qt.Horizontal\
-          or not 0 <= section < len(self.headers):
+          or not 0 <= section < len(self.COLUMNS):
             return Qt.QVariant()
-        return Qt.QVariant(self.headers[section])
+        return Qt.QVariant(self.COLUMNS[section])
 
     def _on_inserting(self, idx, image):
         self.beginInsertRows(Qt.QModelIndex(), idx, idx)
@@ -111,4 +123,4 @@ class _ImageStackTableModel(Qt.QAbstractTableModel):
 
     def _on_image_changed(self, image):
         idx = self.image_stack.index(image)
-        self.dataChanged.emit(self.createIndex(idx, 0), self.createIndex(idx, self.columnCount()))
+        self.dataChanged.emit(self.createIndex(idx, 0), self.createIndex(idx, self.columnCount()), (Qt.Qt.DisplayRole, Qt.Qt.CheckStateRole))
