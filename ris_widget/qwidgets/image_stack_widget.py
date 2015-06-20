@@ -35,7 +35,7 @@ class ImageStackTableWidget(Qt.QTableView):
 
     @property
     def image_stack(self):
-        return self.image_stack
+        return self._image_stack
 
     @image_stack.setter
     def image_stack(self, i_s):

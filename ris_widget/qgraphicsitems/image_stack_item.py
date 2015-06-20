@@ -31,23 +31,23 @@ import sys
 import textwrap
 #from ._qt_debug import qtransform_to_numpy
 from ..image.image import Image
-from ..image.image_stack import ImageStack
+from ..signaling_list import SignalingList
 from ..shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
 from .shader_item import ShaderItem
 
 class ImageStackItem(ShaderItem):
-    """The image_stack attribute of ImageStackItem is an ImageStack, a container with a list interface, containing a sequence
-    of Image instances (or instances of subclasses of Image).  In terms of composition ordering, these are in ascending
-    Z-order, with the positive Z axis pointing out of the screen.  image_stack should be manipulated via the standard
-    list interface, which it implements completely.  So, for example, to place an image at the top of the stack:
+    """The image_stack attribute of ImageStackItem is an SignalingList, a container with a list interface, containing a sequence
+    of Image instances (or instances of subclasses of Image or some duck-type compatible thing).  In terms of composition ordering,
+    these are in ascending Z-order, with the positive Z axis pointing out of the screen.  image_stack should be manipulated via the
+    standard list interface, which it implements completely.  So, for example, to place an image at the top of the stack:
 
     ImageStackItem_instance.image_stack.append(Image(numpy.zeros((400,400,3), dtype=numpy.uint8)))
 
-    ImageStack emits signals when elements are removed, inserted, or replaced.  ImageStackItem responds to these signals
+    SignalingList emits signals when elements are removed, inserted, or replaced.  ImageStackItem responds to these signals
     in order to trigger repainting and otherwise keep its state consistent with that of its image_stack attribute.  Users
     and extenders of ImageStackItem may do so in the same way: by connecting Python functions directly to
     ImageStackItem_instance.image_stack.inserted, ImageStackItem_instance.image_stack.removed, and
-    ImageStackItem_instance.image_stack.replaced.  For a concrete example, take a look at ImageStackListWidget.
+    ImageStackItem_instance.image_stack.replaced.  For a concrete example, take a look at ImageStackWidget.
 
     The blend_function of the first (0th) element of image_stack is ignored, although its getcolor_expression and
     extra_transformation expression, if provided, are used.  In the fragment shader, the result of applying getcolor_expression
@@ -105,7 +105,7 @@ class ImageStackItem(ShaderItem):
     def __init__(self, parent_item=None):
         super().__init__(parent_item)
         self._bounding_rect = Qt.QRectF(self.DEFAULT_BOUNDING_RECT)
-        self.image_stack = ImageStack(parent_qobject=self) # In ascending order, with bottom image (backmost) as element 0
+        self.image_stack = SignalingList(parent=self) # In ascending order, with bottom image (backmost) as element 0
         self.image_stack.inserted.connect(self._on_image_inserted)
         self.image_stack.removed.connect(self._on_image_removed)
         self.image_stack.replaced.connect(self._on_image_replaced)

@@ -239,7 +239,7 @@ class Image(BasicImage, Qt.QObject):
             any single pixel in an ImageStackItem rendering may represent the result of blending a number of Images,
             whereas only one Image at a time may be associated with a HistogramItem, and no HistogramItem pixel in the
             rendering of a HistogramItem is a function of more than one Image.  Therefore, a muted Image that is part
-            of an ImageStack that is associated with an ImageStackItem will not be visible in the output of that
+            of an SignalingList that is associated with an ImageStackItem will not be visible in the output of that
             ImageStackItem's render function, although the histogram of the Image will still be visible in the output
             of the render function of a HistogramItem associated with the Image."""),
         default_value_callback = lambda image: False,
