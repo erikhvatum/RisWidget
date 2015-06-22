@@ -37,7 +37,10 @@ class Flipbook(Qt.QWidget):
     of elements.  The pages property should be manipulated via the standard list interface, which it implements
     completely.  So, for example, if you have a Flipbook of Images and wish to add an Image to the end of that Flipbook:
     
-    image_flipbook.pages.append(Image(numpy.zeros((400,400,3), dtype=numpy.uint8)))"""
+    image_flipbook.pages.append(Image(numpy.zeros((400,400,3), dtype=numpy.uint8)))
+
+    Signals:
+    current_page_changed(index of new page in .pages, the new page)"""
     current_page_changed = Qt.pyqtSignal(int, object)
 
     def __init__(self, pages=None, parent=None):
@@ -45,37 +48,25 @@ class Flipbook(Qt.QWidget):
         self.setAttribute(Qt.Qt.WA_DeleteOnClose)
         if pages is None:
             pages = SignalingList(parent=self)
-        self._pages = None
-        self._page_name_changed_signal_mapper = Qt.QSignalMapper(self)
-        self._init_widgets()
-        self.pages = pages
+        self._init_widgets(pages)
 
-    def _init_widgets(self):
+    def _init_widgets(self, pages):
         layout = Qt.QVBoxLayout()
         self.setLayout(layout)
         drag_setting_layout = Qt.QHBoxLayout()
         layout.addLayout(drag_setting_layout)
-        self._list_view = Qt.QListView(self)
-#       self._list_widget.setDragEnabled(True)
-#       self._list_widget.setDragDropMode(Qt.QAbstractItemView.InternalMove)
-#       self._list_widget.currentRowChanged.connect(self._on_list_widget_current_row_changed)
-        layout.addWidget(self._list_widget)
+        self.list_view_selection_model = None
+        self.list_view = SignalingListNamesView(self, pages)
+        self.list_view.current_row_changed.connect(self.current_page_changed)
+#       self.list_view.setDragEnabled(True)
+#       self.list_view.setDragDropMode(Qt.QAbstractItemView.InternalMove)
+#       self.list_view.currentRowChanged.connect(self._on_list_widget_current_row_changed)
+        layout.addWidget(self.list_view)
 
     @property
     def pages(self):
-        return self._pages
+        return self.list_view.signaling_list
 
     @pages.setter
     def pages(self, pages):
-        assert isinstance(pages, SignalingList)
-        if pages is not self._pages:
-            old_models = self.model(), self.selectionModel()
-        if isinstance(pages, SignalingList):
-            if pages is self._pages:
-                return
-        else if :
-            pages = SignalingList(pages)
-
-
-    def _on_list_widget_current_row_changed(self, row):
-        self.current_page_changed.emit(row, self.pages[row])
+        self.list_view.signaling_list = pages

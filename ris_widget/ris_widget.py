@@ -26,9 +26,10 @@ import ctypes
 from PyQt5 import Qt
 import numpy
 import sys
-from .flipbook import Flipbook
+import weakref
+from .qwidgets.flipbook import Flipbook
 from .image.image import Image
-from .image_stack_table_widget import ImageStackTableWidget
+from .qwidgets.image_stack_widget import ImageStackTableWidget
 from .qgraphicsitems.contextual_info_item import ContextualInfoItem
 from .qgraphicsitems.histogram_items import HistogramItem
 from .qgraphicsitems.image_stack_item import ImageStackItem
@@ -37,6 +38,7 @@ from .qgraphicsviews.general_view import GeneralView
 from .qgraphicsscenes.histogram_scene import HistogramScene
 from .qgraphicsviews.histogram_view import HistogramView
 from .shared_resources import FREEIMAGE, GL_QSURFACE_FORMAT
+from .signaling_list import SignalingList
 
 class RisWidget(Qt.QMainWindow):
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0), msaa_sample_count=2,
@@ -58,8 +60,6 @@ class RisWidget(Qt.QMainWindow):
         self._init_actions()
         self._init_toolbars()
         self._init_menus()
-        # Flipbook names -> Flipbook widget instances
-        self._flipbooks = dict()
 
     def _init_actions(self):
         self._main_view_reset_min_max_action = Qt.QAction(self)
@@ -144,6 +144,7 @@ class RisWidget(Qt.QMainWindow):
         self._image_stack_table_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
         # TODO: make image stack table widget default location be at window bottom, adjacent to histogram
         self.addDockWidget(Qt.Qt.RightDockWidgetArea, self._image_stack_table_dock_widget)
+        self._most_recently_created_flipbook = None
 
     def dragEnterEvent(self, event):
         event.acceptProposedAction()
@@ -262,29 +263,40 @@ class RisWidget(Qt.QMainWindow):
         else:
             image_stack.append(self.ImageClass(image_data, shape_is_width_height=False))
 
-    def make_flipbook(self, images=None, name=None):
+    def make_flipbook(self, images=None, name='Flipbook'):
         """The images argument may be any mixture of ris_widget.image.Image objects and raw data iterables of the sort that
         may be assigned to RisWidget.image_data or RisWidget.image_data_T.
-        If None is supplied for images, an empty flipbook is created.
-        If None is supplied for name, a unique name is generated.
-        If the value supplied for name is not unique, a suffix is appended such that the resulting name is unique."""
-        flipbook = Flipbook(self._uniqueify_flipbook_name, lambda image: RisWidget.image.fset(self, image), images, name)
-        assert flipbook.name not in self._flipbooks
-        self._flipbooks[flipbook.name] = flipbook
-        flipbook.name_changed.connect(self._on_flipbook_name_changed)
-        flipbook.destroyed.connect(self._on_flipbook_destroyed)
-        dock_widget = Qt.QDockWidget(flipbook.name, self)
+        If None is supplied for images, an empty flipbook is created."""
+        if images is not None:
+            if not isinstance(images, SignalingList):
+                images = SignalingList([image if isinstance(image, self.ImageClass) else self.ImageClass(image, name=str(image_idx)) for image_idx, image in enumerate(images)])
+        flipbook = Flipbook(images)
+        flipbook.current_page_changed.connect(self._on_flipbook_current_page_changed)
+        dock_widget = Qt.QDockWidget(name, self)
+        dock_widget.setAttribute(Qt.Qt.WA_DeleteOnClose)
         dock_widget.setWidget(flipbook)
+        flipbook.destroyed.connect(dock_widget.deleteLater) # Get rid of containing dock widget when flipbook is programatically destroyed
         dock_widget.setAllowedAreas(Qt.Qt.LeftDockWidgetArea | Qt.Qt.RightDockWidgetArea)
         dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
-        dock_widget.setAttribute(Qt.Qt.WA_DeleteOnClose)
         self.addDockWidget(Qt.Qt.RightDockWidgetArea, dock_widget)
+        self._most_recently_created_flipbook = weakref.ref(flipbook)
+        return flipbook
 
-    def get_flipbook(self, name):
-        return self._flipbooks[name]
+    @property
+    def most_recently_created_flipbook(self):
+        if self._most_recently_created_flipbook is None:
+            return
+        fb = self._most_recently_created_flipbook()
+        if fb is not None:
+            try:
+                fb.objectName()
+                return fb
+            except RuntimeError:
+                # Qt part of the object was deleted out from under the Python part
+                self._most_recently_created_flipbook = None # Clean up our weakref to the Python part
 
-    def close_flipbook(self, name):
-        self._flipbooks[name].parent().deleteLater()
+    def _on_flipbook_current_page_changed(self, idx, page):
+        self.image = page
 
     def _main_view_zoom_changed(self, zoom_preset_idx, custom_zoom):
         assert zoom_preset_idx == -1 and custom_zoom != 0 or zoom_preset_idx != -1 and custom_zoom == 0, \
@@ -318,25 +330,6 @@ class RisWidget(Qt.QMainWindow):
 
     def _on_reset_gamma(self):
         del self.main_scene.image_item.gamma
-
-    def _uniqueify_flipbook_name(self, name):
-        if name not in self._flipbooks:
-            return name
-        dupe_count = 1
-        try_name = name + str(dupe_count)
-        while try_name in self._flipbooks:
-            # This loop is not fast for large numbers of flipbooks, of which there should not be
-            dupe_count += 1
-            try_name = name + str(dupe_count)
-        return try_name
-
-    def _on_flipbook_name_changed(self, flipbook, old_name, name):
-        assert name not in self._flipbooks
-        del self._flipbooks[old_name]
-        self._flipbooks[name] = flipbook
-
-    def _on_flipbook_destroyed(self, flipbook_qobject):
-        del self._flipbooks[flipbook_qobject.objectName()]
 
 if __name__ == '__main__':
     import sys

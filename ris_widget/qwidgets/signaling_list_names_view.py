@@ -26,6 +26,14 @@ from PyQt5 import Qt
 from ..signaling_list import SignalingList
 
 class SignalingListNamesView(Qt.QListView):
+    """SignalingListNamesView: a QListView subclass that shows the value of the element.name property
+    for each element in SignalingListNamesView_instance.signaling_list, in order, with .signaling_list[0]
+    at the top.
+
+    Signals:
+    current_row_changed(index of new current/focused row in signaling_list, the element from signalist_list)"""
+    current_row_changed = Qt.pyqtSignal(int, object)
+
     def __init__(self, parent=None, signaling_list=None):
         super().__init__(parent)
         self._signaling_list = None
@@ -39,11 +47,20 @@ class SignalingListNamesView(Qt.QListView):
     def signaling_list(self, sl):
         if sl is not self._signaling_list:
             old_models = self.model(), self.selectionModel()
-            self.setModel(None if sl is None else _SignalingListNamesModel(self, sl))
+            if sl is None:
+                self.setModel(None)
+            else:
+                self.setModel(_SignalingListNamesModel(self, sl))
+                self.selectionModel().currentRowChanged.connect(self._on_model_current_row_changed)
             self._signaling_list = sl
             for old_model in old_models:
                 if old_model is not None:
                     old_model.deleteLater()
+
+    def _on_model_current_row_changed(self, old_midx, midx):
+        row = midx.row()
+        if 0 <= row < len(self._signaling_list):
+            self.current_row_changed.emit(row, self._signaling_list[row])
 
 class _SignalingListNamesModel(Qt.QAbstractListModel):
     def __init__(self, parent, signaling_list):
