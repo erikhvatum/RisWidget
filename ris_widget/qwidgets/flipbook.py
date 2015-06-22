@@ -48,20 +48,22 @@ class Flipbook(Qt.QWidget):
         self.setAttribute(Qt.Qt.WA_DeleteOnClose)
         if pages is None:
             pages = SignalingList(parent=self)
+        self._drag_and_drop_enabled = False
         self._init_widgets(pages)
 
     def _init_widgets(self, pages):
-        layout = Qt.QVBoxLayout()
-        self.setLayout(layout)
-        drag_setting_layout = Qt.QHBoxLayout()
-        layout.addLayout(drag_setting_layout)
+        vlayout = Qt.QVBoxLayout()
+        self.setLayout(vlayout)
+        self.drag_and_drop_enabled_checkbox = Qt.QCheckBox('Enable page drag and drop')
+        self.drag_and_drop_enabled_checkbox.setChecked(self._drag_and_drop_enabled)
+        self.drag_and_drop_enabled_checkbox.stateChanged.connect(self._on_drag_and_drop_checkbox_toggled)
+        vlayout.addWidget(self.drag_and_drop_enabled_checkbox)
         self.list_view_selection_model = None
-        self.list_view = SignalingListNamesView(self, pages)
+        self.list_view = SignalingListNamesView(self, pages, self._list_view_item_flags)
         self.list_view.current_row_changed.connect(self.current_page_changed)
-#       self.list_view.setDragEnabled(True)
-#       self.list_view.setDragDropMode(Qt.QAbstractItemView.InternalMove)
-#       self.list_view.currentRowChanged.connect(self._on_list_widget_current_row_changed)
-        layout.addWidget(self.list_view)
+        self.list_view.setDragEnabled(True)
+        self.list_view.setDragDropMode(Qt.QAbstractItemView.InternalMove)
+        vlayout.addWidget(self.list_view)
 
     @property
     def pages(self):
@@ -70,3 +72,24 @@ class Flipbook(Qt.QWidget):
     @pages.setter
     def pages(self, pages):
         self.list_view.signaling_list = pages
+
+    def _list_view_item_flags(self, midx):
+        flags = Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
+        if self._drag_and_drop_enabled:
+            flags |= Qt.Qt.ItemIsDropEnabled
+            if midx.isValid():
+                flags |= Qt.Qt.ItemIsDragEnabled
+        return flags
+
+    def _on_drag_and_drop_checkbox_toggled(self, state):
+        self._drag_and_drop_enabled = state == Qt.Qt.Checked
+
+    @property
+    def drag_and_drop_enabled(self):
+        return self._drag_and_drop_enabled
+
+    @drag_and_drop_enabled.setter
+    def drag_and_drop_enabled(self, v):
+        v = bool(v)
+        self._drag_and_drop_enabled = v
+        self.drag_and_drop_enabled_checkbox.setChecked(v)
