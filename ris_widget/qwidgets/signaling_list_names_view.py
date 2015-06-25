@@ -34,11 +34,10 @@ class SignalingListNamesView(Qt.QListView):
     current_row_changed(index of new current/focused row in signaling_list, the element from signalist_list)"""
     current_row_changed = Qt.pyqtSignal(int, object)
 
-    def __init__(self, parent=None, signaling_list=None, item_flags_callback=None, SignalingListNamesModelClass=None):
+    def __init__(self, parent=None, signaling_list=None, item_flags_callback=None, supported_drop_actions=0, SignalingListNamesModelClass=None):
         super().__init__(parent)
-        if item_flags_callback is None:
-            item_flags_callback = self._default_item_flags_callback
-        self.item_flags_callback = item_flags_callback
+        self._item_flags_callback = item_flags_callback
+        self._supported_drop_actions = supported_drop_actions
         self.SignalingListNamesModelClass = SignalingListNamesModel if SignalingListNamesModelClass is None else SignalingListNamesModelClass
         self._signaling_list = None
         self.signaling_list = signaling_list
@@ -57,7 +56,7 @@ class SignalingListNamesView(Qt.QListView):
             if sl is None:
                 self.setModel(None)
             else:
-                self.setModel(self.SignalingListNamesModelClass(self, sl, self._item_flags_callback))
+                self.setModel(self.SignalingListNamesModelClass(self, sl, self._item_flags_callback, self._supported_drop_actions))
                 self.selectionModel().currentRowChanged.connect(self._on_model_current_row_changed)
             self._signaling_list = sl
             for old_model in old_models:
@@ -75,16 +74,32 @@ class SignalingListNamesView(Qt.QListView):
         if model is not None:
             model.item_flags_callback = v
 
+    @item_flags_callback.deleter
+    def item_flags_callback(self):
+        self.item_flags_callback = None
+
+    @property
+    def supported_drop_actions(self):
+        return self._supported_drop_actions
+
+    @supported_drop_actions.setter
+    def supported_drop_actions(self, v):
+        self._supported_drop_actions = v
+        model = self.model()
+        if model is not None:
+            model.supported_drop_actions = v
+
     def _on_model_current_row_changed(self, old_midx, midx):
         row = midx.row()
         if 0 <= row < len(self._signaling_list):
             self.current_row_changed.emit(row, self._signaling_list[row])
 
 class SignalingListNamesModel(Qt.QAbstractListModel):
-    def __init__(self, parent, signaling_list, item_flags_callback):
+    def __init__(self, parent, signaling_list, item_flags_callback, supported_drop_actions):
         assert isinstance(signaling_list, SignalingList)
         super().__init__(parent)
         self.item_flags_callback = item_flags_callback
+        self.supported_drop_actions = supported_drop_actions
         signaling_list.inserting.connect(self._on_inserting)
         signaling_list.inserted.connect(self._on_inserted)
         signaling_list.removing.connect(self._on_removing)
@@ -107,7 +122,26 @@ class SignalingListNamesModel(Qt.QAbstractListModel):
     def flags(self, midx):
         return self.item_flags_callback(midx)
 
+    def supportedDropActions(self):
+        return self.supported_drop_actions
+
+    def removeRow(self, row, pmidx=Qt.QModelIndex()):
+        if 0 <= row < len(self.signaling_list):
+            del self.signaling_list[row]
+            return True
+        else:
+            return False
+
+    def removeRows(self, row, row_count, pmidx=Qt.QModelIndex()):
+        end_row = row+row_count
+        if 0 <= row < len(self.signaling_list) and 0 <= end_row < len(self.signaling_list):
+            del self.signaling_list[row:end_row]
+            return True
+        else:
+            return False
+
     def _on_inserting(self, idx, element):
+
         self.beginInsertRows(Qt.QModelIndex(), idx, idx)
 
     def _on_inserted(self, idx, element):

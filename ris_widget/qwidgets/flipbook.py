@@ -61,7 +61,6 @@ class Flipbook(Qt.QWidget):
         self.list_view_selection_model = None
         self.list_view = SignalingListNamesView(self, pages, self._list_view_item_flags)
         self.list_view.current_row_changed.connect(self.current_page_changed)
-        self.list_view.setDragEnabled(True)
         self.list_view.setDragDropMode(Qt.QAbstractItemView.InternalMove)
         vlayout.addWidget(self.list_view)
 
@@ -83,6 +82,19 @@ class Flipbook(Qt.QWidget):
 
     def _on_drag_and_drop_checkbox_toggled(self, state):
         self._drag_and_drop_enabled = state == Qt.Qt.Checked
+        lv = self.list_view
+        if self._drag_and_drop_enabled:
+            lv.setDragEnabled(True)
+            lv.setAcceptDrops(True)
+            lv.setDropIndicatorShown(True)
+            lv.setSelectionMode(Qt.QAbstractItemView.ExtendedSelection)
+            lv.supported_drop_actions = Qt.Qt.MoveAction
+        else:
+            lv.setDragEnabled(False)
+            lv.setAcceptDrops(False)
+            lv.setDropIndicatorShown(False)
+            lv.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
+            lv.supported_drop_actions = 0
 
     @property
     def drag_and_drop_enabled(self):
