@@ -168,54 +168,55 @@ class SignalingList(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
     def __eq__(self, other):
         return len(self) == len(other) and all(s == o for s, o in zip(self, other))
 
-    @classmethod
-    def _test_plain_list_behavior_fidelity(cls, num_iterations=40, stuff_max_len=20, verbose=False):
-        """For development and testing purposes, this function performs the same operations on a SignalingList
-        and a plain list, and verifies that their contents remain identical.  The operations themselves are
-        primarily random extended slicing operations, with the occassional extend call, randomly strided
-        delete of a random range, and insert call with a random index and value.  Verbose output for any
-        of the three occassional test operations is prepended with a * for visibility."""
-        import numpy
-        import numpy.random
-        from numpy.random import randint as R
-        sl = cls()
-        l = []
-        mb = lambda r: R(len(l)+1) if r else R(-2*len(l)-10, 2*len(l)+10)
-        for iteration in range(num_iterations):
-            stuff = list(R(1024, size=(R(stuff_max_len),)))
-            rb, re = R(2, size=(2,))
-            b, e = mb(rb), mb(re)
-            if R(2) and b > e:
-                b, e = e, b
-            ol = list(l)
-            func = R(100)
-            if func < 96:
-                l[b:e] = stuff
-                sl[b:e] = stuff
-                if l != sl:
-                    raise RuntimeError('{}[{}:{}] = {}:\n{} !=\n{}'.format(ol, b, e, stuff, sl._list, l))
-                if verbose:
-                    print('{}[{}:{}] = {}'.format(ol, b, e, stuff))
-            elif func < 97:
-                s = (1 if R(3) else -1) * (1 if R(5) else R(5)+1)
-                del l[b:e:s]
-                del sl[b:e:s]
-                if l != sl:
-                    raise RuntimeError('del {}[{}:{}:{}]:\n{} !=\n{}'.format(ol, b, e, s, sl._list, l))
-                if verbose:
-                    print('* del {}[{}:{}:{}]'.format(ol, b, e, s))
-            elif func < 98:
-                l.extend(stuff)
-                sl.extend(stuff)
-                if l != sl:
-                    raise RuntimeError('{}.extend({}):\n{} !=\n{}'.format(ol, stuff, sl._list, l))
-                if verbose:
-                    print('* {}.extend({})'.format(ol, stuff))
-            else:
-                stuff = R(1024)
-                l.insert(b, stuff)
-                sl.insert(b, stuff)
-                if l != sl:
-                    raise RuntimeError('{}.insert({}, {}):\n{} !=\n{}'.format(ol, b, stuff, sl._list, l))
-                if verbose:
-                    print('* {}.insert({}, {})'.format(ol, b, stuff))
+    if __debug__:
+        @classmethod
+        def _test_plain_list_behavior_fidelity(cls, num_iterations=40, stuff_max_len=20, verbose=False):
+            """For development and testing purposes, this function performs the same operations on a SignalingList
+            and a plain list, and verifies that their contents remain identical.  The operations themselves are
+            primarily random extended slicing operations, with the occassional extend call, randomly strided
+            delete of a random range, and insert call with a random index and value.  Verbose output for any
+            of the three occassional test operations is prepended with a * for visibility."""
+            import numpy
+            import numpy.random
+            from numpy.random import randint as R
+            sl = cls()
+            l = []
+            mb = lambda r: R(len(l)+1) if r else R(-2*len(l)-10, 2*len(l)+10)
+            for iteration in range(num_iterations):
+                stuff = list(R(1024, size=(R(stuff_max_len),)))
+                rb, re = R(2, size=(2,))
+                b, e = mb(rb), mb(re)
+                if R(2) and b > e:
+                    b, e = e, b
+                ol = list(l)
+                func = R(100)
+                if func < 96:
+                    l[b:e] = stuff
+                    sl[b:e] = stuff
+                    if l != sl:
+                        raise RuntimeError('{}[{}:{}] = {}:\n{} !=\n{}'.format(ol, b, e, stuff, sl._list, l))
+                    if verbose:
+                        print('{}[{}:{}] = {}'.format(ol, b, e, stuff))
+                elif func < 97:
+                    s = (1 if R(3) else -1) * (1 if R(5) else R(5)+1)
+                    del l[b:e:s]
+                    del sl[b:e:s]
+                    if l != sl:
+                        raise RuntimeError('del {}[{}:{}:{}]:\n{} !=\n{}'.format(ol, b, e, s, sl._list, l))
+                    if verbose:
+                        print('* del {}[{}:{}:{}]'.format(ol, b, e, s))
+                elif func < 98:
+                    l.extend(stuff)
+                    sl.extend(stuff)
+                    if l != sl:
+                        raise RuntimeError('{}.extend({}):\n{} !=\n{}'.format(ol, stuff, sl._list, l))
+                    if verbose:
+                        print('* {}.extend({})'.format(ol, stuff))
+                else:
+                    stuff = R(1024)
+                    l.insert(b, stuff)
+                    sl.insert(b, stuff)
+                    if l != sl:
+                        raise RuntimeError('{}.insert({}, {}):\n{} !=\n{}'.format(ol, b, stuff, sl._list, l))
+                    if verbose:
+                        print('* {}.insert({}, {})'.format(ol, b, stuff))
