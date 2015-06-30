@@ -30,7 +30,7 @@ class _QtAbcMeta(Qt.pyqtWrapperType, ABCMeta):
     pass
 
 class SignalingList(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
-    """SignalingList: a list-like container representing an ordered collection of objects that
+    """SignalingList: a list-like container representing a collection of objects that
     emits change signals when one or more elements is inserted, removed, or replaced.
 
     Pre-change signals (handy for things like virtual table views that must know of certain changes
@@ -44,9 +44,7 @@ class SignalingList(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
     * replaced(indexes of the replaced objects, the objects that were replaced, the objects that replaced them)
 
     No signals are emitted for objects with indexes that change as a result of inserting or removing
-    a preceeding object.  If you do need to maintain a mapping of object -> index for objects in a
-    SignalingList, an object -> index dict may be made to shadow the SignalingList by updating that dict
-    in response to the SignalingList's inserted, removed, and replaced signals."""
+    a preceeding object."""
 
     inserting = Qt.pyqtSignal(int, list)
     removing = Qt.pyqtSignal(list, list)
@@ -76,6 +74,11 @@ class SignalingList(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
 
     def __contains__(self, obj):
         return obj in self._list
+
+    def index(self, value, *va):
+        """L.index(value, [start, [stop]]) -> integer -- return first index of value.
+        Raises ValueError if the value is not present."""
+        return self._list.index(value, *va)
 
     def __len__(self):
         return len(self._list)

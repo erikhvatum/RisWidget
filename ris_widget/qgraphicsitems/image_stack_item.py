@@ -31,7 +31,7 @@ import sys
 import textwrap
 #from ._qt_debug import qtransform_to_numpy
 from ..image.image import Image
-from ..signaling_list import SignalingList
+from ..signaling_list.signaling_list import SignalingList
 from ..shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
 from .shader_item import ShaderItem
 
@@ -129,6 +129,7 @@ class ImageStackItem(ShaderItem):
     def _do_update(self):
         self.update()
 
+    # TODO: remove signal mapper junk, handle image being a list of images
     def _on_image_inserted(self, idx, image):
         br_change = idx == 0 and (len(self.image_stack) == 1 or self.image_stack[1].size != image.size)
         if br_change:
