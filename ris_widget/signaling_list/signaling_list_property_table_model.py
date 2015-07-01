@@ -33,8 +33,7 @@ class SignalingListPropertyTableModel(Qt.QAbstractTableModel):
         assert all(map(lambda p: isinstance(p, str) and len(p) > 0, self._property_names)), 'property_names must be a non-empty iterable of non-empty strings.'
         if len(self._property_names) != len(set(self._property_names)):
             raise ValueError('The property_names argument contains at least one duplicate.')
-        # Re self.sender(), see http://doc.qt.io/qt-5/qobject.html#sender
-        self._property_changed_slots = [lambda pn=pn: self._on_property_changed(self.sender(), pn) for pn in self._property_names]
+        self._property_changed_slots = [lambda element, pn=pn: self._on_property_changed(element, pn) for pn in self._property_names]
         self._instance_counts = {}
         self.signaling_list = signaling_list
 

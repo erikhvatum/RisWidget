@@ -61,7 +61,7 @@ class _Property(property):
             new_default = self.default_value_callback(image)
             if old_default != new_default:
                 setattr(image, self.default_val_var_name, new_default)
-                getattr(image, self.changed_signal_name).emit()
+                getattr(image, self.changed_signal_name).emit(image)
 
     def __get__(self, image, _=None):
         if image is None:
@@ -80,7 +80,7 @@ class _Property(property):
             setattr(image, self.var_name, v)
             if self.post_set_callback is not None:
                 self.post_set_callback(image, v)
-            getattr(image, self.changed_signal_name).emit()
+            getattr(image, self.changed_signal_name).emit(image)
 
     def __delete__(self, image):
         """Reset to default value by way of removing the explicitly set override, causing the apparent value to be default."""
@@ -91,7 +91,7 @@ class _Property(property):
             if old_value != new_value:
                 if self.post_set_callback is not None:
                     self.post_set_callback(image, new_value)
-                getattr(image, self.changed_signal_name).emit()
+                getattr(image, self.changed_signal_name).emit(image)
         except AttributeError:
             # Property was already using default value
             pass
@@ -171,8 +171,8 @@ class Image(BasicImage, Qt.QObject):
     #
     # In the __init__ function of any Image subclass that adds presentation-affecting properties
     # and associated change notification signals, do not forget to connect the subclass's change signals to changed.
-    changed = Qt.pyqtSignal()
-    data_changed = Qt.pyqtSignal()
+    changed = Qt.pyqtSignal(object)
+    data_changed = Qt.pyqtSignal(object)
 
     def __init__(self, data, is_twelve_bit=False, float_range=None, shape_is_width_height=True, name=None, parent=None):
         Qt.QObject.__init__(self, parent)
@@ -186,7 +186,7 @@ class Image(BasicImage, Qt.QObject):
         if self.auto_min_max_enabled:
             self.do_auto_min_max()
         self._blend_function_impl = self.BLEND_FUNCTIONS[self.blend_function]
-        self.objectNameChanged.connect(self.name_changed)
+        self.objectNameChanged.connect(lambda: self.name_changed.emit(self))
         self.name_changed.connect(self.changed)
         self.data_changed.connect(self.changed)
 
@@ -199,13 +199,13 @@ class Image(BasicImage, Qt.QObject):
             self.name = name
         for property in self.properties:
             property.update_default(self)
-        self.data_changed.emit()
+        self.data_changed.emit(self)
 
     def refresh(self):
         BasicImage.refresh(self)
         if self.auto_min_max_enabled:
             self.do_auto_min_max()
-        self.data_changed.emit()
+        self.data_changed.emit(self)
 
     def generate_contextual_info_for_pos(self, x, y, idx=None):
         if self.mute_enabled:
@@ -343,12 +343,12 @@ class Image(BasicImage, Qt.QObject):
         pre_set_callback = lambda image, v, f=_global_alpha_pre_set: f(image, v))
 
     for property in properties:
-        exec(property.changed_signal_name + ' = Qt.pyqtSignal()')
+        exec(property.changed_signal_name + ' = Qt.pyqtSignal(object)')
     del property
 
     # NB: This a property, not a _Property.  There is already a change signal, setter, and a getter for objectName, which
     # we proxy/use.
-    name_changed = Qt.pyqtSignal()
+    name_changed = Qt.pyqtSignal(object)
     name = property(
         Qt.QObject.objectName,
         lambda self, name: self.setObjectName('' if name is None else name),

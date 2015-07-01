@@ -138,7 +138,7 @@ class RisWidget(Qt.QMainWindow):
             Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
         self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self._histogram_dock_widget)
         self._image_stack_table_dock_widget = Qt.QDockWidget('Image Stack', self)
-        self.image_stack_table_widget = Qt.QListView()
+        self.image_stack_table_widget = Qt.QTableView()
         self._image_stack_table_model = ImageStackTableModel(self.image_stack, self.image_stack_table_widget)
         self.image_stack_table_widget.setModel(self._image_stack_table_model)
         self._image_stack_table_dock_widget.setWidget(self.image_stack_table_widget)
@@ -298,7 +298,8 @@ class RisWidget(Qt.QMainWindow):
                 self._most_recently_created_flipbook = None # Clean up our weakref to the Python part
 
     def _on_flipbook_current_page_changed(self, idx, page):
-        self.image = page
+        if idx >= 0:
+            self.image = page
 
     def _main_view_zoom_changed(self, zoom_preset_idx, custom_zoom):
         assert zoom_preset_idx == -1 and custom_zoom != 0 or zoom_preset_idx != -1 and custom_zoom == 0, \

@@ -129,7 +129,7 @@ class SignalingList(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
                 self._list[idx_or_slice] = srcs
                 self.replaced.emit(dest_idxs, replaceds, srcs)
         else:
-            idx = idx_or_slice if idx_or_slice > 0 else len(self._list) + idx_or_slice
+            idx = idx_or_slice if idx_or_slice >= 0 else len(self._list) + idx_or_slice
             replaceds = [self._list[idx]]
             self._list[idx] = srcs
             self.replaced.emit([idx], replaceds, [srcs])

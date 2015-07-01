@@ -106,19 +106,14 @@ class ImageStackItem(ShaderItem):
         super().__init__(parent_item)
         self._bounding_rect = Qt.QRectF(self.DEFAULT_BOUNDING_RECT)
         self.image_stack = SignalingList(parent=self) # In ascending order, with bottom image (backmost) as element 0
-        self.image_stack.inserted.connect(self._on_image_inserted)
-        self.image_stack.removed.connect(self._on_image_removed)
-        self.image_stack.replaced.connect(self._on_image_replaced)
+        self.image_stack.inserted.connect(self._on_images_inserted)
+        self.image_stack.removed.connect(self._on_images_removed)
+        self.image_stack.replaced.connect(self._on_images_replaced)
         self._texs = {}
         self._dead_texs = [] # Textures queued for deletion when an OpenGL context is available
         self._image_data_serials = {}
         self._next_data_serial = 0
-        self._image_data_changed_signal_mapper = Qt.QSignalMapper(self)
-        # NB: mapped[Qt.QObject] selects the overload of the mapped signal having a parameter of type QObject.
-        # There is also an overload for int, but using that overload would require maintaining an int -> image
-        # dict or remaking all affected mappings when the image stack is modified.
-        # For details regarding signal overloading, see http://pyqt.sourceforge.net/Docs/PyQt5/signals_slots.html
-        self._image_data_changed_signal_mapper.mapped[Qt.QObject].connect(self._on_image_data_changed)
+        self._image_instance_counts = {}
 
     def type(self):
         return ImageStackItem.QGRAPHICSITEM_TYPE
@@ -126,70 +121,74 @@ class ImageStackItem(ShaderItem):
     def boundingRect(self):
         return self._bounding_rect
 
-    def _do_update(self):
-        self.update()
+    def _attach_images(self, images):
+        for image in images:
+            instance_count = self._image_instance_counts.get(image, 0) + 1
+            assert instance_count > 0
+            self._image_instance_counts[image] = instance_count
+            if instance_count == 1:
+                # Any change, including image data change, may change result of rendering image and therefore requires refresh
+                image.changed.connect(self._on_image_changed)
+                # Only change to image data invalidates a texture.  Texture uploading is deferred until rendering, and rendering is
+                # deferred until the next iteration of the event loop.  When image emits image_changed, it will also emit
+                # changed.  In effect, self.update marks the scene as requiring refresh while self._on_image_changed marks the
+                # associated texture as requiring refresh.  Both marking operations are fast and may be called redundantly multiple
+                # times per frame without significantly impacting performace.
+                image.data_changed.connect(self._on_image_data_changed)
+                self._image_data_serials[image] = self._generate_data_serial()
+                self._texs[image] = None
 
-    # TODO: remove signal mapper junk, handle image being a list of images
-    def _on_image_inserted(self, idx, image):
-        br_change = idx == 0 and (len(self.image_stack) == 1 or self.image_stack[1].size != image.size)
+    def _detach_images(self, images):
+        for image in images:
+            instance_count = self._image_instance_counts[image] - 1
+            assert instance_count >= 0
+            if instance_count == 0:
+                image.changed.disconnect(self._on_image_changed)
+                image.data_changed.disconnect(self._on_image_data_changed)
+                del self._image_instance_counts[image]
+                del self._image_data_serials[image]
+                dead_tex = self._texs[image]
+                if dead_tex is not None:
+                    self._dead_texs.append(dead_tex)
+                del self._texs[image]
+            else:
+                self._image_instance_counts[image] = instance_count
+
+    def _on_images_inserted(self, idx, images):
+        br_change = idx == 0 and (len(self.image_stack) == 1 or self.image_stack[1].size != images[0].size)
         if br_change:
             self.prepareGeometryChange()
-            self._bounding_rect = Qt.QRectF(Qt.QPointF(), Qt.QSizeF(image.size))
-        # Any change, including image data change, may change result of rendering image and therefore requires refresh
-        image.changed.connect(self._do_update)
-        # Only change to image data invalidates a texture.  Texture uploading is deferred until rendering, and rendering is
-        # deferred until the next iteration of the event loop.  When image emits image_changed, it will also emit
-        # changed.  In effect, self.update marks the scene as requiring refresh while self._on_image_changed marks the
-        # associated texture as requiring refresh.  Both marking operations are fast and may be called redundantly multiple
-        # times per frame without significantly impacting performace.
-        self._image_data_changed_signal_mapper.setMapping(image, image)
-        image.data_changed.connect(self._image_data_changed_signal_mapper.map)
-        self._image_data_serials[image] = self._generate_data_serial()
-        self._texs[image] = None
+            self._bounding_rect = Qt.QRectF(Qt.QPointF(), Qt.QSizeF(images[0].size))
+        self._attach_images(images)
         if br_change:
             self.bounding_rect_changed.emit()
         self.update()
 
-    def _on_image_removed(self, idx, image):
-        br_change = idx == 0 and (not self.image_stack or self.image_stack[0].size != image.size)
+    def _on_images_removed(self, idxs, images):
+        br_change = idxs[0] == 0 and (not self.image_stack or self.image_stack[0].size != images[0].size)
         if br_change:
             self.prepareGeometryChange()
             if self.image_stack:
                 self._bounding_rect = Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self.image_stack[0].size))
             else:
                 self._bounding_rect = self.DEFAULT_BOUNDING_RECT
-        image.changed.disconnect(self._do_update)
-        image.data_changed.disconnect(self._image_data_changed_signal_mapper.map)
-        self._image_data_changed_signal_mapper.removeMappings(image)
-        del self._image_data_serials[image]
-        dead_tex = self._texs[image]
-        if dead_tex is not None:
-            self._dead_texs.append(dead_tex)
-        del self._texs[image]
+        self._detach_images(images)
         if br_change:
             self.bounding_rect_changed.emit()
         self.update()
 
-    def _on_image_replaced(self, idx, replaced_image, image):
-        br_change = replaced_image.size != image.size
+    def _on_images_replaced(self, idxs, replaced_images, images):
+        br_change = idxs[0] == 0 and replaced_images[0].size != images[0].size
         if br_change:
             self.prepareGeometryChange()
-            self._bounding_rect = Qt.QRectF(Qt.QPointF(), Qt.QSizeF(image.size))
-        replaced_image.changed.disconnect(self._do_update)
-        replaced_image.data_changed.disconnect(self._image_data_changed_signal_mapper.map)
-        self._image_data_changed_signal_mapper.removeMappings(replaced_image)
-        del self._image_data_serials[replaced_image]
-        dead_tex = self._texs[replaced_image]
-        if dead_tex is not None:
-            self._dead_texs.append(dead_tex)
-        del self._texs[replaced_image]
-        image.changed.connect(self._do_update)
-        self._image_data_changed_signal_mapper.setMapping(image, image)
-        image.data_changed.connect(self._image_data_changed_signal_mapper.map)
-        self._image_data_serials[image] = self._generate_data_serial()
-        self._texs[image] = None
+            self._bounding_rect = Qt.QRectF(Qt.QPointF(), Qt.QSizeF(images[0].size))
+        self._detach_images(replaced_images)
+        self._attach_images(images)
         if br_change:
             self.bounding_rect_changed.emit()
+        self.update()
+
+    def _on_image_changed(self, image):
         self.update()
 
     def _on_image_data_changed(self, image):
