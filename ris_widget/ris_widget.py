@@ -29,7 +29,7 @@ import sys
 import weakref
 from .qwidgets.flipbook import Flipbook
 from .image.image import Image
-from .qwidgets.image_stack_widget import _TableModel as ImageStackTableModel
+from .qwidgets.image_stack_table import ImageStackTableModel, ImageStackTableView
 from .qgraphicsitems.contextual_info_item import ContextualInfoItem
 from .qgraphicsitems.histogram_items import HistogramItem
 from .qgraphicsitems.image_stack_item import ImageStackItem
@@ -138,10 +138,10 @@ class RisWidget(Qt.QMainWindow):
             Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
         self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self._histogram_dock_widget)
         self._image_stack_table_dock_widget = Qt.QDockWidget('Image Stack', self)
-        self.image_stack_table_widget = Qt.QTableView()
-        self._image_stack_table_model = ImageStackTableModel(self.image_stack, self.image_stack_table_widget)
-        self.image_stack_table_widget.setModel(self._image_stack_table_model)
-        self._image_stack_table_dock_widget.setWidget(self.image_stack_table_widget)
+        self.image_stack_table_view = ImageStackTableView() 
+        self.image_stack_table_model = ImageStackTableModel(self.image_stack, self.image_stack_table_view)
+        self.image_stack_table_view.setModel(self.image_stack_table_model)
+        self._image_stack_table_dock_widget.setWidget(self.image_stack_table_view)
         self._image_stack_table_dock_widget.setAllowedAreas(Qt.Qt.AllDockWidgetAreas)
         self._image_stack_table_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
         # TODO: make image stack table widget default location be at window bottom, adjacent to histogram

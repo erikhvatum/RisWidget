@@ -217,6 +217,9 @@
 				<F N="ris_widget/image/basic_image.py"/>
 				<F N="ris_widget/image/image.py"/>
 			</Folder>
+			<Folder Name="qdelegates">
+				<F N="ris_widget/qdelegates/property_checkbox_delegate.py"/>
+			</Folder>
 			<Folder Name="qgraphicsitems">
 				<F N="ris_widget/qgraphicsitems/__init__.py"/>
 				<F N="ris_widget/qgraphicsitems/contextual_info_item.py"/>
@@ -239,7 +242,7 @@
 			<Folder Name="qwidgets">
 				<F N="ris_widget/qwidgets/__init__.py"/>
 				<F N="ris_widget/qwidgets/flipbook.py"/>
-				<F N="ris_widget/qwidgets/image_stack_widget.py"/>
+				<F N="ris_widget/qwidgets/image_stack_table.py"/>
 			</Folder>
 			<Folder Name="shaders">
 				<F N="ris_widget/shaders/histogram_item_fragment_shader.glsl"/>

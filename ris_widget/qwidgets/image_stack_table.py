@@ -23,49 +23,43 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from PyQt5 import Qt
+from ..qdelegates.property_checkbox_delegate import PropertyCheckboxDelegate
 from ..signaling_list.signaling_list import SignalingList
 from ..signaling_list.signaling_list_property_table_model import SignalingListPropertyTableModel
 
 #TODO: make list items drop targets so that layer contents can be replaced by dropping file on associated item
-#class ImageStackTableWidget(Qt.QTableView):
-#    def __init__(self, parent=None, image_stack=None):
-#        super().__init__(parent)
-#        self._image_stack = None
-#        self.image_stack = image_stack
-#        self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
-#        self.horizontalHeader().setStretchLastSection(True)
-#
-#    @property
-#    def image_stack(self):
-#        return self._image_stack
-#
-#    @image_stack.setter
-#    def image_stack(self, i_s):
-#        if i_s is not self._image_stack:
-#            old_models = self.model(), self.selectionModel()
-#            self.setModel(None if i_s is None else _ImageStackTableModel(self, i_s))
-#            self._image_stack = i_s
-#            for old_model in old_models:
-#                if old_model is not None:
-#                    old_model.deleteLater()
+class ImageStackTableView(Qt.QTableView):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
+        self.horizontalHeader().setStretchLastSection(True)
+        self.property_checkbox_delegate = PropertyCheckboxDelegate(self)
+        self.setItemDelegateForColumn(0, self.property_checkbox_delegate)
+        self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
+        self.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
 
-class _TableModel(SignalingListPropertyTableModel):
+class ImageStackTableModel(SignalingListPropertyTableModel):
     def __init__(self, signaling_list, parent):
         super().__init__(('mute_enabled', 'name', 'size', 'type', 'dtype'), signaling_list, parent)
 
+    def flags(self, midx):
+        if midx.column() == 0:
+            return Qt.Qt.ItemIsUserCheckable
+        return Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren | Qt.Qt.ItemIsEditable
+
     def data(self, midx, role=Qt.Qt.DisplayRole):
-        if midx.column() == 1:
+        if midx.column() == 0:
             if role == Qt.Qt.CheckStateRole and midx.isValid():
                 return Qt.QVariant(self.signaling_list[midx.row()].mute_enabled)
             return Qt.QVariant()
         return super().data(midx, role)
 
-    def setData(self, midx, value, role=Qt.Qt.EditRole):
-        if midx.column() == 1 and role == Qt.Qt.CheckStateRole and midx.isValid():
-            image = self.signaling_list[midx.row()]
-            image.mute_enabled = not image.mute_enabled
-            return True
-        return False
+#   def setData(self, midx, value, role=Qt.Qt.EditRole):
+#       if midx.column() == 0 and role == Qt.Qt.CheckStateRole and midx.isValid():
+#           image = self.signaling_list[midx.row()]
+#           image.mute_enabled = not image.mute_enabled
+#           return True
+#       return False
 
 #class _ImageStackTableModel(Qt.QAbstractTableModel):
 #    COLUMNS = 'idx', 'muted', 'name', 'size', 'type', 'dtype'
