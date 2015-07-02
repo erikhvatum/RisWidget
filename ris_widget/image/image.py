@@ -48,7 +48,7 @@ class _Property(property):
 
     def instantiate(self, image):
         setattr(image, self.default_val_var_name, self.default_value_callback(image))
-        image.changed.connect(getattr(image, self.changed_signal_name))
+        getattr(image, self.changed_signal_name).connect(image.changed)
 
     def update_default(self, image):
         if hasattr(image, self.var_name):

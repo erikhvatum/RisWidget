@@ -43,98 +43,28 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
         super().__init__(('mute_enabled', 'name', 'size', 'type', 'dtype'), signaling_list, parent)
 
     def flags(self, midx):
-        if midx.column() == 0:
-            return Qt.Qt.ItemIsUserCheckable
-        return Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren | Qt.Qt.ItemIsEditable
+        flags = Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
+        column = midx.column()
+        if column == 0:
+            flags |= Qt.Qt.ItemIsUserCheckable
+        elif column == 1:
+            flags |= Qt.Qt.ItemIsEditable
+        return flags
 
     def data(self, midx, role=Qt.Qt.DisplayRole):
         if midx.column() == 0:
             if role == Qt.Qt.CheckStateRole and midx.isValid():
-                return Qt.QVariant(self.signaling_list[midx.row()].mute_enabled)
+                return Qt.QVariant(Qt.Qt.Checked if self.signaling_list[midx.row()].mute_enabled else Qt.Qt.Unchecked)
             return Qt.QVariant()
         return super().data(midx, role)
 
-#   def setData(self, midx, value, role=Qt.Qt.EditRole):
-#       if midx.column() == 0 and role == Qt.Qt.CheckStateRole and midx.isValid():
-#           image = self.signaling_list[midx.row()]
-#           image.mute_enabled = not image.mute_enabled
-#           return True
-#       return False
-
-#class _ImageStackTableModel(Qt.QAbstractTableModel):
-#    COLUMNS = 'idx', 'muted', 'name', 'size', 'type', 'dtype'
-#
-#    def __init__(self, parent, image_stack):
-#        super().__init__(parent)
-#        image_stack.inserting.connect(self._on_inserting)
-#        image_stack.inserted.connect(self._on_inserted)
-#        image_stack.removing.connect(self._on_removing)
-#        image_stack.removed.connect(self._on_removed)
-#        self._image_changed_signal_mapper = Qt.QSignalMapper(self)
-#        self._image_changed_signal_mapper.mapped[Qt.QObject].connect(self._on_image_changed)
-#        for image in image_stack:
-#            self._image_changed_signal_mapper.setMapping(image, image)
-#            image.changed.connect(self._image_changed_signal_mapper.map)
-#        self.image_stack = image_stack
-#
-#    def rowCount(self, _=None):
-#        return len(self.image_stack)
-#
-#    def columnCount(self, _=None):
-#        return 6
-#
-#    def data(self, midx, role=Qt.Qt.DisplayRole):
-#        if role == Qt.Qt.DisplayRole:
-#            if midx.column() == 0:
-#                return Qt.QVariant(midx.row())
-#            if midx.column() == 2:
-#                return Qt.QVariant(self.image_stack[midx.row()].name)
-#            if midx.column() == 3:
-#                return Qt.QVariant(self.image_stack[midx.row()].size)
-#            if midx.column() == 4:
-#                return Qt.QVariant(self.image_stack[midx.row()].type)
-#            if midx.column() == 5:
-#                return Qt.QVariant(str(self.image_stack[midx.row()].dtype))
-#        if role == Qt.Qt.CheckStateRole:
-#            if midx.column() == 1:
-#                return Qt.QVariant(self.image_stack[midx.row()].mute_enabled)
-#        return Qt.QVariant()
-#
-#    def setData(self, midx, value, role=Qt.Qt.EditRole):
-#        if midx.column() == 1 and role == Qt.Qt.CheckStateRole:
-#            image = self.image_stack[midx.row()]
-#            image.mute_enabled = not image.mute_enabled
-#            return True
-#        return False
-#
-#    def flags(self, midx):
-#        if midx.column() == 1:
-#            return Qt.Qt.ItemIsUserCheckable | Qt.Qt.ItemIsEnabled
-#        return Qt.Qt.ItemIsEnabled
-#
-#    def headerData(self, section, orientation, role=Qt.Qt.DisplayRole):
-#        if role != Qt.Qt.DisplayRole\
-#          or orientation != Qt.Qt.Horizontal\
-#          or not 0 <= section < len(self.COLUMNS):
-#            return Qt.QVariant()
-#        return Qt.QVariant(self.COLUMNS[section])
-#
-#    def _on_inserting(self, idx, image):
-#        self.beginInsertRows(Qt.QModelIndex(), idx, idx)
-#
-#    def _on_inserted(self, idx, image):
-#        self.endInsertRows()
-#        self._image_changed_signal_mapper.setMapping(image, image)
-#        image.changed.connect(self._image_changed_signal_mapper.map)
-#
-#    def _on_removing(self, idx, image):
-#        self.beginRemoveRows(Qt.QModelIndex(), idx, idx)
-#
-#    def _on_removed(self, idx, image):
-#        self.endRemoveRows()
-#        image.changed.disconnect(self._image_changed_signal_mapper.map)
-#        self._image_changed_signal_mapper.removeMappings(image)
-#
-#    def _on_image_changed(self, image):
-#        idx = self.image_stack.index(image)
-#        self.dataChanged.emit(self.createIndex(idx, 0), self.createIndex(idx, self.columnCount()), (Qt.Qt.DisplayRole, Qt.Qt.CheckStateRole))
+    def setData(self, midx, value, role=Qt.Qt.EditRole):
+        if midx.isValid():
+            column = midx.column()
+            if column == 0:
+                if role == Qt.Qt.CheckStateRole:
+                    setattr(self.signaling_list[midx.row()], self._property_names[midx.column()], value.value())
+                    return True
+            elif column == 1:
+                super().setData(midx, value, role)
+        return False

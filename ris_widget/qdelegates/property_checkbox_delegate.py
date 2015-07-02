@@ -29,44 +29,40 @@ class PropertyCheckboxDelegate(Qt.QStyledItemDelegate):
         super().__init__(parent)
 
     def paint(self, painter, option, midx):
-        data = midx.model().data(midx, Qt.Qt.CheckStateRole).value()
-        print('paint', data)
+        vi_option = Qt.QStyleOptionViewItem(option)
+        vi_option.rect = self._compute_checkbox_rect(option)
+        super().paint(painter, vi_option, midx)
 
-        s = Qt.QApplication.style()
-        cbs = Qt.QStyleOptionButton()
-        cbr = Qt.QRect(s.subElementRect(Qt.QStyle.SE_CheckBoxIndicator, cbs))
-
-        cbs.rect = Qt.QRect(option.rect)
-        cbs.rect.setLeft(option.rect.x() + (option.rect.width() - cbr.width()) / 2)
-
-        if data:
-            cbs.state = Qt.QStyle.State_On | Qt.QStyle.State_Enabled
+    def editorEvent(self, event, model, option, midx):
+        flags = model.flags(midx)
+        if not flags & Qt.Qt.ItemIsUserCheckable or not flags & Qt.Qt.ItemIsEnabled:
+            return False
+        value = midx.data(Qt.Qt.CheckStateRole)
+        if isinstance(value, Qt.QVariant):
+            if value.isValid():
+                value = value.value()
+            else:
+                return False
+        if event.type() == Qt.QEvent.MouseButtonRelease:
+            if not self._compute_checkbox_rect(option).contains(event.pos()):
+                return False
+        elif event.type() == Qt.QEvent.KeyPress:
+            if event.key() not in (Qt.Qt.Key_Space, Qt.Qt.Key_Select):
+                return False
         else:
-            cbs.state = Qt.QStyle.State_Off | Qt.QStyle.State_Enabled
+            return False
+        return model.setData(midx, Qt.QVariant(Qt.Qt.Unchecked if value else Qt.Qt.Checked), Qt.Qt.CheckStateRole);
 
-        s.drawControl(Qt.QStyle.CE_CheckBox, cbs, painter)
-
-    def sizeHint(self, option, midx):
-        return Qt.QApplication.style().subElementRect(Qt.QStyle.SE_CheckBoxIndicator, Qt.QStyleOptionButton()).size()
-
-    def createEditor(self, parent, option, midx):
-        return Qt.QCheckBox(parent)
-
-    def setEditorData(self, editor, midx):
-        # Load data from model into editor widget
-        print(type(midx.data(Qt.Qt.CheckStateRole)))
-#       editor.setChecked(midx.data(Qt.Qt.CheckStateRole))
-        editor.setChecked(False)
-
-    def setModelData(self, editor, model, midx):
-        # Store data from editor widget in model
-        print('setModelData', editor.isChecked(), model)
-        model.setData(midx, editor.isChecked(), Qt.Qt.EditRole)
-
-    def updateEditorGeometry(self, editor, option, midx):
-        cbs = Qt.QStyleOptionButton()
-        cbr = Qt.QRect(Qt.QApplication.style().subElementRect(Qt.QStyle.SE_CheckBoxIndicator, cbs))
-        w, h = cbr.width(), cbr.height()
-        l = option.rect.x() + (option.rect.width() - w) / 2
-        t = option.rect.y() + (option.rect.height() - h) / 2
-        editor.setGeometry(l, t, w, h)
+    def _compute_checkbox_rect(self, option):
+        text_margin = Qt.QApplication.style().pixelMetric(Qt.QStyle.PM_FocusFrameHMargin) + 1
+        return Qt.QStyle.alignedRect(
+            option.direction,
+            Qt.Qt.AlignCenter,
+            Qt.QSize(
+                option.decorationSize.width() + 5,
+                option.decorationSize.height()),
+            Qt.QRect(
+                option.rect.x() + text_margin,
+                option.rect.y(),
+                option.rect.width() - text_margin - text_margin,
+                option.rect.height()))

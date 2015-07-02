@@ -50,9 +50,7 @@ class SignalingListPropertyTableModel(Qt.QAbstractTableModel):
         return Qt.QVariant()
 
     def setData(self, midx, value, role=Qt.Qt.EditRole):
-        print('setData')
         if midx.isValid() and role == Qt.Qt.EditRole:
-            print('setData...', value)
             setattr(self.signaling_list[midx.row()], self._property_names[midx.column()], value)
             return True
         return False
