@@ -74,11 +74,11 @@ class ShaderTexture:
         self.target = target
 
     def bind(self):
-        self.GL.glBindTexture(self.target, self.texture_id)
+        self._GL.glBindTexture(self.target, self.texture_id)
 
     def release(self):
-        self.GL.glBindTexture(self.target, 0)
+        self._GL.glBindTexture(self.target, 0)
 
     def destroy(self):
-        self.GL.glDeleteTextures(1, (self.texture_id,))
+        self._GL.glDeleteTextures(1, (self.texture_id,))
         del self.texture_id

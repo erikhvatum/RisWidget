@@ -185,7 +185,8 @@ class _ShaderViewGLViewport(Qt.QOpenGLWidget):
                     raise RuntimeError('Failed to initialize OpenGL wrapper namespace.')
         return self._GL
 
-    _DONT_CALL_ME_ERROR = 'This method should not be called; any event or signal that '
-    _DONT_CALL_ME_ERROR+= 'could potentially result in this method executing should have '
-    _DONT_CALL_ME_ERROR+= 'been intercepted by the Viewport owning this _ShaderViewGLViewport '
-    _DONT_CALL_ME_ERROR+= 'instance.'
+    _DONT_CALL_ME_ERROR =\
+        'This method should not be called; any event or signal that ' \
+        'could potentially result in this method executing should have ' \
+        'been intercepted by the Viewport owning this _ShaderViewGLViewport ' \
+        'instance.'

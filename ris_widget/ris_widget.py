@@ -141,6 +141,8 @@ class RisWidget(Qt.QMainWindow):
         self.image_stack_table_view = ImageStackTableView() 
         self.image_stack_table_model = ImageStackTableModel(self.image_stack, self.image_stack_table_view)
         self.image_stack_table_view.setModel(self.image_stack_table_model)
+        self.image_stack_table_selection_model = self.image_stack_table_view.selectionModel()
+        self.image_stack_table_selection_model.currentRowChanged.connect(self._on_image_stack_table_current_row_changed)
         self._image_stack_table_dock_widget.setWidget(self.image_stack_table_view)
         self._image_stack_table_dock_widget.setAllowedAreas(Qt.Qt.AllDockWidgetAreas)
         self._image_stack_table_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
@@ -300,6 +302,9 @@ class RisWidget(Qt.QMainWindow):
     def _on_flipbook_current_page_changed(self, idx, page):
         if idx >= 0:
             self.image = page
+
+    def _on_image_stack_table_current_row_changed(self, midx, prev_midx):
+        self.histogram_scene.histogram_item.image = self.image_stack[midx.row()] if midx.isValid() else None
 
     def _main_view_zoom_changed(self, zoom_preset_idx, custom_zoom):
         assert zoom_preset_idx == -1 and custom_zoom != 0 or zoom_preset_idx != -1 and custom_zoom == 0, \
