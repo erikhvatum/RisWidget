@@ -223,6 +223,7 @@
 			<Folder Name="qgraphicsitems">
 				<F N="ris_widget/qgraphicsitems/__init__.py"/>
 				<F N="ris_widget/qgraphicsitems/contextual_info_item.py"/>
+				<F N="ris_widget/qgraphicsitems/contextual_info_item_nv.py"/>
 				<F N="ris_widget/qgraphicsitems/histogram_items.py"/>
 				<F N="ris_widget/qgraphicsitems/image_stack_item.py"/>
 				<F N="ris_widget/qgraphicsitems/shader_item.py"/>

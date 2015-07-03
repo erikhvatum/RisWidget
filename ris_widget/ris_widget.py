@@ -51,6 +51,19 @@ class RisWidget(Qt.QMainWindow):
         if window_title is not None:
             self.setWindowTitle(window_title)
         self.setAcceptDrops(True)
+        try:
+            glw = Qt.QOpenGLWidget()
+            glw.show()
+            if glw.context().hasExtension('GL_NV_path_rendering'):
+                print('Detected GL_NV_path_rendering support...')
+                from .qgraphicsitems.contextual_info_item_nv import ContextualInfoItemNV
+                HistgramViewContextualInfoItemClass = GeneralViewContextualInfoItemClass = ContextualInfoItemNV
+            else:
+                print('No GL_NV_path_rendering support...')
+            glw.hide()
+            glw.deleteLater()
+        except:
+            pass
         self._init_scenes_and_views(
             ImageClass, ImageStackItemClass, GeneralSceneClass, GeneralViewClass,
             GeneralViewContextualInfoItemClass,
