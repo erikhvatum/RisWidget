@@ -109,7 +109,6 @@ class Flipbook(Qt.QWidget):
         else:
             self.current_page_changed.emit(-1, None)
 
-# TODO: connect to Image.image_changed; emit changes across row as in commented _on_image_changed in image_stack_widget.py
 class _TableModel(SignalingListPropertyTableModel):
     def __init__(self, property_names, signaling_list, flipbook, parent):
         super().__init__(property_names, signaling_list, parent)
