@@ -115,8 +115,24 @@ class ImageStackItem(ShaderItem):
         self._next_data_serial = 0
         self._image_instance_counts = {}
 
-    #def __del__(self):
-    # TODO: del method that deletes this item's textures if gl context can be made current
+    def __del__(self):
+        scene = self.scene()
+        if scene is None:
+            return
+        views = scene.views()
+        if not views:
+            return
+        view = views[0]
+        gl_widget = view.gl_widget
+        context = gl_widget.context()
+        if not context:
+            return
+        gl_widget.makeCurrent()
+        try:
+            self._dead_texs.extend(self._texs.values())
+            self._destroy_dead_texs()
+        finally:
+            gl_widget.doneCurrent()
 
     def type(self):
         return ImageStackItem.QGRAPHICSITEM_TYPE
