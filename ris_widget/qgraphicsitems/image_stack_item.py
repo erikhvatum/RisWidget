@@ -115,6 +115,9 @@ class ImageStackItem(ShaderItem):
         self._next_data_serial = 0
         self._image_instance_counts = {}
 
+    #def __del__(self):
+    # TODO: del method that deletes this item's textures if gl context can be made current
+
     def type(self):
         return ImageStackItem.QGRAPHICSITEM_TYPE
 
@@ -195,8 +198,8 @@ class ImageStackItem(ShaderItem):
         self._image_data_serials[image] = self._generate_data_serial()
 
     def hoverMoveEvent(self, event):
-        non_muted_idxs = [idx for idx, image in enumerate(self.image_stack) if not image.mute_enabled]
-        if len(non_muted_idxs) == 0:
+        visible_idxs = [idx for idx, image in enumerate(self.image_stack) if image.visible]
+        if len(visible_idxs) == 0:
             self.scene().clear_contextual_info(self)
             return
         # NB: event.pos() is a QPointF, and one may call QPointF.toPoint(), as in the following line,
@@ -209,7 +212,7 @@ class ImageStackItem(ShaderItem):
         fpos = event.pos()
         ipos = Qt.QPoint(event.pos().x(), event.pos().y())
         cis = []
-        it = iter((idx, self.image_stack[idx]) for idx in non_muted_idxs)
+        it = iter((idx, self.image_stack[idx]) for idx in visible_idxs)
         idx, image = next(it)
         ci = image.generate_contextual_info_for_pos(ipos.x(), ipos.y(), idx if len(self.image_stack) > 1 else None)
         if ci is not None:
@@ -239,13 +242,13 @@ class ImageStackItem(ShaderItem):
             estack.callback(qpainter.endNativePainting)
             self._destroy_dead_texs()
             GL = widget.GL
-            non_muted_idxs = self._get_nonmuted_idxs_and_update_texs(GL, estack)
-            if not non_muted_idxs:
+            visible_idxs = self._get_visible_idxs_and_update_texs(GL, estack)
+            if not visible_idxs:
                 return
             prog_desc = tuple((image.getcolor_expression,
                                'src' if tex_unit==0 else image.blend_function,
                                image.extra_transformation_expression)
-                              for tex_unit, image in ((tex_unit, self.image_stack[idx]) for tex_unit, idx in enumerate(non_muted_idxs)))
+                              for tex_unit, image in ((tex_unit, self.image_stack[idx]) for tex_unit, idx in enumerate(visible_idxs)))
             if prog_desc in self.progs:
                 prog = self.progs[prog_desc]
             else:
@@ -255,7 +258,7 @@ class ImageStackItem(ShaderItem):
                                                                               blend_function=type(image).BLEND_FUNCTIONS['src'] if tex_unit==0 else image.blend_function_impl,
                                                                               extra_transformation_expression='' if image.extra_transformation_expression is None
                                                                                                                  else image.extra_transformation_expression))
-                                       for idx, tex_unit, image in ((idx, tex_unit, self.image_stack[idx]) for tex_unit, idx in enumerate(non_muted_idxs))))
+                                       for idx, tex_unit, image in ((idx, tex_unit, self.image_stack[idx]) for tex_unit, idx in enumerate(visible_idxs))))
                 prog = self.build_shader_prog(
                     prog_desc,
                     'planar_quad_vertex_shader.glsl',
@@ -298,7 +301,7 @@ class ImageStackItem(ShaderItem):
                 raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix.')
             prog.setUniformValue('frag_to_tex', frag_to_tex)
             min_max = numpy.empty((2,), dtype=float)
-            for idx, tex_unit, image in ((idx, tex_unit, self.image_stack[idx]) for tex_unit, idx in enumerate(non_muted_idxs)):
+            for idx, tex_unit, image in ((idx, tex_unit, self.image_stack[idx]) for tex_unit, idx in enumerate(visible_idxs)):
                 min_max[0], min_max[1] = image.min, image.max
                 min_max = self._normalize_for_gl(min_max, image)
                 idxstr = str(idx)
@@ -332,14 +335,14 @@ class ImageStackItem(ShaderItem):
         self._next_data_serial += 1
         return r
 
-    def _get_nonmuted_idxs_and_update_texs(self, GL, estack):
+    def _get_visible_idxs_and_update_texs(self, GL, estack):
         """Meant to be executed between a pair of QPainter.beginNativePainting() QPainter.endNativePainting() calls or,
         at the very least, when an OpenGL context is current, _get_nonmuted_idxs_and_update_texs does whatever is required,
         for every non-muted image in self.image_stack, in order that self._texs[image] represents image, including texture
         object creation and texture data uploading, and it leaves self._texs[image] bound to texture unit n, where n is
         the associated non_muted_idx."""
-        non_muted_idxs = [idx for idx, image in enumerate(self.image_stack) if not image.mute_enabled]
-        for tex_unit, idx in enumerate(non_muted_idxs):
+        visible_idxs = [idx for idx, image in enumerate(self.image_stack) if image.visible]
+        for tex_unit, idx in enumerate(visible_idxs):
             image = self.image_stack[idx]
             tex = self._texs[image]
             serial = self._image_data_serials[image]
@@ -412,7 +415,7 @@ class ImageStackItem(ShaderItem):
                 # self._texs[image] is updated here and not before so that any failure preparing tex results in a retry the next time self._texs[image]
                 # is needed
                 self._texs[image] = tex
-        return non_muted_idxs
+        return visible_idxs
 
     def _destroy_dead_texs(self):
         """Meant to be executed between a pair of QPainter.beginNativePainting() QPainter.endNativePainting() calls or,

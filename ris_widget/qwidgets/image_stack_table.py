@@ -40,7 +40,7 @@ class ImageStackTableView(Qt.QTableView):
 
 class ImageStackTableModel(SignalingListPropertyTableModel):
     def __init__(self, signaling_list, parent):
-        super().__init__(('mute_enabled', 'name', 'size', 'type', 'dtype'), signaling_list, parent)
+        super().__init__(('visible', 'name', 'size', 'type', 'dtype'), signaling_list, parent)
 
     def flags(self, midx):
         flags = Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
@@ -54,7 +54,7 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
     def data(self, midx, role=Qt.Qt.DisplayRole):
         if midx.column() == 0:
             if role == Qt.Qt.CheckStateRole and midx.isValid():
-                return Qt.QVariant(Qt.Qt.Checked if self.signaling_list[midx.row()].mute_enabled else Qt.Qt.Unchecked)
+                return Qt.QVariant(Qt.Qt.Checked if self.signaling_list[midx.row()].visible else Qt.Qt.Unchecked)
             return Qt.QVariant()
         return super().data(midx, role)
 

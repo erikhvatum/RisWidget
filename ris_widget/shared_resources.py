@@ -66,7 +66,7 @@ def NV_PATH_RENDERING_AVAILABLE():
                 glf.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
                 glf.setSwapBehavior(Qt.QSurfaceFormat.SingleBuffer)
                 glf.setStereo(False)
-                glf.setSwapInterval(0)
+                glf.setSwapInterval(1)
                 glw.setFormat(glf)
                 glw.show()
                 estack.callback(glw.hide)

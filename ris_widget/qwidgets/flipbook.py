@@ -47,10 +47,10 @@ class Flipbook(Qt.QWidget):
         self.setAttribute(Qt.Qt.WA_DeleteOnClose)
         vlayout = Qt.QVBoxLayout()
         self.setLayout(vlayout)
-        self.drag_and_drop_enabled_checkbox = Qt.QCheckBox('Enable page drag and drop')
-        self.drag_and_drop_enabled_checkbox.setChecked(False)
-        self.drag_and_drop_enabled_checkbox.stateChanged.connect(self._on_drag_and_drop_checkbox_toggled)
-        vlayout.addWidget(self.drag_and_drop_enabled_checkbox)
+#       self.drag_and_drop_enabled_checkbox = Qt.QCheckBox('Enable page drag and drop')
+#       self.drag_and_drop_enabled_checkbox.setChecked(False)
+#       self.drag_and_drop_enabled_checkbox.stateChanged.connect(self._on_drag_and_drop_checkbox_toggled)
+#       vlayout.addWidget(self.drag_and_drop_enabled_checkbox)
         self.pages_view = Qt.QTableView()
         self.pages_model = _TableModel(displayed_page_properties, pages, self, self.pages_view)
         self.pages_view.setModel(self.pages_model)
@@ -78,29 +78,29 @@ class Flipbook(Qt.QWidget):
                 flags |= Qt.Qt.ItemIsDragEnabled
         return flags
 
-    def _on_drag_and_drop_checkbox_toggled(self, state):
-        self._drag_and_drop_enabled = state == Qt.Qt.Checked
-        pv = self.pages_view
-        if self._drag_and_drop_enabled:
-            pv.setDragEnabled(True)
-            pv.setAcceptDrops(True)
-            pv.setDropIndicatorShown(True)
-            pv.setSelectionMode(Qt.QAbstractItemView.ExtendedSelection)
-            pv.supported_drop_actions = Qt.Qt.MoveAction
-        else:
-            pv.setDragEnabled(False)
-            pv.setAcceptDrops(False)
-            pv.setDropIndicatorShown(False)
-            pv.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
-            pv.supported_drop_actions = 0
-
-    @property
-    def drag_and_drop_enabled(self):
-        return self.drag_and_drop_enabled_checkbox.isChecked()
-
-    @drag_and_drop_enabled.setter
-    def drag_and_drop_enabled(self, v):
-        self.drag_and_drop_enabled_checkbox.setChecked(v)
+#   def _on_drag_and_drop_checkbox_toggled(self, state):
+#       self._drag_and_drop_enabled = state == Qt.Qt.Checked
+#       pv = self.pages_view
+#       if self._drag_and_drop_enabled:
+#           pv.setDragEnabled(True)
+#           pv.setAcceptDrops(True)
+#           pv.setDropIndicatorShown(True)
+#           pv.setSelectionMode(Qt.QAbstractItemView.ExtendedSelection)
+#           pv.supported_drop_actions = Qt.Qt.MoveAction
+#       else:
+#           pv.setDragEnabled(False)
+#           pv.setAcceptDrops(False)
+#           pv.setDropIndicatorShown(False)
+#           pv.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
+#           pv.supported_drop_actions = 0
+#
+#   @property
+#   def drag_and_drop_enabled(self):
+#       return self.drag_and_drop_enabled_checkbox.isChecked()
+#
+#   @drag_and_drop_enabled.setter
+#   def drag_and_drop_enabled(self, v):
+#       self.drag_and_drop_enabled_checkbox.setChecked(v)
 
     def _on_pages_model_current_row_changed(self, old_midx, midx):
         if midx.isValid():

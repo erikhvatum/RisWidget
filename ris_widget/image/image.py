@@ -208,7 +208,7 @@ class Image(BasicImage, Qt.QObject):
         self.data_changed.emit(self)
 
     def generate_contextual_info_for_pos(self, x, y, idx=None):
-        if self.mute_enabled:
+        if not self.visible:
             return
         sz = self.size
         if 0 <= x < sz.width() and 0 <= y < sz.height():
@@ -228,21 +228,22 @@ class Image(BasicImage, Qt.QObject):
 
     properties = []
 
-    mute_enabled = _Property(
-        properties, 'mute_enabled',
+    visible = _Property(
+        properties, 'visible',
         doc = textwrap.dedent(
             """\
-            Generally, a muted image is not visible in the "main view" but does remain visible in specialized views,
-            such as the histogram view and image stack list widget.
+            Generally, a non-visible image is not visible in the "main view" but does remain visible in specialized views,
+            such as the histogram view and image stack table widget.
 
-            If an Image's mute_enabled property is False, that Image does not contribute to mixed output.  For example,
+            In more detail:
+            If an Image's visible property is False, that Image does not contribute to mixed output.  For example,
             any single pixel in an ImageStackItem rendering may represent the result of blending a number of Images,
-            whereas only one Image at a time may be associated with a HistogramItem, and no HistogramItem pixel in the
-            rendering of a HistogramItem is a function of more than one Image.  Therefore, a muted Image that is part
-            of an SignalingList that is associated with an ImageStackItem will not be visible in the output of that
+            whereas only one Image at a time may be associated with a HistogramItem; no HistogramItem pixel in the
+            rendering of a HistogramItem is a function of more than one Image.  Therefore, a non-visible Image that is part
+            of a SignalingList that is associated with an ImageStackItem will not be visible in the output of that
             ImageStackItem's render function, although the histogram of the Image will still be visible in the output
             of the render function of a HistogramItem associated with the Image."""),
-        default_value_callback = lambda image: False,
+        default_value_callback = lambda image: True,
         transform_callback = lambda image, v: bool(v))
 
     def _auto_min_max_enabled_post_set(self, v):
@@ -360,7 +361,7 @@ class Image(BasicImage, Qt.QObject):
         return '{}, {}{}>'.format(
             super().__repr__()[:-1],
             'with name "{}"'.format(name) if name else 'unnamed',
-            ', muted' if self.mute_enabled else '')
+            ', visible=False' if not self.visible else '')
 
     def do_auto_min_max(self):
         self._retain_auto_min_max_enabled_on_min_max_change = True
