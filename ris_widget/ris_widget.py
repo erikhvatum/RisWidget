@@ -37,33 +37,29 @@ from .qgraphicsscenes.general_scene import GeneralScene
 from .qgraphicsviews.general_view import GeneralView
 from .qgraphicsscenes.histogram_scene import HistogramScene
 from .qgraphicsviews.histogram_view import HistogramView
-from .shared_resources import FREEIMAGE, GL_QSURFACE_FORMAT
+from .shared_resources import FREEIMAGE, GL_QSURFACE_FORMAT, NV_PATH_RENDERING_AVAILABLE
 from .signaling_list.signaling_list import SignalingList
 
 class RisWidget(Qt.QMainWindow):
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0), msaa_sample_count=2,
                  ImageClass=Image, ImageStackItemClass=ImageStackItem, GeneralSceneClass=GeneralScene, GeneralViewClass=GeneralView,
-                 GeneralViewContextualInfoItemClass=ContextualInfoItem,
+                 GeneralViewContextualInfoItemClass=None,
                  HistogramItemClass=HistogramItem, HistogramSceneClass=HistogramScene, HistogramViewClass=HistogramView,
-                 HistgramViewContextualInfoItemClass=ContextualInfoItem):
+                 HistgramViewContextualInfoItemClass=None):
+        """A None value for GeneralViewContextualInfoItemClass or HistgramViewContextualInfoItemClass represents 
+        ContextualInfoItemNV if the GL_NV_path_rendering extension is available and ContextualInfoItem otherwise."""
         super().__init__(parent, window_flags)
         GL_QSURFACE_FORMAT(msaa_sample_count)
         if window_title is not None:
             self.setWindowTitle(window_title)
         self.setAcceptDrops(True)
-        try:
-            glw = Qt.QOpenGLWidget()
-            glw.show()
-            if glw.context().hasExtension('GL_NV_path_rendering'):
-                print('Detected GL_NV_path_rendering support...')
+        if GeneralViewContextualInfoItemClass is None or HistgramViewContextualInfoItemClass is None:
+            if NV_PATH_RENDERING_AVAILABLE():
                 from .qgraphicsitems.contextual_info_item_nv import ContextualInfoItemNV
-                HistgramViewContextualInfoItemClass = GeneralViewContextualInfoItemClass = ContextualInfoItemNV
-            else:
-                print('No GL_NV_path_rendering support...')
-            glw.hide()
-            glw.deleteLater()
-        except:
-            pass
+            if GeneralViewContextualInfoItemClass is None:
+                GeneralViewContextualInfoItemClass = ContextualInfoItemNV if NV_PATH_RENDERING_AVAILABLE() else ContextualInfoItem
+            if HistgramViewContextualInfoItemClass is None:
+                HistgramViewContextualInfoItemClass = ContextualInfoItemNV if NV_PATH_RENDERING_AVAILABLE() else ContextualInfoItem
         self._init_scenes_and_views(
             ImageClass, ImageStackItemClass, GeneralSceneClass, GeneralViewClass,
             GeneralViewContextualInfoItemClass,

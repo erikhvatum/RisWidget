@@ -22,6 +22,7 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+from contextlib import ExitStack
 import numpy
 from PyQt5 import Qt
 import sys
@@ -50,6 +51,36 @@ def UNIQUE_QLISTWIDGETITEM_TYPE():
     _NEXT_QLISTWIDGETITEM_USERTYPE += 1
     return ret
 
+_NV_PATH_RENDERING_AVAILABLE = None
+
+def NV_PATH_RENDERING_AVAILABLE():
+    global _NV_PATH_RENDERING_AVAILABLE
+    if _NV_PATH_RENDERING_AVAILABLE is None:
+        try:
+            with ExitStack() as estack:
+                glw = Qt.QOpenGLWidget()
+                estack.callback(glw.deleteLater)
+                glf = Qt.QSurfaceFormat()
+                glf.setRenderableType(Qt.QSurfaceFormat.OpenGL)
+                glf.setVersion(2, 1)
+                glf.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
+                glf.setSwapBehavior(Qt.QSurfaceFormat.DoubleBuffer)
+                glf.setStereo(False)
+                glf.setSwapInterval(1)
+                glw.setFormat(glf)
+                glw.show()
+                estack.callback(glw.hide)
+                if glw.context().hasExtension('GL_NV_path_rendering'):
+                    print('Detected GL_NV_path_rendering support...')
+                    _NV_PATH_RENDERING_AVAILABLE = True
+                else:
+                    print('No GL_NV_path_rendering support...')
+                    _NV_PATH_RENDERING_AVAILABLE = False
+        except:
+            print('An error occurred while attempting to determine whether the GL_NV_path_rendering extension is supported.', sys.stderr)
+            _NV_PATH_RENDERING_AVAILABLE = False
+    return _NV_PATH_RENDERING_AVAILABLE
+
 _GL_QSURFACE_FORMAT = None
 
 def GL_QSURFACE_FORMAT(msaa_sample_count=None):
@@ -64,14 +95,12 @@ def GL_QSURFACE_FORMAT(msaa_sample_count=None):
         _GL_QSURFACE_FORMAT.setSwapInterval(1)
         if msaa_sample_count is not None:
             _GL_QSURFACE_FORMAT.setSamples(msaa_sample_count)
-
-        # Specifically enabling alpha channel is not sufficient for enabling QPainter composition modes that
-        # use destination alpha (ie, nothing drawn in CompositionMode_DestinationOver will be visible in
-        # a painGL widget).
-#       _GL_QSURFACE_FORMAT.setRedBufferSize(8)
-#       _GL_QSURFACE_FORMAT.setGreenBufferSize(8)
-#       _GL_QSURFACE_FORMAT.setBlueBufferSize(8)
-#       _GL_QSURFACE_FORMAT.setAlphaBufferSize(8)
+        if NV_PATH_RENDERING_AVAILABLE():
+            _GL_QSURFACE_FORMAT.setStencilBufferSize(4)
+        _GL_QSURFACE_FORMAT.setRedBufferSize(8)
+        _GL_QSURFACE_FORMAT.setGreenBufferSize(8)
+        _GL_QSURFACE_FORMAT.setBlueBufferSize(8)
+        _GL_QSURFACE_FORMAT.setAlphaBufferSize(8)
     return _GL_QSURFACE_FORMAT
 
 _freeimage = None
