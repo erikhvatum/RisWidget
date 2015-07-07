@@ -23,6 +23,8 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from PyQt5 import Qt
+from ..image.image import Image
+from ..qdelegates.dropdown_list_delegate import DropdownListDelegate
 from ..qdelegates.property_checkbox_delegate import PropertyCheckboxDelegate
 from ..signaling_list.signaling_list import SignalingList
 from ..signaling_list.signaling_list_property_table_model import SignalingListPropertyTableModel
@@ -35,19 +37,21 @@ class ImageStackTableView(Qt.QTableView):
         self.horizontalHeader().setStretchLastSection(True)
         self.property_checkbox_delegate = PropertyCheckboxDelegate(self)
         self.setItemDelegateForColumn(0, self.property_checkbox_delegate)
+        self.blend_function_delegate = DropdownListDelegate(Image.BLEND_FUNCTIONS, self)
+        self.setItemDelegateForColumn(2, self.blend_function_delegate)
         self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
         self.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
 
 class ImageStackTableModel(SignalingListPropertyTableModel):
     def __init__(self, signaling_list, parent):
-        super().__init__(('visible', 'name', 'size', 'type', 'dtype'), signaling_list, parent)
+        super().__init__(('visible', 'name', 'blend_function', 'size', 'type', 'dtype'), signaling_list, parent)
 
     def flags(self, midx):
         flags = Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
         column = midx.column()
         if column == 0:
             flags |= Qt.Qt.ItemIsUserCheckable
-        elif column == 1:
+        elif column in (1, 2):
             flags |= Qt.Qt.ItemIsEditable
         return flags
 
@@ -58,12 +62,12 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
                 if role == Qt.Qt.CheckStateRole:
                     return Qt.QVariant(Qt.Qt.Checked if self.signaling_list[midx.row()].visible else Qt.Qt.Unchecked)
                 return Qt.QVariant()
-            if column == 2:
+            if column == 3:
                 if role == Qt.Qt.DisplayRole:
                     qsize = self.signaling_list[midx.row()].size
                     return Qt.QVariant('{}x{}'.format(qsize.width(), qsize.height()))
                 return Qt.QVariant()
-            if column == 4:
+            if column == 5:
                 if role == Qt.Qt.DisplayRole:
                     return Qt.QVariant(str(self.signaling_list[midx.row()].data.dtype))
             return super().data(midx, role)
@@ -76,6 +80,6 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
                 if role == Qt.Qt.CheckStateRole:
                     setattr(self.signaling_list[midx.row()], self._property_names[midx.column()], value.value())
                     return True
-            elif column == 1:
-                super().setData(midx, value, role)
+            elif column in (1, 2):
+                return super().setData(midx, value, role)
         return False
