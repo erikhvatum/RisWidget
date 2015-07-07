@@ -91,7 +91,7 @@ class ImageStackItem(ShaderItem):
             s = ${getcolor_expression};
             sa = clamp(s.a, 0, 1) * global_alpha_${idx};
             sc = min_max_gamma_transform(s.rgb, rescale_min_${idx}, rescale_range_${idx}, gamma_${idx});
-            ${extra_transformation_expression};
+            ${extra_transformation_expression}; // extra_transformation_expression
             sca = sc * sa;
         ${blend_function}
             da = clamp(da, 0, 1);

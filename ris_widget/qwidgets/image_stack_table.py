@@ -41,6 +41,7 @@ class ImageStackTableView(Qt.QTableView):
         self.setItemDelegateForColumn(2, self.blend_function_delegate)
         self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
         self.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
+#       self.setEditTriggers(Qt.QAbstractItemView.EditKeyPressed | Qt.QAbstractItemView.SelectedClicked)
 
 class ImageStackTableModel(SignalingListPropertyTableModel):
     def __init__(self, signaling_list, parent):
