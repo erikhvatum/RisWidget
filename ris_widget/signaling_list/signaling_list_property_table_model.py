@@ -45,7 +45,7 @@ class SignalingListPropertyTableModel(Qt.QAbstractTableModel):
         return len(self._property_names)
 
     def data(self, midx, role=Qt.Qt.DisplayRole):
-        if role == Qt.Qt.DisplayRole:
+        if midx.isValid() and role in (Qt.Qt.DisplayRole, Qt.Qt.EditRole):
             return Qt.QVariant(getattr(self.signaling_list[midx.row()], self._property_names[midx.column()]))
         return Qt.QVariant()
 

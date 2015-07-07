@@ -52,11 +52,22 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
         return flags
 
     def data(self, midx, role=Qt.Qt.DisplayRole):
-        if midx.column() == 0:
-            if role == Qt.Qt.CheckStateRole and midx.isValid():
-                return Qt.QVariant(Qt.Qt.Checked if self.signaling_list[midx.row()].visible else Qt.Qt.Unchecked)
-            return Qt.QVariant()
-        return super().data(midx, role)
+        if midx.isValid():
+            column = midx.column()
+            if column == 0:
+                if role == Qt.Qt.CheckStateRole:
+                    return Qt.QVariant(Qt.Qt.Checked if self.signaling_list[midx.row()].visible else Qt.Qt.Unchecked)
+                return Qt.QVariant()
+            if column == 2:
+                if role == Qt.Qt.DisplayRole:
+                    qsize = self.signaling_list[midx.row()].size
+                    return Qt.QVariant('{}x{}'.format(qsize.width(), qsize.height()))
+                return Qt.QVariant()
+            if column == 4:
+                if role == Qt.Qt.DisplayRole:
+                    return Qt.QVariant(str(self.signaling_list[midx.row()].data.dtype))
+            return super().data(midx, role)
+        return Qt.QVariant()
 
     def setData(self, midx, value, role=Qt.Qt.EditRole):
         if midx.isValid():
