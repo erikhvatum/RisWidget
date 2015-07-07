@@ -319,9 +319,9 @@ class Image(BasicImage, Qt.QObject):
         to that Image's .auto_getcolor_expression_enabled property (likewise, replacing the contents of
         .getcolor_expression causes .auto_getcolor_expression_enabled to assume the value False).
 
-        Unlike .getcolor_expression, .extra_transformation_expression does accept None or an empty string.  Doing so
-        results in a GLSL line consisting of "; // extra_transformation_expression", which compiles to nothing,
-        with the result that None or an empty string result in no extra transformation expression being applied (this
+        Unlike .getcolor_expression, .extra_transformation_expression does accept None or an empty string.  Supplying
+        either results in a GLSL line consisting of "; // extra_transformation_expression", which compiles to nothing,
+        with the effect that None or an empty string result in no extra transformation expression being applied (this
         is the default).""")
 
     def _auto_getcolor_expression_enabled_post_set(self, v):
