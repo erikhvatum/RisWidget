@@ -72,7 +72,7 @@ class BasicImage:
         if self._data.ndim == 2:
             if not shape_is_width_height:
                 self._data = self._data.transpose(1, 0)
-            self.type = 'g'
+            self.type = 'G'
             bpe = self._data.itemsize
             desired_strides = (bpe, self._data.shape[0]*bpe)
             if desired_strides != self._data.strides:
@@ -83,7 +83,7 @@ class BasicImage:
         elif self._data.ndim == 3:
             if not shape_is_width_height:
                 self._data = self._data.transpose(1, 0, 2)
-            self.type = {2: 'ga', 3: 'rgb', 4: 'rgba'}.get(self._data.shape[2])
+            self.type = {2: 'Ga', 3: 'rgb', 4: 'rgba'}.get(self._data.shape[2])
             if self.type is None:
                 e = '3D iterable supplied for image_data argument must be either MxNx2 (grayscale with alpha), '
                 e+= 'MxNx3 (rgb), or MxNx4 (rgba).'
@@ -98,7 +98,7 @@ class BasicImage:
         else:
             raise ValueError('data argument must be a 2D (grayscale) or 3D (grayscale with alpha, rgb, or rgba) iterable.')
         self.size = Qt.QSize(self._data.shape[0], self._data.shape[1])
-        self.is_grayscale = self.type in ('g', 'ga')
+        self.is_grayscale = self.type in ('G', 'Ga')
 
         if dt is numpy.float32:
             if float_range is None:

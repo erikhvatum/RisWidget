@@ -90,7 +90,7 @@ class HistogramItem(ShaderItem):
                 qpainter.beginNativePainting()
                 stack.callback(qpainter.endNativePainting)
                 GL = widget.GL
-                desired_shader_type = 'g'
+                desired_shader_type = 'G'
                 if desired_shader_type in self.progs:
                     prog = self.progs[desired_shader_type]
                 else:

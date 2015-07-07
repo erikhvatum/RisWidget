@@ -120,8 +120,8 @@ class Image(BasicImage, Qt.QObject):
 
     GAMMA_RANGE = (0.0625, 16.0)
     IMAGE_TYPE_TO_GETCOLOR_EXPRESSION = {
-        'g'   : 'vec4(s.r, s.r, s.r, 1.0f)',
-        'ga'  : 'vec4(s.r, s.r, s.r, s.a)',
+        'G'   : 'vec4(s.r, s.r, s.r, 1.0f)',
+        'Ga'  : 'vec4(s.r, s.r, s.r, s.a)',
         'rgb' : 'vec4(s.r, s.g, s.b, 1.0f)',
         'rgba': 's'}
     # Blend functions adapted from http://dev.w3.org/SVG/modules/compositing/master/ 
@@ -358,7 +358,7 @@ class Image(BasicImage, Qt.QObject):
         default_value_callback = lambda image: 'screen',
         transform_callback = lambda image, v: str(v),
         pre_set_callback = lambda image, v, f=_blend_function_pre_set: f(image, v),
-        doc = SHAD_PROP_HELP)
+        doc = SHAD_PROP_HELP + '\n\nSupported blend_functions:\n\n    ' + '\n    '.join("'" + s + "'" for s in sorted(BLEND_FUNCTIONS.keys())))
     @property
     def blend_function_impl(self):
         return self.BLEND_FUNCTIONS[self.blend_function]

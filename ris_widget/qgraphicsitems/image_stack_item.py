@@ -70,13 +70,13 @@ class ImageStackItem(ShaderItem):
         numpy.uint16 : Qt.QOpenGLTexture.UInt16,
         numpy.float32: Qt.QOpenGLTexture.Float32}
     IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT = {
-        'g'   : Qt.QOpenGLTexture.R32F,
-        'ga'  : Qt.QOpenGLTexture.RG32F,
+        'G'   : Qt.QOpenGLTexture.R32F,
+        'Ga'  : Qt.QOpenGLTexture.RG32F,
         'rgb' : Qt.QOpenGLTexture.RGB32F,
         'rgba': Qt.QOpenGLTexture.RGBA32F}
     IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT = {
-        'g'   : Qt.QOpenGLTexture.Red,
-        'ga'  : Qt.QOpenGLTexture.RG,
+        'G'   : Qt.QOpenGLTexture.Red,
+        'Ga'  : Qt.QOpenGLTexture.RG,
         'rgb' : Qt.QOpenGLTexture.RGB,
         'rgba': Qt.QOpenGLTexture.RGBA}
     UNIFORM_SECTION_TEMPLATE = Template(textwrap.dedent("""\
@@ -404,13 +404,13 @@ class ImageStackItem(ShaderItem):
 #                       numpy.uint16 : GL.GL_UNSIGNED_SHORT,
 #                       numpy.float32: GL.GL_FLOAT}
 #                   IMAGE_TYPE_TO_GL_TEX_FORMAT = {
-#                       'g'   : GL.GL_R32F,
-#                       'ga'  : GL.GL_RG32F,
+#                       'G'   : GL.GL_R32F,
+#                       'Ga'  : GL.GL_RG32F,
 #                       'rgb' : GL.GL_RGB32F,
 #                       'rgba': GL.GL_RGBA32F}
 #                   IMAGE_TYPE_TO_GL_SRC_PIX_FORMAT = {
-#                       'g'   : GL.GL_RED,
-#                       'ga'  : GL.GL_RG,
+#                       'G'   : GL.GL_RED,
+#                       'Ga'  : GL.GL_RG,
 #                       'rgb' : GL.GL_RGB,
 #                       'rgba': GL.GL_RGBA}
 #                   orig_unpack_alignment = GL.glGetIntegerv(GL.GL_UNPACK_ALIGNMENT)
