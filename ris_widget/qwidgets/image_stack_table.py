@@ -79,7 +79,7 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
             column = midx.column()
             if column == 0:
                 if role == Qt.Qt.CheckStateRole:
-                    setattr(self.signaling_list[midx.row()], self._property_names[midx.column()], value.value())
+                    setattr(self.signaling_list[midx.row()], self.property_names[midx.column()], value.value())
                     return True
             elif column in (1, 2):
                 return super().setData(midx, value, role)

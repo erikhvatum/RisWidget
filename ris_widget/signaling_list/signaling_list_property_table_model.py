@@ -28,12 +28,12 @@ class SignalingListPropertyTableModel(Qt.QAbstractTableModel):
     def __init__(self, property_names, signaling_list=None, parent=None):
         super().__init__(parent)
         self._signaling_list = None
-        self._property_names = list(property_names)
-        self._property_columns = {pn : idx for idx, pn in enumerate(self._property_names)}
-        assert all(map(lambda p: isinstance(p, str) and len(p) > 0, self._property_names)), 'property_names must be a non-empty iterable of non-empty strings.'
-        if len(self._property_names) != len(set(self._property_names)):
+        self.property_names = list(property_names)
+        self.property_columns = {pn : idx for idx, pn in enumerate(self.property_names)}
+        assert all(map(lambda p: isinstance(p, str) and len(p) > 0, self.property_names)), 'property_names must be a non-empty iterable of non-empty strings.'
+        if len(self.property_names) != len(set(self.property_names)):
             raise ValueError('The property_names argument contains at least one duplicate.')
-        self._property_changed_slots = [lambda element, pn=pn: self._on_property_changed(element, pn) for pn in self._property_names]
+        self._property_changed_slots = [lambda element, pn=pn: self._on_property_changed(element, pn) for pn in self.property_names]
         self._instance_counts = {}
         self.signaling_list = signaling_list
 
@@ -42,16 +42,16 @@ class SignalingListPropertyTableModel(Qt.QAbstractTableModel):
         return 0 if sl is None else len(sl)
 
     def columnCount(self, _=None):
-        return len(self._property_names)
+        return len(self.property_names)
 
     def data(self, midx, role=Qt.Qt.DisplayRole):
         if midx.isValid() and role in (Qt.Qt.DisplayRole, Qt.Qt.EditRole):
-            return Qt.QVariant(getattr(self.signaling_list[midx.row()], self._property_names[midx.column()]))
+            return Qt.QVariant(getattr(self.signaling_list[midx.row()], self.property_names[midx.column()]))
         return Qt.QVariant()
 
     def setData(self, midx, value, role=Qt.Qt.EditRole):
         if midx.isValid() and role == Qt.Qt.EditRole:
-            setattr(self.signaling_list[midx.row()], self._property_names[midx.column()], value)
+            setattr(self.signaling_list[midx.row()], self.property_names[midx.column()], value)
             return True
         return False
 
@@ -61,7 +61,7 @@ class SignalingListPropertyTableModel(Qt.QAbstractTableModel):
                 return Qt.QVariant(section)
         elif orientation == Qt.Qt.Horizontal:
             if role == Qt.Qt.DisplayRole and 0 <= section < self.columnCount():
-                return Qt.QVariant(self._property_names[section])
+                return Qt.QVariant(self.property_names[section])
         return Qt.QVariant()
 
     @property
@@ -99,7 +99,7 @@ class SignalingListPropertyTableModel(Qt.QAbstractTableModel):
             assert instance_count > 0
             self._instance_counts[element] = instance_count
             if instance_count == 1:
-                for property_name, changed_slot in zip(self._property_names, self._property_changed_slots):
+                for property_name, changed_slot in zip(self.property_names, self._property_changed_slots):
                     try:
                         changed_signal = getattr(element, property_name + '_changed')
                         changed_signal.connect(changed_slot)
@@ -111,7 +111,7 @@ class SignalingListPropertyTableModel(Qt.QAbstractTableModel):
             instance_count = self._instance_counts[element] - 1
             assert instance_count >= 0
             if instance_count == 0:
-                for property_name, changed_slot in zip(self._property_names, self._property_changed_slots):
+                for property_name, changed_slot in zip(self.property_names, self._property_changed_slots):
                     try:
                         changed_signal = getattr(element, property_name + '_changed')
                         changed_signal.disconnect(changed_slot)
@@ -122,7 +122,7 @@ class SignalingListPropertyTableModel(Qt.QAbstractTableModel):
                 self._instance_counts[element] = instance_count
 
     def _on_property_changed(self, element, property_name):
-        column = self._property_columns[property_name]
+        column = self.property_columns[property_name]
         signaling_list = self.signaling_list
         next_idx = 0
         instance_count = self._instance_counts[element]
@@ -146,7 +146,7 @@ class SignalingListPropertyTableModel(Qt.QAbstractTableModel):
     def _on_replaced(self, idxs, replaced_elements, elements):
         self._detach_elements(replaced_elements)
         self._attach_elements(elements)
-        self.dataChanged.emit(self.createIndex(min(idxs), 0), self.createIndex(max(idxs), len(self._property_names) - 1))
+        self.dataChanged.emit(self.createIndex(min(idxs), 0), self.createIndex(max(idxs), len(self.property_names) - 1))
 
     def _on_removing(self, idxs, elements):
         self.beginRemoveRows(Qt.QModelIndex(), min(idxs), max(idxs))
