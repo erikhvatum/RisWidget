@@ -46,6 +46,11 @@ class ImageStackTableView(Qt.QTableView):
 class ImageStackTableModel(SignalingListPropertyTableModel):
     def __init__(self, signaling_list, parent):
         super().__init__(('visible', 'name', 'blend_function', 'size', 'type', 'dtype'), signaling_list, parent)
+        ngs = {
+            'visible' : self.__getd_visible,
+            'size' : self.__getd_size,
+            'dtype' : self.__getd_dtype}
+        self.__property_data_getters = {self.property_columns[n] : g for n, g in ngs.items()}
 
     def flags(self, midx):
         flags = Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
@@ -58,21 +63,23 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
 
     def data(self, midx, role=Qt.Qt.DisplayRole):
         if midx.isValid():
-            column = midx.column()
-            if column == 0:
-                if role == Qt.Qt.CheckStateRole:
-                    return Qt.QVariant(Qt.Qt.Checked if self.signaling_list[midx.row()].visible else Qt.Qt.Unchecked)
-                return Qt.QVariant()
-            if column == 3:
-                if role == Qt.Qt.DisplayRole:
-                    qsize = self.signaling_list[midx.row()].size
-                    return Qt.QVariant('{}x{}'.format(qsize.width(), qsize.height()))
-                return Qt.QVariant()
-            if column == 5:
-                if role == Qt.Qt.DisplayRole:
-                    return Qt.QVariant(str(self.signaling_list[midx.row()].data.dtype))
-            return super().data(midx, role)
+            d = self.__property_data_getters.get(midx.column(), super().data)(midx, role)
+            if isinstance(d, Qt.QVariant):
+                return d
         return Qt.QVariant()
+
+    def __getd_visible(self, midx, role):
+        if role == Qt.Qt.CheckStateRole:
+            return Qt.QVariant(Qt.Qt.Checked if self.signaling_list[midx.row()].visible else Qt.Qt.Unchecked)
+
+    def __getd_size(self, midx, role):
+        if role == Qt.Qt.DisplayRole:
+            qsize = self.signaling_list[midx.row()].size
+            return Qt.QVariant('{}x{}'.format(qsize.width(), qsize.height()))
+
+    def __getd_dtype(self, midx, role):
+        if role == Qt.Qt.DisplayRole:
+            return Qt.QVariant(str(self.signaling_list[midx.row()].data.dtype))
 
     def setData(self, midx, value, role=Qt.Qt.EditRole):
         if midx.isValid():
