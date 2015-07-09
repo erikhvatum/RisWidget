@@ -25,16 +25,20 @@
 from PyQt5 import Qt
 
 class DropdownListDelegate(Qt.QStyledItemDelegate):
-    def __init__(self, choices, parent=None):
+    def __init__(self, choices_getter, parent=None):
         super().__init__(parent)
-        self.choices = list(choices)
+        self.choices_getter = choices_getter
 
     def createEditor(self, parent, option, midx):
-        e = Qt.QComboBox(parent)
-        e.addItems(self.choices)
-        e.setFrame(False)
-        e.setInsertPolicy(Qt.QComboBox.NoInsert)
-        return e
+        if midx.isValid():
+            e = Qt.QComboBox(parent)
+            d = midx.data()
+            if isinstance(d, Qt.QVariant):
+                d = d.value()
+            e.addItems(self.choices_getter(d))
+            e.setFrame(False)
+            e.setInsertPolicy(Qt.QComboBox.NoInsert)
+            return e
 
     def setEditorData(self, e, midx):
         d = midx.data()

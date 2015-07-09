@@ -23,7 +23,6 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from PyQt5 import Qt
-from ..image.image import Image
 from ..qdelegates.dropdown_list_delegate import DropdownListDelegate
 from ..qdelegates.property_checkbox_delegate import PropertyCheckboxDelegate
 from ..signaling_list.signaling_list import SignalingList
@@ -31,60 +30,124 @@ from ..signaling_list.signaling_list_property_table_model import SignalingListPr
 
 #TODO: make list items drop targets so that layer contents can be replaced by dropping file on associated item
 class ImageStackTableView(Qt.QTableView):
-    def __init__(self, parent=None):
+    def __init__(self, image_stack_table_model, parent=None):
         super().__init__(parent)
         self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
         self.horizontalHeader().setStretchLastSection(True)
         self.property_checkbox_delegate = PropertyCheckboxDelegate(self)
-        self.setItemDelegateForColumn(0, self.property_checkbox_delegate)
-        self.blend_function_delegate = DropdownListDelegate(Image.BLEND_FUNCTIONS, self)
-        self.setItemDelegateForColumn(2, self.blend_function_delegate)
+        self.setItemDelegateForColumn(image_stack_table_model.property_columns['visible'], self.property_checkbox_delegate)
+        self.setItemDelegateForColumn(image_stack_table_model.property_columns['auto_getcolor_expression_enabled'], self.property_checkbox_delegate)
+        self.blend_function_delegate = DropdownListDelegate(lambda image: image.BLEND_FUNCTIONS, self)
+        self.setItemDelegateForColumn(image_stack_table_model.property_columns['blend_function'], self.blend_function_delegate)
         self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
         self.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
+        self.setModel(image_stack_table_model)
 #       self.setEditTriggers(Qt.QAbstractItemView.EditKeyPressed | Qt.QAbstractItemView.SelectedClicked)
 
 class ImageStackTableModel(SignalingListPropertyTableModel):
-    def __init__(self, signaling_list, parent):
-        super().__init__(('visible', 'name', 'blend_function', 'size', 'type', 'dtype'), signaling_list, parent)
-        ngs = {
-            'visible' : self.__getd_visible,
-            'size' : self.__getd_size,
-            'dtype' : self.__getd_dtype}
-        self.__property_data_getters = {self.property_columns[n] : g for n, g in ngs.items()}
+    # ImageStackTableModel accesses PROPERTIES strictly via self.PROPERTIES and never via ImageStackTableModel.PROPERTIES,
+    # meaning that subclasses may safely add or remove columns by overridding PROPERTIES.  For example, adding a column for
+    # a sublcassed Images having an "image_quality" property:
+    #
+    # class ImageStackTableModel_ImageQuality(ImageStackTableModel):
+    #     PROPERTIES = ImageStackTableModel.PROPERTIES + ('image_quality',)
+    #
+    # And that's it, provided image_quality is always a plain string and should not be editable.  Making it editable
+    # would require adding an entry to self._special_flag_getters.  Alternative .flags may be overridden to activate the
+    # Qt.Qt.ItemIsEditable flag, as in this example:
+    #
+    # class ImageStackTableModel_ImageQuality(ImageStackTableModel):
+    #     PROPERTIES = ImageStackTableModel.PROPERTIES + ('image_quality',)
+    #     def flags(self, midx):
+    #         if midx.column() == self.property_columns['image_quality']:
+    #             return Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren | Qt.Qt.ItemIsEditable
+    #         return super().flags(midx)
+    #
+    # To handle the read-only string case and additionally cover all combinations of cases where image_quality is/isn't
+    # a string and/or must be editable, let us define four things that the subclass can do:
+    # 1) Override .PROPERTIES.
+    # 2) Override .flags, or override .__init__ to add an entry to ._special_flag_getters.
+    # 3) Override .data, or override .__init__ to add an entry to ._special_data_getters.
+    # 4) Override .setData, or override .__init__ to add an entry to ._special_data_setters
+    #
+    # In the case where the subclass adds property that is:
+    #  * a read-only string, 1 is needed.
+    #  * a read-write string, 1 and 2 are needed.
+    #  * a read-only something-other-than-str, 1 and 3 are needed.
+    #  * a read-write something-other-than-str, 1, 2, 3, and 4 are needed.
 
+    PROPERTIES = (
+        'visible',
+        'name',
+        'auto_getcolor_expression_enabled',
+        'blend_function',
+        'size',
+        'type',
+        'dtype')
+
+    def __init__(self, signaling_list, parent=None):
+        super().__init__(self.PROPERTIES, signaling_list, parent)
+        self._special_data_getters = {
+            'visible' : self._getd_visible,
+            'auto_getcolor_expression_enabled' : self._getd_auto_getcolor_expression_enabled,
+            'size' : self._getd_size,
+            'dtype' : self._getd_dtype}
+        always_editable = lambda midx: Qt.Qt.ItemIsUserEditable
+        always_checkable = lambda midx: Qt.Qt.ItemIsUserCheckable
+        self._special_flag_getters = {
+            'visible' : _getf__always_checkable,
+            'name' : _getf__always_editable,
+            'auto_getcolor_expression_enabled' : _getf__always_checkable,
+            'blend_function' : _getf__always_editable}
+        self._special_data_setters = {
+            ''
+            }
+
+    def _getf_default(self, midx):
+        return Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
+
+    def _getf__always_checkable(self, midx):
+        return Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren | Qt.Qt.ItemIsUserCheckable
+
+    def _getf__always_editable(self, midx):
+        return Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren | Qt.Qt.ItemIsUserEditable
+
+    ##
     def flags(self, midx):
-        flags = Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
-        column = midx.column()
-        if column == 0:
-            flags |= Qt.Qt.ItemIsUserCheckable
-        elif column in (1, 2):
-            flags |= Qt.Qt.ItemIsEditable
-        return flags
+        return self._special_flag_getters.get(self._property_names[midx.column()], self._getf_default)(midx)
 
-    def data(self, midx, role=Qt.Qt.DisplayRole):
-        if midx.isValid():
-            d = self.__property_data_getters.get(midx.column(), super().data)(midx, role)
-            if isinstance(d, Qt.QVariant):
-                return d
-        return Qt.QVariant()
-
-    def __getd_visible(self, midx, role):
+    def _getd__checkable(self, property_name, midx, role):
         if role == Qt.Qt.CheckStateRole:
-            return Qt.QVariant(Qt.Qt.Checked if self.signaling_list[midx.row()].visible else Qt.Qt.Unchecked)
+            return Qt.QVariant(Qt.Qt.Checked if getattr(self.signaling_list[midx.row()], property_name) else Qt.Qt.Unchecked)
 
-    def __getd_size(self, midx, role):
+    def _getd_visible(self, midx, role):
+        return self._getd__checkable('visible', midx, role)
+
+    def _getd_auto_getcolor_expression_enabled(self, midx, role):
+        return self._getd__checkable('auto_getcolor_expression_enabled')
+
+    def _getd_size(self, midx, role):
         if role == Qt.Qt.DisplayRole:
             qsize = self.signaling_list[midx.row()].size
             return Qt.QVariant('{}x{}'.format(qsize.width(), qsize.height()))
 
-    def __getd_dtype(self, midx, role):
+    def _getd_dtype(self, midx, role):
         if role == Qt.Qt.DisplayRole:
             return Qt.QVariant(str(self.signaling_list[midx.row()].data.dtype))
 
+    ##
+    def data(self, midx, role=Qt.Qt.DisplayRole):
+        if midx.isValid():
+            d = self._property_data_getters.get(midx.column(), super().data)(midx, role)
+            if isinstance(d, Qt.QVariant):
+                return d
+        return Qt.QVariant()
+
+    ##
     def setData(self, midx, value, role=Qt.Qt.EditRole):
         if midx.isValid():
             column = midx.column()
-            if column == 0:
+            if column == self.property_columns['visible']:
                 if role == Qt.Qt.CheckStateRole:
                     setattr(self.signaling_list[midx.row()], self.property_names[midx.column()], value.value())
                     return True

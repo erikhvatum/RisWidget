@@ -133,10 +133,8 @@ class SignalingListPropertyTableModel(Qt.QAbstractTableModel):
             rows.append(row)
             next_idx = row + 1
         self.dataChanged.emit(self.createIndex(min(rows), column), self.createIndex(max(rows), column))
-#       print(element, property_name, getattr(element, property_name))
 
     def _on_inserting(self, idx, elements):
-#       print('_on_inserting(self, {}, {})'.format(idx, elements))
         self.beginInsertRows(Qt.QModelIndex(), idx, idx+len(elements)-1)
 
     def _on_inserted(self, idx, elements):
