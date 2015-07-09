@@ -126,7 +126,7 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
         return self._getd__checkable('visible', midx, role)
 
     def _getd_auto_getcolor_expression_enabled(self, midx, role):
-        return self._getd__checkable('auto_getcolor_expression_enabled')
+        return self._getd__checkable('auto_getcolor_expression_enabled', midx, role)
 
     def _getd_size(self, midx, role):
         if role == Qt.Qt.DisplayRole:
@@ -139,7 +139,7 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
 
     def data(self, midx, role=Qt.Qt.DisplayRole):
         if midx.isValid():
-            d = self._special_data_getters.get(midx.column(), super().data)(midx, role)
+            d = self._special_data_getters.get(self.property_names[midx.column()], super().data)(midx, role)
             if isinstance(d, Qt.QVariant):
                 return d
         return Qt.QVariant()
