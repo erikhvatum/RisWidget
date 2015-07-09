@@ -32,10 +32,7 @@ class DropdownListDelegate(Qt.QStyledItemDelegate):
     def createEditor(self, parent, option, midx):
         if midx.isValid():
             e = Qt.QComboBox(parent)
-            d = midx.data()
-            if isinstance(d, Qt.QVariant):
-                d = d.value()
-            e.addItems(self.choices_getter(d))
+            e.addItems(self.choices_getter(midx))
             e.setFrame(False)
             e.setInsertPolicy(Qt.QComboBox.NoInsert)
             return e

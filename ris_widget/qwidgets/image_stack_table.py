@@ -37,7 +37,7 @@ class ImageStackTableView(Qt.QTableView):
         self.property_checkbox_delegate = PropertyCheckboxDelegate(self)
         self.setItemDelegateForColumn(image_stack_table_model.property_columns['visible'], self.property_checkbox_delegate)
         self.setItemDelegateForColumn(image_stack_table_model.property_columns['auto_getcolor_expression_enabled'], self.property_checkbox_delegate)
-        self.blend_function_delegate = DropdownListDelegate(lambda image: image.BLEND_FUNCTIONS, self)
+        self.blend_function_delegate = DropdownListDelegate(lambda midx: self.model().signaling_list[midx.row()].BLEND_FUNCTIONS, self)
         self.setItemDelegateForColumn(image_stack_table_model.property_columns['blend_function'], self.blend_function_delegate)
         self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
         self.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
@@ -92,16 +92,17 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
             'auto_getcolor_expression_enabled' : self._getd_auto_getcolor_expression_enabled,
             'size' : self._getd_size,
             'dtype' : self._getd_dtype}
-        always_editable = lambda midx: Qt.Qt.ItemIsUserEditable
-        always_checkable = lambda midx: Qt.Qt.ItemIsUserCheckable
         self._special_flag_getters = {
-            'visible' : _getf__always_checkable,
-            'name' : _getf__always_editable,
-            'auto_getcolor_expression_enabled' : _getf__always_checkable,
-            'blend_function' : _getf__always_editable}
+            'visible' : self._getf__always_checkable,
+            'name' : self._getf__always_editable,
+            'auto_getcolor_expression_enabled' : self._getf__always_checkable,
+            'blend_function' : self._getf__always_editable}
         self._special_data_setters = {
-            ''
+            'visible' : self._setd_visible,
+            'auto_getcolor_expression_enabled' : self._setd_auto_getcolor_expression_enabled
             }
+
+    # flags #
 
     def _getf_default(self, midx):
         return Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
@@ -110,11 +111,12 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
         return Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren | Qt.Qt.ItemIsUserCheckable
 
     def _getf__always_editable(self, midx):
-        return Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren | Qt.Qt.ItemIsUserEditable
+        return Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren | Qt.Qt.ItemIsEditable
 
-    ##
     def flags(self, midx):
-        return self._special_flag_getters.get(self._property_names[midx.column()], self._getf_default)(midx)
+        return self._special_flag_getters.get(self.property_names[midx.column()], self._getf_default)(midx)
+
+    # data #
 
     def _getd__checkable(self, property_name, midx, role):
         if role == Qt.Qt.CheckStateRole:
@@ -135,22 +137,29 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
         if role == Qt.Qt.DisplayRole:
             return Qt.QVariant(str(self.signaling_list[midx.row()].data.dtype))
 
-    ##
     def data(self, midx, role=Qt.Qt.DisplayRole):
         if midx.isValid():
-            d = self._property_data_getters.get(midx.column(), super().data)(midx, role)
+            d = self._special_data_getters.get(midx.column(), super().data)(midx, role)
             if isinstance(d, Qt.QVariant):
                 return d
         return Qt.QVariant()
 
-    ##
+    # setData #
+
+    def _setd__checkable(self, property_name, midx, value, role):
+        assert self.property_names[midx.column()] == property_name
+        if role == Qt.Qt.CheckStateRole:
+            setattr(self.signaling_list[midx.row()], property_name, value.value())
+            return True
+        return False
+
+    def _setd_visible(self, midx, value, role):
+        return self._setd__checkable('visible', midx, value, role)
+
+    def _setd_auto_getcolor_expression_enabled(self, midx, value, role):
+        return self._setd__checkable('auto_getcolor_expression_enabled', midx, value, role)
+
     def setData(self, midx, value, role=Qt.Qt.EditRole):
         if midx.isValid():
-            column = midx.column()
-            if column == self.property_columns['visible']:
-                if role == Qt.Qt.CheckStateRole:
-                    setattr(self.signaling_list[midx.row()], self.property_names[midx.column()], value.value())
-                    return True
-            elif column in (1, 2):
-                return super().setData(midx, value, role)
+            return self._special_data_setters.get(self.property_names[midx.column()], super().setData)(midx, value, role)
         return False
