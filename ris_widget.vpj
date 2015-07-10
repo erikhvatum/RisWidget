@@ -218,6 +218,7 @@
 				<F N="ris_widget/image/image.py"/>
 			</Folder>
 			<Folder Name="qdelegates">
+				<F N="ris_widget/qdelegates/channel_mapping_delegate.py"/>
 				<F N="ris_widget/qdelegates/dropdown_list_delegate.py"/>
 				<F N="ris_widget/qdelegates/property_checkbox_delegate.py"/>
 			</Folder>

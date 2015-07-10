@@ -25,6 +25,7 @@
 import datetime
 import numpy
 from PyQt5 import Qt
+from string import Template
 import textwrap
 import time
 from .basic_image import BasicImage
@@ -119,12 +120,24 @@ class Image(BasicImage, Qt.QObject):
     defining a large number of properties."""
 
     GAMMA_RANGE = (0.0625, 16.0)
+    IMAGE_TYPE_TO_GETCOLOR_UNIFORM_TEMPLATE = {
+        'G'   : Template('vec3 channel_mapping_${idx}'),
+        'Ga'  : Template('vec3 channel_mapping_${idx}'),
+        'rgb' : Template('mat3 channel_mappings_${idx}'),
+        'rgba': Template('mat3 channel_mappings_${idx}')
+        }
+    IMAGE_TYPE_TO_GETCOLOR_CHANNEL_MAPPING_EXPRESSION_TEMPLATE = {
+        'G'   : Template('channel_mapping = channel_mapping_${idx}'),
+        'Ga'  : Template('channel_mapping = channel_mapping_${idx}'),
+        'rgb' : Template('channel_mappings = channel_mappings_${idx}'),
+        'rgba': Template('channel_mappings = channel_mappings_${idx}')
+        }
     IMAGE_TYPE_TO_GETCOLOR_EXPRESSION = {
-        'G'   : 'vec4(s.r, s.r, s.r, 1.0f)',
-        'Ga'  : 'vec4(s.r, s.r, s.r, s.a)',
-        'rgb' : 'vec4(s.r, s.g, s.b, 1.0f)',
-        'rgba': 's'}
-    # Blend functions adapted from http://dev.w3.org/SVG/modules/compositing/master/ 
+        'G'   : 'vec4(s.r * channel_mapping, 1.0f)',
+        'Ga'  : 'vec4(s.r * channel_mapping, s.g)',
+        'rgb' : 'vec4(s.r * channel_mappings[0] + s.g * channel_mappings[1] + s.b * channel_mappings[2], 1.0f)',
+        'rgba': 'vec4(s.r * channel_mappings[0] + s.g * channel_mappings[1] + s.b * channel_mappings[2], s.a)'}
+    # Blend functions adapted from http://dev.w3.org/SVG/modules/compositing/master/
     BLEND_FUNCTIONS = {
         'src' :      ('dca = sca;',
                       'da = sa;'),
@@ -324,6 +337,8 @@ class Image(BasicImage, Qt.QObject):
         with the effect that None or an empty string result in no extra transformation expression being applied (this
         is the default).""")
 
+    # TODO: Remove auto_getcolor_expression property and instead always replace current getcolor_expression with default
+    # upon image type change
     def _auto_getcolor_expression_enabled_post_set(self, v):
         if v:
             self.do_auto_getcolor_expression()
@@ -343,6 +358,11 @@ class Image(BasicImage, Qt.QObject):
         transform_callback = lambda image, v: str(v),
         post_set_callback = lambda image, v, f=_getcolor_expression_post_set: f(image, v),
         doc = SHAD_PROP_HELP)
+
+    channel_mapping = _Property(
+        properties, 'channel_mapping',
+        default_value_callback = lambda image: Qt.QColor(Qt.Qt.white) if image.is_grayscale else (Qt.QColor(Qt.Qt.red), Qt.QColor(Qt.Qt.green), Qt.QColor(Qt.Qt.blue)),
+        transform_callback = lambda image, v: Qt.QColor(v) if image.is_grayscale else (Qt.QColor(v[0]), Qt.QColor(v[1]), Qt.QColor(v[2])))
 
     extra_transformation_expression = _Property(
         properties, 'extra_transformation_expression',

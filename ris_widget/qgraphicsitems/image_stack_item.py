@@ -84,10 +84,12 @@ class ImageStackItem(ShaderItem):
         uniform float global_alpha_${idx};
         uniform float rescale_min_${idx};
         uniform float rescale_range_${idx};
-        uniform float gamma_${idx};"""))
+        uniform float gamma_${idx};
+        uniform ${getcolor_uniform};"""))
     MAIN_SECTION_TEMPLATE = Template(textwrap.dedent("""\
             // image_stack[${idx}]
             s = texture2D(tex_${idx}, tex_coord);
+            ${getcolor_channel_mapping_expression};
             s = ${getcolor_expression};
             sa = clamp(s.a, 0, 1) * global_alpha_${idx};
             sc = min_max_gamma_transform(s.rgb, rescale_min_${idx}, rescale_range_${idx}, gamma_${idx});
@@ -268,10 +270,12 @@ class ImageStackItem(ShaderItem):
             if prog_desc in self.progs:
                 prog = self.progs[prog_desc]
             else:
-                uniforms, main = zip(*((self.UNIFORM_SECTION_TEMPLATE.substitute(idx=idx),
+                uniforms, main = zip(*((self.UNIFORM_SECTION_TEMPLATE.substitute(idx=idx,
+                                                                                 getcolor_uniform=image.IMAGE_TYPE_TO_GETCOLOR_UNIFORM_TEMPLATE[image.type].substitute(idx=idx)),
                                         self.MAIN_SECTION_TEMPLATE.substitute(idx=idx,
+                                                                              getcolor_channel_mapping_expression=image.IMAGE_TYPE_TO_GETCOLOR_CHANNEL_MAPPING_EXPRESSION_TEMPLATE[image.type].substitute(idx=idx),
                                                                               getcolor_expression=image.getcolor_expression,
-                                                                              blend_function=type(image).BLEND_FUNCTIONS['src'] if tex_unit==0 else image.blend_function_impl,
+                                                                              blend_function=image.BLEND_FUNCTIONS['src'] if tex_unit==0 else image.blend_function_impl,
                                                                               extra_transformation_expression='' if image.extra_transformation_expression is None
                                                                                                                  else image.extra_transformation_expression))
                                        for idx, tex_unit, image in ((idx, tex_unit, self.image_stack[idx]) for tex_unit, idx in enumerate(visible_idxs))))
@@ -326,6 +330,8 @@ class ImageStackItem(ShaderItem):
                 prog.setUniformValue('rescale_min_'+idxstr, min_max[0])
                 prog.setUniformValue('rescale_range_'+idxstr, min_max[1] - min_max[0])
                 prog.setUniformValue('gamma_'+idxstr, image.gamma)
+                cm = image.channel_mapping
+                prog.setUniformValue('channel_mapping{}_{}'.format('' if image.is_grayscale else 's', idxstr), Qt.QVector3D(cm.redF(), cm.greenF(), cm.blueF()))
             GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
             GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
 

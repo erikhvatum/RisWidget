@@ -45,6 +45,8 @@ void main()
 {
     vec2 tex_coord = transform_frag_to_tex();
     vec4 s;
+    vec3 channel_mapping;
+    mat3 channel_mappings;
     float sa, da;
     vec3 sc, dc;
     vec3 sca, dca;

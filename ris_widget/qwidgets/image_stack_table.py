@@ -23,6 +23,7 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from PyQt5 import Qt
+from ..qdelegates.channel_mapping_delegate import ChannelMappingDelegate
 from ..qdelegates.dropdown_list_delegate import DropdownListDelegate
 from ..qdelegates.property_checkbox_delegate import PropertyCheckboxDelegate
 from ..signaling_list.signaling_list import SignalingList
@@ -63,23 +64,25 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
     #             return Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren | Qt.Qt.ItemIsEditable
     #         return super().flags(midx)
     #
-    # To handle the read-only string case and additionally cover all combinations of cases where image_quality is/isn't
-    # a string and/or must be editable, let us define four things that the subclass can do:
+    # It is sometimes convenient to use Qt item view roles other than Qt.Qt.DisplayRole and Qt.Qt.EditRole.  To cover all
+    # combinations of cases where a subclass adds a property that is RO/RW and does/doesn't use DispalyRole+EditRole ('visible'
+    # is an example of a property that does not use DisplayRole+EditRole), let us define four things that the subclass can do:
     # 1) Override .PROPERTIES.
     # 2) Override .flags, or override .__init__ to add an entry to ._special_flag_getters.
     # 3) Override .data, or override .__init__ to add an entry to ._special_data_getters.
     # 4) Override .setData, or override .__init__ to add an entry to ._special_data_setters
     #
     # In the case where the subclass adds property that is:
-    #  * a read-only string, 1 is needed.
-    #  * a read-write string, 1 and 2 are needed.
-    #  * a read-only something-other-than-str, 1 and 3 are needed.
-    #  * a read-write something-other-than-str, 1, 2, 3, and 4 are needed.
+    #  * read-only and uses DispalyRole+EditRole, 1 is needed.
+    #  * read-write and uses DispalyRole+EditRole, 1 and 2 are needed.
+    #  * read-only and does not use DispalyRole+EditRole, 1 and 3 are needed.
+    #  * read-write and does not use DispalyRole+EditRole, 1, 2, 3, and 4 are needed.
 
     PROPERTIES = (
         'visible',
         'name',
         'auto_getcolor_expression_enabled',
+#       'channel_mapping',
         'blend_function',
         'size',
         'type',
@@ -96,6 +99,7 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
             'visible' : self._getf__always_checkable,
             'name' : self._getf__always_editable,
             'auto_getcolor_expression_enabled' : self._getf__always_checkable,
+            'channel_mapping' : self._getf__always_editable,
             'blend_function' : self._getf__always_editable}
         self._special_data_setters = {
             'visible' : self._setd_visible,
