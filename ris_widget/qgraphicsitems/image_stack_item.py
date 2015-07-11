@@ -89,8 +89,7 @@ class ImageStackItem(ShaderItem):
     MAIN_SECTION_TEMPLATE = Template(textwrap.dedent("""\
             // image_stack[${idx}]
             s = texture2D(tex_${idx}, tex_coord);
-            ${getcolor_channel_mapping_expression};
-            s = ${getcolor_expression};
+            s = getcolor_procedure_${idx}(s);
             sa = clamp(s.a, 0, 1) * global_alpha_${idx};
             sc = min_max_gamma_transform(s.rgb, rescale_min_${idx}, rescale_range_${idx}, gamma_${idx});
             ${extra_transformation_expression}; // extra_transformation_expression
@@ -270,6 +269,17 @@ class ImageStackItem(ShaderItem):
             if prog_desc in self.progs:
                 prog = self.progs[prog_desc]
             else:
+                uniforms = []
+                main = []
+                for tex_unit, idx in enumerate(visible_idxs):
+                    image = self.image_stack[idx]
+                    num_channels = image.num_channels
+                    if num_channels == 1:
+                        cmt = 'vec4'
+                        cmp = ''
+                    else:
+                        cmt = 'mat4{}'.format(num_channels)
+                        cmp = 's'
                 uniforms, main = zip(*((self.UNIFORM_SECTION_TEMPLATE.substitute(idx=idx,
                                                                                  getcolor_uniform=image.IMAGE_TYPE_TO_GETCOLOR_UNIFORM_TEMPLATE[image.type].substitute(idx=idx)),
                                         self.MAIN_SECTION_TEMPLATE.substitute(idx=idx,

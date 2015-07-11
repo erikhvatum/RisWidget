@@ -41,6 +41,8 @@ vec2 transform_frag_to_tex()
     return tex_coord_h.xy / tex_coord_h.z;
 }
 
+$getcolor_procedures
+
 void main()
 {
     vec2 tex_coord = transform_frag_to_tex();

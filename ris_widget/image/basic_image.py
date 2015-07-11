@@ -97,8 +97,12 @@ class BasicImage:
             self.stats_future = compute_multichannel_ndimage_statistics(self._data, self.is_twelve_bit, return_future=True)
         else:
             raise ValueError('data argument must be a 2D (grayscale) or 3D (grayscale with alpha, rgb, or rgba) iterable.')
+
         self.size = Qt.QSize(self._data.shape[0], self._data.shape[1])
         self.is_grayscale = self.type in ('G', 'Ga')
+        self.num_channels = len(self.type)
+        self.has_alpha_channel = self.type[-1] == 'a'
+        self.is_binary = self.dtype is numpy.bool8
 
         if dt is numpy.float32:
             if float_range is None:
@@ -165,15 +169,3 @@ class BasicImage:
         For floating point images, this is min/max values for all channels of all pixels, unless specified with the float_range
         argument to our __init__ function."""
         return self._range
-
-    @property
-    def is_binary(self):
-        return self.dtype is numpy.bool8
-
-    @property
-    def has_alpha_channel(self):
-        return self.type[-1] == 'a'
-
-    @property
-    def num_channels(self):
-        return len(self.type)

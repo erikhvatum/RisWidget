@@ -120,23 +120,33 @@ class Image(BasicImage, Qt.QObject):
     defining a large number of properties."""
 
     GAMMA_RANGE = (0.0625, 16.0)
-    IMAGE_TYPE_TO_GETCOLOR_UNIFORM_TEMPLATE = {
-        'G'   : Template('vec3 channel_mapping_${idx}'),
-        'Ga'  : Template('vec3 channel_mapping_${idx}'),
-        'rgb' : Template('mat3 channel_mappings_${idx}'),
-        'rgba': Template('mat3 channel_mappings_${idx}')
-        }
-    IMAGE_TYPE_TO_GETCOLOR_CHANNEL_MAPPING_EXPRESSION_TEMPLATE = {
-        'G'   : Template('channel_mapping = channel_mapping_${idx}'),
-        'Ga'  : Template('channel_mapping = channel_mapping_${idx}'),
-        'rgb' : Template('channel_mappings = channel_mappings_${idx}'),
-        'rgba': Template('channel_mappings = channel_mappings_${idx}')
-        }
+#   GETCOLOR_UNIFORM_TEMPLATE = Template("$T channel_mapping")
+#   IMAGE_TYPE_TO_GETCOLOR_UNIFORM_TEMPLATE = {
+#       'G'   : Template('vec${width} channel_mapping_${idx}'),
+#       'Ga'  : Template('vec${width} channel_mapping_${idx}'),
+#       'rgb' : Template('mat${dims} channel_mappings_${idx}'),
+#       'rgba': Template('mat${dims} channel_mappings_${idx}')
+#       }
+#   IMAGE_TYPE_TO_GETCOLOR_CHANNEL_MAPPING_EXPRESSION_TEMPLATE = {
+#       'G'   : Template('channel_mapping = channel_mapping_${idx}'),
+#       'Ga'  : Template('channel_mapping = channel_mapping_${idx}'),
+#       'rgb' : Template('channel_mappings = channel_mappings_${idx}'),
+#       'rgba': Template('channel_mappings = channel_mappings_${idx}')
+#       }
     IMAGE_TYPE_TO_GETCOLOR_EXPRESSION = {
-        'G'   : 'vec4(s.r * channel_mapping, 1.0f)',
-        'Ga'  : 'vec4(s.r * channel_mapping, s.g)',
-        'rgb' : 'vec4(s.r * channel_mappings[0] + s.g * channel_mappings[1] + s.b * channel_mappings[2], 1.0f)',
-        'rgba': 'vec4(s.r * channel_mappings[0] + s.g * channel_mappings[1] + s.b * channel_mappings[2], s.a)'}
+        'G'   : 's.r * channel_mapping.rgba',
+        'Ga'  : 's.r * channel_mappings[0] + s.g * channel_mappings[1]',
+        #TODO: see if vec4(s.rgb*channel_mappings.rgb, 1.0f) is equivalent to the following line
+        'rgb' : 'vec4(s.r * channel_mappings[0].rgb + s.g * channel_mappings[1].rgb + s.b * channel_mappings[2].rgb, 1.0f)',
+        'rgba': 'vec4(s.r * channel_mappings[0].rgb + s.g * channel_mappings[1].rgb + s.b * channel_mappings[2].rgb, s.a)'}
+    GETCOLOR_PROCEDURE_TEMPLATE = Template(textwrap.dedent(
+        """\
+        vec4 getcolor_procedure_${idx}(vec4 s)
+        {
+            ${cmt} channel_mapping${cmp} = channel_mapping${cmp}_${idx};
+            return $getcolor_expression;
+        }
+        """))
     # Blend functions adapted from http://dev.w3.org/SVG/modules/compositing/master/
     BLEND_FUNCTIONS = {
         'src' :      ('dca = sca;',
@@ -315,7 +325,9 @@ class Image(BasicImage, Qt.QObject):
         ImageStackItem.BLEND_FUNCTIONS[Image.blend_function] in the case of ${blend_function}) at each iteration and
         appending the resulting text to a string.  The accumulated string is the GLSL fragment shader's source code.
 
+            // image_stack[${idx}]
             s = texture2D(tex_${idx}, tex_coord);
+            ${getcolor_channel_mapping_expression};
             s = ${getcolor_expression};
             sa = clamp(s.a, 0, 1) * global_alpha_${idx};
             sc = min_max_gamma_transform(s.rgb, rescale_min_${idx}, rescale_range_${idx}, gamma_${idx});
@@ -361,8 +373,10 @@ class Image(BasicImage, Qt.QObject):
 
     channel_mapping = _Property(
         properties, 'channel_mapping',
-        default_value_callback = lambda image: Qt.QColor(Qt.Qt.white) if image.is_grayscale else (Qt.QColor(Qt.Qt.red), Qt.QColor(Qt.Qt.green), Qt.QColor(Qt.Qt.blue)),
-        transform_callback = lambda image, v: Qt.QColor(v) if image.is_grayscale else (Qt.QColor(v[0]), Qt.QColor(v[1]), Qt.QColor(v[2])))
+        default_value_callback = lambda image: numpy.array([   Qt.QColor(Qt.Qt.white) if image.is_grayscale else (Qt.QColor(Qt.Qt.red), Qt.QColor(Qt.Qt.green), Qt.QColor(Qt.Qt.blue)),
+        transform_callback = lambda image, v: Qt.QColor(v) if image.is_grayscale else (Qt.QColor(v[0]), Qt.QColor(v[1]), Qt.QColor(v[2]))
+        doc = 'I.channel_mapping: 0-1 normalized float32 RGB triplet(s) by which non-alpha image intensity channels '
+              'are multiplied in the default getcolor_expression.  ')
 
     extra_transformation_expression = _Property(
         properties, 'extra_transformation_expression',
