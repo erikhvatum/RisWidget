@@ -115,7 +115,7 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
             PyGL.glScale(1,-1,1)
             # TODO: If flipping does turn out to be necessary, translate down by total text height as computed via
             # font metrics from path rendering extension rather than by the fixed number -35
-            LINE_OFFSET = -35
+            LINE_OFFSET = -22
 
             for l, k in zip(self._text_lines_encoded, self._text_lines_kerning):
                 PyGL.glTranslate(0,LINE_OFFSET,0)
@@ -160,7 +160,7 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
             self._path = PR.glGenPathsNV(1)
             _ = numpy.zeros((10,), dtype=numpy.uint8)
             PR.glPathCommandsNV(self._path, 0, _.ctypes.data_as(c_uint8_p), 0, PyGL.GL_FLOAT, _.ctypes.data_as(c_float32_p))
-            PR.glPathParameterfNV(self._path, PR.GL_PATH_STROKE_WIDTH_NV, 3.2)
+            PR.glPathParameterfNV(self._path, PR.GL_PATH_STROKE_WIDTH_NV, 3.0)
             PR.glPathParameteriNV(self._path, PR.GL_PATH_JOIN_STYLE_NV, PR.GL_ROUND_NV)
         if self._glyph_base is None:
             glyph_base = PR.glGenPathsNV(256)
@@ -169,12 +169,12 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
                     glyph_base,
                     PR.GL_SYSTEM_FONT_NAME_NV, fontname, PR.GL_BOLD_BIT_NV,
                     0, 256,
-                    PR.GL_SKIP_MISSING_GLYPH_NV, self._path, 32)
+                    PR.GL_SKIP_MISSING_GLYPH_NV, self._path, 20)
             PR.glPathGlyphRangeNV(
                     glyph_base,
                     PR.GL_SYSTEM_FONT_NAME_NV, fontname, PR.GL_BOLD_BIT_NV,
                     0, 256,
-                    PR.GL_USE_MISSING_GLYPH_NV, self._path, 32)
+                    PR.GL_USE_MISSING_GLYPH_NV, self._path, 20)
             # TODO: determine why a) glGetPathMetricRangeNV gives NaN for offsets when called with
             # PR.GL_FONT_Y_MIN_BOUNDS_BIT_NV | PR.GL_FONT_Y_MAX_BOUNDS_BIT_NV b) whether individually computed
             # offsets vary with current projection and/or model and/or view matrices and if not, why results
