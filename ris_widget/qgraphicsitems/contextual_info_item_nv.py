@@ -104,34 +104,31 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
             PyGL.glClearStencil(0)
             PyGL.glClearColor(0,0,0,0)
             PyGL.glStencilMask(~0)
-#           PyGL.glClear(PyGL.GL_COLOR_BUFFER_BIT | PyGL.GL_STENCIL_BUFFER_BIT)
             PyGL.glEnable(PyGL.GL_STENCIL_TEST)
             PyGL.glStencilFunc(PyGL.GL_NOTEQUAL, 0, 0x1)
             PyGL.glStencilOp(PyGL.GL_KEEP, PyGL.GL_KEEP, PyGL.GL_ZERO)
 
-#           p = "100 180 moveto"\
-#               " 40 10 lineto 190 120 lineto 10 120 lineto 160 10 lineto closepath"\
-#               " 300 300 moveto"\
-#               " 100 400 100 200 300 100 curveto"\
-#               " 500 200 500 400 300 300 curveto closepath"
-#           pe = numpy.array(list(p.encode('ISO-8859-1')), dtype=numpy.uint8)
-#           PR.glPathStringNV(42, PR.GL_PATH_FORMAT_PS_NV, len(pe), pe.ctypes.data_as(c_uint8_p))
-#           PR.glStencilFillPathNV(42, PR.GL_COUNT_UP_NV, 0x1F)
-#           PyGL.glColor3f(0,1,0)
-#           PR.glCoverFillPathNV(42, PR.GL_BOUNDING_BOX_NV)
+            # Draw text outline
+            PR.glStencilStrokePathInstancedNV(
+                self._text_encoded.shape[0], PyGL.GL_UNSIGNED_BYTE, self._text_encoded.ctypes.data_as(c_uint8_p),
+                self._glyph_base,
+                1, ~0,
+                PR.GL_TRANSLATE_X_NV, self._text_kerning.ctypes.data_as(c_float32_p))
+            PyGL.glColor3f(0,0,0)
+            PR.glCoverStrokePathInstancedNV(
+                self._text_encoded.shape[0], PyGL.GL_UNSIGNED_BYTE, self._text_encoded.ctypes.data_as(c_uint8_p),
+                self._glyph_base,
+                PR.GL_BOUNDING_BOX_OF_BOUNDING_BOXES_NV,
+                PR.GL_TRANSLATE_X_NV, self._text_kerning.ctypes.data_as(c_float32_p))
 
-#           PR.glStencilStrokePathInstancedNV(
-#               self._text_encoded.shape[0], PyGL.GL_UNSIGNED_BYTE, self._text_encoded.ctypes.data_as(c_uint8_p),
-#               self._glyph_base,
-#               1, ~0,
-#               PR.GL_TRANSLATE_2D_NV, self._text_kerning.ctypes.data_as(c_float32_p))
-            PyGL.glColor3f(0,1,0)
+            # Draw filled text interiors
             PR.glStencilFillPathInstancedNV(
                 self._text_encoded.shape[0], PyGL.GL_UNSIGNED_BYTE, self._text_encoded.ctypes.data_as(c_uint8_p),
                 self._glyph_base,
                 PR.GL_PATH_FILL_MODE_NV, ~0,
                 PR.GL_TRANSLATE_X_NV, self._text_kerning.ctypes.data_as(c_float32_p))
-            PR.glCoverStrokePathInstancedNV(
+            PyGL.glColor3f(0,1,0)
+            PR.glCoverFillPathInstancedNV(
                 self._text_encoded.shape[0], PyGL.GL_UNSIGNED_BYTE, self._text_encoded.ctypes.data_as(c_uint8_p),
                 self._glyph_base,
                 PR.GL_BOUNDING_BOX_OF_BOUNDING_BOXES_NV,
@@ -148,7 +145,7 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
             self._path = PR.glGenPathsNV(1)
             junk = numpy.zeros((10,), dtype=numpy.uint8)
             PR.glPathCommandsNV(self._path, 0, junk.ctypes.data_as(c_uint8_p), 0, PyGL.GL_FLOAT, junk.ctypes.data_as(c_float32_p))
-            PR.glPathParameterfNV(self._path, PR.GL_PATH_STROKE_WIDTH_NV, 204.8)
+            PR.glPathParameterfNV(self._path, PR.GL_PATH_STROKE_WIDTH_NV, 3.2)
             PR.glPathParameteriNV(self._path, PR.GL_PATH_JOIN_STYLE_NV, PR.GL_ROUND_NV)
         if self._glyph_base is None:
             glyph_base = PR.glGenPathsNV(256)
@@ -157,12 +154,12 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
                     glyph_base,
                     PR.GL_SYSTEM_FONT_NAME_NV, fontname, PR.GL_BOLD_BIT_NV,
                     0, 256,
-                    PR.GL_SKIP_MISSING_GLYPH_NV, self._path, 64)
+                    PR.GL_SKIP_MISSING_GLYPH_NV, self._path, 32)
             PR.glPathGlyphRangeNV(
                     glyph_base,
                     PR.GL_SYSTEM_FONT_NAME_NV, fontname, PR.GL_BOLD_BIT_NV,
                     0, 256,
-                    PR.GL_USE_MISSING_GLYPH_NV, self._path, 64)
+                    PR.GL_USE_MISSING_GLYPH_NV, self._path, 32)
             self._glyph_base = glyph_base
         if self._path_serial != self._text_serial:
             encoded_kern_text = numpy.array(list((self._text + '&').encode('ISO-8859-1')), dtype=numpy.uint8)
