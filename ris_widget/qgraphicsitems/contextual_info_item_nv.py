@@ -53,6 +53,8 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
 #       self._brush = Qt.QBrush(Qt.QColor(45,255,70,255))
         self._text = None
         self._text_serial = 0
+        self._text_lines_encoded = None
+        self._text_lines_kerning = None
         self._glyph_base = None
         self._path = None
         self._path_serial = None
@@ -109,34 +111,43 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
             PyGL.glStencilOp(PyGL.GL_KEEP, PyGL.GL_KEEP, PyGL.GL_ZERO)
             PyGL.glPushMatrix()
             estack.callback(PyGL.glPopMatrix)
+            # TODO: determine why Y axis needs to be inverted for NV_path_drawing
             PyGL.glScale(1,-1,1)
-            PyGL.glTranslate(0,-30,0)
+            # TODO: If flipping does turn out to be necessary, translate down by total text height as computed via
+            # font metrics from path rendering extension rather than by the fixed number -35
+            LINE_OFFSET = -35
 
-            # Draw text outline
-            PR.glStencilStrokePathInstancedNV(
-                self._text_encoded.shape[0], PyGL.GL_UNSIGNED_BYTE, self._text_encoded.ctypes.data_as(c_uint8_p),
-                self._glyph_base,
-                1, ~0,
-                PR.GL_TRANSLATE_X_NV, self._text_kerning.ctypes.data_as(c_float32_p))
-            PyGL.glColor3f(0,0,0)
-            PR.glCoverStrokePathInstancedNV(
-                self._text_encoded.shape[0], PyGL.GL_UNSIGNED_BYTE, self._text_encoded.ctypes.data_as(c_uint8_p),
-                self._glyph_base,
-                PR.GL_BOUNDING_BOX_OF_BOUNDING_BOXES_NV,
-                PR.GL_TRANSLATE_X_NV, self._text_kerning.ctypes.data_as(c_float32_p))
+            for l, k in zip(self._text_lines_encoded, self._text_lines_kerning):
+                PyGL.glTranslate(0,LINE_OFFSET,0)
+                l_len = l.shape[0] - 1
+                l_p = l.ctypes.data_as(c_uint8_p)
+                k_p = k.ctypes.data_as(c_float32_p)
 
-            # Draw filled text interiors
-            PR.glStencilFillPathInstancedNV(
-                self._text_encoded.shape[0], PyGL.GL_UNSIGNED_BYTE, self._text_encoded.ctypes.data_as(c_uint8_p),
-                self._glyph_base,
-                PR.GL_PATH_FILL_MODE_NV, ~0,
-                PR.GL_TRANSLATE_X_NV, self._text_kerning.ctypes.data_as(c_float32_p))
-            PyGL.glColor3f(0,1,0)
-            PR.glCoverFillPathInstancedNV(
-                self._text_encoded.shape[0], PyGL.GL_UNSIGNED_BYTE, self._text_encoded.ctypes.data_as(c_uint8_p),
-                self._glyph_base,
-                PR.GL_BOUNDING_BOX_OF_BOUNDING_BOXES_NV,
-                PR.GL_TRANSLATE_X_NV, self._text_kerning.ctypes.data_as(c_float32_p))
+                # Draw text outline
+                PR.glStencilStrokePathInstancedNV(
+                    l_len, PyGL.GL_UNSIGNED_BYTE, l_p,
+                    self._glyph_base,
+                    1, ~0,
+                    PR.GL_TRANSLATE_X_NV, k_p)
+                PyGL.glColor3f(0,0,0)
+                PR.glCoverStrokePathInstancedNV(
+                    l_len, PyGL.GL_UNSIGNED_BYTE, l_p,
+                    self._glyph_base,
+                    PR.GL_BOUNDING_BOX_OF_BOUNDING_BOXES_NV,
+                    PR.GL_TRANSLATE_X_NV, k_p)
+
+                # Draw filled text interiors
+                PR.glStencilFillPathInstancedNV(
+                    l_len, PyGL.GL_UNSIGNED_BYTE, l_p,
+                    self._glyph_base,
+                    PR.GL_PATH_FILL_MODE_NV, ~0,
+                    PR.GL_TRANSLATE_X_NV, k_p)
+                PyGL.glColor3f(0,1,0)
+                PR.glCoverFillPathInstancedNV(
+                    l_len, PyGL.GL_UNSIGNED_BYTE, l_p,
+                    self._glyph_base,
+                    PR.GL_BOUNDING_BOX_OF_BOUNDING_BOXES_NV,
+                    PR.GL_TRANSLATE_X_NV, k_p)
 
     def return_to_fixed_position(self, view):
         """Maintain position self.FIXED_POSITION_IN_VIEW relative to view's top left corner."""
@@ -147,8 +158,8 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
     def _update_paths(self):
         if self._path is None:
             self._path = PR.glGenPathsNV(1)
-            junk = numpy.zeros((10,), dtype=numpy.uint8)
-            PR.glPathCommandsNV(self._path, 0, junk.ctypes.data_as(c_uint8_p), 0, PyGL.GL_FLOAT, junk.ctypes.data_as(c_float32_p))
+            _ = numpy.zeros((10,), dtype=numpy.uint8)
+            PR.glPathCommandsNV(self._path, 0, _.ctypes.data_as(c_uint8_p), 0, PyGL.GL_FLOAT, _.ctypes.data_as(c_float32_p))
             PR.glPathParameterfNV(self._path, PR.GL_PATH_STROKE_WIDTH_NV, 3.2)
             PR.glPathParameteriNV(self._path, PR.GL_PATH_JOIN_STYLE_NV, PR.GL_ROUND_NV)
         if self._glyph_base is None:
@@ -164,18 +175,37 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
                     PR.GL_SYSTEM_FONT_NAME_NV, fontname, PR.GL_BOLD_BIT_NV,
                     0, 256,
                     PR.GL_USE_MISSING_GLYPH_NV, self._path, 32)
+            # TODO: determine why a) glGetPathMetricRangeNV gives NaN for offsets when called with
+            # PR.GL_FONT_Y_MIN_BOUNDS_BIT_NV | PR.GL_FONT_Y_MAX_BOUNDS_BIT_NV b) whether individually computed
+            # offsets vary with current projection and/or model and/or view matrices and if not, why results
+            # are so different for histogram and general context info items
+#           self._glyph_y_minmax_bounds = numpy.empty((2,), dtype=numpy.float32)
+#           PR.glGetPathMetricRangeNV(
+#               PR.GL_FONT_Y_MIN_BOUNDS_BIT_NV,
+#               self._glyph_base, 1,
+#               8,#self._glyph_y_minmax_bounds.nbytes,
+#               self._glyph_y_minmax_bounds.ctypes.data_as(c_float32_p))
+#           print('min', self._glyph_y_minmax_bounds)
+#           PR.glGetPathMetricRangeNV(
+#               PR.GL_FONT_Y_MAX_BOUNDS_BIT_NV,
+#               self._glyph_base, 1,
+#               8,#self._glyph_y_minmax_bounds.nbytes,
+#               self._glyph_y_minmax_bounds.ctypes.data_as(c_float32_p))
+#           print('max', self._glyph_y_minmax_bounds)
             self._glyph_base = glyph_base
         if self._path_serial != self._text_serial:
-            encoded_kern_text = numpy.array(list((self._text + '&').encode('ISO-8859-1')), dtype=numpy.uint8)
-            self._text_kerning = numpy.zeros((len(self._text_encoded) + 1,), dtype=numpy.float32)
-            self._text_kerning[0] = 0
-            tko = self._text_kerning[1:]
-            PR.glGetPathSpacingNV(
-                PR.GL_ACCUM_ADJACENT_PAIRS_NV,
-                encoded_kern_text.shape[0], PyGL.GL_UNSIGNED_BYTE, encoded_kern_text,#encoded_kern_text.ctypes.data_as(c_uint8_p),
-                self._glyph_base,
-                1.0, 1.0, PR.GL_TRANSLATE_X_NV,
-                tko.ctypes.data_as(c_float32_p))
+            self._text_lines_kerning = []
+            for l in self._text_lines_encoded:
+                tk = numpy.empty(l.shape, dtype=numpy.float32)
+                tk[0] = 0
+                tko = tk[1:]
+                PR.glGetPathSpacingNV(
+                    PR.GL_ACCUM_ADJACENT_PAIRS_NV,
+                    l.shape[0], PyGL.GL_UNSIGNED_BYTE, l.ctypes.data_as(c_uint8_p),
+                    self._glyph_base,
+                    1.0, 1.0, PR.GL_TRANSLATE_X_NV,
+                    tko.ctypes.data_as(c_float32_p))
+                self._text_lines_kerning.append(tk)
             self._path_serial = self._text_serial
 
     @property
@@ -184,14 +214,17 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
 
     @text.setter
     def text(self, v):
-        #TODO: figure out how to deal with \n
-        if v is not None:
-            v = v.replace('\n', '\\n')
         if self._text != v:
             if v:
-                encoded = v.encode('ISO-8859-1') # Only ISO-8859-1 is supported in this proof-of-concept implementation
-                self._text_encoded = numpy.array(list(encoded), dtype=numpy.uint8)
+                # Only ISO-8859-1 is supported at the moment.
+                # The '&' is appended owing to a peculiarity of the glGetPathSpacingNV call, which wants a junk character
+                # at the end of each line.  The '&' is not actually visible.
+                lines_encoded = [numpy.array(list((l + '&').encode('ISO-8859-1')), dtype=numpy.uint8) for l in v.split('\n')]
                 self.prepareGeometryChange()
+                self._text_lines_encoded = lines_encoded
+            else:
+                self._text_lines_encoded = None
+                self._text_lines_kerning = None
             self._text = v
             self._text_serial += 1
             if self._text:
