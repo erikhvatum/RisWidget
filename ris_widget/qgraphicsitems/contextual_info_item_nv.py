@@ -23,11 +23,17 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from contextlib import ExitStack
+import ctypes
+import numpy
 from pathlib import Path
 import OpenGL
+import OpenGL.GL as PyGL
 import OpenGL.GL.NV.path_rendering as PR
 from PyQt5 import Qt
 from ..shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
+
+c_float32_p = ctypes.POINTER(ctypes.c_float)
+c_uint8_p = ctypes.POINTER(ctypes.c_uint8)
 
 class ContextualInfoItemNV(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
@@ -47,6 +53,7 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
 #       self._brush = Qt.QBrush(Qt.QColor(45,255,70,255))
         self._text = None
         self._text_serial = 0
+        self._glyph_base = None
         self._path = None
         self._path_serial = None
 #       self._text_flags = Qt.Qt.AlignLeft | Qt.Qt.AlignTop | Qt.Qt.AlignAbsolute
@@ -58,6 +65,25 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
         # Info text generally should appear over anything else rather than z-fighting
         self.setZValue(10)
         self.hide()
+
+    def __del__(self):
+        scene = self.scene()
+        if scene is None:
+            return
+        views = scene.views()
+        if not views:
+            return
+        view = views[0]
+        gl_widget = view.gl_widget
+        context = gl_widget.context()
+        if not context:
+            return
+        gl_widget.makeCurrent()
+        try:
+            if self._glyph_base is not None:
+                PR.glDeletePathsNV(self._glyph_base, 256)
+        finally:
+            gl_widget.doneCurrent()
 
     def type(self):
         return ContextualInfoItem.QGRAPHICSITEM_TYPE
@@ -73,8 +99,43 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
     def paint(self, qpainter, option, widget):
         with ExitStack() as estack:
             qpainter.beginNativePainting()
-            self._update_paths()
             estack.callback(qpainter.endNativePainting)
+            self._update_paths()
+            PyGL.glClearStencil(0)
+            PyGL.glClearColor(0,0,0,0)
+            PyGL.glStencilMask(~0)
+#           PyGL.glClear(PyGL.GL_COLOR_BUFFER_BIT | PyGL.GL_STENCIL_BUFFER_BIT)
+            PyGL.glEnable(PyGL.GL_STENCIL_TEST)
+            PyGL.glStencilFunc(PyGL.GL_NOTEQUAL, 0, 0x1)
+            PyGL.glStencilOp(PyGL.GL_KEEP, PyGL.GL_KEEP, PyGL.GL_ZERO)
+
+#           p = "100 180 moveto"\
+#               " 40 10 lineto 190 120 lineto 10 120 lineto 160 10 lineto closepath"\
+#               " 300 300 moveto"\
+#               " 100 400 100 200 300 100 curveto"\
+#               " 500 200 500 400 300 300 curveto closepath"
+#           pe = numpy.array(list(p.encode('ISO-8859-1')), dtype=numpy.uint8)
+#           PR.glPathStringNV(42, PR.GL_PATH_FORMAT_PS_NV, len(pe), pe.ctypes.data_as(c_uint8_p))
+#           PR.glStencilFillPathNV(42, PR.GL_COUNT_UP_NV, 0x1F)
+#           PyGL.glColor3f(0,1,0)
+#           PR.glCoverFillPathNV(42, PR.GL_BOUNDING_BOX_NV)
+
+#           PR.glStencilStrokePathInstancedNV(
+#               self._text_encoded.shape[0], PyGL.GL_UNSIGNED_BYTE, self._text_encoded.ctypes.data_as(c_uint8_p),
+#               self._glyph_base,
+#               1, ~0,
+#               PR.GL_TRANSLATE_2D_NV, self._text_kerning.ctypes.data_as(c_float32_p))
+            PyGL.glColor3f(0,1,0)
+            PR.glStencilFillPathInstancedNV(
+                self._text_encoded.shape[0], PyGL.GL_UNSIGNED_BYTE, self._text_encoded.ctypes.data_as(c_uint8_p),
+                self._glyph_base,
+                PR.GL_PATH_FILL_MODE_NV, ~0,
+                PR.GL_TRANSLATE_X_NV, self._text_kerning.ctypes.data_as(c_float32_p))
+            PR.glCoverStrokePathInstancedNV(
+                self._text_encoded.shape[0], PyGL.GL_UNSIGNED_BYTE, self._text_encoded.ctypes.data_as(c_uint8_p),
+                self._glyph_base,
+                PR.GL_BOUNDING_BOX_OF_BOUNDING_BOXES_NV,
+                PR.GL_TRANSLATE_X_NV, self._text_kerning.ctypes.data_as(c_float32_p))
 
     def return_to_fixed_position(self, view):
         """Maintain position self.FIXED_POSITION_IN_VIEW relative to view's top left corner."""
@@ -83,9 +144,38 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
             self.setPos(view.mapToScene(topleft))
 
     def _update_paths(self):
+        if self._path is None:
+            self._path = PR.glGenPathsNV(1)
+            junk = numpy.zeros((10,), dtype=numpy.uint8)
+            PR.glPathCommandsNV(self._path, 0, junk.ctypes.data_as(c_uint8_p), 0, PyGL.GL_FLOAT, junk.ctypes.data_as(c_float32_p))
+            PR.glPathParameterfNV(self._path, PR.GL_PATH_STROKE_WIDTH_NV, 204.8)
+            PR.glPathParameteriNV(self._path, PR.GL_PATH_JOIN_STYLE_NV, PR.GL_ROUND_NV)
+        if self._glyph_base is None:
+            glyph_base = PR.glGenPathsNV(256)
+            for fontname in ("Liberation Mono", "Courier", "Terminal"):
+                PR.glPathGlyphRangeNV(
+                    glyph_base,
+                    PR.GL_SYSTEM_FONT_NAME_NV, fontname, PR.GL_BOLD_BIT_NV,
+                    0, 256,
+                    PR.GL_SKIP_MISSING_GLYPH_NV, self._path, 64)
+            PR.glPathGlyphRangeNV(
+                    glyph_base,
+                    PR.GL_SYSTEM_FONT_NAME_NV, fontname, PR.GL_BOLD_BIT_NV,
+                    0, 256,
+                    PR.GL_USE_MISSING_GLYPH_NV, self._path, 64)
+            self._glyph_base = glyph_base
         if self._path_serial != self._text_serial:
-            if self._path_serial is not None:
-                PR.deletePathsNV(self._path, len(self.text))
+            encoded_kern_text = numpy.array(list((self._text + '&').encode('ISO-8859-1')), dtype=numpy.uint8)
+            self._text_kerning = numpy.zeros((len(self._text_encoded) + 1,), dtype=numpy.float32)
+            self._text_kerning[0] = 0
+            tko = self._text_kerning[1:]
+            PR.glGetPathSpacingNV(
+                PR.GL_ACCUM_ADJACENT_PAIRS_NV,
+                encoded_kern_text.shape[0], PyGL.GL_UNSIGNED_BYTE, encoded_kern_text,#encoded_kern_text.ctypes.data_as(c_uint8_p),
+                self._glyph_base,
+                1.0, 1.0, PR.GL_TRANSLATE_X_NV,
+                tko.ctypes.data_as(c_float32_p))
+            self._path_serial = self._text_serial
 
     @property
     def text(self):
@@ -93,8 +183,13 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
 
     @text.setter
     def text(self, v):
+        #TODO: figure out how to deal with \n
+        if v is not None:
+            v = v.replace('\n', '\\n')
         if self._text != v:
             if v:
+                encoded = v.encode('ISO-8859-1') # Only ISO-8859-1 is supported in this proof-of-concept implementation
+                self._text_encoded = numpy.array(list(encoded), dtype=numpy.uint8)
                 self.prepareGeometryChange()
             self._text = v
             self._text_serial += 1

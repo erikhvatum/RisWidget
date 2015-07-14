@@ -120,57 +120,36 @@ class Image(BasicImage, Qt.QObject):
     defining a large number of properties."""
 
     GAMMA_RANGE = (0.0625, 16.0)
-#   GETCOLOR_UNIFORM_TEMPLATE = Template("$T channel_mapping")
-#   IMAGE_TYPE_TO_GETCOLOR_UNIFORM_TEMPLATE = {
-#       'G'   : Template('vec${width} channel_mapping_${idx}'),
-#       'Ga'  : Template('vec${width} channel_mapping_${idx}'),
-#       'rgb' : Template('mat${dims} channel_mappings_${idx}'),
-#       'rgba': Template('mat${dims} channel_mappings_${idx}')
-#       }
-#   IMAGE_TYPE_TO_GETCOLOR_CHANNEL_MAPPING_EXPRESSION_TEMPLATE = {
-#       'G'   : Template('channel_mapping = channel_mapping_${idx}'),
-#       'Ga'  : Template('channel_mapping = channel_mapping_${idx}'),
-#       'rgb' : Template('channel_mappings = channel_mappings_${idx}'),
-#       'rgba': Template('channel_mappings = channel_mappings_${idx}')
-#       }
     IMAGE_TYPE_TO_GETCOLOR_EXPRESSION = {
-        'G'   : 's.r * channel_mapping.rgba',
-        'Ga'  : 's.r * channel_mappings[0] + s.g * channel_mappings[1]',
-        #TODO: see if vec4(s.rgb*channel_mappings.rgb, 1.0f) is equivalent to the following line
-        'rgb' : 'vec4(s.r * channel_mappings[0].rgb + s.g * channel_mappings[1].rgb + s.b * channel_mappings[2].rgb, 1.0f)',
-        'rgba': 'vec4(s.r * channel_mappings[0].rgb + s.g * channel_mappings[1].rgb + s.b * channel_mappings[2].rgb, s.a)'}
-    GETCOLOR_PROCEDURE_TEMPLATE = Template(textwrap.dedent(
-        """\
-        vec4 getcolor_procedure_${idx}(vec4 s)
-        {
-            ${cmt} channel_mapping${cmp} = channel_mapping${cmp}_${idx};
-            return $getcolor_expression;
-        }
-        """))
+        'G'   : 'vec4(s.rrr, 1.0f)',
+        'Ga'  : 'vec4(s.rrr, s.g)',
+        'rgb' : 'vec4(s.rgb, 1.0f)',
+        'rgba': 's'}
+    DEFAULT_TRANSFORM_SECTION = 'out_.rgb = pow((in_.rgb - rescale_min) / (rescale_range), gamma); out_.rgba *= tint;'
     # Blend functions adapted from http://dev.w3.org/SVG/modules/compositing/master/
     BLEND_FUNCTIONS = {
         'src' :      ('dca = sca;',
-                      'da = sa;'),
-        'src-over' : ('dca = sca + dca * (1.0f - sa);',
-                      'da = sa + da - sa * da;'),
+                      'da = s.a;'),
+        'src-over' : ('dca = sca + dca * (1.0f - s.a);',
+                      'da = s.a + da - s.a * da;'),
         'dst-over' : ('dca = dca + sca * (1.0f - da);',
-                      'da = sa + da - sa * da;'),
+                      'da = s.a + da - s.a * da;'),
         'plus'     : ('dca += sca;',
-                      'da += sa;'),
-        'multiply' : ('dca = sca * dca + sca * (1.0f - da) + dca * (1.0f - sa);',
-                      'da = sa + da - sa * da;'),
+                      'da += s.a;'),
+        'multiply' : ('dca = sca * dca + sca * (1.0f - da) + dca * (1.0f - s.a);',
+                      'da = s.a + da - s.a * da;'),
         'screen'   : ('dca = sca + dca - sca * dca;',
-                      'da = sa + da - sa * da;'),
-        'overlay'  : ('isa = 1.0f - sa; osa = 1.0f + sa;',
+                      'da = s.a + da - s.a * da;'),
+        'overlay'  : ('isa = 1.0f - s.a; osa = 1.0f + s.a;',
                       'ida = 1.0f - da; oda = 1.0f + da;',
-                      'sada = sa * da;',
+                      'sada = s.a * da;',
                       'for(i = 0; i < 3; ++i){',
                       '    dca[i] = (dca[i] + dca[i] <= da) ?',
                       '             (sca[i] + sca[i]) * dca[i] + sca[i] * ida + dca[i] * isa :',
                       '             sca[i] * oda + dca[i] * osa - (dca[i] + dca[i]) * sca[i] - sada;}',
-                      'da = sa + da - sada;'),
-        'difference':('dca = (sca * da + dca * sa - (sca + sca) * dca) + sca * (1.0f - da) + dca * (1.0f - sa);',
-                      'da = sa + da - sa * da;')}
+                      'da = s.a + da - sada;'),
+        'difference':('dca = (sca * da + dca * s.a - (sca + sca) * dca) + sca * (1.0f - da) + dca * (1.0f - s.a);',
+                      'da = s.a + da - s.a * da;')}
     for k, v in BLEND_FUNCTIONS.items():
         BLEND_FUNCTIONS[k] = '    // blending function name: {}\n    '.format(k) + '\n    '.join(v)
     del k, v
@@ -201,7 +180,6 @@ class Image(BasicImage, Qt.QObject):
         Qt.QObject.__init__(self, parent)
         BasicImage.set_data(self, data, is_twelve_bit, float_range, shape_is_width_height)
         self._retain_auto_min_max_enabled_on_min_max_change = False
-        self._retain_auto_getcolor_expression_enabled_on_getcolor_expression_change = False
         for property in self.properties:
             property.instantiate(self)
         if name:
@@ -222,6 +200,8 @@ class Image(BasicImage, Qt.QObject):
             self.name = name
         for property in self.properties:
             property.update_default(self)
+        if self.auto_min_max_enabled:
+            self.do_auto_min_max()
         self.data_changed.emit(self)
 
     def refresh(self):
@@ -349,40 +329,32 @@ class Image(BasicImage, Qt.QObject):
         with the effect that None or an empty string result in no extra transformation expression being applied (this
         is the default).""")
 
-    # TODO: Remove auto_getcolor_expression property and instead always replace current getcolor_expression with default
-    # upon image type change
-    def _auto_getcolor_expression_enabled_post_set(self, v):
-        if v:
-            self.do_auto_getcolor_expression()
-    auto_getcolor_expression_enabled = _Property(
-        properties, 'auto_getcolor_expression_enabled',
-        default_value_callback = lambda image: True,
-        transform_callback = lambda image, v: bool(v),
-        post_set_callback = _auto_getcolor_expression_enabled_post_set,
-        doc = SHAD_PROP_HELP)
-
-    def _getcolor_expression_post_set(self, v):
-        if not self._retain_auto_getcolor_expression_enabled_on_getcolor_expression_change:
-            self.auto_getcolor_expression_enabled = False
     getcolor_expression = _Property(
         properties, 'getcolor_expression',
         default_value_callback = lambda image: image.IMAGE_TYPE_TO_GETCOLOR_EXPRESSION[image.type],
-        transform_callback = lambda image, v: str(v),
-        post_set_callback = lambda image, v, f=_getcolor_expression_post_set: f(image, v),
+        transform_callback = lambda image, v: '' if v is None else str(v),
         doc = SHAD_PROP_HELP)
 
-    channel_mapping = _Property(
-        properties, 'channel_mapping',
-        default_value_callback = lambda image: numpy.array([   Qt.QColor(Qt.Qt.white) if image.is_grayscale else (Qt.QColor(Qt.Qt.red), Qt.QColor(Qt.Qt.green), Qt.QColor(Qt.Qt.blue)),
-        transform_callback = lambda image, v: Qt.QColor(v) if image.is_grayscale else (Qt.QColor(v[0]), Qt.QColor(v[1]), Qt.QColor(v[2]))
-        doc = 'I.channel_mapping: 0-1 normalized float32 RGB triplet(s) by which non-alpha image intensity channels '
-              'are multiplied in the default getcolor_expression.  ')
+    def _tint_transform(self, v):
+        v = list(map(float, v))
+        if len(v) not in (3,4) or not all(map(lambda v_: 0 <= v_ <= 1, v)):
+            raise ValueError('The iteraterable assigned to .tint must represent 3 or 4 real numbers in the interval [0, 1].')
+        if len(v) == 3:
+            v.append(1)
+        return v
+    tint = _Property(
+        properties, 'tint',
+        default_value_callback = lambda image: numpy.array((1,1,1,1), dtype=numpy.float32),
+        transform_callback = lambda image, v, f=_tint_transform: f(image, v),
+        doc = textwrap.dedent("""\
+            I.tint: This property is used by the default I.transform_section, and with that default, has
+            the following meaning: I.tint contains 0-1 normalized RGBA component values by which the results
+            of applying I.getcolor_expression are scaled."""))
 
-    extra_transformation_expression = _Property(
-        properties, 'extra_transformation_expression',
-        default_value_callback = lambda image: None,
-        transform_callback = lambda image, v: None if v is None else str(v),
-        doc = SHAD_PROP_HELP)
+    transform_section = _Property(
+        properties, 'transform_section',
+        default_value_callback = lambda image: image.DEFAULT_TRANSFORM_SECTION,
+        transform_callback = lambda image, v: '' if v is None else str(v))
 
     def _blend_function_pre_set(self, v):
         if v not in self.BLEND_FUNCTIONS:
@@ -393,18 +365,6 @@ class Image(BasicImage, Qt.QObject):
         transform_callback = lambda image, v: str(v),
         pre_set_callback = lambda image, v, f=_blend_function_pre_set: f(image, v),
         doc = SHAD_PROP_HELP + '\n\nSupported blend_functions:\n\n    ' + '\n    '.join("'" + s + "'" for s in sorted(BLEND_FUNCTIONS.keys())))
-    @property
-    def blend_function_impl(self):
-        return self.BLEND_FUNCTIONS[self.blend_function]
-
-    def _global_alpha_pre_set(self, v):
-        if not 0.0 <= v <= 1.0:
-            raise ValueError('The value assigned to global_alpha must be in the closed interval [0, 1].')
-    global_alpha = _Property(
-        properties, 'global_alpha',
-        default_value_callback = lambda image: 1.0,
-        transform_callback = lambda image, v: float(v),
-        pre_set_callback = lambda image, v, f=_global_alpha_pre_set: f(image, v))
 
     for property in properties:
         exec(property.changed_signal_name + ' = Qt.pyqtSignal(object)')

@@ -80,7 +80,18 @@ def NV_PATH_RENDERING_AVAILABLE():
                 estack.callback(glw.hide)
                 if glw.context().hasExtension('GL_NV_path_rendering'):
                     print('Detected GL_NV_path_rendering support...')
-                    _NV_PATH_RENDERING_AVAILABLE = True
+                    try:
+                        import OpenGL
+                        import OpenGL.GL.NV.path_rendering as PR
+                        if not PR.glInitPathRenderingNV():
+                            print('Failed to initialize GL_NV_path_rendering extension.    No GL_NV_path_rendering support...')
+                            _NV_PATH_RENDERING_AVAILABLE = False
+                        else:
+                            print('Successfully initialized GL_NV_path_rendering.')
+                            _NV_PATH_RENDERING_AVAILABLE = True
+                    except:
+                        print('Failed to import PyOpenGL or PyOpenGL NV.path_rendering extension.  No GL_NV_path_rendering support...')
+                        _NV_PATH_RENDERING_AVAILABLE = False
                 else:
                     print('No GL_NV_path_rendering support...')
                     _NV_PATH_RENDERING_AVAILABLE = False

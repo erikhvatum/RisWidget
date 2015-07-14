@@ -81,19 +81,24 @@ class ImageStackItem(ShaderItem):
         'rgba': Qt.QOpenGLTexture.RGBA}
     UNIFORM_SECTION_TEMPLATE = Template(textwrap.dedent("""\
         uniform sampler2D tex_${idx};
-        uniform float global_alpha_${idx};
         uniform float rescale_min_${idx};
         uniform float rescale_range_${idx};
         uniform float gamma_${idx};
-        uniform ${getcolor_uniform};"""))
+        uniform vec4 tint_${idx};"""))
+    COLOR_TRANSFORM_PROCEDURE_TEMPLATE = Template(textwrap.dedent("""\
+        vec4 color_transform_${idx}(vec4 in_, vec4 tint, float rescale_min, float rescale_range, float gamma_scalar)
+        {
+            vec4 out_;
+            out_.a = in_.a;
+            vec3 gamma = vec3(gamma_scalar, gamma_scalar, gamma_scalar);
+            ${transform_section}
+            return clamp(out_, 0, 1);
+        }"""))
     MAIN_SECTION_TEMPLATE = Template(textwrap.dedent("""\
             // image_stack[${idx}]
             s = texture2D(tex_${idx}, tex_coord);
-            s = getcolor_procedure_${idx}(s);
-            sa = clamp(s.a, 0, 1) * global_alpha_${idx};
-            sc = min_max_gamma_transform(s.rgb, rescale_min_${idx}, rescale_range_${idx}, gamma_${idx});
-            ${extra_transformation_expression}; // extra_transformation_expression
-            sca = sc * sa;
+            s = color_transform_${idx}(${getcolor_expression}, tint_${idx}, rescale_min_${idx}, rescale_range_${idx}, gamma_${idx});
+            sca = s.rgb * s.a;
         ${blend_function}
             da = clamp(da, 0, 1);
             dca = clamp(dca, 0, 1);
@@ -264,36 +269,33 @@ class ImageStackItem(ShaderItem):
                 return
             prog_desc = tuple((image.getcolor_expression,
                                'src' if tex_unit==0 else image.blend_function,
-                               image.extra_transformation_expression)
+                               image.transform_section)
                               for tex_unit, image in ((tex_unit, self.image_stack[idx]) for tex_unit, idx in enumerate(visible_idxs)))
             if prog_desc in self.progs:
                 prog = self.progs[prog_desc]
             else:
-                uniforms = []
-                main = []
-                for tex_unit, idx in enumerate(visible_idxs):
-                    image = self.image_stack[idx]
-                    num_channels = image.num_channels
-                    if num_channels == 1:
-                        cmt = 'vec4'
-                        cmp = ''
-                    else:
-                        cmt = 'mat4{}'.format(num_channels)
-                        cmp = 's'
-                uniforms, main = zip(*((self.UNIFORM_SECTION_TEMPLATE.substitute(idx=idx,
-                                                                                 getcolor_uniform=image.IMAGE_TYPE_TO_GETCOLOR_UNIFORM_TEMPLATE[image.type].substitute(idx=idx)),
-                                        self.MAIN_SECTION_TEMPLATE.substitute(idx=idx,
-                                                                              getcolor_channel_mapping_expression=image.IMAGE_TYPE_TO_GETCOLOR_CHANNEL_MAPPING_EXPRESSION_TEMPLATE[image.type].substitute(idx=idx),
-                                                                              getcolor_expression=image.getcolor_expression,
-                                                                              blend_function=image.BLEND_FUNCTIONS['src'] if tex_unit==0 else image.blend_function_impl,
-                                                                              extra_transformation_expression='' if image.extra_transformation_expression is None
-                                                                                                                 else image.extra_transformation_expression))
-                                       for idx, tex_unit, image in ((idx, tex_unit, self.image_stack[idx]) for tex_unit, idx in enumerate(visible_idxs))))
+                uniforms, color_transform_procedures, main = \
+                    zip(*(
+                            (
+                                self.UNIFORM_SECTION_TEMPLATE.substitute(idx=idx),
+                                self.COLOR_TRANSFORM_PROCEDURE_TEMPLATE.substitute(
+                                    idx=idx,
+                                    transform_section=image.transform_section),
+                                self.MAIN_SECTION_TEMPLATE.substitute(
+                                    idx=idx,
+                                    getcolor_expression=image.getcolor_expression,
+                                    blend_function=image.BLEND_FUNCTIONS['src' if tex_unit==0 else image.blend_function])
+                            ) for idx, tex_unit, image in
+                                (
+                                    (idx, tex_unit, self.image_stack[idx]) for tex_unit, idx in enumerate(visible_idxs)
+                                )
+                       ) )
                 prog = self.build_shader_prog(
                     prog_desc,
                     'planar_quad_vertex_shader.glsl',
                     'image_stack_item_fragment_shader_template.glsl',
                     uniforms='\n'.join(uniforms),
+                    color_transform_procedures='\n'.join(color_transform_procedures),
                     main='\n'.join(main))
             prog.bind()
             estack.callback(prog.release)
@@ -336,12 +338,10 @@ class ImageStackItem(ShaderItem):
                 min_max = self._normalize_for_gl(min_max, image)
                 idxstr = str(idx)
                 prog.setUniformValue('tex_'+idxstr, tex_unit)
-                prog.setUniformValue('global_alpha_'+idxstr, image.global_alpha)
                 prog.setUniformValue('rescale_min_'+idxstr, min_max[0])
                 prog.setUniformValue('rescale_range_'+idxstr, min_max[1] - min_max[0])
                 prog.setUniformValue('gamma_'+idxstr, image.gamma)
-                cm = image.channel_mapping
-                prog.setUniformValue('channel_mapping{}_{}'.format('' if image.is_grayscale else 's', idxstr), Qt.QVector3D(cm.redF(), cm.greenF(), cm.blueF()))
+                prog.setUniformValue('tint_'+idxstr, Qt.QVector4D(*image.tint))
             GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
             GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
 

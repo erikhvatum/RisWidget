@@ -37,7 +37,6 @@ class ImageStackTableView(Qt.QTableView):
         self.horizontalHeader().setStretchLastSection(True)
         self.property_checkbox_delegate = PropertyCheckboxDelegate(self)
         self.setItemDelegateForColumn(image_stack_table_model.property_columns['visible'], self.property_checkbox_delegate)
-        self.setItemDelegateForColumn(image_stack_table_model.property_columns['auto_getcolor_expression_enabled'], self.property_checkbox_delegate)
         self.blend_function_delegate = DropdownListDelegate(lambda midx: self.model().signaling_list[midx.row()].BLEND_FUNCTIONS, self)
         self.setItemDelegateForColumn(image_stack_table_model.property_columns['blend_function'], self.blend_function_delegate)
         self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
@@ -81,8 +80,8 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
     PROPERTIES = (
         'visible',
         'name',
-        'auto_getcolor_expression_enabled',
-#       'channel_mapping',
+        'getcolor_expression',
+        'transform_section',
         'blend_function',
         'size',
         'type',
@@ -92,18 +91,16 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
         super().__init__(self.PROPERTIES, signaling_list, parent)
         self._special_data_getters = {
             'visible' : self._getd_visible,
-            'auto_getcolor_expression_enabled' : self._getd_auto_getcolor_expression_enabled,
             'size' : self._getd_size,
             'dtype' : self._getd_dtype}
         self._special_flag_getters = {
             'visible' : self._getf__always_checkable,
             'name' : self._getf__always_editable,
-            'auto_getcolor_expression_enabled' : self._getf__always_checkable,
-            'channel_mapping' : self._getf__always_editable,
+            'getcolor_expression' : self._getf__always_editable,
+            'transform_section' : self._getf__always_editable,
             'blend_function' : self._getf__always_editable}
         self._special_data_setters = {
             'visible' : self._setd_visible,
-            'auto_getcolor_expression_enabled' : self._setd_auto_getcolor_expression_enabled
             }
 
     # flags #
@@ -128,9 +125,6 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
 
     def _getd_visible(self, midx, role):
         return self._getd__checkable('visible', midx, role)
-
-    def _getd_auto_getcolor_expression_enabled(self, midx, role):
-        return self._getd__checkable('auto_getcolor_expression_enabled', midx, role)
 
     def _getd_size(self, midx, role):
         if role == Qt.Qt.DisplayRole:
@@ -159,9 +153,6 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
 
     def _setd_visible(self, midx, value, role):
         return self._setd__checkable('visible', midx, value, role)
-
-    def _setd_auto_getcolor_expression_enabled(self, midx, value, role):
-        return self._setd__checkable('auto_getcolor_expression_enabled', midx, value, role)
 
     def setData(self, midx, value, role=Qt.Qt.EditRole):
         if midx.isValid():

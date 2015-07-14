@@ -54,16 +54,16 @@ class RisWidget(Qt.QMainWindow):
             self.setWindowTitle(window_title)
         self.setAcceptDrops(True)
         if GeneralViewContextualInfoItemClass is None or HistgramViewContextualInfoItemClass is None:
-#           if NV_PATH_RENDERING_AVAILABLE():
-#               from .qgraphicsitems.contextual_info_item_nv import ContextualInfoItemNV
-#           if GeneralViewContextualInfoItemClass is None:
-#               GeneralViewContextualInfoItemClass = ContextualInfoItemNV if NV_PATH_RENDERING_AVAILABLE() else ContextualInfoItem
-#           if HistgramViewContextualInfoItemClass is None:
-#               HistgramViewContextualInfoItemClass = ContextualInfoItemNV if NV_PATH_RENDERING_AVAILABLE() else ContextualInfoItem
+            if NV_PATH_RENDERING_AVAILABLE():
+                from .qgraphicsitems.contextual_info_item_nv import ContextualInfoItemNV
             if GeneralViewContextualInfoItemClass is None:
-                GeneralViewContextualInfoItemClass = ContextualInfoItem
+                GeneralViewContextualInfoItemClass = ContextualInfoItemNV if NV_PATH_RENDERING_AVAILABLE() else ContextualInfoItem
             if HistgramViewContextualInfoItemClass is None:
-                HistgramViewContextualInfoItemClass = ContextualInfoItem
+                HistgramViewContextualInfoItemClass = ContextualInfoItemNV if NV_PATH_RENDERING_AVAILABLE() else ContextualInfoItem
+#           if GeneralViewContextualInfoItemClass is None:
+#               GeneralViewContextualInfoItemClass = ContextualInfoItem
+#           if HistgramViewContextualInfoItemClass is None:
+#               HistgramViewContextualInfoItemClass = ContextualInfoItem
         self._init_scenes_and_views(
             ImageClass, ImageStackItemClass, GeneralSceneClass, GeneralViewClass,
             GeneralViewContextualInfoItemClass,

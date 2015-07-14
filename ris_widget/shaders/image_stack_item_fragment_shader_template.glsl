@@ -30,18 +30,13 @@ uniform float viewport_height;
 uniform mat3 frag_to_tex;
 $uniforms
 
-vec3 min_max_gamma_transform(vec3 cc, float rescale_min, float rescale_range, float gamma)
-{
-    return pow(clamp((cc.rgb - rescale_min) / rescale_range, 0, 1), vec3(gamma, gamma, gamma));
-}
-
 vec2 transform_frag_to_tex()
 {
     vec3 tex_coord_h = frag_to_tex * vec3(gl_FragCoord.x, viewport_height - gl_FragCoord.y, gl_FragCoord.w);
     return tex_coord_h.xy / tex_coord_h.z;
 }
 
-$getcolor_procedures
+$color_transform_procedures
 
 void main()
 {
@@ -49,8 +44,7 @@ void main()
     vec4 s;
     vec3 channel_mapping;
     mat3 channel_mappings;
-    float sa, da;
-    vec3 sc, dc;
+    float da;
     vec3 sca, dca;
     int i;
     float isa, ida, osa, oda, sada;
