@@ -158,8 +158,7 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
     def _update_paths(self):
         if self._path is None:
             self._path = PR.glGenPathsNV(1)
-            _ = numpy.zeros((10,), dtype=numpy.uint8)
-            PR.glPathCommandsNV(self._path, 0, _.ctypes.data_as(c_uint8_p), 0, PyGL.GL_FLOAT, _.ctypes.data_as(c_float32_p))
+            PR.glPathCommandsNV(self._path, 0, c_uint8_p(), 0, PyGL.GL_FLOAT, c_float32_p())
             PR.glPathParameterfNV(self._path, PR.GL_PATH_STROKE_WIDTH_NV, 3.0)
             PR.glPathParameteriNV(self._path, PR.GL_PATH_JOIN_STYLE_NV, PR.GL_ROUND_NV)
         if self._glyph_base is None:
