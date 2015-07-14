@@ -107,6 +107,10 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
             PyGL.glEnable(PyGL.GL_STENCIL_TEST)
             PyGL.glStencilFunc(PyGL.GL_NOTEQUAL, 0, 0x1)
             PyGL.glStencilOp(PyGL.GL_KEEP, PyGL.GL_KEEP, PyGL.GL_ZERO)
+            PyGL.glPushMatrix()
+            estack.callback(PyGL.glPopMatrix)
+            PyGL.glScale(1,-1,1)
+            PyGL.glTranslate(0,-30,0)
 
             # Draw text outline
             PR.glStencilStrokePathInstancedNV(
