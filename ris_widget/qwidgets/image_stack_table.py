@@ -34,7 +34,7 @@ class ImageStackTableView(Qt.QTableView):
     def __init__(self, image_stack_table_model, parent=None):
         super().__init__(parent)
         self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
-        self.horizontalHeader().setStretchLastSection(True)
+#       self.horizontalHeader().setStretchLastSection(True)
         self.property_checkbox_delegate = PropertyCheckboxDelegate(self)
         self.setItemDelegateForColumn(image_stack_table_model.property_columns['visible'], self.property_checkbox_delegate)
         self.blend_function_delegate = DropdownListDelegate(lambda midx: self.model().signaling_list[midx.row()].BLEND_FUNCTIONS, self)
@@ -79,13 +79,13 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
 
     PROPERTIES = (
         'visible',
-        'name',
-        'getcolor_expression',
-        'transform_section',
         'blend_function',
         'size',
         'type',
-        'dtype')
+        'dtype',
+        'getcolor_expression',
+        'name',
+        'transform_section',)
 
     def __init__(self, signaling_list, parent=None):
         super().__init__(self.PROPERTIES, signaling_list, parent)

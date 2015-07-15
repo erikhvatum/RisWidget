@@ -27,7 +27,7 @@ from PyQt5 import Qt
 import numpy
 import sys
 import weakref
-from .qwidgets.flipbook import Flipbook
+from .qwidgets.image_stack_current_row_flipbook import ImageStackCurrentRowFlipbook
 from .image.image import Image
 from .qwidgets.image_stack_table import ImageStackTableModel, ImageStackTableView
 from .qgraphicsitems.contextual_info_item import ContextualInfoItem
@@ -163,7 +163,7 @@ class RisWidget(Qt.QMainWindow):
         self._image_stack_table_dock_widget.setAllowedAreas(Qt.Qt.AllDockWidgetAreas)
         self._image_stack_table_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
         # TODO: make image stack table widget default location be at window bottom, adjacent to histogram
-        self.addDockWidget(Qt.Qt.RightDockWidgetArea, self._image_stack_table_dock_widget)
+        self.addDockWidget(Qt.Qt.TopDockWidgetArea, self._image_stack_table_dock_widget)
         self._most_recently_created_flipbook = None
 
     def dragEnterEvent(self, event):
@@ -290,8 +290,7 @@ class RisWidget(Qt.QMainWindow):
         if images is not None:
             if not isinstance(images, SignalingList):
                 images = SignalingList([image if isinstance(image, self.ImageClass) else self.ImageClass(image, name=str(image_idx)) for image_idx, image in enumerate(images)])
-        flipbook = Flipbook(images)
-        flipbook.current_page_changed.connect(self._on_flipbook_current_page_changed)
+        flipbook = ImageStackCurrentRowFlipbook(self.image_stack, self.image_stack_table_selection_model, images)
         dock_widget = Qt.QDockWidget(name, self)
         dock_widget.setAttribute(Qt.Qt.WA_DeleteOnClose)
         dock_widget.setWidget(flipbook)
@@ -314,14 +313,6 @@ class RisWidget(Qt.QMainWindow):
             except RuntimeError:
                 # Qt part of the object was deleted out from under the Python part
                 self._most_recently_created_flipbook = None # Clean up our weakref to the Python part
-
-    def _on_flipbook_current_page_changed(self, idx, page):
-        if idx < 0:
-            return
-        table_current_midx = self.image_stack_table_selection_model.currentIndex()
-        if not table_current_midx.isValid():
-            return
-        self.image_stack[table_current_midx.row()] = page
 
     def _on_image_stack_table_current_row_changed(self, midx, prev_midx):
         self.histogram_scene.histogram_item.image = self.image_stack[midx.row()] if midx.isValid() else None

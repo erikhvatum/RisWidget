@@ -48,10 +48,9 @@ class Flipbook(Qt.QWidget):
         vlayout = Qt.QVBoxLayout()
         self.setLayout(vlayout)
         self.pages_view = Qt.QTableView()
-        self.pages_model = _TableModel(displayed_page_properties, pages, self, self.pages_view)
+        self.pages_model = SignalingListPropertyTableModel(displayed_page_properties, pages, self.pages_view)
         self.pages_view.setModel(self.pages_model)
         self.pages_view.selectionModel().currentRowChanged.connect(self._on_pages_model_current_row_changed)
-        self.pages_view.setDragDropMode(Qt.QAbstractItemView.InternalMove)
         self.pages_view.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
         self.pages_view.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
         self.pages_view.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
@@ -72,8 +71,3 @@ class Flipbook(Qt.QWidget):
             self.current_page_changed.emit(row, self.pages[row])
         else:
             self.current_page_changed.emit(-1, None)
-
-class _TableModel(SignalingListPropertyTableModel):
-    def __init__(self, property_names, signaling_list, flipbook, parent):
-        super().__init__(property_names, signaling_list, parent)
-        self.flipbook = flipbook
