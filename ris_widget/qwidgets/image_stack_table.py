@@ -23,7 +23,6 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from PyQt5 import Qt
-from ..qdelegates.channel_mapping_delegate import ChannelMappingDelegate
 from ..qdelegates.dropdown_list_delegate import DropdownListDelegate
 from ..qdelegates.property_checkbox_delegate import PropertyCheckboxDelegate
 from ..signaling_list.signaling_list import SignalingList
@@ -79,10 +78,11 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
 
     PROPERTIES = (
         'visible',
-        'blend_function',
         'size',
         'type',
         'dtype',
+        'blend_function',
+        'tint',
         'getcolor_expression',
         'name',
         'transform_section',)
@@ -91,17 +91,18 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
         super().__init__(self.PROPERTIES, signaling_list, parent)
         self._special_data_getters = {
             'visible' : self._getd_visible,
+            'tint' : self._getd_tint,
             'size' : self._getd_size,
             'dtype' : self._getd_dtype}
         self._special_flag_getters = {
             'visible' : self._getf__always_checkable,
+#           'tint' : self._getf__always_editable,
             'name' : self._getf__always_editable,
             'getcolor_expression' : self._getf__always_editable,
             'transform_section' : self._getf__always_editable,
             'blend_function' : self._getf__always_editable}
         self._special_data_setters = {
-            'visible' : self._setd_visible,
-            }
+            'visible' : self._setd_visible}
 
     # flags #
 
@@ -125,6 +126,12 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
 
     def _getd_visible(self, midx, role):
         return self._getd__checkable('visible', midx, role)
+
+    def _getd_tint(self, midx, role):
+        if role == Qt.Qt.DecorationRole:
+            return Qt.QVariant(Qt.QColor(*(int(c*255) for c in self.signaling_list[midx.row()].tint)))
+#       elif role == Qt.Qt.DisplayRole:
+#           return str(self.signaling_list[midx.row()].tint)
 
     def _getd_size(self, midx, role):
         if role == Qt.Qt.DisplayRole:
