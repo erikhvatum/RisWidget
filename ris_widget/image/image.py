@@ -47,6 +47,14 @@ class _Property(property):
             self.__doc__ = doc
         properties.append(self)
 
+    @staticmethod
+    def eq(a, b):
+        r = a == b
+        if isinstance(r, bool):
+            return r
+        else:
+            return all(r)
+
     def instantiate(self, image):
         setattr(image, self.default_val_var_name, self.default_value_callback(image))
         getattr(image, self.changed_signal_name).connect(image.changed)
@@ -60,7 +68,7 @@ class _Property(property):
             # if it has
             old_default = getattr(image, self.default_val_var_name)
             new_default = self.default_value_callback(image)
-            if old_default != new_default:
+            if not self.eq(new_default, old_default):
                 setattr(image, self.default_val_var_name, new_default)
                 getattr(image, self.changed_signal_name).emit(image)
 
@@ -75,7 +83,7 @@ class _Property(property):
     def __set__(self, image, v):
         if self.transform_callback is not None:
             v = self.transform_callback(image, v)
-        if not hasattr(image, self.var_name) or v != getattr(image, self.var_name):
+        if not hasattr(image, self.var_name) or not self.eq(v, getattr(image, self.var_name)):
             if self.pre_set_callback is not None:
                 self.pre_set_callback(image, v)
             setattr(image, self.var_name, v)
@@ -89,7 +97,7 @@ class _Property(property):
             old_value = getattr(image, self.var_name)
             delattr(image, self.var_name)
             new_value = getattr(image, self.default_val_var_name)
-            if old_value != new_value:
+            if not self.eq(old_value, new_value):
                 if self.post_set_callback is not None:
                     self.post_set_callback(image, new_value)
                 getattr(image, self.changed_signal_name).emit(image)

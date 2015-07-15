@@ -263,7 +263,7 @@ class RisWidget(Qt.QMainWindow):
     def image_data(self, image_data):
         image_stack = self.image_stack
         if image_stack:
-            image_stack[0].data = image_data
+            image_stack[0].set_data(image_data)
         else:
             image_stack.append(self.ImageClass(image_data))
 
@@ -277,7 +277,7 @@ class RisWidget(Qt.QMainWindow):
     def image_data_T(self, image_data_T):
         image_stack = self.image_stack
         if image_stack:
-            image_stack[0].data_T = image_data_T
+            image_stack[0].set_data(image_data_T, shape_is_width_height=False)
         else:
             image_stack.append(self.ImageClass(image_data, shape_is_width_height=False))
 

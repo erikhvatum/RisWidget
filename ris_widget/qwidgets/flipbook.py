@@ -70,13 +70,13 @@ class Flipbook(Qt.QWidget):
         assert isinstance(pages, SignalingList)
         self.pages_model.signaling_list = pages
 
-    def _list_view_item_flags(self, midx):
-        flags = Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
-        if self._drag_and_drop_enabled:
-            flags |= Qt.Qt.ItemIsDropEnabled
-            if midx.isValid():
-                flags |= Qt.Qt.ItemIsDragEnabled
-        return flags
+#   def _list_view_item_flags(self, midx):
+#       flags = Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
+#       if self._drag_and_drop_enabled:
+#           flags |= Qt.Qt.ItemIsDropEnabled
+#           if midx.isValid():
+#               flags |= Qt.Qt.ItemIsDragEnabled
+#       return flags
 
 #   def _on_drag_and_drop_checkbox_toggled(self, state):
 #       self._drag_and_drop_enabled = state == Qt.Qt.Checked
@@ -114,10 +114,10 @@ class _TableModel(SignalingListPropertyTableModel):
         super().__init__(property_names, signaling_list, parent)
         self.flipbook = flipbook
 
-    def flags(self, midx):
-        flags = Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
-        if self.flipbook.drag_and_drop_enabled:
-            flags |= Qt.Qt.ItemIsDropEnabled
-            if midx.isValid():
-                flags |= Qt.Qt.ItemIsDragEnabled
-        return flags
+#   def flags(self, midx):
+#       flags = Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
+#       if self.flipbook.drag_and_drop_enabled:
+#           flags |= Qt.Qt.ItemIsDropEnabled
+#           if midx.isValid():
+#               flags |= Qt.Qt.ItemIsDragEnabled
+#       return flags
