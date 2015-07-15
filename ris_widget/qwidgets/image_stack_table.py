@@ -37,6 +37,7 @@ class ImageStackTableView(Qt.QTableView):
 #       self.horizontalHeader().setStretchLastSection(True)
         self.property_checkbox_delegate = PropertyCheckboxDelegate(self)
         self.setItemDelegateForColumn(image_stack_table_model.property_columns['visible'], self.property_checkbox_delegate)
+        self.setItemDelegateForColumn(image_stack_table_model.property_columns['auto_min_max_enabled'], self.property_checkbox_delegate)
         self.blend_function_delegate = DropdownListDelegate(lambda midx: self.model().signaling_list[midx.row()].BLEND_FUNCTIONS, self)
         self.setItemDelegateForColumn(image_stack_table_model.property_columns['blend_function'], self.blend_function_delegate)
         self.tint_delegate = TintDelegate(self)
@@ -64,20 +65,6 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
     #         if midx.column() == self.property_columns['image_quality']:
     #             return Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren | Qt.Qt.ItemIsEditable
     #         return super().flags(midx)
-    #
-    # It is sometimes convenient to use Qt item view roles other than Qt.Qt.DisplayRole and Qt.Qt.EditRole.  To cover all
-    # combinations of cases where a subclass adds a property that is RO/RW and does/doesn't use DispalyRole+EditRole ('visible'
-    # is an example of a property that does not use DisplayRole+EditRole), let us define four things that the subclass can do:
-    # 1) Override .PROPERTIES.
-    # 2) Override .flags, or override .__init__ to add an entry to ._special_flag_getters.
-    # 3) Override .data, or override .__init__ to add an entry to ._special_data_getters.
-    # 4) Override .setData, or override .__init__ to add an entry to ._special_data_setters
-    #
-    # In the case where the subclass adds property that is:
-    #  * read-only and uses DispalyRole+EditRole, 1 is needed.
-    #  * read-write and uses DispalyRole+EditRole, 1 and 2 are needed.
-    #  * read-only and does not use DispalyRole+EditRole, 1 and 3 are needed.
-    #  * read-write and does not use DispalyRole+EditRole, 1, 2, 3, and 4 are needed.
 
     PROPERTIES = (
         'visible',
@@ -85,6 +72,7 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
         'type',
         'dtype',
         'blend_function',
+        'auto_min_max_enabled',
         'tint',
         'getcolor_expression',
         'name',
@@ -94,18 +82,21 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
         super().__init__(self.PROPERTIES, signaling_list, parent)
         self._special_data_getters = {
             'visible' : self._getd_visible,
+            'auto_min_max_enabled' : self._getd_auto_min_max_enabled,
             'tint' : self._getd_tint,
             'size' : self._getd_size,
             'dtype' : self._getd_dtype}
         self._special_flag_getters = {
             'visible' : self._getf__always_checkable,
+            'auto_min_max_enabled' : self._getf__always_checkable,
             'tint' : self._getf__always_editable,
             'name' : self._getf__always_editable,
             'getcolor_expression' : self._getf__always_editable,
             'transform_section' : self._getf__always_editable,
             'blend_function' : self._getf__always_editable}
         self._special_data_setters = {
-            'visible' : self._setd_visible}
+            'visible' : self._setd_visible,
+            'auto_min_max_enabled' : self._setd_auto_min_max_enabled}
 
     # flags #
 
@@ -129,6 +120,9 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
 
     def _getd_visible(self, midx, role):
         return self._getd__checkable('visible', midx, role)
+
+    def _getd_auto_min_max_enabled(self, midx, role):
+        return self._getd__checkable('auto_min_max_enabled', midx, role)
 
     def _getd_tint(self, midx, role):
         if role == Qt.Qt.DecorationRole:
@@ -155,7 +149,6 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
     # setData #
 
     def _setd__checkable(self, property_name, midx, value, role):
-        assert self.property_names[midx.column()] == property_name
         if role == Qt.Qt.CheckStateRole:
             setattr(self.signaling_list[midx.row()], property_name, value.value())
             return True
@@ -163,6 +156,9 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
 
     def _setd_visible(self, midx, value, role):
         return self._setd__checkable('visible', midx, value, role)
+
+    def _setd_auto_min_max_enabled(self, midx, value, role):
+        return self._setd__checkable('auto_min_max_enabled', midx, value, role)
 
     def setData(self, midx, value, role=Qt.Qt.EditRole):
         if midx.isValid():
