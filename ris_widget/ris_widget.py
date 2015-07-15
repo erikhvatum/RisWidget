@@ -316,8 +316,12 @@ class RisWidget(Qt.QMainWindow):
                 self._most_recently_created_flipbook = None # Clean up our weakref to the Python part
 
     def _on_flipbook_current_page_changed(self, idx, page):
-        if idx >= 0:
-            self.image = page
+        if idx < 0:
+            return
+        table_current_midx = self.image_stack_table_selection_model.currentIndex()
+        if not table_current_midx.isValid():
+            return
+        self.image_stack[table_current_midx.row()] = page
 
     def _on_image_stack_table_current_row_changed(self, midx, prev_midx):
         self.histogram_scene.histogram_item.image = self.image_stack[midx.row()] if midx.isValid() else None
@@ -338,7 +342,6 @@ class RisWidget(Qt.QMainWindow):
                 return
             old_current, new_current = old_images[change_idx], new_images[change_idx]
             self.histogram_scene.histogram_item.image = new_current
-
 
     def _main_view_zoom_changed(self, zoom_preset_idx, custom_zoom):
         assert zoom_preset_idx == -1 and custom_zoom != 0 or zoom_preset_idx != -1 and custom_zoom == 0, \
