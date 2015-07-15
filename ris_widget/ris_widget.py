@@ -77,7 +77,7 @@ class RisWidget(Qt.QMainWindow):
     def _init_actions(self):
         self._main_view_reset_min_max_action = Qt.QAction(self)
         self._main_view_reset_min_max_action.setText('Reset Min/Max')
-#       self._main_view_reset_min_max_action.triggered.connect(self._on_reset_min_max)
+        self._main_view_reset_min_max_action.triggered.connect(self._on_reset_min_max)
         self._main_view_reset_gamma_action = Qt.QAction(self)
         self._main_view_reset_gamma_action.setText('Reset \u03b3')
         self._main_view_reset_gamma_action.triggered.connect(self._on_reset_gamma)
@@ -121,11 +121,8 @@ class RisWidget(Qt.QMainWindow):
         self._main_view_toolbar.addAction(self._main_view_reset_min_max_action)
         self._main_view_toolbar.addAction(self._main_view_reset_gamma_action)
         self._main_view_toolbar.addAction(self._image_stack_table_dock_widget.toggleViewAction())
-#       self._main_view_toolbar.addAction(self.main_scene.image_item.auto_min_max_enabled_action)
         self._histogram_view_toolbar = self.addToolBar('Histogram View')
         self._histogram_view_toolbar.addAction(self._histogram_dock_widget.toggleViewAction())
-#       self._image_name_toolbar = self.addToolBar('Image Name')
-#       self._image_name_toolbar.addAction(self.main_view.show_image_name_action)
 
     def _init_menus(self):
         mb = self.menuBar()
@@ -256,6 +253,12 @@ class RisWidget(Qt.QMainWindow):
             image_stack.append(image)
 
     @property
+    def current_image_stack_table_image(self):
+        midx = self.image_stack_table_selection_model.currentIndex()
+        if midx.isValid():
+            return self.image_stack[midx.row()]
+
+    @property
     def image_data(self):
         image_stack = self.image_stack
         if image_stack:
@@ -359,13 +362,16 @@ class RisWidget(Qt.QMainWindow):
             self._main_view_zoom_combo.setFocus()
             self._main_view_zoom_combo.lineEdit().selectAll()
 
-#   def _on_reset_min_max(self):
-#       self.main_scene.image_item.auto_min_max_enabled = False
-#       del self.main_scene.image_item.min
-#       del self.main_scene.image_item.max
+    def _on_reset_min_max(self):
+        image = self.current_image_stack_table_image
+        if image is not None:
+            del image.min
+            del image.max
 
     def _on_reset_gamma(self):
-        del self.main_scene.image_item.gamma
+        image = self.current_image_stack_table_image
+        if image is not None:
+            del image.gamma
 
 if __name__ == '__main__':
     import sys
