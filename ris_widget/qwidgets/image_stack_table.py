@@ -24,6 +24,7 @@
 
 from PyQt5 import Qt
 from ..qdelegates.dropdown_list_delegate import DropdownListDelegate
+from ..qdelegates.tint_delegate import TintDelegate
 from ..qdelegates.property_checkbox_delegate import PropertyCheckboxDelegate
 from ..signaling_list.signaling_list import SignalingList
 from ..signaling_list.signaling_list_property_table_model import SignalingListPropertyTableModel
@@ -38,6 +39,8 @@ class ImageStackTableView(Qt.QTableView):
         self.setItemDelegateForColumn(image_stack_table_model.property_columns['visible'], self.property_checkbox_delegate)
         self.blend_function_delegate = DropdownListDelegate(lambda midx: self.model().signaling_list[midx.row()].BLEND_FUNCTIONS, self)
         self.setItemDelegateForColumn(image_stack_table_model.property_columns['blend_function'], self.blend_function_delegate)
+        self.tint_delegate = TintDelegate(self)
+        self.setItemDelegateForColumn(image_stack_table_model.property_columns['tint'], self.tint_delegate)
         self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
         self.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
         self.setModel(image_stack_table_model)
@@ -96,7 +99,7 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
             'dtype' : self._getd_dtype}
         self._special_flag_getters = {
             'visible' : self._getf__always_checkable,
-#           'tint' : self._getf__always_editable,
+            'tint' : self._getf__always_editable,
             'name' : self._getf__always_editable,
             'getcolor_expression' : self._getf__always_editable,
             'transform_section' : self._getf__always_editable,
@@ -130,8 +133,8 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
     def _getd_tint(self, midx, role):
         if role == Qt.Qt.DecorationRole:
             return Qt.QVariant(Qt.QColor(*(int(c*255) for c in self.signaling_list[midx.row()].tint)))
-#       elif role == Qt.Qt.DisplayRole:
-#           return str(self.signaling_list[midx.row()].tint)
+        elif role == Qt.Qt.DisplayRole:
+            return Qt.QVariant(self.signaling_list[midx.row()].tint)
 
     def _getd_size(self, midx, role):
         if role == Qt.Qt.DisplayRole:
