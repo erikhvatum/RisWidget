@@ -66,7 +66,7 @@ class Flipbook(Qt.QWidget):
         assert isinstance(pages, SignalingList)
         self.pages_model.signaling_list = pages
 
-    def _on_pages_model_current_row_changed(self, old_midx, midx):
+    def _on_pages_model_current_row_changed(self, midx, old_midx):
         if midx.isValid():
             row = midx.row()
             self.current_page_changed.emit(row, self.pages[row])

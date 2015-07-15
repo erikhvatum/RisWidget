@@ -114,7 +114,7 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
             # TODO: determine why Y axis needs to be inverted for NV_path_drawing
             PyGL.glScale(1,-1,1)
             # TODO: If flipping does turn out to be necessary, translate down by total text height as computed via
-            # font metrics from path rendering extension rather than by the fixed number -35
+            # font metrics from path rendering extension rather than by the fixed number -22
             LINE_OFFSET = -22
 
             for l, k in zip(self._text_lines_encoded, self._text_lines_kerning):

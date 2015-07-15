@@ -157,6 +157,8 @@ class RisWidget(Qt.QMainWindow):
         self.image_stack_table_model.setParent(self.image_stack_table_view)
         self.image_stack_table_selection_model = self.image_stack_table_view.selectionModel()
         self.image_stack_table_selection_model.currentRowChanged.connect(self._on_image_stack_table_current_row_changed)
+        self.image_stack.inserted.connect(self._on_inserted_into_image_stack)
+        self.image_stack.replaced.connect(self._on_replaced_in_image_stack)
         self._image_stack_table_dock_widget.setWidget(self.image_stack_table_view)
         self._image_stack_table_dock_widget.setAllowedAreas(Qt.Qt.AllDockWidgetAreas)
         self._image_stack_table_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
@@ -319,6 +321,24 @@ class RisWidget(Qt.QMainWindow):
 
     def _on_image_stack_table_current_row_changed(self, midx, prev_midx):
         self.histogram_scene.histogram_item.image = self.image_stack[midx.row()] if midx.isValid() else None
+
+    def _on_inserted_into_image_stack(self, idx, images):
+        assert len(self.image_stack) > 0
+        if not self.image_stack_table_selection_model.currentIndex().isValid():
+            self.image_stack_table_selection_model.setCurrentIndex(
+                self.image_stack_table_model.createIndex(0, 0),
+                Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
+
+    def _on_replaced_in_image_stack(self, idxs, old_images, new_images):
+        current_midx = self.image_stack_table_selection_model.currentIndex()
+        if current_midx.isValid():
+            try:
+                change_idx = idxs.index(current_midx.row())
+            except ValueError:
+                return
+            old_current, new_current = old_images[change_idx], new_images[change_idx]
+            self.histogram_scene.histogram_item.image = new_current
+
 
     def _main_view_zoom_changed(self, zoom_preset_idx, custom_zoom):
         assert zoom_preset_idx == -1 and custom_zoom != 0 or zoom_preset_idx != -1 and custom_zoom == 0, \
