@@ -72,6 +72,15 @@ class _Property(property):
                 setattr(image, self.default_val_var_name, new_default)
                 getattr(image, self.changed_signal_name).emit(image)
 
+    def copy_instance_value(self, src_image, dst_image):
+        """Replace value for this property in dst_image if src_image has a non-default value
+        for this property."""
+        try:
+            v = getattr(src_image, self.var_name)
+        except AttributeError:
+            return
+        setattr(dst_image, self.var_name, v)
+
     def __get__(self, image, _=None):
         if image is None:
             return self
@@ -211,6 +220,15 @@ class Image(BasicImage, Qt.QObject):
         if self.auto_min_max_enabled:
             self.do_auto_min_max()
         self.data_changed.emit(self)
+
+    def copy_property_values_from(self, source):
+        for property in self.properties:
+            property.copy_instance_value(source, self)
+        sname = source.name
+        if sname:
+            self.name = sname + ' dupe'
+        else:
+            self.name = 'dupe'
 
     def refresh(self):
         BasicImage.refresh(self)
