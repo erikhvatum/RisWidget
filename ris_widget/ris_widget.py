@@ -196,23 +196,7 @@ class RisWidget(Qt.QMainWindow):
                         shape=(qimage.height(), qimage.width(), channel_count))
                 if qimage.isGrayscale():
                     npyimage=npyimage[...,0]
-                image = self.ImageClass(npyimage, shape_is_width_height=False, name=str(mime_data.urls()[0]) if mime_data.hasUrls() else None)
-                if image.data.ctypes.data == npyimage.ctypes.data:
-                    def del_qimage():
-                        try:
-                            del image.qimage
-                        except AttributeError:
-                            pass
-                        try:
-                            image.data_changed.disconnect(del_qimage)
-                        except TypeError:
-                            pass
-                    image_object.data_changed.connect(del_qimage)
-                    # Retain reference to prevent deallocation of underlying buffer owned by Qt and wrapped by numpy.  This does happen,
-                    # indicating that the various transponse operations just shift around elements of shape and strides rather than
-                    # causing memcpys.
-                    image_object.qimage = qimage
-                self.image = image
+                self.image = self.ImageClass(npyimage.copy(), shape_is_width_height=False, name=mime_data.urls()[0].toDisplayString() if mime_data.hasUrls() else None)
                 event.accept()
         elif mime_data.hasUrls():
             # Note: if the URL is a "file://..." representing a local file, toLocalFile returns a string
