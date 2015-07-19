@@ -204,20 +204,16 @@
 	<CustomFolders></CustomFolders>
 	<Files AutoFolders="DirectoryView">
 		<Folder Name="ris_widget">
-			<Folder Name="image">
-				<Folder Name="ndimage_statistics">
-					<F N="ris_widget/image/ndimage_statistics/__init__.py"/>
-					<F N="ris_widget/image/ndimage_statistics/_ndimage_statistics.cpp"/>
-					<F N="ris_widget/image/ndimage_statistics/_ndimage_statistics.pyx"/>
-					<F N="ris_widget/image/ndimage_statistics/_ndimage_statistics_impl.cpp"/>
-					<F N="ris_widget/image/ndimage_statistics/_ndimage_statistics_impl.h"/>
-					<F N="ris_widget/image/ndimage_statistics/ndimage_statistics.py"/>
-				</Folder>
-				<F N="ris_widget/image/__init__.py"/>
-				<F N="ris_widget/image/basic_image.py"/>
-				<F N="ris_widget/image/image.py"/>
+			<Folder Name="ndimage_statistics">
+				<F N="ris_widget/ndimage_statistics/__init__.py"/>
+				<F N="ris_widget/ndimage_statistics/_ndimage_statistics.cpp"/>
+				<F N="ris_widget/ndimage_statistics/_ndimage_statistics.pyx"/>
+				<F N="ris_widget/ndimage_statistics/_ndimage_statistics_impl.cpp"/>
+				<F N="ris_widget/ndimage_statistics/_ndimage_statistics_impl.h"/>
+				<F N="ris_widget/ndimage_statistics/ndimage_statistics.py"/>
 			</Folder>
 			<Folder Name="qdelegates">
+				<F N="ris_widget/qdelegates/__init__.py"/>
 				<F N="ris_widget/qdelegates/dropdown_list_delegate.py"/>
 				<F N="ris_widget/qdelegates/property_checkbox_delegate.py"/>
 				<F N="ris_widget/qdelegates/tint_delegate.py"/>
@@ -227,7 +223,7 @@
 				<F N="ris_widget/qgraphicsitems/contextual_info_item.py"/>
 				<F N="ris_widget/qgraphicsitems/contextual_info_item_nv.py"/>
 				<F N="ris_widget/qgraphicsitems/histogram_items.py"/>
-				<F N="ris_widget/qgraphicsitems/image_stack_item.py"/>
+				<F N="ris_widget/qgraphicsitems/layer_stack_item.py"/>
 				<F N="ris_widget/qgraphicsitems/shader_item.py"/>
 			</Folder>
 			<Folder Name="qgraphicsscenes">
@@ -250,7 +246,7 @@
 			</Folder>
 			<Folder Name="shaders">
 				<F N="ris_widget/shaders/histogram_item_fragment_shader.glsl"/>
-				<F N="ris_widget/shaders/image_stack_item_fragment_shader_template.glsl"/>
+				<F N="ris_widget/shaders/layer_stack_item_fragment_shader_template.glsl"/>
 				<F N="ris_widget/shaders/planar_quad_vertex_shader.glsl"/>
 			</Folder>
 			<Folder Name="signaling_list">
@@ -260,11 +256,11 @@
 			</Folder>
 			<F N="ris_widget/__init__.py"/>
 			<F N="ris_widget/_qt_debug.py"/>
+			<F N="ris_widget/image.py"/>
+			<F N="ris_widget/layer.py"/>
 			<F N="ris_widget/ris_widget.py"/>
 			<F N="ris_widget/shared_resources.py"/>
 		</Folder>
-		<F N="LICENSE"/>
-		<F N="MANIFEST.in"/>
 		<F N="README.md"/>
 		<F N="setup.py"/>
 	</Files>

@@ -31,10 +31,10 @@ from pathlib import Path
 import subprocess
 import sys
 
-cpp_source = 'ris_widget/image/ndimage_statistics/_ndimage_statistics_impl.cpp'
-cython_source = 'ris_widget/image/ndimage_statistics/_ndimage_statistics.pyx'
-cythoned_source = 'ris_widget/image/ndimage_statistics/_ndimage_statistics.cpp'
-cython_source_deps = ['ris_widget/image/ndimage_statistics/_ndimage_statistics_impl.h']
+cpp_source = 'ris_widget/ndimage_statistics/_ndimage_statistics_impl.cpp'
+cython_source = 'ris_widget/ndimage_statistics/_ndimage_statistics.pyx'
+cythoned_source = 'ris_widget/ndimage_statistics/_ndimage_statistics.cpp'
+cython_source_deps = ['ris_widget/ndimage_statistics/_ndimage_statistics_impl.h']
 
 include_dirs = [numpy.get_include()]
 
@@ -83,7 +83,7 @@ try:
             super().__init__(*va, **ka)
             self.force = True
 
-    ext_modules = [Extension('ris_widget.image.ndimage_statistics._ndimage_statistics',
+    ext_modules = [Extension('ris_widget.ndimage_statistics._ndimage_statistics',
                              sources = [cython_source, cpp_source],
                              include_dirs = include_dirs,
                              define_macros = define_macros,
@@ -101,7 +101,7 @@ except ImportError:
     print('Cython does not appear to be installed.  Attempting to use pre-made cpp file...')
     from distutils.extension import Extension
 
-    ext_modules = [Extension('ris_widget._ndimage_statistics',
+    ext_modules = [Extension('ris_widget.ndimage_statistics._ndimage_statistics',
                              sources = [cythoned_source, cpp_source],
                              include_dirs = include_dirs,
                              define_macros = define_macros,

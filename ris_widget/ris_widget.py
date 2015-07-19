@@ -32,7 +32,7 @@ from .image.image import Image
 from .qwidgets.image_stack_table import ImageStackTableModel, ImageStackTableView
 from .qgraphicsitems.contextual_info_item import ContextualInfoItem
 from .qgraphicsitems.histogram_items import HistogramItem
-from .qgraphicsitems.image_stack_item import ImageStackItem
+from .qgraphicsitems.layer_stack_item import LayerStackItem
 from .qgraphicsscenes.general_scene import GeneralScene
 from .qgraphicsviews.general_view import GeneralView
 from .qgraphicsscenes.histogram_scene import HistogramScene
@@ -42,7 +42,7 @@ from .signaling_list.signaling_list import SignalingList
 
 class RisWidget(Qt.QMainWindow):
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0), msaa_sample_count=2,
-                 ImageClass=Image, ImageStackItemClass=ImageStackItem, GeneralSceneClass=GeneralScene, GeneralViewClass=GeneralView,
+                 ImageClass=Image, LayerStackItemClass=LayerStackItem, GeneralSceneClass=GeneralScene, GeneralViewClass=GeneralView,
                  GeneralViewContextualInfoItemClass=None,
                  HistogramItemClass=HistogramItem, HistogramSceneClass=HistogramScene, HistogramViewClass=HistogramView,
                  HistgramViewContextualInfoItemClass=None):
@@ -65,7 +65,7 @@ class RisWidget(Qt.QMainWindow):
 #           if HistgramViewContextualInfoItemClass is None:
 #               HistgramViewContextualInfoItemClass = ContextualInfoItem
         self._init_scenes_and_views(
-            ImageClass, ImageStackItemClass, GeneralSceneClass, GeneralViewClass,
+            ImageClass, LayerStackItemClass, GeneralSceneClass, GeneralViewClass,
             GeneralViewContextualInfoItemClass,
             HistogramItemClass, HistogramSceneClass, HistogramViewClass,
             HistgramViewContextualInfoItemClass)
@@ -133,12 +133,12 @@ class RisWidget(Qt.QMainWindow):
         m.addAction(self.main_view.zoom_to_fit_action)
         m.addAction(self.main_view.zoom_one_to_one_action)
 
-    def _init_scenes_and_views(self, ImageClass, ImageStackItemClass, GeneralSceneClass, GeneralViewClass, GeneralViewContextualInfoItemClass,
+    def _init_scenes_and_views(self, ImageClass, LayerStackItemClass, GeneralSceneClass, GeneralViewClass, GeneralViewContextualInfoItemClass,
                                HistogramItemClass, HistogramSceneClass, HistogramViewClass, HistgramViewContextualInfoItemClass):
-        self.main_scene = GeneralSceneClass(self, ImageClass, ImageStackItemClass, GeneralViewContextualInfoItemClass)
+        self.main_scene = GeneralSceneClass(self, ImageClass, LayerStackItemClass, GeneralViewContextualInfoItemClass)
         self.main_view = GeneralViewClass(self.main_scene, self)
         self.setCentralWidget(self.main_view)
-        self.histogram_scene = HistogramSceneClass(self, self.main_scene.image_stack_item, HistogramItemClass, HistgramViewContextualInfoItemClass)
+        self.histogram_scene = HistogramSceneClass(self, self.main_scene.layer_stack_item, HistogramItemClass, HistgramViewContextualInfoItemClass)
         self._histogram_dock_widget = Qt.QDockWidget('Histogram', self)
         self.histogram_view, self._histogram_frame = HistogramViewClass.make_histogram_view_and_frame(self.histogram_scene, self._histogram_dock_widget)
         self._histogram_dock_widget.setWidget(self._histogram_frame)
@@ -221,7 +221,7 @@ class RisWidget(Qt.QMainWindow):
 
     @property
     def image_stack(self):
-        return self.main_scene.image_stack_item.image_stack
+        return self.main_scene.layer_stack_item.image_stack
 
     @property
     def image(self):

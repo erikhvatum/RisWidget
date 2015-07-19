@@ -26,14 +26,14 @@ from PyQt5 import Qt
 from .base_scene import BaseScene
 
 class GeneralScene(BaseScene):
-    def __init__(self, parent, ImageClass, ImageStackItemClass, ContextualInfoItemClass):
+    def __init__(self, parent, ImageClass, LayerStackItemClass, ContextualInfoItemClass):
         super().__init__(parent, ContextualInfoItemClass)
         self.ImageClass = ImageClass
-        self.image_stack_item = ImageStackItemClass()
-        self.image_stack_item.bounding_rect_changed.connect(self._on_image_stack_item_bounding_rect_changed)
-        self.addItem(self.image_stack_item)
+        self.layer_stack_item = LayerStackItemClass()
+        self.layer_stack_item.bounding_rect_changed.connect(self._on_layer_stack_item_bounding_rect_changed)
+        self.addItem(self.layer_stack_item)
 
-    def _on_image_stack_item_bounding_rect_changed(self):
-        self.setSceneRect(self.image_stack_item.boundingRect())
+    def _on_layer_stack_item_bounding_rect_changed(self):
+        self.setSceneRect(self.layer_stack_item.boundingRect())
         for view in self.views():
-            view._on_image_stack_item_bounding_rect_changed()
+            view._on_layer_stack_item_bounding_rect_changed()

@@ -30,24 +30,24 @@ from string import Template
 import sys
 import textwrap
 #from ._qt_debug import qtransform_to_numpy
-from ..image.image import Image
+from .layer import Layer
 from ..signaling_list.signaling_list import SignalingList
 from ..shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
 from .shader_item import ShaderItem
 
-class ImageStackItem(ShaderItem):
-    """The image_stack attribute of ImageStackItem is an SignalingList, a container with a list interface, containing a sequence
+class LayerStackItem(ShaderItem):
+    """The image_stack attribute of LayerStackItem is an SignalingList, a container with a list interface, containing a sequence
     of Image instances (or instances of subclasses of Image or some duck-type compatible thing).  In terms of composition ordering,
     these are in ascending Z-order, with the positive Z axis pointing out of the screen.  image_stack should be manipulated via the
     standard list interface, which it implements completely.  So, for example, to place an image at the top of the stack:
 
-    ImageStackItem_instance.image_stack.append(Image(numpy.zeros((400,400,3), dtype=numpy.uint8)))
+    LayerStackItem_instance.image_stack.append(Image(numpy.zeros((400,400,3), dtype=numpy.uint8)))
 
-    SignalingList emits signals when elements are removed, inserted, or replaced.  ImageStackItem responds to these signals
+    SignalingList emits signals when elements are removed, inserted, or replaced.  LayerStackItem responds to these signals
     in order to trigger repainting and otherwise keep its state consistent with that of its image_stack attribute.  Users
-    and extenders of ImageStackItem may do so in the same way: by connecting Python functions directly to
-    ImageStackItem_instance.image_stack.inserted, ImageStackItem_instance.image_stack.removed, and
-    ImageStackItem_instance.image_stack.replaced.  For a concrete example, take a look at ImageStackWidget.
+    and extenders of LayerStackItem may do so in the same way: by connecting Python functions directly to
+    LayerStackItem_instance.image_stack.inserted, LayerStackItem_instance.image_stack.removed, and
+    LayerStackItem_instance.image_stack.replaced.  For a concrete example, take a look at ImageStackWidget.
 
     The blend_function of the first (0th) element of image_stack is ignored, although its getcolor_expression and
     extra_transformation expression, if provided, are used.  In the fragment shader, the result of applying getcolor_expression
@@ -58,9 +58,9 @@ class ImageStackItem(ShaderItem):
     When no elements remain to be blended, dca is divided element-wise by da, un-premultiplying it, and these three values and
     da are returned to OpenGL for src-over blending into the view.
 
-    ImageStackItem's boundingRect has its top left at (0, 0) and has same dimensions as the first (0th) element of image_stack,
-    or is 1x1 if image_stack is empty.  Therefore, if the scale of an ImageStackItem instance containing at least one image
-    has not been modified, that ImageStackItem instance will be the same width and height in scene units as the first element
+    LayerStackItem's boundingRect has its top left at (0, 0) and has same dimensions as the first (0th) element of image_stack,
+    or is 1x1 if image_stack is empty.  Therefore, if the scale of an LayerStackItem instance containing at least one image
+    has not been modified, that LayerStackItem instance will be the same width and height in scene units as the first element
     of image_stack is in pixel units, making the mapping between scene units and pixel units 1:1 for the image at the bottom
     of the stack (ie, image_stack[0])."""
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
@@ -141,7 +141,7 @@ class ImageStackItem(ShaderItem):
             gl_widget.doneCurrent()
 
     def type(self):
-        return ImageStackItem.QGRAPHICSITEM_TYPE
+        return LayerStackItem.QGRAPHICSITEM_TYPE
 
     def boundingRect(self):
         return self._bounding_rect
@@ -258,7 +258,7 @@ class ImageStackItem(ShaderItem):
         self.scene().clear_contextual_info(self)
 
     def paint(self, qpainter, option, widget):
-        assert widget is not None, 'ImageStackItem.paint called with widget=None.  Ensure that view caching is disabled.'
+        assert widget is not None, 'LayerStackItem.paint called with widget=None.  Ensure that view caching is disabled.'
         qpainter.beginNativePainting()
         with ExitStack() as estack:
             estack.callback(qpainter.endNativePainting)
@@ -293,7 +293,7 @@ class ImageStackItem(ShaderItem):
                 prog = self.build_shader_prog(
                     prog_desc,
                     'planar_quad_vertex_shader.glsl',
-                    'image_stack_item_fragment_shader_template.glsl',
+                    'layer_stack_item_fragment_shader_template.glsl',
                     uniforms='\n'.join(uniforms),
                     color_transform_procedures='\n'.join(color_transform_procedures),
                     main='\n'.join(main))
@@ -308,7 +308,7 @@ class ImageStackItem(ShaderItem):
             prog.enableAttributeArray(vert_coord_loc)
             prog.setAttributeBuffer(vert_coord_loc, GL.GL_FLOAT, 0, 2, 0)
             prog.setUniformValue('viewport_height', float(widget.size().height()))
-            prog.setUniformValue('image_stack_item_opacity', self.opacity())
+            prog.setUniformValue('layer_stack_item_opacity', self.opacity())
             # The next few lines of code compute frag_to_tex, representing an affine transform in 2D space from pixel coordinates
             # to normalized (unit square) texture coordinates.  That is, matrix multiplication of frag_to_tex and homogenous
             # pixel coordinate vector <x, max_y-y, w> (using max_y-y to invert GL's Y axis which is upside-down, typically
@@ -317,16 +317,16 @@ class ImageStackItem(ShaderItem):
             # 
             # So, GLSL's Texture2D accepts 0-1 element-wise-normalized coordinates (IE, unit square, not unit circle), and
             # frag_to_tex maps from view pixel coordinates to texture coordinates.  If either element of the resulting coordinate
-            # vector is outside the interval [0,1], the associated pixel in the view is outside of ImageStackItem.
+            # vector is outside the interval [0,1], the associated pixel in the view is outside of LayerStackItem.
             #
             # Frame represents, in screen pixel coordinates with origin at the top left of the view, the virtual extent of
-            # the rectangular region containing ImageStackItem.  This rectangle may extend beyond any combination of the view's
+            # the rectangular region containing LayerStackItem.  This rectangle may extend beyond any combination of the view's
             # four edges.
             #
-            # Frame is computed from ImageStackItem's boundingRect, which is computed from the dimensions of the lowest
+            # Frame is computed from LayerStackItem's boundingRect, which is computed from the dimensions of the lowest
             # image of the image_stack, image_stack[0].  Therefore, it is this lowest image that determines the aspect
             # ratio of the unit square's projection onto the view.  Any subsequent images in the stack use this same projection,
-            # with the result that they are stretched to fill the ImageStackItem.
+            # with the result that they are stretched to fill the LayerStackItem.
             frag_to_tex = Qt.QTransform()
             frame = Qt.QPolygonF(view.mapFromScene(Qt.QPolygonF(self.sceneTransform().mapToPolygon(self.boundingRect().toRect()))))
             if not qpainter.transform().quadToSquare(frame, frag_to_tex):

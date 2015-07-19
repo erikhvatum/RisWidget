@@ -75,7 +75,7 @@ class GeneralView(BaseView):
         self._panning = False
         self.setAcceptDrops(True)
 
-    def _on_image_stack_item_bounding_rect_changed(self):
+    def _on_layer_stack_item_bounding_rect_changed(self):
         if self.zoom_to_fit:
             self._apply_zoom()
 
@@ -243,7 +243,7 @@ class GeneralView(BaseView):
 
     def _apply_zoom(self):
         if self.zoom_to_fit:
-            self.fitInView(self.scene().image_stack_item, Qt.Qt.KeepAspectRatio)
+            self.fitInView(self.scene().layer_stack_item, Qt.Qt.KeepAspectRatio)
             current_zoom = self.transform().m22()
             if current_zoom != self._custom_zoom:
                 self._custom_zoom = current_zoom
