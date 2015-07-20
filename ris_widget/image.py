@@ -26,28 +26,48 @@ from .ndimage_statistics.ndimage_statistics import compute_ndimage_statistics, c
 import numpy
 from PyQt5 import Qt
 
-class BasicImage:
-    """An instance of the BasicImage class is a wrapper around a Numpy ndarray representing a single image.  BasicImage's properties
-    are all either computed from that ndarray, provide views into that ndarray's data (in the case of .data and .data_T), or, in the
-    special cases of .is_twelve_bit for uint16 images and .range for floating-point images, represent unenforced constraints limiting
-    the domain of valid values expected to be assumed by elements of the ndarray.
+class Image(Qt.QObject):
+    """An instance of the Image class is a wrapper around a Numpy ndarray representing a single image, plus some related attributes and
+    a .name.
 
-    If an ndarray of supported dtype and striding is supplied as the data argument to BasicImage's constructor or set_data function,
+    If an ndarray of supported dtype, shape, and striding is supplied as the data argument to Image's constructor or set_data function,
     a reference to that ndarray is kept rather than a copy of it.  In such cases, if the wrapped data is subsequently modified, 
-    care must be taken to call the BasicImage's .refresh method before querying its .histogram property or any subclass's properties
-    derived from the data, as changes to the data are not automatically detected."""
+    care must be taken to call the Image's .refresh method before querying, for example, its .histogram property as changes to the
+    data are not automatically detected.
 
-    def __init__(self, data, is_twelve_bit=False, float_range=None, shape_is_width_height=True):
+    The attributes maintained by an Image instance fall into the following categories:
+        * Properties that represent aspects of the ._data ndarray or its contents: .data, .data_T, .dtype, .strides, .histogram, .max_histogram_bin,
+        .extremae, .range.  These may not be assigned to directly; .set_data(..) is intended for replacing .data and causing attendant properties
+        to update, while .refresh() may be used in the case where ._data is a reference or view to an ndarray whose contents have been modified.
+        The .data_changed signal is emitted to indicate that the value of any or all of these properties has changed.
+        * Plain instance attributes computed by .refresh() and .set_data(..): .size, .is_grayscale, .num_channels, .has_alpha_channel, .is_binary,
+        .is_twelve_bit.  Although nothing prevents assigning over these attributes, doing so is not advised.  The .data_changed signal is emitted
+        to indicate that the value of any or all of these attributes has changed.
+        * Properties with individual change signals: .name.  It is safe to assign None in addition anything else that str(..) accepts as its argument
+        to .name.  When the value of .name is modified, .name_changed is emitted.
+
+    Additionally, emission of .data_changed or .name_changed causes emission of .changed."""
+    changed = Qt.pyqtSignal(object)
+    data_changed = Qt.pyqtSignal(object)
+    name_changed = Qt.pyqtSignal(object)
+
+    def __init__(self, data, parent=None, is_twelve_bit=False, float_range=None, shape_is_width_height=True):
         """RisWidget defaults to the convention that the first element of the shape vector of a Numpy
         array represents width.  If you are supplying image data that does not follow this convention,
         specify the argument shape_is_width_height=False, and your image will be displayed correctly
         rather than mirrored over the X/Y axis."""
+        super().__init__(parent)
+        self.data_changed.connect(self.changed)
+        self.objectNameChanged.connect(lambda: self.name_changed.emit(self))
+        self.name_changed.connect(self.changed)
         self.set_data(data, is_twelve_bit, float_range, shape_is_width_height, False)
 
     def __repr__(self):
         num_channels = self.num_channels
-        return '{}; {}x{}, {} channel{} ({}){}>'.format(
+        name = self.name
+        return '{}; {}, {}x{}, {} channel{} ({}){}>'.format(
             super().__repr__()[:-1],
+            'with name "{}"'.format(name) if name else 'unnamed',
             self.size.width(),
             self.size.height(),
             num_channels,
@@ -56,12 +76,17 @@ class BasicImage:
             ' (per-channel binary)' if self.is_binary else '')
 
     def refresh(self):
+        # Assumption: only contents of ._data may have changed, not its size, shape, striding, or dtype.
         if self.is_grayscale:
             self.stats_future = compute_ndimage_statistics(self._data, self.is_twelve_bit, return_future=True)
         else:
             self.stats_future = compute_multichannel_ndimage_statistics(self._data, self.is_twelve_bit, return_future=True)
+        self.data_changed.emit(self)
 
-    def set_data(self, data, is_twelve_bit=False, float_range=None, shape_is_width_height=True):
+    def set_data(self, data, is_twelve_bit=False, float_range=None, shape_is_width_height=True, keep_name=True, name=None):
+        """If keep_name is True, the existing name is not changed, and the value supplied for the name argument is ignored.
+        If keep_name is False, the existing name is replaced with the supplied name or is cleared if supplied name is None
+        or an empty string."""
         self._data = numpy.asarray(data)
         self.is_twelve_bit = is_twelve_bit
         dt = self._data.dtype.type
@@ -127,7 +152,32 @@ class BasicImage:
             else:
                 raise NotImplementedError('Support for another numpy dtype was added without implementing self._range calculation for it...')
 
+        if not keep_name:
+            self.name = name
+        self.data_changed.emit(self)
+
     set_data.__doc__ = __init__.__doc__
+
+    def generate_contextual_info_for_pos(self, x, y):
+        sz = self.size
+        if 0 <= x < sz.width() and 0 <= y < sz.height():
+            type_ = self.type
+            num_channels = self.num_channels
+            name = self.name
+            mst = '"' + name + '", ' if self.name else ''
+            mst+= 'x:{} y:{} '.format(x, y)
+            vt = '(' + ' '.join((c + ':{}' for c in self.type)) + ')'
+            if num_channels == 1:
+                vt = vt.format(self.data[x, y])
+            else:
+                vt = vt.format(*self.data[x, y])
+            return mst+vt
+
+    name = property(
+        Qt.QObject.objectName,
+        lambda self, name: self.setObjectName('' if name is None else name),
+        doc='Property proxy for QObject::objectName Qt property, which is directly accessible via the objectName getter and '
+            'setObjectName setter.  Upon change, objectNameChanged is emitted.')
 
     @property
     def data(self):

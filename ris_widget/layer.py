@@ -28,94 +28,9 @@ from PyQt5 import Qt
 from string import Template
 import textwrap
 import time
-from .basic_image import BasicImage
+from .property import Property
 
-class _Property(property):
-    # Derived from "property" for the sole reason that IPython's question-mark magic is special-cased for
-    # properties.  Deriving from property causes _Property to receive the same treatment, providing
-    # useful output for something.prop? in IPython (where prop is a _Property instance).
-    def __init__(self, properties, name, default_value_callback, transform_callback=None, pre_set_callback=None, post_set_callback=None, doc=None):
-        self.name = name
-        self.var_name = '_' + name
-        self.default_val_var_name = '_default_' + name
-        self.changed_signal_name = name + '_changed'
-        self.default_value_callback = default_value_callback
-        self.transform_callback = transform_callback
-        self.pre_set_callback = pre_set_callback
-        self.post_set_callback = post_set_callback
-        if doc is not None:
-            self.__doc__ = doc
-        properties.append(self)
-
-    @staticmethod
-    def eq(a, b):
-        r = a == b
-        if isinstance(r, bool):
-            return r
-        else:
-            return all(r)
-
-    def instantiate(self, image):
-        setattr(image, self.default_val_var_name, self.default_value_callback(image))
-        getattr(image, self.changed_signal_name).connect(image.changed)
-
-    def update_default(self, image):
-        if hasattr(image, self.var_name):
-            # An explicitly set value is overriding the default, so even if the default has changed, the apparent value of the property has not
-            setattr(image, self.default_val_var_name, self.default_value_callback(image))
-        else:
-            # The default value is the apparent value, meaning that we must check if the default has changed and signal an apparent value change
-            # if it has
-            old_default = getattr(image, self.default_val_var_name)
-            new_default = self.default_value_callback(image)
-            if not self.eq(new_default, old_default):
-                setattr(image, self.default_val_var_name, new_default)
-                getattr(image, self.changed_signal_name).emit(image)
-
-    def copy_instance_value(self, src_image, dst_image):
-        """Replace value for this property in dst_image if src_image has a non-default value
-        for this property."""
-        try:
-            v = getattr(src_image, self.var_name)
-        except AttributeError:
-            return
-        setattr(dst_image, self.var_name, v)
-
-    def __get__(self, image, _=None):
-        if image is None:
-            return self
-        try:
-            return getattr(image, self.var_name)
-        except AttributeError:
-            return getattr(image, self.default_val_var_name)
-
-    def __set__(self, image, v):
-        if self.transform_callback is not None:
-            v = self.transform_callback(image, v)
-        if not hasattr(image, self.var_name) or not self.eq(v, getattr(image, self.var_name)):
-            if self.pre_set_callback is not None:
-                self.pre_set_callback(image, v)
-            setattr(image, self.var_name, v)
-            if self.post_set_callback is not None:
-                self.post_set_callback(image, v)
-            getattr(image, self.changed_signal_name).emit(image)
-
-    def __delete__(self, image):
-        """Reset to default value by way of removing the explicitly set override, causing the apparent value to be default."""
-        try:
-            old_value = getattr(image, self.var_name)
-            delattr(image, self.var_name)
-            new_value = getattr(image, self.default_val_var_name)
-            if not self.eq(old_value, new_value):
-                if self.post_set_callback is not None:
-                    self.post_set_callback(image, new_value)
-                getattr(image, self.changed_signal_name).emit(image)
-        except AttributeError:
-            # Property was already using default value
-            pass
-        
-
-class Image(BasicImage, Qt.QObject):
+class Layer(Qt.QObject):
     """BasicImage's properties are all either computed from that ndarray, provide views into that ndarray's data (in the case of .data
     and .data_T), or, in the special cases of .is_twelve_bit for uint16 images and .range for floating-point images, represent unenforced
     constraints limiting the domain of valid values that are expected to be assumed by elements of the ndarray.
@@ -131,9 +46,9 @@ class Image(BasicImage, Qt.QObject):
     In the case where any image appearence change should cause a function to be executed, do changed.connect(your_function) rather than
     min_changed.connect(your_function); max_changed.connect(your_function); etc.
 
-    Although Image uses _Property descriptors, subclasses adding properties are not obligated
-    to use _Property to represent the additional properties.  The regular @property decorator syntax or property(..) builtin
-    remain available - _Property provides an abstraction that is potentially convenient and worth understanding and using when
+    Although Image uses Property descriptors, subclasses adding properties are not obligated
+    to use Property to represent the additional properties.  The regular @property decorator syntax or property(..) builtin
+    remain available - Property provides an abstraction that is potentially convenient and worth understanding and using when
     defining a large number of properties."""
 
     GAMMA_RANGE = (0.0625, 16.0)
@@ -170,94 +85,121 @@ class Image(BasicImage, Qt.QObject):
     for k, v in BLEND_FUNCTIONS.items():
         BLEND_FUNCTIONS[k] = '    // blending function name: {}\n    '.format(k) + '\n    '.join(v)
     del k, v
-    # A call to .set_data or a change to any mutable property potentially impacts image presentation.  For convenience, changed is emitted whenever
-    # .set_data or .refresh is called or any of the more specific mutable-property-changed signals are emitted.
+    # A change to any mutable property, including .image, potentially impacts layer presentation.  For convenience, .changed is emitted whenever
+    # any mutable-property-changed signal is emitted, including as a result of assigning to .image.name, calling .image.set_data(..), or calling
+    # .image.refresh().  NB: .image_changed is the more specific signal emitted in addition to .changed for modifications to .image.
     # 
     # For example, this single call supports extensibility by subclassing:
     # image_instance.changed.connect(something.refresh)
-    # And that single call replaces the following set of calls, which is not even complete if Image is subclassed:
+    # And that single call replaces the following set of calls, which is not even necessarily complete if Image is subclassed:
     # image_instance.name_changed.connect(something.refresh)
     # image_instance.data_changed.connect(something.refresh)
     # image_instance.min_changed.connect(something.refresh)
     # image_instance.max_changed.connect(something.refresh)
     # image_instance.gamma_changed.connect(something.refresh)
     # image_instance.trilinear_filtering_enabled_changed.connect(something.refresh)
-    # image_instance.auto_getcolor_expression_enabled_changed.connect(something.refresh)
     # image_instance.getcolor_expression_changed.connect(something.refresh)
-    # image_instance.extra_transformation_expression_changed.connect(something.refresh)
-    # image_instance.global_alpha_changed.connect(something.refresh)
-    # image_instance.mute_enabled_changed.connect(something.refresh)
+    # image_instance.transformation_expression_changed.connect(something.refresh)
+    # image_instance.tint_changed.connect(something.refresh)
+    # image_instance.visible_changed.connect(something.refresh)
+    # image_instance.image_changed.connect(something.refresh)
     #
     # In the __init__ function of any Image subclass that adds presentation-affecting properties
     # and associated change notification signals, do not forget to connect the subclass's change signals to changed.
     changed = Qt.pyqtSignal(object)
-    data_changed = Qt.pyqtSignal(object)
+    name_changed = Qt.pyqtSignal(object)
+    image_changed = Qt.pyqtSignal(object)
 
-    def __init__(self, data, is_twelve_bit=False, float_range=None, shape_is_width_height=True, name=None, parent=None):
-        Qt.QObject.__init__(self, parent)
-        BasicImage.set_data(self, data, is_twelve_bit, float_range, shape_is_width_height)
+    def __init__(self, image=None, name=None, parent=None):
+        super().__init__(parent)
         self._retain_auto_min_max_enabled_on_min_max_change = False
+        self._image = None
         for property in self.properties:
             property.instantiate(self)
-        if name:
-            self.setObjectName(name)
-        if self.auto_min_max_enabled:
-            self.do_auto_min_max()
-        self._blend_function_impl = self.BLEND_FUNCTIONS[self.blend_function]
         self.objectNameChanged.connect(lambda: self.name_changed.emit(self))
         self.name_changed.connect(self.changed)
-        self.data_changed.connect(self.changed)
+        if name:
+            self.setObjectName(name)
+        self.image = image
 
-    def set_data(self, data, is_twelve_bit=False, float_range=None, shape_is_width_height=True, keep_name=True, name=None):
-        """If keep_name is True, the existing name is not changed, and the value supplied for the name argument is ignored.
-        If keep_name is False, the existing name is replaced with the supplied name or is cleared if supplied name is None
-        or an empty string."""
-        BasicImage.set_data(self, data, is_twelve_bit, float_range, shape_is_width_height)
-        if not keep_name:
-            self.name = name
-        for property in self.properties:
-            property.update_default(self)
-        if self.auto_min_max_enabled:
-            self.do_auto_min_max()
-        self.data_changed.emit(self)
+    def __repr__(self):
+        name = self.name
+        image = self.image
+        return '{}; {}{}, image={}>'.format(
+            super().__repr__()[:-1],
+            'with name "{}"'.format(name) if name else 'unnamed',
+            ', visible=False' if not self.visible else '',
+            'None' if image is None else image.__repr__())
 
-    def copy_property_values_from(self, source):
-        for property in self.properties:
-            property.copy_instance_value(source, self)
-        sname = source.name
-        if sname:
-            self.name = sname + ' dupe'
-        else:
-            self.name = 'dupe'
+    @property
+    def image(self):
+        return self._image
 
-    def refresh(self):
-        BasicImage.refresh(self)
-        if self.auto_min_max_enabled:
-            self.do_auto_min_max()
-        self.data_changed.emit(self)
+    @image.setter
+    def image(self, v):
+        if v is not self._image:
+            if self._image is not None:
+                self._image.data_changed.disconnect(self._on_image_data_changed)
+            if v is not None:
+                try:
+                    v.data_changed.connect(self._on_image_data_changed)
+                except Exception as e:
+                    self._image = None
+                    raise e
+            self._image = v
+            self._on_image_data_changed(v)
+
+    def _on_image_data_changed(self, image):
+        assert image is self.image
+        if image is not None:
+            if self.auto_min_max_enabled:
+                self.do_auto_min_max()
+            else:
+                r = image.range
+                if self.min < r[0]:
+                    self.min = r[0]
+                if self.max > r[1]:
+                    self.max = r[1]
+        self.image_changed.emit(image)
+
+#   def copy_property_values_from(self, source):
+#       for property in self.properties:
+#           property.copy_instance_value(source, self)
+#       sname = source.name
+#       if sname:
+#           self.name = sname + ' dupe'
+#       else:
+#           self.name = 'dupe'
 
     def generate_contextual_info_for_pos(self, x, y, idx=None):
-        if not self.visible:
+        image = self.image
+        if image is None or not self.visible:
             return
-        sz = self.size
-        if 0 <= x < sz.width() and 0 <= y < sz.height():
-            type_ = self.type
-            num_channels = self.num_channels
-            name = self.name
-            mst = '' if idx is None else '{: 3}, '.format(idx)
-            if name:
-                mst += '"' + name + '", '
-            mst+= 'x:{} y:{} '.format(x, y)
-            vt = '(' + ' '.join((c + ':{}' for c in self.type)) + ')'
-            if num_channels == 1:
-                vt = vt.format(self.data[x, y])
+        t = '' if idx is None else '{: 3}, '.format(idx)
+        layer_name = self.name
+        if layer_name:
+            t += layer_name
+        t += ': '
+        t += 'None' if image is None else image.generate_contextual_info_for_pos(x, y)
+        return t
+
+    def do_auto_min_max(self):
+        self._retain_auto_min_max_enabled_on_min_max_change = True
+        try:
+            extremae = self.extremae
+            if self.has_alpha_channel:
+                eae = extremae[:-1, 0].min(), extremae[:-1, 1].max()
+            elif self.num_channels > 1:
+                eae = extremae[:, 0].min(), extremae[:, 1].max()
             else:
-                vt = vt.format(*self.data[x, y])
-            return mst+vt
+                eae = extremae
+            self.min, self.max = eae
+        finally:
+            self._retain_auto_min_max_enabled_on_min_max_change = False
 
     properties = []
 
-    visible = _Property(
+    visible = Property(
         properties, 'visible',
         doc = textwrap.dedent(
             """\
@@ -278,16 +220,24 @@ class Image(BasicImage, Qt.QObject):
     def _auto_min_max_enabled_post_set(self, v):
         if v:
             self.do_auto_min_max()
-    auto_min_max_enabled = _Property(
+    auto_min_max_enabled = Property(
         properties, 'auto_min_max_enabled',
         default_value_callback = lambda image: False,
         transform_callback = lambda image, v: bool(v),
         post_set_callback = _auto_min_max_enabled_post_set)
 
+    def _min_max_default(self, is_max):
+        image = self.image
+        if image is None:
+            return 65535.0 if is_max else 0.0
+        else:
+            return image.range[is_max]
     def _min_max_pre_set(self, v):
-        r = self.range
-        if not r[0] <= v <= r[1]:
-            raise ValueError('min/max values for this image must be in the closed interval [{}, {}].'.format(*r))
+        image = self.image
+        if image is not None:
+            r = self.range
+            if not r[0] <= v <= r[1]:
+                raise ValueError('min/max values for this image must be in the closed interval [{}, {}].'.format(*r))
     def _min_max_post_set(self, v, is_max):
         if is_max:
             if v < self.min:
@@ -297,37 +247,38 @@ class Image(BasicImage, Qt.QObject):
                 self.max = v
         if not self._retain_auto_min_max_enabled_on_min_max_change:
             self.auto_min_max_enabled = False
-    min = _Property(
+    min = Property(
         properties, 'min',
-        default_value_callback = lambda image: float(image.range[0]),
-        transform_callback = lambda image, v: float(v),
+        default_value_callback = lambda layer, f=_min_max_default: f(layer, False),
+        transform_callback = lambda layer, v: float(v),
         pre_set_callback = _min_max_pre_set,
-        post_set_callback = lambda image, v, f=_min_max_post_set: f(image, v, False))
-    max = _Property(
+        post_set_callback = lambda layer, v, f=_min_max_post_set: f(layer, v, False))
+    max = Property(
         properties, 'max',
-        default_value_callback = lambda image: float(image.range[1]),
-        transform_callback = lambda image, v: float(v),
+        default_value_callback = lambda layer, f=_min_max_default: f(layer, True),
+        transform_callback = lambda layer, v: float(v),
         pre_set_callback = _min_max_pre_set,
-        post_set_callback = lambda image, v, f=_min_max_post_set: f(image, v, True))
+        post_set_callback = lambda layer, v, f=_min_max_post_set: f(layer, v, True))
 
     def _gamma_pre_set(self, v):
         r = self.GAMMA_RANGE
         if not r[0] <= v <= r[1]:
             raise ValueError('gamma value must be in the closed interval [{}, {}].'.format(*r))
-    gamma = _Property(
+    gamma = Property(
         properties, 'gamma',
-        default_value_callback = lambda image: 1.0,
-        transform_callback = lambda image, v: float(v),
+        default_value_callback = lambda layer: 1.0,
+        transform_callback = lambda layer, v: float(v),
         pre_set_callback = _gamma_pre_set)
 
-    trilinear_filtering_enabled = _Property(
+    trilinear_filtering_enabled = Property(
         properties, 'trilinear_filtering_enabled',
-        default_value_callback = lambda image: True,
-        transform_callback = lambda image, v: bool(v))
+        default_value_callback = lambda layer: True,
+        transform_callback = lambda layer, v: bool(v))
 
+    # TODO: finish updating SHAD_PROP_HELP
     SHAD_PROP_HELP = textwrap.dedent("""\
-        The GLSL fragment shader used to render an LayerStackItem is generated by iterating through LayerStackItem.image_stack,
-        replacing the ${values} in the following template with with those of the Image (or
+        The GLSL fragment shader used to render an LayerStackItem is generated by iterating through LayerStackItem.layer_stack,
+        replacing the ${values} in the following template with with those of the Layer (or
         LayerStackItem.BLEND_FUNCTIONS[Image.blend_function] in the case of ${blend_function}) at each iteration and
         appending the resulting text to a string.  The accumulated string is the GLSL fragment shader's source code.
 
@@ -343,22 +294,22 @@ class Image(BasicImage, Qt.QObject):
             da = clamp(da, 0, 1);
             dca = clamp(dca, 0, 1);
 
-        So, the value stored in an Image's .getcolor_expression property replaces ${getcolor_expression}.  Supplying
-        None or an empty string would create a GLSL syntax error that must be rectified before an LayerStackItem
-        containing the Image in question can be successfully rendered (unless the Image's .visible property is False).
-        In order to revert .getcolor_expression to something appropriate for the Image's .type, simply assign True
-        to that Image's .auto_getcolor_expression_enabled property (likewise, replacing the contents of
-        .getcolor_expression causes .auto_getcolor_expression_enabled to assume the value False).
+        So, the value stored in a Layer's .getcolor_expression property replaces ${getcolor_expression}.  Supplying
+        None or an empty string would create a GLSL syntax error that must be rectified before a LayerStackItem
+        containing the Layer in question can be successfully rendered (unless the Layer's .visible property is False,
+        or the Layer's .image property is None). In order to revert .getcolor_expression to something appropriate
+        for the Layer's image.type, simply del .getcolor_expression so that it reverts to default.""")
 
-        Unlike .getcolor_expression, .extra_transformation_expression does accept None or an empty string.  Supplying
-        either results in a GLSL line consisting of "; // extra_transformation_expression", which compiles to nothing,
-        with the effect that None or an empty string result in no extra transformation expression being applied (this
-        is the default).""")
-
-    getcolor_expression = _Property(
+    def _getcolor_expression_default(self):
+        image = self.image
+        if image is None:
+            return ''
+        else:
+            return self.IMAGE_TYPE_TO_GETCOLOR_EXPRESSION[image.type]
+    getcolor_expression = Property(
         properties, 'getcolor_expression',
-        default_value_callback = lambda image: image.IMAGE_TYPE_TO_GETCOLOR_EXPRESSION[image.type],
-        transform_callback = lambda image, v: '' if v is None else str(v),
+        default_value_callback = _getcolor_expression_default,
+        transform_callback = lambda layer, v: '' if v is None else str(v),
         doc = SHAD_PROP_HELP)
 
     def _tint_transform(self, v):
@@ -368,28 +319,28 @@ class Image(BasicImage, Qt.QObject):
         if len(v) == 3:
             v.append(1)
         return v
-    tint = _Property(
+    tint = Property(
         properties, 'tint',
-        default_value_callback = lambda image: numpy.array((1,1,1,1), dtype=numpy.float32),
-        transform_callback = lambda image, v, f=_tint_transform: f(image, v),
+        default_value_callback = lambda layer: numpy.array((1,1,1,1), dtype=numpy.float32),
+        transform_callback = _tint_transform,
         doc = textwrap.dedent("""\
-            I.tint: This property is used by the default I.transform_section, and with that default, has
-            the following meaning: I.tint contains 0-1 normalized RGBA component values by which the results
-            of applying I.getcolor_expression are scaled."""))
+            .tint: This property is used by the default .transform_section, and with that default, has
+            the following meaning: .tint contains 0-1 normalized RGBA component values by which the results
+            of applying .getcolor_expression are scaled."""))
 
-    transform_section = _Property(
+    transform_section = Property(
         properties, 'transform_section',
-        default_value_callback = lambda image: image.DEFAULT_TRANSFORM_SECTION,
-        transform_callback = lambda image, v: '' if v is None else str(v))
+        default_value_callback = lambda layer: layer.DEFAULT_TRANSFORM_SECTION,
+        transform_callback = lambda layer, v: '' if v is None else str(v))
 
     def _blend_function_pre_set(self, v):
         if v not in self.BLEND_FUNCTIONS:
             raise ValueError('The string assigned to blend_function must be one of:\n' + '\n'.join("'" + s + "'" for s in sorted(self.BLEND_FUNCTIONS.keys())))
-    blend_function = _Property(
+    blend_function = Property(
         properties, 'blend_function',
-        default_value_callback = lambda image: 'screen',
-        transform_callback = lambda image, v: str(v),
-        pre_set_callback = lambda image, v, f=_blend_function_pre_set: f(image, v),
+        default_value_callback = lambda layer: 'screen',
+        transform_callback = lambda layer, v: str(v),
+        pre_set_callback = _blend_function_pre_set,
         doc = SHAD_PROP_HELP + '\n\nSupported blend_functions:\n\n    ' + '\n    '.join("'" + s + "'" for s in sorted(BLEND_FUNCTIONS.keys())))
 
     for property in properties:
@@ -397,7 +348,7 @@ class Image(BasicImage, Qt.QObject):
     del property
     del SHAD_PROP_HELP
 
-    # NB: This a property, not a _Property.  There is already a change signal, setter, and a getter for objectName, which
+    # NB: This a property, not a Property.  There is already a change signal, setter, and a getter for objectName, which
     # we proxy/use.
     name_changed = Qt.pyqtSignal(object)
     name = property(
@@ -405,31 +356,3 @@ class Image(BasicImage, Qt.QObject):
         lambda self, name: self.setObjectName('' if name is None else name),
         doc='Property proxy for QObject::objectName Qt property, which is directly accessible via the objectName getter and '
             'setObjectName setter.  Upon change, objectNameChanged is emitted.')
-
-    def __repr__(self):
-        name = self.name
-        return '{}, {}{}>'.format(
-            super().__repr__()[:-1],
-            'with name "{}"'.format(name) if name else 'unnamed',
-            ', visible=False' if not self.visible else '')
-
-    def do_auto_min_max(self):
-        self._retain_auto_min_max_enabled_on_min_max_change = True
-        try:
-            extremae = self.extremae
-            if self.has_alpha_channel:
-                eae = extremae[:-1, 0].min(), extremae[:-1, 1].max()
-            elif self.num_channels > 1:
-                eae = extremae[:, 0].min(), extremae[:, 1].max()
-            else:
-                eae = extremae
-            self.min, self.max = eae
-        finally:
-            self._retain_auto_min_max_enabled_on_min_max_change = False
-
-    def do_auto_getcolor_expression(self):
-        self._retain_auto_getcolor_expression_enabled_on_getcolor_expression_change = True
-        try:
-            self.getcolor_expression = self.IMAGE_TYPE_TO_GETCOLOR_EXPRESSION[self.type]
-        finally:
-            self._retain_auto_getcolor_expression_enabled_on_getcolor_expression_change = False
