@@ -35,8 +35,8 @@ class HistogramItem(ShaderItem):
 
     def __init__(self, graphics_item_parent=None):
         super().__init__(graphics_item_parent)
-        self._image = None
-        self._image_data_serial = 0
+        self._layer = None
+        self._layer_data_serial = 0
         self._bounding_rect = Qt.QRectF(0, 0, 1, 1)
         self._tex = None
         self.min_item = MinMaxItem(self, 'min')
@@ -46,25 +46,25 @@ class HistogramItem(ShaderItem):
         self.hide()
 
     @property
-    def image(self):
-        return self._image
+    def layer(self):
+        return self._layer
 
-    @image.setter
-    def image(self, image):
-        if image is not self._image:
-            if self._image is not None:
-                self._image.data_changed.disconnect(self._on_image_changed)
-                self._image.min_changed.disconnect(self.min_item.arrow_item._on_value_changed)
-                self._image.max_changed.disconnect(self.max_item.arrow_item._on_value_changed)
-                self._image.gamma_changed.disconnect(self.gamma_item._on_value_changed)
-            self._image = image
-            if image is None:
+    @layer.setter
+    def layer(self, layer):
+        if layer is not self._layer:
+            if self._layer is not None:
+                self._layer.image_changed.disconnect(self._on_image_changed)
+                self._layer.min_changed.disconnect(self.min_item.arrow_item._on_value_changed)
+                self._layer.max_changed.disconnect(self.max_item.arrow_item._on_value_changed)
+                self._layer.gamma_changed.disconnect(self.gamma_item._on_value_changed)
+            self._layer = layer
+            if layer is None:
                 self.hide()
             else:
-                image.data_changed.connect(self._on_image_changed)
-                image.min_changed.connect(self.min_item.arrow_item._on_value_changed)
-                image.max_changed.connect(self.max_item.arrow_item._on_value_changed)
-                image.gamma_changed.connect(self.gamma_item._on_value_changed)
+                layer.image_changed.connect(self._on_image_changed)
+                layer.min_changed.connect(self.min_item.arrow_item._on_value_changed)
+                layer.max_changed.connect(self.max_item.arrow_item._on_value_changed)
+                layer.gamma_changed.connect(self.gamma_item._on_value_changed)
                 self.show()
                 self.min_item.arrow_item._on_value_changed()
                 self.max_item.arrow_item._on_value_changed()
@@ -78,12 +78,13 @@ class HistogramItem(ShaderItem):
 
     def paint(self, qpainter, option, widget):
         assert widget is not None, 'histogram_scene.HistogramItem.paint called with widget=None.  Ensure that view caching is disabled.'
-        image = self._image
-        if image is None:
+        layer = self._image
+        if layer is None or layer.image is None:
             if self._tex is not None:
                 self._tex.destroy()
                 self._tex = None
         else:
+            image = layer.image
             view = widget.view
             scene = self.scene()
             with ExitStack() as stack:
@@ -152,23 +153,27 @@ class HistogramItem(ShaderItem):
                 GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
 
     def hoverMoveEvent(self, event):
-        image = self.image
-        if image is not None:
-            x = event.pos().x()
-            if x >= 0 and x <= 1:
-                image_type = image.type
-                histogram = image.histogram
-                range_ = image.range
-                bin_count = histogram.shape[-1]
-                bin = int(x * bin_count)
-                bin_width = (range_[1] - range_[0]) / bin_count
-                if image.dtype == numpy.float32:
-                    mst = '[{},{}) '.format(range_[0] + bin*bin_width, range_[0] + (bin+1)*bin_width)
-                else:
-                    mst = '[{},{}] '.format(math.ceil(bin*bin_width), math.floor((bin+1)*bin_width))
-                vt = '(' + ' '.join((c + ':{}' for c in image_type)) + ')'
-                vt = vt.format(histogram[bin])
-                self.scene().update_contextual_info(mst + vt, self)
+        layer = self.layer
+        if layer is None:
+            return
+        image = layer.image
+        if image is None:
+            return
+        x = event.pos().x()
+        if x >= 0 and x <= 1:
+            image_type = image.type
+            histogram = image.histogram
+            range_ = image.range
+            bin_count = histogram.shape[-1]
+            bin = int(x * bin_count)
+            bin_width = (range_[1] - range_[0]) / bin_count
+            if image.dtype == numpy.float32:
+                mst = '[{},{}) '.format(range_[0] + bin*bin_width, range_[0] + (bin+1)*bin_width)
+            else:
+                mst = '[{},{}] '.format(math.ceil(bin*bin_width), math.floor((bin+1)*bin_width))
+            vt = '(' + ' '.join((c + ':{}' for c in image_type)) + ')'
+            vt = vt.format(histogram[bin])
+            self.scene().update_contextual_info(mst + vt, self)
 
     def hoverLeaveEvent(self, event):
         self.scene().clear_contextual_info(self)

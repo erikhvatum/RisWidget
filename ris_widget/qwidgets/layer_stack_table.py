@@ -26,28 +26,28 @@ from PyQt5 import Qt
 from ..qdelegates.dropdown_list_delegate import DropdownListDelegate
 from ..qdelegates.tint_delegate import TintDelegate
 from ..qdelegates.property_checkbox_delegate import PropertyCheckboxDelegate
-from ..signaling_list.signaling_list import SignalingList
-from ..signaling_list.signaling_list_property_table_model import SignalingListPropertyTableModel
+from ..signaling_list import SignalingList
+from ..signaling_list_property_table_model import SignalingListPropertyTableModel
 
 #TODO: make list items drop targets so that layer contents can be replaced by dropping file on associated item
-class ImageStackTableView(Qt.QTableView):
-    def __init__(self, image_stack_table_model, parent=None):
+class LayerStackTableView(Qt.QTableView):
+    def __init__(self, layer_stack_table_model, parent=None):
         super().__init__(parent)
         self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
 #       self.horizontalHeader().setStretchLastSection(True)
         self.property_checkbox_delegate = PropertyCheckboxDelegate(self)
-        self.setItemDelegateForColumn(image_stack_table_model.property_columns['visible'], self.property_checkbox_delegate)
-        self.setItemDelegateForColumn(image_stack_table_model.property_columns['auto_min_max_enabled'], self.property_checkbox_delegate)
+        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['visible'], self.property_checkbox_delegate)
+        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['auto_min_max_enabled'], self.property_checkbox_delegate)
         self.blend_function_delegate = DropdownListDelegate(lambda midx: self.model().signaling_list[midx.row()].BLEND_FUNCTIONS, self)
-        self.setItemDelegateForColumn(image_stack_table_model.property_columns['blend_function'], self.blend_function_delegate)
+        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['blend_function'], self.blend_function_delegate)
         self.tint_delegate = TintDelegate(self)
-        self.setItemDelegateForColumn(image_stack_table_model.property_columns['tint'], self.tint_delegate)
+        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['tint'], self.tint_delegate)
         self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
         self.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
-        self.setModel(image_stack_table_model)
+        self.setModel(layer_stack_table_model)
 #       self.setEditTriggers(Qt.QAbstractItemView.EditKeyPressed | Qt.QAbstractItemView.SelectedClicked)
 
-class ImageStackTableModel(SignalingListPropertyTableModel):
+class LayerStackTableModel(SignalingListPropertyTableModel):
     # ImageStackTableModel accesses PROPERTIES strictly via self.PROPERTIES and never via ImageStackTableModel.PROPERTIES,
     # meaning that subclasses may safely add or remove columns by overridding PROPERTIES.  For example, adding a column for
     # a sublcassed Images having an "image_quality" property:
@@ -68,9 +68,9 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
 
     PROPERTIES = (
         'visible',
-        'size',
-        'type',
-        'dtype',
+#       'size',
+#       'type',
+#       'dtype',
         'blend_function',
         'auto_min_max_enabled',
         'tint',
@@ -83,9 +83,9 @@ class ImageStackTableModel(SignalingListPropertyTableModel):
         self._special_data_getters = {
             'visible' : self._getd_visible,
             'auto_min_max_enabled' : self._getd_auto_min_max_enabled,
-            'tint' : self._getd_tint,
-            'size' : self._getd_size,
-            'dtype' : self._getd_dtype}
+            'tint' : self._getd_tint}
+#           'size' : self._getd_size,
+#           'dtype' : self._getd_dtype}
         self._special_flag_getters = {
             'visible' : self._getf__always_checkable,
             'auto_min_max_enabled' : self._getf__always_checkable,

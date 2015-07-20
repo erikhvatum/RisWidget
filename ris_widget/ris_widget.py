@@ -27,9 +27,10 @@ from PyQt5 import Qt
 import numpy
 import sys
 import weakref
-from .qwidgets.image_stack_current_row_flipbook import ImageStackCurrentRowFlipbook
-from .image.image import Image
-from .qwidgets.image_stack_table import ImageStackTableModel, ImageStackTableView
+#from .qwidgets.layer_stack_current_row_flipbook import ImageStackCurrentRowFlipbook
+from .image import Image
+from .layer import Layer
+from .qwidgets.layer_stack_table import LayerStackTableModel, LayerStackTableView
 from .qgraphicsitems.contextual_info_item import ContextualInfoItem
 from .qgraphicsitems.histogram_items import HistogramItem
 from .qgraphicsitems.layer_stack_item import LayerStackItem
@@ -38,11 +39,12 @@ from .qgraphicsviews.general_view import GeneralView
 from .qgraphicsscenes.histogram_scene import HistogramScene
 from .qgraphicsviews.histogram_view import HistogramView
 from .shared_resources import FREEIMAGE, GL_QSURFACE_FORMAT, NV_PATH_RENDERING_AVAILABLE
-from .signaling_list.signaling_list import SignalingList
+from .signaling_list import SignalingList
 
 class RisWidget(Qt.QMainWindow):
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0), msaa_sample_count=2,
-                 ImageClass=Image, LayerStackItemClass=LayerStackItem, GeneralSceneClass=GeneralScene, GeneralViewClass=GeneralView,
+                 ImageClass=Image, LayerClass=Layer,
+                 LayerStackItemClass=LayerStackItem, GeneralSceneClass=GeneralScene, GeneralViewClass=GeneralView,
                  GeneralViewContextualInfoItemClass=None,
                  HistogramItemClass=HistogramItem, HistogramSceneClass=HistogramScene, HistogramViewClass=HistogramView,
                  HistgramViewContextualInfoItemClass=None):
@@ -64,12 +66,14 @@ class RisWidget(Qt.QMainWindow):
 #               GeneralViewContextualInfoItemClass = ContextualInfoItem
 #           if HistgramViewContextualInfoItemClass is None:
 #               HistgramViewContextualInfoItemClass = ContextualInfoItem
+        self.ImageClass = ImageClass
+        self.LayerClass = LayerClass
         self._init_scenes_and_views(
-            ImageClass, LayerStackItemClass, GeneralSceneClass, GeneralViewClass,
+            ImageClass, LayerClass,
+            LayerStackItemClass, GeneralSceneClass, GeneralViewClass,
             GeneralViewContextualInfoItemClass,
             HistogramItemClass, HistogramSceneClass, HistogramViewClass,
             HistgramViewContextualInfoItemClass)
-        self.ImageClass = ImageClass
         self._init_actions()
         self._init_toolbars()
         self._init_menus()
@@ -120,7 +124,7 @@ class RisWidget(Qt.QMainWindow):
         self._main_view_toolbar.addAction(self.main_view.zoom_to_fit_action)
         self._main_view_toolbar.addAction(self._main_view_reset_min_max_action)
         self._main_view_toolbar.addAction(self._main_view_reset_gamma_action)
-        self._main_view_toolbar.addAction(self._image_stack_table_dock_widget.toggleViewAction())
+        self._main_view_toolbar.addAction(self._layer_stack_table_dock_widget.toggleViewAction())
         self._histogram_view_toolbar = self.addToolBar('Histogram View')
         self._histogram_view_toolbar.addAction(self._histogram_dock_widget.toggleViewAction())
 
@@ -133,7 +137,7 @@ class RisWidget(Qt.QMainWindow):
         m.addAction(self.main_view.zoom_to_fit_action)
         m.addAction(self.main_view.zoom_one_to_one_action)
 
-    def _init_scenes_and_views(self, ImageClass, LayerStackItemClass, GeneralSceneClass, GeneralViewClass, GeneralViewContextualInfoItemClass,
+    def _init_scenes_and_views(self, ImageClass, LayerClass, LayerStackItemClass, GeneralSceneClass, GeneralViewClass, GeneralViewContextualInfoItemClass,
                                HistogramItemClass, HistogramSceneClass, HistogramViewClass, HistgramViewContextualInfoItemClass):
         self.main_scene = GeneralSceneClass(self, ImageClass, LayerStackItemClass, GeneralViewContextualInfoItemClass)
         self.main_view = GeneralViewClass(self.main_scene, self)
@@ -147,178 +151,182 @@ class RisWidget(Qt.QMainWindow):
             Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable |
             Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
         self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self._histogram_dock_widget)
-        self._image_stack_table_dock_widget = Qt.QDockWidget('Image Stack', self)
-        self.image_stack_table_model = ImageStackTableModel(self.image_stack)
-        self.image_stack_table_view = ImageStackTableView(self.image_stack_table_model)
-        self.image_stack_table_view.setModel(self.image_stack_table_model)
-        self.image_stack_table_model.setParent(self.image_stack_table_view)
-        self.image_stack_table_selection_model = self.image_stack_table_view.selectionModel()
-        self.image_stack_table_selection_model.currentRowChanged.connect(self._on_image_stack_table_current_row_changed)
-        self.image_stack.inserted.connect(self._on_inserted_into_image_stack)
-        self.image_stack.replaced.connect(self._on_replaced_in_image_stack)
-        self._image_stack_table_dock_widget.setWidget(self.image_stack_table_view)
-        self._image_stack_table_dock_widget.setAllowedAreas(Qt.Qt.AllDockWidgetAreas)
-        self._image_stack_table_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
-        # TODO: make image stack table widget default location be at window bottom, adjacent to histogram
-        self.addDockWidget(Qt.Qt.TopDockWidgetArea, self._image_stack_table_dock_widget)
+        self._layer_stack_table_dock_widget = Qt.QDockWidget('Image Stack', self)
+        self.layer_stack_table_model = LayerStackTableModel(self.layer_stack)
+        self.layer_stack_table_view = LayerStackTableView(self.layer_stack_table_model)
+        self.layer_stack_table_view.setModel(self.layer_stack_table_model)
+        self.layer_stack_table_model.setParent(self.layer_stack_table_view)
+        self.layer_stack_table_selection_model = self.layer_stack_table_view.selectionModel()
+        self.layer_stack_table_selection_model.currentRowChanged.connect(self._on_layer_stack_table_current_row_changed)
+        self.layer_stack.inserted.connect(self._on_inserted_into_layer_stack)
+        self.layer_stack.replaced.connect(self._on_replaced_in_layer_stack)
+        self._layer_stack_table_dock_widget.setWidget(self.layer_stack_table_view)
+        self._layer_stack_table_dock_widget.setAllowedAreas(Qt.Qt.AllDockWidgetAreas)
+        self._layer_stack_table_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
+        # TODO: make layer stack table widget default location be at window bottom, adjacent to histogram
+        self.addDockWidget(Qt.Qt.TopDockWidgetArea, self._layer_stack_table_dock_widget)
         self._most_recently_created_flipbook = None
 
-    def dragEnterEvent(self, event):
-        event.acceptProposedAction()
-
-    def dragMoveEvent(self, event):
-        event.acceptProposedAction()
-
-    def dropEvent(self, event):
-        mime_data = event.mimeData()
-        if mime_data.hasImage():
-            qimage = mime_data.imageData()
-            if not qimage.isNull() and qimage.format() != Qt.QImage.Format_Invalid:
-                if qimage.hasAlphaChannel():
-                    desired_format = Qt.QImage.Format_RGBA8888
-                    channel_count = 4
-                else:
-                    desired_format = Qt.QImage.Format_RGB888
-                    channel_count = 3
-                if qimage.format() != desired_format:
-                    qimage = qimage.convertToFormat(desired_format)
-                if channel_count == 3:
-                    # 24-bit RGB QImage rows are padded to 32-bit chunks, which we must match
-                    row_stride = qimage.width() * 3
-                    row_stride += 4 - (row_stride % 4)
-                    padded = numpy.ctypeslib.as_array(ctypes.cast(int(qimage.bits()), ctypes.POINTER(ctypes.c_uint8)), shape=(qimage.height(), row_stride))
-                    padded = padded[:, qimage.width() * 3].reshape((qimage.height(), qimage.width(), 3))
-                    npyimage = numpy.empty((qimage.height(), qimage.width(), 3), dtype=numpy.uint8)
-                    npyimage.flat = padded.flat
-                else:
-                    npyimage = numpy.ctypeslib.as_array(
-                        ctypes.cast(int(qimage.bits()), ctypes.POINTER(ctypes.c_uint8)),
-                        shape=(qimage.height(), qimage.width(), channel_count))
-                if qimage.isGrayscale():
-                    npyimage=npyimage[...,0]
-                self.image = self.ImageClass(npyimage.copy(), shape_is_width_height=False, name=mime_data.urls()[0].toDisplayString() if mime_data.hasUrls() else None)
-                event.accept()
-        elif mime_data.hasUrls():
-            # Note: if the URL is a "file://..." representing a local file, toLocalFile returns a string
-            # appropriate for feeding to Python's open() function.  If the URL does not refer to a local file,
-            # toLocalFile returns None.
-            fpaths = list(map(lambda url: url.toLocalFile(), mime_data.urls()))
-            if len(fpaths) > 0 and fpaths[0].startswith('file:///.file/id=') and sys.platform == 'darwin':
-                e = 'In order for image file drag & drop to work on OS X >=10.10 (Yosemite), please upgrade to at least Qt 5.4.1.'
-                Qt.QMessageBox.information(self, 'Qt Upgrade Required', e)
-                return
-            freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
-            if freeimage is None:
-                return
-            if len(fpaths) == 1:
-                image_data = freeimage.read(fpaths[0])
-                self.image = self.ImageClass(image_data, name=fpaths[0])
-            else:
-                # TODO: read images in background thread and display modal progress bar dialog with cancel button
-                images = [Image(freeimage.read(fpath), name=fpath) for fpath in fpaths]
-                self.make_flipbook(images)
-            event.accept()
-
-    @property
-    def image_stack(self):
-        return self.main_scene.layer_stack_item.image_stack
+#   def dragEnterEvent(self, event):
+#       event.acceptProposedAction()
+#
+#   def dragMoveEvent(self, event):
+#       event.acceptProposedAction()
+#
+#   def dropEvent(self, event):
+#       mime_data = event.mimeData()
+#       if mime_data.hasImage():
+#           qimage = mime_data.imageData()
+#           if not qimage.isNull() and qimage.format() != Qt.QImage.Format_Invalid:
+#               if qimage.hasAlphaChannel():
+#                   desired_format = Qt.QImage.Format_RGBA8888
+#                   channel_count = 4
+#               else:
+#                   desired_format = Qt.QImage.Format_RGB888
+#                   channel_count = 3
+#               if qimage.format() != desired_format:
+#                   qimage = qimage.convertToFormat(desired_format)
+#               if channel_count == 3:
+#                   # 24-bit RGB QImage rows are padded to 32-bit chunks, which we must match
+#                   row_stride = qimage.width() * 3
+#                   row_stride += 4 - (row_stride % 4)
+#                   padded = numpy.ctypeslib.as_array(ctypes.cast(int(qimage.bits()), ctypes.POINTER(ctypes.c_uint8)), shape=(qimage.height(), row_stride))
+#                   padded = padded[:, qimage.width() * 3].reshape((qimage.height(), qimage.width(), 3))
+#                   npyimage = numpy.empty((qimage.height(), qimage.width(), 3), dtype=numpy.uint8)
+#                   npyimage.flat = padded.flat
+#               else:
+#                   npyimage = numpy.ctypeslib.as_array(
+#                       ctypes.cast(int(qimage.bits()), ctypes.POINTER(ctypes.c_uint8)),
+#                       shape=(qimage.height(), qimage.width(), channel_count))
+#               if qimage.isGrayscale():
+#                   npyimage=npyimage[...,0]
+#               self.image = self.ImageClass(npyimage.copy(), shape_is_width_height=False, name=mime_data.urls()[0].toDisplayString() if mime_data.hasUrls() else None)
+#               event.accept()
+#       elif mime_data.hasUrls():
+#           # Note: if the URL is a "file://..." representing a local file, toLocalFile returns a string
+#           # appropriate for feeding to Python's open() function.  If the URL does not refer to a local file,
+#           # toLocalFile returns None.
+#           fpaths = list(map(lambda url: url.toLocalFile(), mime_data.urls()))
+#           if len(fpaths) > 0 and fpaths[0].startswith('file:///.file/id=') and sys.platform == 'darwin':
+#               e = 'In order for image file drag & drop to work on OS X >=10.10 (Yosemite), please upgrade to at least Qt 5.4.1.'
+#               Qt.QMessageBox.information(self, 'Qt Upgrade Required', e)
+#               return
+#           freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
+#           if freeimage is None:
+#               return
+#           if len(fpaths) == 1:
+#               image_data = freeimage.read(fpaths[0])
+#               self.image = self.ImageClass(image_data, name=fpaths[0])
+#           else:
+#               # TODO: read images in background thread and display modal progress bar dialog with cancel button
+#               images = [Image(freeimage.read(fpath), name=fpath) for fpath in fpaths]
+#               self.make_flipbook(images)
+#           event.accept()
 
     @property
-    def image(self):
-        image_stack = self.image_stack
-        return image_stack[0] if image_stack else None
+    def layer_stack(self):
+        return self.main_scene.layer_stack_item.layer_stack
 
-    @image.setter
-    def image(self, image):
-        image_stack = self.image_stack
-        if image_stack:
-            image_stack[0] = image
+    @property
+    def layer(self):
+        layer_stack = self.layer_stack
+        return layer_stack[0] if layer_stack else None
+
+    @layer.setter
+    def layer(self, layer):
+        layer_stack = self.layer_stack
+        if layer_stack:
+            layer_stack[0] = layer
         else:
-            image_stack.append(image)
+            layer_stack.append(layer)
 
     @property
-    def current_image_stack_table_image(self):
-        midx = self.image_stack_table_selection_model.currentIndex()
+    def current_layer_stack_table_layer(self):
+        midx = self.layer_stack_table_selection_model.currentIndex()
         if midx.isValid():
-            return self.image_stack[midx.row()]
+            return self.layer_stack[midx.row()]
 
-    @property
-    def image_data(self):
-        image_stack = self.image_stack
-        if image_stack:
-            return image_stack[0].data
+#   @property
+#   def image_data(self):
+#       layer_stack = self.layer_stack
+#       if layer_stack:
+#           return layer_stack[0].data
+#
+#   @image_data.setter
+#   def image_data(self, image_data):
+#       layer_stack = self.layer_stack
+#       if layer_stack:
+#           layer_stack[0].set_data(image_data)
+#       else:
+#           layer_stack.append(self.ImageClass(image_data))
+#
+#   @property
+#   def image_data_T(self):
+#       layer_stack = self.layer_stack
+#       if layer_stack:
+#           return layer_stack[0].data_T
+#
+#   @image_data.setter
+#   def image_data_T(self, image_data_T):
+#       layer_stack = self.layer_stack
+#       if layer_stack:
+#           layer_stack[0].set_data(image_data_T, shape_is_width_height=False)
+#       else:
+#           layer_stack.append(self.ImageClass(image_data, shape_is_width_height=False))
 
-    @image_data.setter
-    def image_data(self, image_data):
-        image_stack = self.image_stack
-        if image_stack:
-            image_stack[0].set_data(image_data)
-        else:
-            image_stack.append(self.ImageClass(image_data))
+#   def make_flipbook(self, images=None, name='Flipbook'):
+#       """The images argument may be any mixture of ris_widget.image.Image objects and raw data iterables of the sort that
+#       may be assigned to RisWidget.image_data or RisWidget.image_data_T.
+#       If None is supplied for images, an empty flipbook is created."""
+#       if images is not None:
+#           if not isinstance(images, SignalingList):
+#               images = SignalingList([image if isinstance(image, self.ImageClass) else self.ImageClass(image, name=str(image_idx)) for image_idx, image in enumerate(images)])
+#       flipbook = ImageStackCurrentRowFlipbook(self.layer_stack, self.layer_stack_table_selection_model, images)
+#       dock_widget = Qt.QDockWidget(name, self)
+#       dock_widget.setAttribute(Qt.Qt.WA_DeleteOnClose)
+#       dock_widget.setWidget(flipbook)
+#       flipbook.destroyed.connect(dock_widget.deleteLater) # Get rid of containing dock widget when flipbook is programatically destroyed
+#       dock_widget.setAllowedAreas(Qt.Qt.LeftDockWidgetArea | Qt.Qt.RightDockWidgetArea)
+#       dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
+#       self.addDockWidget(Qt.Qt.RightDockWidgetArea, dock_widget)
+#       self._most_recently_created_flipbook = weakref.ref(flipbook)
+#       return flipbook
 
-    @property
-    def image_data_T(self):
-        image_stack = self.image_stack
-        if image_stack:
-            return image_stack[0].data_T
+#   @property
+#   def most_recently_created_flipbook(self):
+#       if self._most_recently_created_flipbook is None:
+#           return
+#       fb = self._most_recently_created_flipbook()
+#       if fb is not None:
+#           try:
+#               fb.objectName()
+#               return fb
+#           except RuntimeError:
+#               # Qt part of the object was deleted out from under the Python part
+#               self._most_recently_created_flipbook = None # Clean up our weakref to the Python part
 
-    @image_data.setter
-    def image_data_T(self, image_data_T):
-        image_stack = self.image_stack
-        if image_stack:
-            image_stack[0].set_data(image_data_T, shape_is_width_height=False)
-        else:
-            image_stack.append(self.ImageClass(image_data, shape_is_width_height=False))
+    def _on_layer_stack_table_current_row_changed(self, midx, prev_midx):
+        image = None
+        layer = self.current_layer_stack_table_layer
+        if layer is not None:
+            image = layer.image
+        self.histogram_scene.histogram_item.image = image
 
-    def make_flipbook(self, images=None, name='Flipbook'):
-        """The images argument may be any mixture of ris_widget.image.Image objects and raw data iterables of the sort that
-        may be assigned to RisWidget.image_data or RisWidget.image_data_T.
-        If None is supplied for images, an empty flipbook is created."""
-        if images is not None:
-            if not isinstance(images, SignalingList):
-                images = SignalingList([image if isinstance(image, self.ImageClass) else self.ImageClass(image, name=str(image_idx)) for image_idx, image in enumerate(images)])
-        flipbook = ImageStackCurrentRowFlipbook(self.image_stack, self.image_stack_table_selection_model, images)
-        dock_widget = Qt.QDockWidget(name, self)
-        dock_widget.setAttribute(Qt.Qt.WA_DeleteOnClose)
-        dock_widget.setWidget(flipbook)
-        flipbook.destroyed.connect(dock_widget.deleteLater) # Get rid of containing dock widget when flipbook is programatically destroyed
-        dock_widget.setAllowedAreas(Qt.Qt.LeftDockWidgetArea | Qt.Qt.RightDockWidgetArea)
-        dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
-        self.addDockWidget(Qt.Qt.RightDockWidgetArea, dock_widget)
-        self._most_recently_created_flipbook = weakref.ref(flipbook)
-        return flipbook
-
-    @property
-    def most_recently_created_flipbook(self):
-        if self._most_recently_created_flipbook is None:
-            return
-        fb = self._most_recently_created_flipbook()
-        if fb is not None:
-            try:
-                fb.objectName()
-                return fb
-            except RuntimeError:
-                # Qt part of the object was deleted out from under the Python part
-                self._most_recently_created_flipbook = None # Clean up our weakref to the Python part
-
-    def _on_image_stack_table_current_row_changed(self, midx, prev_midx):
-        self.histogram_scene.histogram_item.image = self.image_stack[midx.row()] if midx.isValid() else None
-
-    def _on_inserted_into_image_stack(self, idx, images):
-        assert len(self.image_stack) > 0
-        if not self.image_stack_table_selection_model.currentIndex().isValid():
-            self.image_stack_table_selection_model.setCurrentIndex(
-                self.image_stack_table_model.createIndex(0, 0),
+    def _on_inserted_into_layer_stack(self, idx, layers):
+        assert len(self.layer_stack) > 0
+        if not self.layer_stack_table_selection_model.currentIndex().isValid():
+            self.layer_stack_table_selection_model.setCurrentIndex(
+                self.layer_stack_table_model.createIndex(0, 0),
                 Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
 
-    def _on_replaced_in_image_stack(self, idxs, old_images, new_images):
-        current_midx = self.image_stack_table_selection_model.currentIndex()
+    def _on_replaced_in_layer_stack(self, idxs, old_layers, new_layers):
+        current_midx = self.layer_stack_table_selection_model.currentIndex()
         if current_midx.isValid():
             try:
                 change_idx = idxs.index(current_midx.row())
             except ValueError:
                 return
-            old_current, new_current = old_images[change_idx], new_images[change_idx]
+            old_current, new_current = old_layers[change_idx], new_layers[change_idx]
             self.histogram_scene.histogram_item.image = new_current
 
     def _main_view_zoom_changed(self, zoom_preset_idx, custom_zoom):
@@ -347,15 +355,15 @@ class RisWidget(Qt.QMainWindow):
             self._main_view_zoom_combo.lineEdit().selectAll()
 
     def _on_reset_min_max(self):
-        image = self.current_image_stack_table_image
-        if image is not None:
-            del image.min
-            del image.max
+        layer = self.current_layer_stack_table_layer
+        if layer is not None:
+            del layer.min
+            del layer.max
 
     def _on_reset_gamma(self):
-        image = self.current_image_stack_table_image
-        if image is not None:
-            del image.gamma
+        layer = self.current_layer_stack_table_layer
+        if layer is not None:
+            del layer.gamma
 
 if __name__ == '__main__':
     import sys

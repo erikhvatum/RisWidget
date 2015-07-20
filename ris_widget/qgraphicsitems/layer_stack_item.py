@@ -30,39 +30,39 @@ from string import Template
 import sys
 import textwrap
 #from ._qt_debug import qtransform_to_numpy
-from .layer import Layer
-from ..signaling_list.signaling_list import SignalingList
+from ..layer import Layer
+from ..signaling_list import SignalingList
 from ..shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
 from .shader_item import ShaderItem
 
 class LayerStackItem(ShaderItem):
-    """The image_stack attribute of LayerStackItem is an SignalingList, a container with a list interface, containing a sequence
-    of Image instances (or instances of subclasses of Image or some duck-type compatible thing).  In terms of composition ordering,
-    these are in ascending Z-order, with the positive Z axis pointing out of the screen.  image_stack should be manipulated via the
-    standard list interface, which it implements completely.  So, for example, to place an image at the top of the stack:
+    """The layer_stack attribute of LayerStackItem is an SignalingList, a container with a list interface, containing a sequence
+    of Layer instances (or instances of subclasses of Layer or some duck-type compatible thing).  In terms of composition ordering,
+    these are in ascending Z-order, with the positive Z axis pointing out of the screen.  layer_stack should be manipulated via the
+    standard list interface, which it implements completely.  So, for example, to place an layer at the top of the stack:
 
-    LayerStackItem_instance.image_stack.append(Image(numpy.zeros((400,400,3), dtype=numpy.uint8)))
+    LayerStackItem_instance.layer_stack.append(Layer(Image(numpy.zeros((400,400,3), dtype=numpy.uint8))))
 
     SignalingList emits signals when elements are removed, inserted, or replaced.  LayerStackItem responds to these signals
-    in order to trigger repainting and otherwise keep its state consistent with that of its image_stack attribute.  Users
+    in order to trigger repainting and otherwise keep its state consistent with that of its layer_stack attribute.  Users
     and extenders of LayerStackItem may do so in the same way: by connecting Python functions directly to
-    LayerStackItem_instance.image_stack.inserted, LayerStackItem_instance.image_stack.removed, and
-    LayerStackItem_instance.image_stack.replaced.  For a concrete example, take a look at ImageStackWidget.
+    LayerStackItem_instance.layer_stack.inserted, LayerStackItem_instance.layer_stack.removed, and
+    LayerStackItem_instance.layer_stack.replaced.  For a concrete example, take a look at ImageStackWidget.
 
-    The blend_function of the first (0th) element of image_stack is ignored, although its getcolor_expression and
+    The blend_function of the first (0th) element of layer_stack is ignored, although its getcolor_expression and
     extra_transformation expression, if provided, are used.  In the fragment shader, the result of applying getcolor_expression
     and then extra_transformation expression are saved in the variables da (a float representing alpha channel value) and dca
     (a vec3, which is a vector of three floats, representing the premultiplied RGB channel values).
 
-    Subsequent elements of image_stack are blended into da and dca using the blend_function specified by each Image.
+    Subsequent elements of layer_stack are blended into da and dca using the blend_function specified by each Image.
     When no elements remain to be blended, dca is divided element-wise by da, un-premultiplying it, and these three values and
     da are returned to OpenGL for src-over blending into the view.
 
-    LayerStackItem's boundingRect has its top left at (0, 0) and has same dimensions as the first (0th) element of image_stack,
-    or is 1x1 if image_stack is empty.  Therefore, if the scale of an LayerStackItem instance containing at least one image
+    LayerStackItem's boundingRect has its top left at (0, 0) and has same dimensions as the first (0th) element of layer_stack,
+    or is 1x1 if layer_stack is empty.  Therefore, if the scale of an LayerStackItem instance containing at least one layer
     has not been modified, that LayerStackItem instance will be the same width and height in scene units as the first element
-    of image_stack is in pixel units, making the mapping between scene units and pixel units 1:1 for the image at the bottom
-    of the stack (ie, image_stack[0])."""
+    of layer_stack is in pixel units, making the mapping between scene units and pixel units 1:1 for the layer at the bottom
+    of the stack (ie, layer_stack[0])."""
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
     NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
         numpy.bool8  : Qt.QOpenGLTexture.UInt8,
@@ -95,7 +95,7 @@ class LayerStackItem(ShaderItem):
             return clamp(out_, 0, 1);
         }"""))
     MAIN_SECTION_TEMPLATE = Template(textwrap.dedent("""\
-            // image_stack[${idx}]
+            // layer_stack[${idx}]
             s = texture2D(tex_${idx}, tex_coord);
             s = color_transform_${idx}(${getcolor_expression}, tint_${idx}, rescale_min_${idx}, rescale_range_${idx}, gamma_${idx});
             sca = s.rgb * s.a;
@@ -111,15 +111,15 @@ class LayerStackItem(ShaderItem):
     def __init__(self, parent_item=None):
         super().__init__(parent_item)
         self._bounding_rect = Qt.QRectF(self.DEFAULT_BOUNDING_RECT)
-        self.image_stack = SignalingList(parent=self) # In ascending order, with bottom image (backmost) as element 0
-        self.image_stack.inserted.connect(self._on_images_inserted)
-        self.image_stack.removed.connect(self._on_images_removed)
-        self.image_stack.replaced.connect(self._on_images_replaced)
+        self.layer_stack = SignalingList(parent=self) # In ascending order, with bottom layer (backmost) as element 0
+        self.layer_stack.inserted.connect(self._on_layers_inserted)
+        self.layer_stack.removed.connect(self._on_layers_removed)
+        self.layer_stack.replaced.connect(self._on_layers_replaced)
         self._texs = {}
         self._dead_texs = [] # Textures queued for deletion when an OpenGL context is available
-        self._image_data_serials = {}
+        self._layer_data_serials = {}
         self._next_data_serial = 0
-        self._image_instance_counts = {}
+        self._layer_instance_counts = {}
 
     def __del__(self):
         scene = self.scene()
@@ -146,112 +146,149 @@ class LayerStackItem(ShaderItem):
     def boundingRect(self):
         return self._bounding_rect
 
-    def _attach_images(self, images):
-        for image in images:
-            instance_count = self._image_instance_counts.get(image, 0) + 1
+    def _attach_layers(self, layers):
+        for layer in layers:
+            instance_count = self._layer_instance_counts.get(layer, 0) + 1
             assert instance_count > 0
-            self._image_instance_counts[image] = instance_count
+            self._layer_instance_counts[layer] = instance_count
             if instance_count == 1:
-                # Any change, including image data change, may change result of rendering image and therefore requires refresh
-                image.changed.connect(self._on_image_changed)
-                # Only change to image data invalidates a texture.  Texture uploading is deferred until rendering, and rendering is
-                # deferred until the next iteration of the event loop.  When image emits image_changed, it will also emit
-                # changed.  In effect, self.update marks the scene as requiring refresh while self._on_image_changed marks the
+                # Any change, including layer data change, may change result of rendering layer and therefore requires refresh
+                layer.changed.connect(self._on_layer_changed)
+                # Only change to layer layer data invalidates a texture.  Texture uploading is deferred until rendering, and rendering is
+                # deferred until the next iteration of the event loop.  When layer emits layer_changed, it will also emit
+                # changed.  In effect, self.update marks the scene as requiring refresh while self._on_layer_changed marks the
                 # associated texture as requiring refresh.  Both marking operations are fast and may be called redundantly multiple
                 # times per frame without significantly impacting performace.
-                image.data_changed.connect(self._on_image_data_changed)
-                self._image_data_serials[image] = self._generate_data_serial()
-                self._texs[image] = None
+                layer.image_changed.connect(self._on_layer_image_changed)
+                self._layer_data_serials[layer] = self._generate_data_serial()
+                self._texs[layer] = None
 
-    def _detach_images(self, images):
-        for image in images:
-            instance_count = self._image_instance_counts[image] - 1
+    def _detach_layers(self, layers):
+        for layer in layers:
+            instance_count = self._layer_instance_counts[layer] - 1
             assert instance_count >= 0
             if instance_count == 0:
-                image.changed.disconnect(self._on_image_changed)
-                image.data_changed.disconnect(self._on_image_data_changed)
-                del self._image_instance_counts[image]
-                del self._image_data_serials[image]
-                dead_tex = self._texs[image]
+                layer.changed.disconnect(self._on_layer_changed)
+                layer.data_changed.disconnect(self._on_layer_layer_changed)
+                del self._layer_instance_counts[layer]
+                del self._layer_data_serials[layer]
+                dead_tex = self._texs[layer]
                 if dead_tex is not None:
                     self._dead_texs.append(dead_tex)
-                del self._texs[image]
+                del self._texs[layer]
             else:
-                self._image_instance_counts[image] = instance_count
+                self._layer_instance_counts[layer] = instance_count
 
-    def _on_images_inserted(self, idx, images):
-        br_change = idx == 0 and (len(self.image_stack) == 1 or self.image_stack[1].size != images[0].size)
-        if br_change:
-            self.prepareGeometryChange()
-            self._bounding_rect = Qt.QRectF(Qt.QPointF(), Qt.QSizeF(images[0].size))
-        self._attach_images(images)
-        if br_change:
-            self.bounding_rect_changed.emit()
-        self.update()
-
-    def _on_images_removed(self, idxs, images):
-        br_change = idxs[0] == 0 and (not self.image_stack or self.image_stack[0].size != images[0].size)
-        if br_change:
-            self.prepareGeometryChange()
-            if self.image_stack:
-                self._bounding_rect = Qt.QRectF(Qt.QPointF(), Qt.QSizeF(self.image_stack[0].size))
+    def _on_layers_inserted(self, idx, layers):
+        br_change = False
+        if idx == 0:
+            layer_stack = self.layer_stack
+            nbi = layer_stack[0].image
+            nbi_nN = nbi is not None
+            if len(layer_stack) == 1:
+                if nbi_nN:
+                    br_change = True
             else:
-                self._bounding_rect = self.DEFAULT_BOUNDING_RECT
-        self._detach_images(images)
-        if br_change:
-            self.bounding_rect_changed.emit()
-        self.update()
-
-    def _on_images_replaced(self, idxs, replaced_images, images):
-        br_change = idxs[0] == 0 and replaced_images[0].size != images[0].size
+                obi = layer_stack[1].image
+                obi_nN = obi is not None
+                if nbi_nN != obi_nN or (nbi_nN and nbi.size != obi.size):
+                    br_change = True
         if br_change:
             self.prepareGeometryChange()
-            self._bounding_rect = Qt.QRectF(Qt.QPointF(), Qt.QSizeF(images[0].size))
-        self._detach_images(replaced_images)
-        self._attach_images(images)
+            self._bounding_rect = Qt.QRectF(Qt.QPointF(), Qt.QSizeF(nbi.size)) if nbi_nN else self.DEFAULT_BOUNDING_RECT
+        self._attach_layers(layers)
         if br_change:
             self.bounding_rect_changed.emit()
         self.update()
 
-    def _on_image_changed(self, image):
+    def _on_layers_removed(self, idxs, layers):
+        assert all(idx1 > idx0 for idx0, idx1 in zip(idxs, idxs[1:])), "Implementation of _on_layers_removed relies on idxs being in ascending order"
+        br_change = False
+        if idxs[0] == 0:
+            layer_stack = self.layer_stack
+            obi = layers[0].image
+            obi_nN = obi is not None
+            if not layer_stack:
+                if obi_nN:
+                    br_changed = True
+            else:
+                nbi = layer_stack[0].image
+                nbi_nN = nbi is not None
+                if nbi_nN != obi_nN or (nbi_nN and nbi.size != obi.size):
+                    br_change = True
+        if br_change:
+            self.prepareGeometryChange()
+            self._bounding_rect = self.DEFAULT_BOUNDING_RECT if not layer_stack or not nbi_nN else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(nbi.size))
+        self._detach_layers(layers)
+        if br_change:
+            self.bounding_rect_changed.emit()
         self.update()
 
-    def _on_image_data_changed(self, image):
-        self._image_data_serials[image] = self._generate_data_serial()
+    def _on_layers_replaced(self, idxs, replaced_layers, layers):
+        assert all(idx1 > idx0 for idx0, idx1 in zip(idxs, idxs[1:])), "Implementation of _on_layers_replaced relies on idxs being in ascending order"
+        br_change = False
+        if idxs[0] == 0:
+            obi = replaced_layers[0].image
+            obi_nN = obi is not None
+            nbi = layers[0].image
+            nbi_nN = nbi is not None
+            if nbi_nN != obi_nN or (nbi_nN and nbi.size != obi.size):
+                br_change = True
+        if br_change:
+            self.prepareGeometryChange()
+            self._bounding_rect = Qt.QRectF(Qt.QPointF(), Qt.QSizeF(nbi.size)) if nbi_nN else self.DEFAULT_BOUNDING_RECT
+        self._detach_layers(replaced_layers)
+        self._attach_layers(layers)
+        if br_change:
+            self.bounding_rect_changed.emit()
+        self.update()
+
+    def _on_layer_changed(self, layer):
+        self.update()
+
+    def _on_layer_image_changed(self, layer):
+        self._layer_data_serials[layer] = self._generate_data_serial()
 
     def hoverMoveEvent(self, event):
-        visible_idxs = [idx for idx, image in enumerate(self.image_stack) if image.visible]
+        visible_idxs = [idx for idx, layer in enumerate(self.layer_stack) if layer.visible]
         if len(visible_idxs) == 0:
             self.scene().clear_contextual_info(self)
             return
         # NB: event.pos() is a QPointF, and one may call QPointF.toPoint(), as in the following line,
         # to get a QPoint from it.  However, toPoint() rounds x and y coordinates to the nearest int,
         # which would cause us to erroneously report mouse position as being over the pixel to the
-        # right and/or below if the view with the mouse cursor is zoomed in such that an image pixel
+        # right and/or below if the view with the mouse cursor is zoomed in such that an layer pixel
         # occupies more than one screen pixel and the cursor is over the right and/or bottom half
         # of a pixel.
 #       pos = event.pos().toPoint()
         fpos = event.pos()
         ipos = Qt.QPoint(event.pos().x(), event.pos().y())
         cis = []
-        it = iter((idx, self.image_stack[idx]) for idx in visible_idxs)
-        idx, image = next(it)
-        ci = image.generate_contextual_info_for_pos(ipos.x(), ipos.y(), idx if len(self.image_stack) > 1 else None)
+        it = iter((idx, self.layer_stack[idx]) for idx in visible_idxs)
+        idx, layer = next(it)
+        ci = layer.generate_contextual_info_for_pos(ipos.x(), ipos.y(), idx if len(self.layer_stack) > 1 else None)
         if ci is not None:
             cis.append(ci)
-        image0size = image.size
-        for idx, image in it:
-                # Because the aspect ratio of subsequent images may differ from the first, fractional
-                # offsets must be discarded only after projecting from lowest-image pixel coordinates
-                # to current image pixel coordinates.  It is easy to see why in the case of an overlay
-                # exactly half the width and height of the base: one base unit is two overlay units,
-                # so dropping base unit fractions would cause overlay units to be rounded to the preceeding
-                # even number in any case where an overlay coordinate component should be odd.
-                ci = image.generate_contextual_info_for_pos(int(fpos.x()*image.size.width()/image0size.width()),
-                                                            int(fpos.y()*image.size.height()/image0size.height()),
-                                                            idx)
-                if ci is not None:
-                    cis.append(ci)
+        image = layer.image
+        image0size = self.DEFAULT_BOUNDING_RECT.size() if image is None else image.size
+        for idx, layer in it:
+            # Because the aspect ratio of subsequent layers may differ from the first, fractional
+            # offsets must be discarded only after projecting from lowest-layer pixel coordinates
+            # to current layer pixel coordinates.  It is easy to see why in the case of an overlay
+            # exactly half the width and height of the base: one base unit is two overlay units,
+            # so dropping base unit fractions would cause overlay units to be rounded to the preceeding
+            # even number in any case where an overlay coordinate component should be odd.
+            image = layer.image
+            if image is None:
+                ci = layer.generate_contextual_info_for_pos(None, None, idx)
+            else:
+                imagesize = image.size
+                ci = layer.generate_contextual_info_for_pos(
+                    int(fpos.x()*imagesize.width()/image0size.width()),
+                    int(fpos.y()*imagesize.height()/image0size.height()),
+                    idx)
+            if ci is not None:
+                cis.append(ci)
         self.scene().update_contextual_info('\n'.join(cis), self)
 
     def hoverLeaveEvent(self, event):
@@ -267,10 +304,10 @@ class LayerStackItem(ShaderItem):
             visible_idxs = self._get_visible_idxs_and_update_texs(GL, estack)
             if not visible_idxs:
                 return
-            prog_desc = tuple((image.getcolor_expression,
-                               'src' if tex_unit==0 else image.blend_function,
-                               image.transform_section)
-                              for tex_unit, image in ((tex_unit, self.image_stack[idx]) for tex_unit, idx in enumerate(visible_idxs)))
+            prog_desc = tuple((layer.getcolor_expression,
+                               'src' if tex_unit==0 else layer.blend_function,
+                               layer.transform_section)
+                              for tex_unit, layer in ((tex_unit, self.layer_stack[idx]) for tex_unit, idx in enumerate(visible_idxs)))
             if prog_desc in self.progs:
                 prog = self.progs[prog_desc]
             else:
@@ -280,14 +317,14 @@ class LayerStackItem(ShaderItem):
                                 self.UNIFORM_SECTION_TEMPLATE.substitute(idx=idx),
                                 self.COLOR_TRANSFORM_PROCEDURE_TEMPLATE.substitute(
                                     idx=idx,
-                                    transform_section=image.transform_section),
+                                    transform_section=layer.transform_section),
                                 self.MAIN_SECTION_TEMPLATE.substitute(
                                     idx=idx,
-                                    getcolor_expression=image.getcolor_expression,
-                                    blend_function=image.BLEND_FUNCTIONS['src' if tex_unit==0 else image.blend_function])
-                            ) for idx, tex_unit, image in
+                                    getcolor_expression=layer.getcolor_expression,
+                                    blend_function=layer.BLEND_FUNCTIONS['src' if tex_unit==0 else layer.blend_function])
+                            ) for idx, tex_unit, layer in
                                 (
-                                    (idx, tex_unit, self.image_stack[idx]) for tex_unit, idx in enumerate(visible_idxs)
+                                    (idx, tex_unit, self.layer_stack[idx]) for tex_unit, idx in enumerate(visible_idxs)
                                 )
                        ) )
                 prog = self.build_shader_prog(
@@ -324,8 +361,8 @@ class LayerStackItem(ShaderItem):
             # four edges.
             #
             # Frame is computed from LayerStackItem's boundingRect, which is computed from the dimensions of the lowest
-            # image of the image_stack, image_stack[0].  Therefore, it is this lowest image that determines the aspect
-            # ratio of the unit square's projection onto the view.  Any subsequent images in the stack use this same projection,
+            # layer of the layer_stack, layer_stack[0].  Therefore, it is this lowest layer that determines the aspect
+            # ratio of the unit square's projection onto the view.  Any subsequent layers in the stack use this same projection,
             # with the result that they are stretched to fill the LayerStackItem.
             frag_to_tex = Qt.QTransform()
             frame = Qt.QPolygonF(view.mapFromScene(Qt.QPolygonF(self.sceneTransform().mapToPolygon(self.boundingRect().toRect()))))
@@ -333,15 +370,16 @@ class LayerStackItem(ShaderItem):
                 raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix.')
             prog.setUniformValue('frag_to_tex', frag_to_tex)
             min_max = numpy.empty((2,), dtype=float)
-            for idx, tex_unit, image in ((idx, tex_unit, self.image_stack[idx]) for tex_unit, idx in enumerate(visible_idxs)):
-                min_max[0], min_max[1] = image.min, image.max
+            for idx, tex_unit, layer in ((idx, tex_unit, self.layer_stack[idx]) for tex_unit, idx in enumerate(visible_idxs)):
+                image = layer.image
+                min_max[0], min_max[1] = layer.min, layer.max
                 min_max = self._normalize_for_gl(min_max, image)
                 idxstr = str(idx)
                 prog.setUniformValue('tex_'+idxstr, tex_unit)
                 prog.setUniformValue('rescale_min_'+idxstr, min_max[0])
                 prog.setUniformValue('rescale_range_'+idxstr, min_max[1] - min_max[0])
-                prog.setUniformValue('gamma_'+idxstr, image.gamma)
-                prog.setUniformValue('tint_'+idxstr, Qt.QVector4D(*image.tint))
+                prog.setUniformValue('gamma_'+idxstr, layer.gamma)
+                prog.setUniformValue('tint_'+idxstr, Qt.QVector4D(*layer.tint))
             GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
             GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
 
@@ -370,22 +408,23 @@ class LayerStackItem(ShaderItem):
     def _get_visible_idxs_and_update_texs(self, GL, estack):
         """Meant to be executed between a pair of QPainter.beginNativePainting() QPainter.endNativePainting() calls or,
         at the very least, when an OpenGL context is current, _get_nonmuted_idxs_and_update_texs does whatever is required,
-        for every non-muted image in self.image_stack, in order that self._texs[image] represents image, including texture
-        object creation and texture data uploading, and it leaves self._texs[image] bound to texture unit n, where n is
-        the associated non_muted_idx."""
-        visible_idxs = [idx for idx, image in enumerate(self.image_stack) if image.visible]
+        for every visible layer with non-None .layer in self.layer_stack, in order that self._texs[layer] represents layer, including texture
+        object creation and texture data uploading, and it leaves self._texs[layer] bound to texture unit n, where n is
+        the associated visible_idx."""
+        visible_idxs = [idx for idx, layer in enumerate(self.layer_stack) if layer.visible and layer.image is not None]
         for tex_unit, idx in enumerate(visible_idxs):
-            image = self.image_stack[idx]
-            tex = self._texs[image]
-            serial = self._image_data_serials[image]
-#           even_width = image.size.width() % 2 == 0
+            layer = self.layer_stack[idx]
+            image = layer.image
+            tex = self._texs[layer]
+            serial = self._layer_data_serials[layer]
+#           even_width = layer.size.width() % 2 == 0
             desired_texture_format = self.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[image.type]
-            desired_texture_size = Qt.QSize(image.size) #if even_width else Qt.QSize(image.size.width()+1, image.size.height())
-            desired_minification_filter = Qt.QOpenGLTexture.LinearMipMapLinear if image.trilinear_filtering_enabled else Qt.QOpenGLTexture.Linear
+            desired_texture_size = image.size #if even_width else Qt.QSize(layer.size.width()+1, layer.size.height())
+            desired_minification_filter = Qt.QOpenGLTexture.LinearMipMapLinear if layer.trilinear_filtering_enabled else Qt.QOpenGLTexture.Linear
             if tex is not None:
                 if Qt.QSize(tex.width(), tex.height()) != desired_texture_size or tex.format() != desired_texture_format or tex.minificationFilter() != desired_minification_filter:
                     tex.destroy()
-                    tex = self._texs[image] = None
+                    tex = self._texs[layer] = None
             if tex is None:
                 tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
                 tex.setFormat(desired_texture_format)
@@ -393,7 +432,7 @@ class LayerStackItem(ShaderItem):
                 if sys.platform != 'darwin':
                     # TODO: determine why the following call segfaults on OS X and remove the enclosing if statement
                     tex.setBorderColor(self.TEXTURE_BORDER_COLOR)
-                if image.trilinear_filtering_enabled:
+                if layer.trilinear_filtering_enabled:
                     tex.setMipLevels(6)
                     tex.setAutoMipMapGenerationEnabled(True)
                 else:
@@ -440,13 +479,13 @@ class LayerStackItem(ShaderItem):
 #                       GL.GL_TEXTURE_2D, 0, 0, 0, image.size.width(), image.size.height(),
 #                       IMAGE_TYPE_TO_GL_SRC_PIX_FORMAT[image.type],
 #                       NUMPY_DTYPE_TO_GL_PIXEL_TYPE[image.dtype],
-#                       memoryview(image.data_T.flatten()))
+#                       memoryview(layer.data_T.flatten()))
 #                   if self._trilinear_filtering_enabled:
 #                       tex.generateMipMaps(0)
                 tex.serial = serial
-                # self._texs[image] is updated here and not before so that any failure preparing tex results in a retry the next time self._texs[image]
+                # self._texs[layer] is updated here and not before so that any failure preparing tex results in a retry the next time self._texs[layer]
                 # is needed
-                self._texs[image] = tex
+                self._texs[layer] = tex
         return visible_idxs
 
     def _destroy_dead_texs(self):
