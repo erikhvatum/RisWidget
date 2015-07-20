@@ -188,10 +188,11 @@ class Layer(Qt.QObject):
     def do_auto_min_max(self):
         self._retain_auto_min_max_enabled_on_min_max_change = True
         try:
-            extremae = self.extremae
-            if self.has_alpha_channel:
+            image = self.image
+            extremae = image.extremae
+            if image.has_alpha_channel:
                 eae = extremae[:-1, 0].min(), extremae[:-1, 1].max()
-            elif self.num_channels > 1:
+            elif image.num_channels > 1:
                 eae = extremae[:, 0].min(), extremae[:, 1].max()
             else:
                 eae = extremae
@@ -220,7 +221,7 @@ class Layer(Qt.QObject):
         transform_callback = lambda image, v: bool(v))
 
     def _auto_min_max_enabled_post_set(self, v):
-        if v:
+        if v and self.image is not None:
             self.do_auto_min_max()
     auto_min_max_enabled = Property(
         properties, 'auto_min_max_enabled',
@@ -237,7 +238,7 @@ class Layer(Qt.QObject):
     def _min_max_pre_set(self, v):
         image = self.image
         if image is not None:
-            r = self.range
+            r = image.range
             if not r[0] <= v <= r[1]:
                 raise ValueError('min/max values for this image must be in the closed interval [{}, {}].'.format(*r))
     def _min_max_post_set(self, v, is_max):

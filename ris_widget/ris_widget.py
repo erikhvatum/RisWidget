@@ -306,11 +306,7 @@ class RisWidget(Qt.QMainWindow):
 #               self._most_recently_created_flipbook = None # Clean up our weakref to the Python part
 
     def _on_layer_stack_table_current_row_changed(self, midx, prev_midx):
-        image = None
-        layer = self.current_layer_stack_table_layer
-        if layer is not None:
-            image = layer.image
-        self.histogram_scene.histogram_item.image = image
+        self.histogram_scene.histogram_item.layer = self.current_layer_stack_table_layer
 
     def _on_inserted_into_layer_stack(self, idx, layers):
         assert len(self.layer_stack) > 0

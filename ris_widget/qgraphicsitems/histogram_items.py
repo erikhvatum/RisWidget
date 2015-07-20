@@ -61,7 +61,7 @@ class HistogramItem(ShaderItem):
             if layer is None:
                 self.hide()
             else:
-                layer.image_changed.connect(self._on_image_changed)
+                layer.image_changed.connect(self._on_layer_image_changed)
                 layer.min_changed.connect(self.min_item.arrow_item._on_value_changed)
                 layer.max_changed.connect(self.max_item.arrow_item._on_value_changed)
                 layer.gamma_changed.connect(self.gamma_item._on_value_changed)
@@ -78,7 +78,7 @@ class HistogramItem(ShaderItem):
 
     def paint(self, qpainter, option, widget):
         assert widget is not None, 'histogram_scene.HistogramItem.paint called with widget=None.  Ensure that view caching is disabled.'
-        layer = self._image
+        layer = self.layer
         if layer is None or layer.image is None:
             if self._tex is not None:
                 self._tex.destroy()
@@ -120,7 +120,7 @@ class HistogramItem(ShaderItem):
                     stack.callback(tex.release)
                 histogram = image.histogram
                 max_bin_val = histogram[image.max_histogram_bin]
-                if tex.serial != self._image_data_serial:
+                if tex.serial != self._layer_data_serial:
                     orig_unpack_alignment = GL.glGetIntegerv(GL.GL_UNPACK_ALIGNMENT)
                     if orig_unpack_alignment != 1:
                         GL.glPixelStorei(GL.GL_UNPACK_ALIGNMENT, 1)
@@ -132,7 +132,7 @@ class HistogramItem(ShaderItem):
                                     GL.GL_LUMINANCE32UI_EXT, desired_tex_width, 0,
                                     GL.GL_LUMINANCE_INTEGER_EXT, GL.GL_UNSIGNED_INT,
                                     histogram.data)
-                    tex.serial = self._image_data_serial
+                    tex.serial = self._layer_data_serial
                     tex.width = desired_tex_width
                     self._tex = tex
                 view.quad_buffer.bind()
@@ -178,8 +178,8 @@ class HistogramItem(ShaderItem):
     def hoverLeaveEvent(self, event):
         self.scene().clear_contextual_info(self)
 
-    def _on_image_changed(self):
-        self._image_data_serial += 1
+    def _on_layer_image_changed(self):
+        self._layer_data_serial += 1
         self.update()
 
 class MinMaxItem(Qt.QGraphicsObject):
@@ -251,11 +251,11 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
 
     def mouseMoveEvent(self, event):
         super().mouseMoveEvent(event)
-        self.scene().update_contextual_info('{}: {}'.format(self.name, getattr(self.parentItem().image, self.name)), self)
+        self.scene().update_contextual_info('{}: {}'.format(self.name, getattr(self.parentItem().layer, self.name)), self)
 
     def mousePressEvent(self, event):
         super().mousePressEvent(event)
-        self.scene().update_contextual_info('{}: {}'.format(self.name, getattr(self.parentItem().image, self.name)), self)
+        self.scene().update_contextual_info('{}: {}'.format(self.name, getattr(self.parentItem().layer, self.name)), self)
 
     def _on_x_changed(self):
         x = self.x()
@@ -266,9 +266,9 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
             elif x > 1:
                 self.setX(1)
                 x = 1
-            image = self.parentItem().image
-            r = image.range
-            setattr(image, self.name, r[0] + x * float(r[1] - r[0]))
+            layer = self.parentItem().layer
+            r = layer._default_min, layer._default_max
+            setattr(layer, self.name, r[0] + x * float(r[1] - r[0]))
         self._min_max_item.setX(x)
 
     def _on_y_changed(self):
@@ -278,9 +278,9 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
     def _on_value_changed(self):
         self._ignore_x_change = True
         try:
-            image = self.parentItem().image
-            r = image.range
-            self.setX( (getattr(image, self.name) - r[0]) / (r[1] - r[0]) )
+            layer = self.parentItem().layer
+            r = layer._default_min, layer._default_max
+            self.setX( (getattr(layer, self.name) - r[0]) / (r[1] - r[0]) )
         finally:
             self._ignore_x_change = False
 
@@ -328,15 +328,15 @@ class GammaItem(Qt.QGraphicsObject):
 
     def mousePressEvent(self, event):
         super().mousePressEvent(event)
-        self.scene().update_contextual_info('gamma: {}'.format(self.parentItem().image.gamma), self)
+        self.scene().update_contextual_info('gamma: {}'.format(self.parentItem().layer.gamma), self)
 
     def mouseMoveEvent(self, event):
         current_x, current_y = map(lambda v: min(max(v, 0.001), 0.999),
                                    (event.pos().x(), event.pos().y()))
         current_y = 1-current_y
-        image = self.parentItem().image
-        image.gamma = min(max(math.log(current_y, current_x), image.GAMMA_RANGE[0]), image.GAMMA_RANGE[1])
-        self.scene().update_contextual_info('gamma: {}'.format(image.gamma), self)
+        layer = self.parentItem().layer
+        layer.gamma = gamma = min(max(math.log(current_y, current_x), layer.GAMMA_RANGE[0]), layer.GAMMA_RANGE[1])
+        self.scene().update_contextual_info('gamma: {}'.format(gamma), self)
 
     def _on_min_or_max_x_changed(self):
         min_x = self.min_item.x()
@@ -349,7 +349,7 @@ class GammaItem(Qt.QGraphicsObject):
     def _on_value_changed(self):
         self.prepareGeometryChange()
         self._path = Qt.QPainterPath(Qt.QPointF(0, 1))
-        gamma = self.parentItem().image.gamma
+        gamma = self.parentItem().layer.gamma
         # Compute sample point x locations such that the y increment from one sample point to the next is approximately
         # the constant, resulting in a fairly smooth gamma plot.  This is not particularly fast, but it only happens when 
         # gamma value changes, and it's fast enough that there is no noticable choppiness when dragging the gamma curve
