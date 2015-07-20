@@ -160,6 +160,8 @@ class Layer(Qt.QObject):
                     self.min = r[0]
                 if self.max > r[1]:
                     self.max = r[1]
+        for property in self.properties:
+            property.update_default(self)
         self.image_changed.emit(image)
 
 #   def copy_property_values_from(self, source):
