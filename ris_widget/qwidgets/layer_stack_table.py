@@ -62,6 +62,18 @@ class LayerStackTableView(Qt.QTableView):
         if midx.isValid():
             m.removeRow(midx.row())
 
+class InvertingProxyModel(Qt.QSortFilterProxyModel):
+    # Making a full proxy model that reverses/inverts indexes from Qt.QAbstractProxyModel or Qt.QIdentityProxyModel turns
+    # out to be tricky but would theoretically be more efficient than this implementation for large lists.  However,
+    # a layer stack will never be large enough for the inefficiency to be a concern.
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.sort(0, Qt.Qt.DescendingOrder)
+
+    def lessThan(self, lhs, rhs):
+        # We want the table upside-down and therefore will be sorting by index (aka row #)
+        return lhs.row() < rhs.row()
+
 class LayerStackTableModel(SignalingListPropertyTableModel):
     # ImageStackTableModel accesses PROPERTIES strictly via self.PROPERTIES and never via ImageStackTableModel.PROPERTIES,
     # meaning that subclasses may safely add or remove columns by overridding PROPERTIES.  For example, adding a column for
@@ -164,8 +176,10 @@ class LayerStackTableModel(SignalingListPropertyTableModel):
     # setData #
 
     def _setd__checkable(self, property_name, midx, value, role):
+        if isinstance(value, Qt.QVariant):
+            value = value.value()
         if role == Qt.Qt.CheckStateRole:
-            setattr(self.signaling_list[midx.row()], property_name, value.value())
+            setattr(self.signaling_list[midx.row()], property_name, value)
             return True
         return False
 

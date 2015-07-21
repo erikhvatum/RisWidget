@@ -80,13 +80,13 @@ class LayerStackItem(ShaderItem):
         'rgb' : Qt.QOpenGLTexture.RGB,
         'rgba': Qt.QOpenGLTexture.RGBA}
     UNIFORM_SECTION_TEMPLATE = Template(textwrap.dedent("""\
-        uniform sampler2D tex_${idx};
-        uniform float rescale_min_${idx};
-        uniform float rescale_range_${idx};
-        uniform float gamma_${idx};
-        uniform vec4 tint_${idx};"""))
+        uniform sampler2D tex_${tidx};
+        uniform float rescale_min_${tidx};
+        uniform float rescale_range_${tidx};
+        uniform float gamma_${tidx};
+        uniform vec4 tint_${tidx};"""))
     COLOR_TRANSFORM_PROCEDURE_TEMPLATE = Template(textwrap.dedent("""\
-        vec4 color_transform_${idx}(vec4 in_, vec4 tint, float rescale_min, float rescale_range, float gamma_scalar)
+        vec4 color_transform_${tidx}(vec4 in_, vec4 tint, float rescale_min, float rescale_range, float gamma_scalar)
         {
             vec4 out_;
             out_.a = in_.a;
@@ -96,8 +96,8 @@ class LayerStackItem(ShaderItem):
         }"""))
     MAIN_SECTION_TEMPLATE = Template(textwrap.dedent("""\
             // layer_stack[${idx}]
-            s = texture2D(tex_${idx}, tex_coord);
-            s = color_transform_${idx}(${getcolor_expression}, tint_${idx}, rescale_min_${idx}, rescale_range_${idx}, gamma_${idx});
+            s = texture2D(tex_${tidx}, tex_coord);
+            s = color_transform_${tidx}(${getcolor_expression}, tint_${tidx}, rescale_min_${tidx}, rescale_range_${tidx}, gamma_${tidx});
             sca = s.rgb * s.a;
         ${blend_function}
             da = clamp(da, 0, 1);
@@ -305,26 +305,27 @@ class LayerStackItem(ShaderItem):
             if not visible_idxs:
                 return
             prog_desc = tuple((layer.getcolor_expression,
-                               'src' if tex_unit==0 else layer.blend_function,
+                               'src' if tidx==0 else layer.blend_function,
                                layer.transform_section)
-                              for tex_unit, layer in ((tex_unit, self.layer_stack[idx]) for tex_unit, idx in enumerate(visible_idxs)))
+                              for tidx, layer in ((tidx, self.layer_stack[idx]) for tidx, idx in enumerate(visible_idxs)))
             if prog_desc in self.progs:
                 prog = self.progs[prog_desc]
             else:
                 uniforms, color_transform_procedures, main = \
                     zip(*(
                             (
-                                self.UNIFORM_SECTION_TEMPLATE.substitute(idx=idx),
+                                self.UNIFORM_SECTION_TEMPLATE.substitute(tidx=tidx),
                                 self.COLOR_TRANSFORM_PROCEDURE_TEMPLATE.substitute(
-                                    idx=idx,
+                                    tidx=tidx,
                                     transform_section=layer.transform_section),
                                 self.MAIN_SECTION_TEMPLATE.substitute(
                                     idx=idx,
+                                    tidx=tidx,
                                     getcolor_expression=layer.getcolor_expression,
-                                    blend_function=layer.BLEND_FUNCTIONS['src' if tex_unit==0 else layer.blend_function])
-                            ) for idx, tex_unit, layer in
+                                    blend_function=layer.BLEND_FUNCTIONS['src' if tidx==0 else layer.blend_function])
+                            ) for idx, tidx, layer in
                                 (
-                                    (idx, tex_unit, self.layer_stack[idx]) for tex_unit, idx in enumerate(visible_idxs)
+                                    (idx, tidx, self.layer_stack[idx]) for tidx, idx in enumerate(visible_idxs)
                                 )
                        ) )
                 prog = self.build_shader_prog(
@@ -370,16 +371,17 @@ class LayerStackItem(ShaderItem):
                 raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix.')
             prog.setUniformValue('frag_to_tex', frag_to_tex)
             min_max = numpy.empty((2,), dtype=float)
-            for idx, tex_unit, layer in ((idx, tex_unit, self.layer_stack[idx]) for tex_unit, idx in enumerate(visible_idxs)):
+            for tidx, idx in enumerate(visible_idxs):
+                layer = self.layer_stack[idx]
                 image = layer.image
                 min_max[0], min_max[1] = layer.min, layer.max
                 min_max = self._normalize_for_gl(min_max, image)
-                idxstr = str(idx)
-                prog.setUniformValue('tex_'+idxstr, tex_unit)
-                prog.setUniformValue('rescale_min_'+idxstr, min_max[0])
-                prog.setUniformValue('rescale_range_'+idxstr, min_max[1] - min_max[0])
-                prog.setUniformValue('gamma_'+idxstr, layer.gamma)
-                prog.setUniformValue('tint_'+idxstr, Qt.QVector4D(*layer.tint))
+                tidxstr = str(tidx)
+                prog.setUniformValue('tex_'+tidxstr, tidx)
+                prog.setUniformValue('rescale_min_'+tidxstr, min_max[0])
+                prog.setUniformValue('rescale_range_'+tidxstr, min_max[1] - min_max[0])
+                prog.setUniformValue('gamma_'+tidxstr, layer.gamma)
+                prog.setUniformValue('tint_'+tidxstr, Qt.QVector4D(*layer.tint))
             GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
             GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
 

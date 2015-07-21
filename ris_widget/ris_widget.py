@@ -30,7 +30,7 @@ import weakref
 #from .qwidgets.layer_stack_current_row_flipbook import ImageStackCurrentRowFlipbook
 from .image import Image
 from .layer import Layer
-from .qwidgets.layer_stack_table import LayerStackTableModel, LayerStackTableView
+from .qwidgets.layer_stack_table import InvertingProxyModel, LayerStackTableModel, LayerStackTableView
 from .qgraphicsitems.contextual_info_item import ContextualInfoItem
 from .qgraphicsitems.histogram_items import HistogramItem
 from .qgraphicsitems.layer_stack_item import LayerStackItem
@@ -151,10 +151,13 @@ class RisWidget(Qt.QMainWindow):
             Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable |
             Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
         self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self._histogram_dock_widget)
-        self._layer_stack_table_dock_widget = Qt.QDockWidget('Image Stack', self)
+        self._layer_stack_table_dock_widget = Qt.QDockWidget('Layer Stack', self)
         self.layer_stack_table_model = LayerStackTableModel(self.layer_stack)
+        self.layer_stack_table_model_inverter = InvertingProxyModel(self.layer_stack_table_model)
+        print('self.layer_stack_table_model_inverter',self.layer_stack_table_model_inverter)
+        self.layer_stack_table_model_inverter.setSourceModel(self.layer_stack_table_model)
         self.layer_stack_table_view = LayerStackTableView(self.layer_stack_table_model)
-        self.layer_stack_table_view.setModel(self.layer_stack_table_model)
+        self.layer_stack_table_view.setModel(self.layer_stack_table_model_inverter)
         self.layer_stack_table_model.setParent(self.layer_stack_table_view)
         self.layer_stack_table_selection_model = self.layer_stack_table_view.selectionModel()
         self.layer_stack_table_selection_model.currentRowChanged.connect(self._on_layer_stack_table_current_row_changed)
@@ -241,10 +244,17 @@ class RisWidget(Qt.QMainWindow):
             layer_stack.append(layer)
 
     @property
-    def current_layer_stack_table_layer(self):
+    def current_layer(self):
         midx = self.layer_stack_table_selection_model.currentIndex()
         if midx.isValid():
             return self.layer_stack[midx.row()]
+
+    def replace_current_layer(self, layer):
+        midx = self.layer_stack_table_selection_model.currentIndex()
+        if midx.isValid():
+            self.layer_stack[midx.row()] = layer
+        else:
+            raise IndexError('No row in .layer_stack_table_view is current/focused.')
 
 #   @property
 #   def image_data(self):
@@ -306,7 +316,7 @@ class RisWidget(Qt.QMainWindow):
 #               self._most_recently_created_flipbook = None # Clean up our weakref to the Python part
 
     def _on_layer_stack_table_current_row_changed(self, midx, prev_midx):
-        self.histogram_scene.histogram_item.layer = self.current_layer_stack_table_layer
+        self.histogram_scene.histogram_item.layer = self.current_layer
 
     def _on_inserted_into_layer_stack(self, idx, layers):
         assert len(self.layer_stack) > 0
@@ -351,13 +361,13 @@ class RisWidget(Qt.QMainWindow):
             self._main_view_zoom_combo.lineEdit().selectAll()
 
     def _on_reset_min_max(self):
-        layer = self.current_layer_stack_table_layer
+        layer = self.current_layer
         if layer is not None:
             del layer.min
             del layer.max
 
     def _on_reset_gamma(self):
-        layer = self.current_layer_stack_table_layer
+        layer = self.current_layer
         if layer is not None:
             del layer.gamma
 
