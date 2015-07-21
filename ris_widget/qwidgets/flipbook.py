@@ -55,6 +55,21 @@ class Flipbook(Qt.QWidget):
         self.pages_view.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
         self.pages_view.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
         vlayout.addWidget(self.pages_view)
+        self.delete_current_row_action = Qt.QAction(self)
+        self.delete_current_row_action.setText('Delete current row')
+        self.delete_current_row_action.triggered.connect(self._on_delete_current_row_action_triggered)
+        self.delete_current_row_action.setShortcut(Qt.Qt.Key_Delete)
+        self.delete_current_row_action.setShortcutContext(Qt.Qt.WidgetShortcut)
+        self.addAction(self.delete_current_row_action)
+
+    def _on_delete_current_row_action_triggered(self):
+        sm = self.selectionModel()
+        m = self.model()
+        if None in (m, sm):
+            return
+        midx = sm.currentIndex()
+        if midx.isValid():
+            m.removeRow(midx.row())
 
     @property
     def pages(self):

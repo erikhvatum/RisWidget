@@ -169,7 +169,7 @@ class LayerStackItem(ShaderItem):
             assert instance_count >= 0
             if instance_count == 0:
                 layer.changed.disconnect(self._on_layer_changed)
-                layer.data_changed.disconnect(self._on_layer_layer_changed)
+                layer.image_changed.disconnect(self._on_layer_image_changed)
                 del self._layer_instance_counts[layer]
                 del self._layer_data_serials[layer]
                 dead_tex = self._texs[layer]

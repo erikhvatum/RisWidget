@@ -46,6 +46,21 @@ class LayerStackTableView(Qt.QTableView):
         self.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
         self.setModel(layer_stack_table_model)
 #       self.setEditTriggers(Qt.QAbstractItemView.EditKeyPressed | Qt.QAbstractItemView.SelectedClicked)
+        self.delete_current_row_action = Qt.QAction(self)
+        self.delete_current_row_action.setText('Delete current row')
+        self.delete_current_row_action.triggered.connect(self._on_delete_current_row_action_triggered)
+        self.delete_current_row_action.setShortcut(Qt.Qt.Key_Delete)
+        self.delete_current_row_action.setShortcutContext(Qt.Qt.WidgetShortcut)
+        self.addAction(self.delete_current_row_action)
+
+    def _on_delete_current_row_action_triggered(self):
+        sm = self.selectionModel()
+        m = self.model()
+        if None in (m, sm):
+            return
+        midx = sm.currentIndex()
+        if midx.isValid():
+            m.removeRow(midx.row())
 
 class LayerStackTableModel(SignalingListPropertyTableModel):
     # ImageStackTableModel accesses PROPERTIES strictly via self.PROPERTIES and never via ImageStackTableModel.PROPERTIES,

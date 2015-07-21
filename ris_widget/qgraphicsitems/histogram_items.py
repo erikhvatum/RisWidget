@@ -53,7 +53,7 @@ class HistogramItem(ShaderItem):
     def layer(self, layer):
         if layer is not self._layer:
             if self._layer is not None:
-                self._layer.image_changed.disconnect(self._on_image_changed)
+                self._layer.image_changed.disconnect(self._on_layer_image_changed)
                 self._layer.min_changed.disconnect(self.min_item.arrow_item._on_value_changed)
                 self._layer.max_changed.disconnect(self.max_item.arrow_item._on_value_changed)
                 self._layer.gamma_changed.disconnect(self.gamma_item._on_value_changed)

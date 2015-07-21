@@ -64,6 +64,13 @@ class SignalingListPropertyTableModel(Qt.QAbstractTableModel):
                 return Qt.QVariant(self.property_names[section])
         return Qt.QVariant()
 
+    def removeRows(self, row, count, parent=Qt.QModelIndex()):
+        try:
+            del self.signaling_list[row:row+count]
+            return True
+        except IndexError:
+            return False
+
     @property
     def signaling_list(self):
         return self._signaling_list
