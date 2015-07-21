@@ -264,7 +264,7 @@ class LayerStackItem(ShaderItem):
         fpos = event.pos()
         ipos = Qt.QPoint(event.pos().x(), event.pos().y())
         cis = []
-        it = iter((idx, self.layer_stack[idx]) for idx in visible_idxs)
+        it = iter((idx, self.layer_stack[idx]) for idx in reversed(visible_idxs))
         idx, layer = next(it)
         ci = layer.generate_contextual_info_for_pos(ipos.x(), ipos.y(), idx if len(self.layer_stack) > 1 else None)
         if ci is not None:

@@ -177,11 +177,14 @@ class Layer(Qt.QObject):
         image = self.image
         if image is None or not self.visible:
             return
-        t = '' if idx is None else '{: 3}, '.format(idx)
+        t = '' if idx is None else '{: 3}'.format(idx)
         layer_name = self.name
         if layer_name:
+            if t:
+                t += ', '
             t += layer_name
-        t += ': '
+        if t:
+            t += ': '
         t += 'None' if image is None else image.generate_contextual_info_for_pos(x, y)
         return t
 
