@@ -29,6 +29,7 @@ class TintDelegate(Qt.QStyledItemDelegate):
         if midx.isValid():
             e = Qt.QColorDialog(parent)
             e.setOption(Qt.QColorDialog.ShowAlphaChannel)
+            e.setOption(Qt.QColorDialog.DontUseNativeDialog)
             # Due to a modal event loop peculiarity, the .result() value for a modal dialog created by a delegate is not updated upon
             # dialog dismissal as it should be.  The following installs attempts to install workaround for this oddity, and if it
             # can not, OK/Cancel buttons are omitted from the color picker dialog.  In this case, the color picker dialog may be dismissed

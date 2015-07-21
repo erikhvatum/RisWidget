@@ -158,13 +158,16 @@ class Image(Qt.QObject):
 
     set_data.__doc__ = __init__.__doc__
 
-    def generate_contextual_info_for_pos(self, x, y):
+    def generate_contextual_info_for_pos(self, x, y, include_image_name=True):
         sz = self.size
         if 0 <= x < sz.width() and 0 <= y < sz.height():
             type_ = self.type
             num_channels = self.num_channels
-            name = self.name
-            mst = '"' + name + '", ' if self.name else ''
+            mst = ''
+            if include_image_name:
+                name = self.name
+                if name:
+                    mst += '"' + name + '" '
             mst+= 'x:{} y:{} '.format(x, y)
             vt = '(' + ' '.join((c + ':{}' for c in self.type)) + ')'
             if num_channels == 1:

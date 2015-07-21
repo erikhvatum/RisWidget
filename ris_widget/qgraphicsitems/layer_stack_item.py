@@ -120,6 +120,14 @@ class LayerStackItem(ShaderItem):
         self._layer_data_serials = {}
         self._next_data_serial = 0
         self._layer_instance_counts = {}
+        self.layer_name_in_contextual_info_action = Qt.QAction(self)
+        self.layer_name_in_contextual_info_action.setText('Include Layer.name in Contextual Info')
+        self.layer_name_in_contextual_info_action.setCheckable(True)
+        self.layer_name_in_contextual_info_action.setChecked(False)
+        self.image_name_in_contextual_info_action = Qt.QAction(self)
+        self.image_name_in_contextual_info_action.setText('Include Image.name in Contextual Info')
+        self.image_name_in_contextual_info_action.setCheckable(True)
+        self.image_name_in_contextual_info_action.setChecked(False)
 
     def __del__(self):
         scene = self.scene()
@@ -266,7 +274,12 @@ class LayerStackItem(ShaderItem):
         cis = []
         it = iter((idx, self.layer_stack[idx]) for idx in reversed(visible_idxs))
         idx, layer = next(it)
-        ci = layer.generate_contextual_info_for_pos(ipos.x(), ipos.y(), idx if len(self.layer_stack) > 1 else None)
+        ci = layer.generate_contextual_info_for_pos(
+            ipos.x(),
+            ipos.y(),
+            idx if len(self.layer_stack) > 1 else None,
+            self.layer_name_in_contextual_info_enabled,
+            self.image_name_in_contextual_info_enabled)
         if ci is not None:
             cis.append(ci)
         image = layer.image
@@ -280,13 +293,18 @@ class LayerStackItem(ShaderItem):
             # even number in any case where an overlay coordinate component should be odd.
             image = layer.image
             if image is None:
-                ci = layer.generate_contextual_info_for_pos(None, None, idx)
+                ci = layer.generate_contextual_info_for_pos(
+                    None, None, idx,
+                    self.layer_name_in_contextual_info_enabled,
+                    self.image_name_in_contextual_info_enabled)
             else:
                 imagesize = image.size
                 ci = layer.generate_contextual_info_for_pos(
                     int(fpos.x()*imagesize.width()/image0size.width()),
                     int(fpos.y()*imagesize.height()/image0size.height()),
-                    idx)
+                    idx,
+                    self.layer_name_in_contextual_info_enabled,
+                    self.image_name_in_contextual_info_enabled)
             if ci is not None:
                 cis.append(ci)
         self.scene().update_contextual_info('\n'.join(cis), self)
@@ -496,3 +514,19 @@ class LayerStackItem(ShaderItem):
         while self._dead_texs:
             dead_tex = self._dead_texs.pop()
             dead_tex.destroy()
+
+    @property
+    def layer_name_in_contextual_info_enabled(self):
+        return self.layer_name_in_contextual_info_action.isChecked()
+
+    @layer_name_in_contextual_info_enabled.setter
+    def layer_name_in_contextual_info_enabled(self, v):
+        self.layer_name_in_contextual_info_action.setChecked(v)
+
+    @property
+    def image_name_in_contextual_info_enabled(self):
+        return self.image_name_in_contextual_info_action.isChecked()
+
+    @image_name_in_contextual_info_enabled.setter
+    def image_name_in_contextual_info_enabled(self, v):
+        self.image_name_in_contextual_info_action.setChecked(v)

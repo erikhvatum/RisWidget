@@ -79,12 +79,12 @@ class RisWidget(Qt.QMainWindow):
         self._init_menus()
 
     def _init_actions(self):
-        self._main_view_reset_min_max_action = Qt.QAction(self)
-        self._main_view_reset_min_max_action.setText('Reset Min/Max')
-        self._main_view_reset_min_max_action.triggered.connect(self._on_reset_min_max)
-        self._main_view_reset_gamma_action = Qt.QAction(self)
-        self._main_view_reset_gamma_action.setText('Reset \u03b3')
-        self._main_view_reset_gamma_action.triggered.connect(self._on_reset_gamma)
+        self.main_view_reset_min_max_action = Qt.QAction(self)
+        self.main_view_reset_min_max_action.setText('Reset Min/Max')
+        self.main_view_reset_min_max_action.triggered.connect(self._on_reset_min_max)
+        self.main_view_reset_gamma_action = Qt.QAction(self)
+        self.main_view_reset_gamma_action.setText('Reset \u03b3')
+        self.main_view_reset_gamma_action.triggered.connect(self._on_reset_gamma)
         if sys.platform == 'darwin':
             self.exit_fullscreen_action = Qt.QAction(self)
             # If self.exit_fullscreen_action's text were "Exit Full Screen Mode" as we desire,
@@ -108,25 +108,27 @@ class RisWidget(Qt.QMainWindow):
             return txt
 
     def _init_toolbars(self):
-        self._main_view_toolbar = self.addToolBar('Main View')
-        self._main_view_zoom_combo = Qt.QComboBox(self)
-        self._main_view_toolbar.addWidget(self._main_view_zoom_combo)
-        self._main_view_zoom_combo.setEditable(True)
-        self._main_view_zoom_combo.setInsertPolicy(Qt.QComboBox.NoInsert)
-        self._main_view_zoom_combo.setDuplicatesEnabled(True)
-        self._main_view_zoom_combo.setSizeAdjustPolicy(Qt.QComboBox.AdjustToContents)
+        self.main_view_toolbar = self.addToolBar('Main View')
+        self.main_view_zoom_combo = Qt.QComboBox(self)
+        self.main_view_toolbar.addWidget(self.main_view_zoom_combo)
+        self.main_view_zoom_combo.setEditable(True)
+        self.main_view_zoom_combo.setInsertPolicy(Qt.QComboBox.NoInsert)
+        self.main_view_zoom_combo.setDuplicatesEnabled(True)
+        self.main_view_zoom_combo.setSizeAdjustPolicy(Qt.QComboBox.AdjustToContents)
         for zoom in GeneralView._ZOOM_PRESETS:
-            self._main_view_zoom_combo.addItem(self._format_zoom(zoom * 100) + '%')
-        self._main_view_zoom_combo.setCurrentIndex(GeneralView._ZOOM_ONE_TO_ONE_PRESET_IDX)
-        self._main_view_zoom_combo.activated[int].connect(self._main_view_zoom_combo_changed)
-        self._main_view_zoom_combo.lineEdit().returnPressed.connect(self._main_view_zoom_combo_custom_value_entered)
+            self.main_view_zoom_combo.addItem(self._format_zoom(zoom * 100) + '%')
+        self.main_view_zoom_combo.setCurrentIndex(GeneralView._ZOOM_ONE_TO_ONE_PRESET_IDX)
+        self.main_view_zoom_combo.activated[int].connect(self._main_view_zoom_combo_changed)
+        self.main_view_zoom_combo.lineEdit().returnPressed.connect(self._main_view_zoom_combo_custom_value_entered)
         self.main_view.zoom_changed.connect(self._main_view_zoom_changed)
-        self._main_view_toolbar.addAction(self.main_view.zoom_to_fit_action)
-        self._main_view_toolbar.addAction(self._main_view_reset_min_max_action)
-        self._main_view_toolbar.addAction(self._main_view_reset_gamma_action)
-        self._main_view_toolbar.addAction(self._layer_stack_table_dock_widget.toggleViewAction())
-        self._histogram_view_toolbar = self.addToolBar('Histogram View')
-        self._histogram_view_toolbar.addAction(self._histogram_dock_widget.toggleViewAction())
+        self.main_view_toolbar.addAction(self.main_view.zoom_to_fit_action)
+        self.main_view_toolbar.addAction(self.main_view_reset_min_max_action)
+        self.main_view_toolbar.addAction(self.main_view_reset_gamma_action)
+        self.main_view_toolbar.addAction(self.layer_stack_table_dock_widget.toggleViewAction())
+        self.main_view_toolbar.addAction(self.main_scene.layer_stack_item.layer_name_in_contextual_info_action)
+        self.main_view_toolbar.addAction(self.main_scene.layer_stack_item.image_name_in_contextual_info_action)
+        self.histogram_view_toolbar = self.addToolBar('Histogram View')
+        self.histogram_view_toolbar.addAction(self.histogram_dock_widget.toggleViewAction())
 
     def _init_menus(self):
         mb = self.menuBar()
@@ -143,15 +145,15 @@ class RisWidget(Qt.QMainWindow):
         self.main_view = GeneralViewClass(self.main_scene, self)
         self.setCentralWidget(self.main_view)
         self.histogram_scene = HistogramSceneClass(self, self.main_scene.layer_stack_item, HistogramItemClass, HistgramViewContextualInfoItemClass)
-        self._histogram_dock_widget = Qt.QDockWidget('Histogram', self)
-        self.histogram_view, self._histogram_frame = HistogramViewClass.make_histogram_view_and_frame(self.histogram_scene, self._histogram_dock_widget)
-        self._histogram_dock_widget.setWidget(self._histogram_frame)
-        self._histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
-        self._histogram_dock_widget.setFeatures(
+        self.histogram_dock_widget = Qt.QDockWidget('Histogram', self)
+        self.histogram_view, self._histogram_frame = HistogramViewClass.make_histogram_view_and_frame(self.histogram_scene, self.histogram_dock_widget)
+        self.histogram_dock_widget.setWidget(self._histogram_frame)
+        self.histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
+        self.histogram_dock_widget.setFeatures(
             Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable |
             Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
-        self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self._histogram_dock_widget)
-        self._layer_stack_table_dock_widget = Qt.QDockWidget('Layer Stack', self)
+        self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self.histogram_dock_widget)
+        self.layer_stack_table_dock_widget = Qt.QDockWidget('Layer Stack', self)
         self.layer_stack_table_model = LayerStackTableModel(self.layer_stack)
         self.layer_stack_table_model_inverter = InvertingProxyModel(self.layer_stack_table_model)
         self.layer_stack_table_model_inverter.setSourceModel(self.layer_stack_table_model)
@@ -162,11 +164,11 @@ class RisWidget(Qt.QMainWindow):
         self.layer_stack_table_selection_model.currentRowChanged.connect(self._on_layer_stack_table_current_row_changed)
         self.layer_stack.inserted.connect(self._on_inserted_into_layer_stack)
         self.layer_stack.replaced.connect(self._on_replaced_in_layer_stack)
-        self._layer_stack_table_dock_widget.setWidget(self.layer_stack_table_view)
-        self._layer_stack_table_dock_widget.setAllowedAreas(Qt.Qt.AllDockWidgetAreas)
-        self._layer_stack_table_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
+        self.layer_stack_table_dock_widget.setWidget(self.layer_stack_table_view)
+        self.layer_stack_table_dock_widget.setAllowedAreas(Qt.Qt.AllDockWidgetAreas)
+        self.layer_stack_table_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
         # TODO: make layer stack table widget default location be at window bottom, adjacent to histogram
-        self.addDockWidget(Qt.Qt.TopDockWidgetArea, self._layer_stack_table_dock_widget)
+        self.addDockWidget(Qt.Qt.TopDockWidgetArea, self.layer_stack_table_dock_widget)
         self._most_recently_created_flipbook = None
 
 #   def dragEnterEvent(self, event):
@@ -338,15 +340,15 @@ class RisWidget(Qt.QMainWindow):
         assert zoom_preset_idx == -1 and custom_zoom != 0 or zoom_preset_idx != -1 and custom_zoom == 0, \
                'zoom_preset_idx XOR custom_zoom must be set.'
         if zoom_preset_idx == -1:
-            self._main_view_zoom_combo.lineEdit().setText(self._format_zoom(custom_zoom * 100) + '%')
+            self.main_view_zoom_combo.lineEdit().setText(self._format_zoom(custom_zoom * 100) + '%')
         else:
-            self._main_view_zoom_combo.setCurrentIndex(zoom_preset_idx)
+            self.main_view_zoom_combo.setCurrentIndex(zoom_preset_idx)
 
     def _main_view_zoom_combo_changed(self, idx):
         self.main_view.zoom_preset_idx = idx
 
     def _main_view_zoom_combo_custom_value_entered(self):
-        txt = self._main_view_zoom_combo.lineEdit().text()
+        txt = self.main_view_zoom_combo.lineEdit().text()
         percent_pos = txt.find('%')
         scale_txt = txt if percent_pos == -1 else txt[:percent_pos]
         try:
@@ -356,8 +358,8 @@ class RisWidget(Qt.QMainWindow):
                 self._format_zoom(GeneralView._ZOOM_MIN_MAX[0] * 100),
                 self._format_zoom(GeneralView._ZOOM_MIN_MAX[1] * 100))
             Qt.QMessageBox.information(self, 'self.windowTitle() Input Error', e)
-            self._main_view_zoom_combo.setFocus()
-            self._main_view_zoom_combo.lineEdit().selectAll()
+            self.main_view_zoom_combo.setFocus()
+            self.main_view_zoom_combo.lineEdit().selectAll()
 
     def _on_reset_min_max(self):
         layer = self.current_layer

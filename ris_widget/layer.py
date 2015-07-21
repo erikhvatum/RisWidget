@@ -173,19 +173,27 @@ class Layer(Qt.QObject):
 #       else:
 #           self.name = 'dupe'
 
-    def generate_contextual_info_for_pos(self, x, y, idx=None):
+    def generate_contextual_info_for_pos(self, x, y, idx=None, include_layer_name=True, include_image_name=True):
         image = self.image
-        if image is None or not self.visible:
+        if not self.visible:
             return
-        t = '' if idx is None else '{: 3}'.format(idx)
-        layer_name = self.name
-        if layer_name:
-            if t:
-                t += ', '
-            t += layer_name
+        if image is None:
+            image_text = 'None'
+        else:
+            image_text = image.generate_contextual_info_for_pos(x, y, include_image_name)
+            if image_text is None:
+                return
+        ts = []
+        if idx is not None:
+            ts.append('{: 3}'.format(idx))
+        if include_layer_name:
+            layer_name = self.name
+            if layer_name:
+                ts.append('"' + layer_name + '"')
+        t = ' '.join(ts)
         if t:
             t += ': '
-        t += 'None' if image is None else image.generate_contextual_info_for_pos(x, y)
+        t += image_text
         return t
 
     def do_auto_min_max(self):
