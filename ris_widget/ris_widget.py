@@ -154,7 +154,6 @@ class RisWidget(Qt.QMainWindow):
         self._layer_stack_table_dock_widget = Qt.QDockWidget('Layer Stack', self)
         self.layer_stack_table_model = LayerStackTableModel(self.layer_stack)
         self.layer_stack_table_model_inverter = InvertingProxyModel(self.layer_stack_table_model)
-        print('self.layer_stack_table_model_inverter',self.layer_stack_table_model_inverter)
         self.layer_stack_table_model_inverter.setSourceModel(self.layer_stack_table_model)
         self.layer_stack_table_view = LayerStackTableView(self.layer_stack_table_model)
         self.layer_stack_table_view.setModel(self.layer_stack_table_model_inverter)

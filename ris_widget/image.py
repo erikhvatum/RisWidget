@@ -51,7 +51,7 @@ class Image(Qt.QObject):
     data_changed = Qt.pyqtSignal(object)
     name_changed = Qt.pyqtSignal(object)
 
-    def __init__(self, data, parent=None, is_twelve_bit=False, float_range=None, shape_is_width_height=True):
+    def __init__(self, data, parent=None, is_twelve_bit=False, float_range=None, shape_is_width_height=True, name=None):
         """RisWidget defaults to the convention that the first element of the shape vector of a Numpy
         array represents width.  If you are supplying image data that does not follow this convention,
         specify the argument shape_is_width_height=False, and your image will be displayed correctly
@@ -60,7 +60,7 @@ class Image(Qt.QObject):
         self.data_changed.connect(self.changed)
         self.objectNameChanged.connect(lambda: self.name_changed.emit(self))
         self.name_changed.connect(self.changed)
-        self.set_data(data, is_twelve_bit, float_range, shape_is_width_height, False)
+        self.set_data(data, is_twelve_bit, float_range, shape_is_width_height, False, name)
 
     def __repr__(self):
         num_channels = self.num_channels
