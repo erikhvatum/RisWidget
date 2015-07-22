@@ -215,6 +215,7 @@
 			<Folder Name="qdelegates">
 				<F N="ris_widget/qdelegates/__init__.py"/>
 				<F N="ris_widget/qdelegates/dropdown_list_delegate.py"/>
+				<F N="ris_widget/qdelegates/float_slider_and_edit.py"/>
 				<F N="ris_widget/qdelegates/property_checkbox_delegate.py"/>
 				<F N="ris_widget/qdelegates/tint_delegate.py"/>
 			</Folder>

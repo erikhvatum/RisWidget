@@ -26,6 +26,7 @@ from PyQt5 import Qt
 from ..qdelegates.dropdown_list_delegate import DropdownListDelegate
 from ..qdelegates.tint_delegate import TintDelegate
 from ..qdelegates.property_checkbox_delegate import PropertyCheckboxDelegate
+from ..shared_resources import CHOICES_QITEMDATA_ROLE
 from ..signaling_list import SignalingList
 from ..signaling_list_property_table_model import SignalingListPropertyTableModel
 
@@ -38,7 +39,7 @@ class LayerStackTableView(Qt.QTableView):
         self.property_checkbox_delegate = PropertyCheckboxDelegate(self)
         self.setItemDelegateForColumn(layer_stack_table_model.property_columns['visible'], self.property_checkbox_delegate)
         self.setItemDelegateForColumn(layer_stack_table_model.property_columns['auto_min_max_enabled'], self.property_checkbox_delegate)
-        self.blend_function_delegate = DropdownListDelegate(lambda midx: self.model().signaling_list[midx.row()].BLEND_FUNCTIONS, self)
+        self.blend_function_delegate = DropdownListDelegate(self)
         self.setItemDelegateForColumn(layer_stack_table_model.property_columns['blend_function'], self.blend_function_delegate)
         self.tint_delegate = TintDelegate(self)
         self.setItemDelegateForColumn(layer_stack_table_model.property_columns['tint'], self.tint_delegate)
@@ -95,9 +96,6 @@ class LayerStackTableModel(SignalingListPropertyTableModel):
 
     PROPERTIES = (
         'visible',
-#       'size',
-#       'type',
-#       'dtype',
         'blend_function',
         'auto_min_max_enabled',
         'tint',
@@ -105,14 +103,36 @@ class LayerStackTableModel(SignalingListPropertyTableModel):
         'name',
         'transform_section',)
 
-    def __init__(self, signaling_list, parent=None):
+    def __init__(self, signaling_list, LayerClass, blend_function_choice_to_value_mapping_pairs=None, parent=None):
         super().__init__(self.PROPERTIES, signaling_list, parent)
+        if blend_function_choice_to_value_mapping_pairs is None:
+            blend_function_choice_to_value_mapping_pairs = [
+                ('screen (normal)', 'screen'),
+                ('src-over (blend)', 'src-over')]
+        else:
+            blend_function_choice_to_value_mapping_pairs = list(blend_function_choice_to_value_mapping_pairs)
+
+        # Tack less commonly used / advanced blend function names onto list of dropdown choices without duplicating
+        # entries for values that have verbose choice names
+        adv_blend_functions = set(LayerClass.BLEND_FUNCTIONS.keys())
+        adv_blend_functions -= set(v for c, v in blend_function_choice_to_value_mapping_pairs)
+        blend_function_choice_to_value_mapping_pairs += [(v + ' (advanced)', v) for v in sorted(adv_blend_functions)]
+
+        self.blend_function_choices = tuple(c for c, v in blend_function_choice_to_value_mapping_pairs)
+        self.blend_function_choice_to_value = dict(blend_function_choice_to_value_mapping_pairs)
+        self.blend_function_value_to_choice = {v:c for c, v in blend_function_choice_to_value_mapping_pairs}
+        assert \
+            len(self.blend_function_choices) == \
+            len(self.blend_function_choice_to_value) == \
+            len(self.blend_function_value_to_choice),\
+            'Duplicate or unmatched (value, the 2nd pair component, does not appear in LayerClass.BLEND_FUNCTIONS) '\
+            'entry in blend_function_choice_to_value_mapping_pairs.'
+
         self._special_data_getters = {
             'visible' : self._getd_visible,
             'auto_min_max_enabled' : self._getd_auto_min_max_enabled,
-            'tint' : self._getd_tint}
-#           'size' : self._getd_size,
-#           'dtype' : self._getd_dtype}
+            'tint' : self._getd_tint,
+            'blend_function' : self._getd_blend_function}
         self._special_flag_getters = {
             'visible' : self._getf__always_checkable,
             'auto_min_max_enabled' : self._getf__always_checkable,
@@ -123,7 +143,8 @@ class LayerStackTableModel(SignalingListPropertyTableModel):
             'blend_function' : self._getf__always_editable}
         self._special_data_setters = {
             'visible' : self._setd_visible,
-            'auto_min_max_enabled' : self._setd_auto_min_max_enabled}
+            'auto_min_max_enabled' : self._setd_auto_min_max_enabled,
+            'blend_function' : self._setd_blend_function}
 
     # flags #
 
@@ -157,14 +178,16 @@ class LayerStackTableModel(SignalingListPropertyTableModel):
         elif role == Qt.Qt.DisplayRole:
             return Qt.QVariant(self.signaling_list[midx.row()].tint)
 
-    def _getd_size(self, midx, role):
-        if role == Qt.Qt.DisplayRole:
-            qsize = self.signaling_list[midx.row()].size
-            return Qt.QVariant('{}x{}'.format(qsize.width(), qsize.height()))
-
-    def _getd_dtype(self, midx, role):
-        if role == Qt.Qt.DisplayRole:
-            return Qt.QVariant(str(self.signaling_list[midx.row()].data.dtype))
+    def _getd_blend_function(self, midx, role):
+        if role == CHOICES_QITEMDATA_ROLE:
+            return Qt.QVariant(self.blend_function_choices)
+        elif role == Qt.Qt.DisplayRole:
+            v = self.signaling_list[midx.row()].blend_function
+            try:
+                c = self.blend_function_value_to_choice[v]
+                return Qt.QVariant(c)
+            except KeyError:
+                Qt.qDebug('No choice for blend function "{}".'.format(v))
 
     def data(self, midx, role=Qt.Qt.DisplayRole):
         if midx.isValid():
@@ -188,6 +211,18 @@ class LayerStackTableModel(SignalingListPropertyTableModel):
 
     def _setd_auto_min_max_enabled(self, midx, value, role):
         return self._setd__checkable('auto_min_max_enabled', midx, value, role)
+
+    def _setd_blend_function(self, midx, c, role):
+        if isinstance(c, Qt.QVariant):
+            c = c.value()
+        if role == Qt.Qt.EditRole:
+            try:
+                v = self.blend_function_choice_to_value[c]
+                self.signaling_list[midx.row()].blend_function = v
+                return True
+            except KeyError:
+                Qt.qDebug('No blend function for choice "{}".'.format(c))
+        return False
 
     def setData(self, midx, value, role=Qt.Qt.EditRole):
         if midx.isValid():

@@ -23,28 +23,5 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from PyQt5 import Qt
-from ..shared_resources import CHOICES_QITEMDATA_ROLE
 
 class DropdownListDelegate(Qt.QStyledItemDelegate):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
-    def createEditor(self, parent, option, midx):
-        if midx.isValid():
-            e = Qt.QComboBox(parent)
-            e.addItems(midx.data(CHOICES_QITEMDATA_ROLE))
-            e.setFrame(False)
-            e.setInsertPolicy(Qt.QComboBox.NoInsert)
-            return e
-
-    def setEditorData(self, e, midx):
-        d = midx.data()
-        if isinstance(d, Qt.QVariant):
-            d = d.value()
-        e.setCurrentText(d)
-
-    def setModelData(self, e, model, midx):
-        model.setData(midx, e.currentText())
-
-    def updateEditorGeometry(self, e, option, midx):
-        e.setGeometry(option.rect)

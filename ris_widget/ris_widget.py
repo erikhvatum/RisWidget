@@ -155,7 +155,7 @@ class RisWidget(Qt.QMainWindow):
             Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
         self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self.histogram_dock_widget)
         self.layer_stack_table_dock_widget = Qt.QDockWidget('Layer Stack', self)
-        self.layer_stack_table_model = LayerStackTableModel(self.layer_stack)
+        self.layer_stack_table_model = LayerStackTableModel(self.layer_stack, LayerClass)
         self.layer_stack_table_model_inverter = InvertingProxyModel(self.layer_stack_table_model)
         self.layer_stack_table_model_inverter.setSourceModel(self.layer_stack_table_model)
         self.layer_stack_table_view = LayerStackTableView(self.layer_stack_table_model)
