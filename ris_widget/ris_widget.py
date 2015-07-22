@@ -125,8 +125,6 @@ class RisWidget(Qt.QMainWindow):
         self.main_view_toolbar.addAction(self.main_view_reset_min_max_action)
         self.main_view_toolbar.addAction(self.main_view_reset_gamma_action)
         self.main_view_toolbar.addAction(self.layer_stack_table_dock_widget.toggleViewAction())
-        self.main_view_toolbar.addAction(self.main_scene.layer_stack_item.layer_name_in_contextual_info_action)
-        self.main_view_toolbar.addAction(self.main_scene.layer_stack_item.image_name_in_contextual_info_action)
         self.histogram_view_toolbar = self.addToolBar('Histogram View')
         self.histogram_view_toolbar.addAction(self.histogram_dock_widget.toggleViewAction())
 
@@ -138,6 +136,9 @@ class RisWidget(Qt.QMainWindow):
             m.addSeparator()
         m.addAction(self.main_view.zoom_to_fit_action)
         m.addAction(self.main_view.zoom_one_to_one_action)
+        m.addSeparator()
+        m.addAction(self.main_scene.layer_stack_item.layer_name_in_contextual_info_action)
+        m.addAction(self.main_scene.layer_stack_item.image_name_in_contextual_info_action)
 
     def _init_scenes_and_views(self, ImageClass, LayerClass, LayerStackItemClass, GeneralSceneClass, GeneralViewClass, GeneralViewContextualInfoItemClass,
                                HistogramItemClass, HistogramSceneClass, HistogramViewClass, HistgramViewContextualInfoItemClass):

@@ -272,7 +272,7 @@ class LayerStackItem(ShaderItem):
         fpos = event.pos()
         ipos = Qt.QPoint(event.pos().x(), event.pos().y())
         cis = []
-        it = iter((idx, self.layer_stack[idx]) for idx in reversed(visible_idxs))
+        it = iter((idx, self.layer_stack[idx]) for idx in visible_idxs)
         idx, layer = next(it)
         ci = layer.generate_contextual_info_for_pos(
             ipos.x(),
@@ -307,7 +307,7 @@ class LayerStackItem(ShaderItem):
                     self.image_name_in_contextual_info_enabled)
             if ci is not None:
                 cis.append(ci)
-        self.scene().update_contextual_info('\n'.join(cis), self)
+        self.scene().update_contextual_info('\n'.join(reversed(cis)), self)
 
     def hoverLeaveEvent(self, event):
         self.scene().clear_contextual_info(self)
