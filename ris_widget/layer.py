@@ -175,8 +175,6 @@ class Layer(Qt.QObject):
 
     def generate_contextual_info_for_pos(self, x, y, idx=None, include_layer_name=True, include_image_name=True):
         image = self.image
-        if not self.visible:
-            return
         if image is None:
             image_text = 'None'
         else:

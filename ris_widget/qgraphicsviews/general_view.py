@@ -52,20 +52,10 @@ class GeneralView(BaseView):
         self.zoom_to_fit_action = Qt.QAction('Zoom to Fit', self)
         self.zoom_to_fit_action.setCheckable(True)
         self.zoom_to_fit_action.setChecked(False)
-        self.zoom_to_fit_action.setShortcut(Qt.Qt.Key_QuoteLeft)
-        self.zoom_to_fit_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
         self._ignore_zoom_to_fit_action_toggle = False
         self.zoom_to_fit_action.toggled.connect(self.on_zoom_to_fit_action_toggled)
         self.zoom_one_to_one_action = Qt.QAction('1:1 Zoom', self)
-        self.zoom_one_to_one_action.setShortcut(Qt.Qt.Key_1)
-        self.zoom_one_to_one_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
         self.zoom_one_to_one_action.triggered.connect(lambda: GeneralView.zoom_preset_idx.fset(self, GeneralView._ZOOM_ONE_TO_ONE_PRESET_IDX))
-
-#       self.show_image_name_action = Qt.QAction(self)
-#       self.show_image_name_action.setText('Show Image Name')
-#       self.show_image_name_action.setCheckable(True)
-#       self.show_image_name_action.setChecked(True)
-#       self.show_image_name_action.toggled.connect(self._on_show_image_name_action_toggled)
         # Calling self.setDragMode(Qt.QGraphicsView.ScrollHandDrag) would enable QGraphicsView's built-in
         # click-drag panning, saving us from having to implement it.  However, QGraphicsView is very
         # insistent about setting the mouse cursor to the hand icon in ScrollHandDragMode.  It does this

@@ -108,8 +108,9 @@ class LayerStackItem(ShaderItem):
 
     bounding_rect_changed = Qt.pyqtSignal()
 
-    def __init__(self, parent_item=None):
+    def __init__(self, get_current_layer_idx=None, parent_item=None):
         super().__init__(parent_item)
+        self._get_current_layer_idx = get_current_layer_idx
         self._bounding_rect = Qt.QRectF(self.DEFAULT_BOUNDING_RECT)
         self.layer_stack = SignalingList(parent=self) # In ascending order, with bottom layer (backmost) as element 0
         self.layer_stack.inserted.connect(self._on_layers_inserted)
@@ -128,6 +129,19 @@ class LayerStackItem(ShaderItem):
         self.image_name_in_contextual_info_action.setText('Include Image.name in Contextual Info')
         self.image_name_in_contextual_info_action.setCheckable(True)
         self.image_name_in_contextual_info_action.setChecked(False)
+        self.examine_layer_mode_action = Qt.QAction(self)
+        self.examine_layer_mode_action.setText('Examine Current Layer')
+        self.examine_layer_mode_action.setCheckable(True)
+        self.examine_layer_mode_action.setChecked(False)
+        self.examine_layer_mode_action.setToolTip(textwrap.dedent("""\
+            When enabled, the value of Layer.visible is ignored, the layer currently selected
+            in the layer stack table is shown in the main view, and all other layers are not.
+            The effect is the same as setting the .visible property to True for the current
+            layer and False for all others, without changing the value of any layer's .visible
+            property."""))
+        if self._get_current_layer_idx is None:
+            self.examine_layer_mode_action.setEnabled(False)
+        self.examine_layer_mode_action.toggled.connect(self.update)
 
     def __del__(self):
         scene = self.scene()
@@ -258,8 +272,12 @@ class LayerStackItem(ShaderItem):
         self._layer_data_serials[layer] = self._generate_data_serial()
 
     def hoverMoveEvent(self, event):
-        visible_idxs = [idx for idx, layer in enumerate(self.layer_stack) if layer.visible]
-        if len(visible_idxs) == 0:
+        if self.examine_layer_mode_enabled and self._get_current_layer_idx is not None:
+            idx = self._get_current_layer_idx()
+            visible_idxs = [] if idx is None else [idx]
+        else:
+            visible_idxs = [idx for idx, layer in enumerate(self.layer_stack) if layer.visible]
+        if not visible_idxs:
             self.scene().clear_contextual_info(self)
             return
         # NB: event.pos() is a QPointF, and one may call QPointF.toPoint(), as in the following line,
@@ -431,7 +449,11 @@ class LayerStackItem(ShaderItem):
         for every visible layer with non-None .layer in self.layer_stack, in order that self._texs[layer] represents layer, including texture
         object creation and texture data uploading, and it leaves self._texs[layer] bound to texture unit n, where n is
         the associated visible_idx."""
-        visible_idxs = [idx for idx, layer in enumerate(self.layer_stack) if layer.visible and layer.image is not None]
+        if self.examine_layer_mode_enabled and self._get_current_layer_idx is not None:
+            idx = self._get_current_layer_idx()
+            visible_idxs = [] if idx is None else [idx]
+        else:
+            visible_idxs = [idx for idx, layer in enumerate(self.layer_stack) if layer.visible and layer.image is not None]
         for tex_unit, idx in enumerate(visible_idxs):
             layer = self.layer_stack[idx]
             image = layer.image
@@ -530,3 +552,11 @@ class LayerStackItem(ShaderItem):
     @image_name_in_contextual_info_enabled.setter
     def image_name_in_contextual_info_enabled(self, v):
         self.image_name_in_contextual_info_action.setChecked(v)
+
+    @property
+    def examine_layer_mode_enabled(self):
+        return self.examine_layer_mode_action.isChecked()
+
+    @examine_layer_mode_enabled.setter
+    def examine_layer_mode_enabled(self, v):
+        self.examine_layer_mode_action.setChecked(v)

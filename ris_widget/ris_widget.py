@@ -62,10 +62,6 @@ class RisWidget(Qt.QMainWindow):
                 GeneralViewContextualInfoItemClass = ContextualInfoItemNV if NV_PATH_RENDERING_AVAILABLE() else ContextualInfoItem
             if HistgramViewContextualInfoItemClass is None:
                 HistgramViewContextualInfoItemClass = ContextualInfoItemNV if NV_PATH_RENDERING_AVAILABLE() else ContextualInfoItem
-#           if GeneralViewContextualInfoItemClass is None:
-#               GeneralViewContextualInfoItemClass = ContextualInfoItem
-#           if HistgramViewContextualInfoItemClass is None:
-#               HistgramViewContextualInfoItemClass = ContextualInfoItem
         self.ImageClass = ImageClass
         self.LayerClass = LayerClass
         self._init_scenes_and_views(
@@ -79,12 +75,22 @@ class RisWidget(Qt.QMainWindow):
         self._init_menus()
 
     def _init_actions(self):
-        self.main_view_reset_min_max_action = Qt.QAction(self)
-        self.main_view_reset_min_max_action.setText('Reset Min/Max')
-        self.main_view_reset_min_max_action.triggered.connect(self._on_reset_min_max)
-        self.main_view_reset_gamma_action = Qt.QAction(self)
-        self.main_view_reset_gamma_action.setText('Reset \u03b3')
-        self.main_view_reset_gamma_action.triggered.connect(self._on_reset_gamma)
+        self.layer_stack_reset_curr_min_max = Qt.QAction(self)
+        self.layer_stack_reset_curr_min_max.setText('Reset Min/Max')
+        self.layer_stack_reset_curr_min_max.setShortcut(Qt.Qt.Key_M)
+        self.layer_stack_reset_curr_min_max.setShortcutContext(Qt.Qt.ApplicationShortcut)
+        self.layer_stack_reset_curr_min_max.triggered.connect(self._on_reset_min_max)
+        self.layer_stack_toggle_curr_auto_min_max = Qt.QAction(self)
+        self.layer_stack_toggle_curr_auto_min_max.setText('Toggle Auto Min/Max')
+        self.layer_stack_toggle_curr_auto_min_max.setShortcut(Qt.Qt.Key_A)
+        self.layer_stack_toggle_curr_auto_min_max.setShortcutContext(Qt.Qt.ApplicationShortcut)
+        self.layer_stack_toggle_curr_auto_min_max.triggered.connect(self._on_toggle_auto_min_max)
+        self.addAction(self.layer_stack_toggle_curr_auto_min_max) # Necessary for shortcut to work as this action does not appear in a menu or toolbar
+        self.layer_stack_reset_curr_gamma = Qt.QAction(self)
+        self.layer_stack_reset_curr_gamma.setText('Reset \u03b3')
+        self.layer_stack_reset_curr_gamma.setShortcut(Qt.Qt.Key_G)
+        self.layer_stack_reset_curr_gamma.setShortcutContext(Qt.Qt.ApplicationShortcut)
+        self.layer_stack_reset_curr_gamma.triggered.connect(self._on_reset_gamma)
         if sys.platform == 'darwin':
             self.exit_fullscreen_action = Qt.QAction(self)
             # If self.exit_fullscreen_action's text were "Exit Full Screen Mode" as we desire,
@@ -94,6 +100,12 @@ class RisWidget(Qt.QMainWindow):
             self.exit_fullscreen_action.triggered.connect(self.showNormal)
             self.exit_fullscreen_action.setShortcut(Qt.Qt.Key_Escape)
             self.exit_fullscreen_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
+        self.main_view.zoom_to_fit_action.setShortcut(Qt.Qt.Key_QuoteLeft)
+        self.main_view.zoom_to_fit_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
+        self.main_view.zoom_one_to_one_action.setShortcut(Qt.Qt.Key_1)
+        self.main_view.zoom_one_to_one_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
+        self.main_scene.layer_stack_item.examine_layer_mode_action.setShortcut(Qt.Qt.Key_Space)
+        self.main_scene.layer_stack_item.examine_layer_mode_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
 
     @staticmethod
     def _format_zoom(zoom):
@@ -122,8 +134,9 @@ class RisWidget(Qt.QMainWindow):
         self.main_view_zoom_combo.lineEdit().returnPressed.connect(self._main_view_zoom_combo_custom_value_entered)
         self.main_view.zoom_changed.connect(self._main_view_zoom_changed)
         self.main_view_toolbar.addAction(self.main_view.zoom_to_fit_action)
-        self.main_view_toolbar.addAction(self.main_view_reset_min_max_action)
-        self.main_view_toolbar.addAction(self.main_view_reset_gamma_action)
+        self.main_view_toolbar.addAction(self.layer_stack_reset_curr_min_max)
+        self.main_view_toolbar.addAction(self.layer_stack_reset_curr_gamma)
+        self.main_view_toolbar.addAction(self.main_scene.layer_stack_item.examine_layer_mode_action)
         self.main_view_toolbar.addAction(self.layer_stack_table_dock_widget.toggleViewAction())
         self.histogram_view_toolbar = self.addToolBar('Histogram View')
         self.histogram_view_toolbar.addAction(self.histogram_dock_widget.toggleViewAction())
@@ -137,12 +150,16 @@ class RisWidget(Qt.QMainWindow):
         m.addAction(self.main_view.zoom_to_fit_action)
         m.addAction(self.main_view.zoom_one_to_one_action)
         m.addSeparator()
+        m.addAction(self.layer_stack_reset_curr_min_max)
+        m.addAction(self.layer_stack_reset_curr_gamma)
+        m.addAction(self.main_scene.layer_stack_item.examine_layer_mode_action)
+        m.addSeparator()
         m.addAction(self.main_scene.layer_stack_item.layer_name_in_contextual_info_action)
         m.addAction(self.main_scene.layer_stack_item.image_name_in_contextual_info_action)
 
     def _init_scenes_and_views(self, ImageClass, LayerClass, LayerStackItemClass, GeneralSceneClass, GeneralViewClass, GeneralViewContextualInfoItemClass,
                                HistogramItemClass, HistogramSceneClass, HistogramViewClass, HistgramViewContextualInfoItemClass):
-        self.main_scene = GeneralSceneClass(self, ImageClass, LayerStackItemClass, GeneralViewContextualInfoItemClass)
+        self.main_scene = GeneralSceneClass(self, ImageClass, LayerStackItemClass, self._get_primary_image_stack_current_layer_idx, GeneralViewContextualInfoItemClass)
         self.main_view = GeneralViewClass(self.main_scene, self)
         self.setCentralWidget(self.main_view)
         self.histogram_scene = HistogramSceneClass(self, self.main_scene.layer_stack_item, HistogramItemClass, HistgramViewContextualInfoItemClass)
@@ -233,30 +250,39 @@ class RisWidget(Qt.QMainWindow):
         return self.main_scene.layer_stack_item.layer_stack
 
     @property
-    def layer(self):
+    def bottom_layer(self):
         layer_stack = self.layer_stack
         return layer_stack[0] if layer_stack else None
 
-    @layer.setter
-    def layer(self, layer):
+    @bottom_layer.setter
+    def bottom_layer(self, layer):
         layer_stack = self.layer_stack
         if layer_stack:
             layer_stack[0] = layer
         else:
             layer_stack.append(layer)
 
+    def _get_primary_image_stack_current_layer_idx(self):
+        pmidx = self.layer_stack_table_selection_model.currentIndex() # Selection model is with reference to table view's model, which is the inverting proxy model
+        if pmidx.isValid():
+            midx = self.layer_stack_table_model_inverter.mapToSource(pmidx)
+            if midx.isValid():
+                return midx.row()
+
+    current_layer_idx = property(_get_primary_image_stack_current_layer_idx)
+
     @property
     def current_layer(self):
-        midx = self.layer_stack_table_selection_model.currentIndex()
-        if midx.isValid():
-            return self.layer_stack[midx.row()]
+        idx = self.current_layer_idx
+        if idx is not None:
+            return self.layer_stack[idx]
 
     def replace_current_layer(self, layer):
-        midx = self.layer_stack_table_selection_model.currentIndex()
-        if midx.isValid():
-            self.layer_stack[midx.row()] = layer
-        else:
+        idx = self.current_layer_idx
+        if idx is None:
             raise IndexError('No row in .layer_stack_table_view is current/focused.')
+        else:
+            self.layer_stack[idx] = layer
 
 #   @property
 #   def image_data(self):
@@ -319,12 +345,18 @@ class RisWidget(Qt.QMainWindow):
 
     def _on_layer_stack_table_current_row_changed(self, midx, prev_midx):
         self.histogram_scene.histogram_item.layer = self.current_layer
+        lsi = self.main_scene.layer_stack_item
+        if lsi.examine_layer_mode_enabled:
+            # The appearence of a layer_stack_item may depend on which layer table row is current when
+            # "examine layer mode" is enabled.
+            lsi.update()
+
 
     def _on_inserted_into_layer_stack(self, idx, layers):
         assert len(self.layer_stack) > 0
         if not self.layer_stack_table_selection_model.currentIndex().isValid():
             self.layer_stack_table_selection_model.setCurrentIndex(
-                self.layer_stack_table_model.createIndex(0, 0),
+                self.layer_stack_table_model_inverter.index(0, 0),
                 Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
 
     def _on_replaced_in_layer_stack(self, idxs, old_layers, new_layers):
@@ -372,6 +404,11 @@ class RisWidget(Qt.QMainWindow):
         layer = self.current_layer
         if layer is not None:
             del layer.gamma
+
+    def _on_toggle_auto_min_max(self):
+        layer = self.current_layer
+        if layer is not None:
+            layer.auto_min_max_enabled = not layer.auto_min_max_enabled
 
 if __name__ == '__main__':
     import sys
