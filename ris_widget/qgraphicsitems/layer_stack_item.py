@@ -134,11 +134,10 @@ class LayerStackItem(ShaderItem):
         self.examine_layer_mode_action.setCheckable(True)
         self.examine_layer_mode_action.setChecked(False)
         self.examine_layer_mode_action.setToolTip(textwrap.dedent("""\
-            When enabled, the value of Layer.visible is ignored, the layer currently selected
-            in the layer stack table is shown in the main view, and all other layers are not.
-            The effect is the same as setting the .visible property to True for the current
-            layer and False for all others, without changing the value of any layer's .visible
-            property."""))
+            In "Examine Layer Mode", a layer's .visible property does not control whether that
+            layer is visible in the main view.  Instead, the layer represented by the row currently
+            selected in the layer table is treated as if the value of its .visible property were
+            True and all others as if theirs were false."""))
         if self._get_current_layer_idx is None:
             self.examine_layer_mode_action.setEnabled(False)
         self.examine_layer_mode_action.toggled.connect(self.update)
