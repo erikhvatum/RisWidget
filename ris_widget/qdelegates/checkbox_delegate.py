@@ -24,7 +24,7 @@
 
 from PyQt5 import Qt
 
-class PropertyCheckboxDelegate(Qt.QStyledItemDelegate):
+class CheckboxDelegate(Qt.QStyledItemDelegate):
     def paint(self, painter, option, midx):
         vi_option = Qt.QStyleOptionViewItem(option)
         vi_option.rect = self._compute_checkbox_rect(option)

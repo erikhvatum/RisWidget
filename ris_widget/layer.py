@@ -109,6 +109,7 @@ class Layer(Qt.QObject):
     changed = Qt.pyqtSignal(object)
     name_changed = Qt.pyqtSignal(object)
     image_changed = Qt.pyqtSignal(object)
+    opacity_changed = Qt.pyqtSignal(object)
 
     def __init__(self, image=None, name=None, parent=None):
         super().__init__(parent)
@@ -325,20 +326,37 @@ class Layer(Qt.QObject):
         doc = SHAD_PROP_HELP)
 
     def _tint_transform(self, v):
-        v = list(map(float, v))
+        v = tuple(map(float, v))
         if len(v) not in (3,4) or not all(map(lambda v_: 0 <= v_ <= 1, v)):
             raise ValueError('The iteraterable assigned to .tint must represent 3 or 4 real numbers in the interval [0, 1].')
         if len(v) == 3:
-            v.append(1)
+            v += (1.0,)
         return v
+    def _tint_preset(self, v):
+        if self.tint[3] != v:
+            self.opacity_changed.emit(self)
     tint = Property(
         properties, 'tint',
-        default_value_callback = lambda layer: numpy.array((1,1,1,1), dtype=numpy.float32),
+        default_value_callback = lambda layer: (1.0, 1.0, 1.0, 1.0),
         transform_callback = _tint_transform,
+        pre_set_callback = _tint_preset,
         doc = textwrap.dedent("""\
             .tint: This property is used by the default .transform_section, and with that default, has
             the following meaning: .tint contains 0-1 normalized RGBA component values by which the results
             of applying .getcolor_expression are scaled."""))
+
+    @property
+    def opacity(self):
+        return self.tint[3]
+
+    @opacity.setter
+    def opacity(self, v):
+        v = float(v)
+        if not 0 <= v <= 1:
+            raise ValueError('The value assigned to .tint must be a real number in the interval [0, 1].')
+        t = list(self.tint)
+        t[3] = v
+        self.tint = t #NB: tint takes care of emitting opacity_changed
 
     transform_section = Property(
         properties, 'transform_section',

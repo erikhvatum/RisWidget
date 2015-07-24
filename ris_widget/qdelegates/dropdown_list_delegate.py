@@ -26,9 +26,6 @@ from PyQt5 import Qt
 from ..shared_resources import CHOICES_QITEMDATA_ROLE
 
 class DropdownListDelegate(Qt.QStyledItemDelegate):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
     def createEditor(self, parent, option, midx):
         if midx.isValid():
             e = Qt.QComboBox(parent)

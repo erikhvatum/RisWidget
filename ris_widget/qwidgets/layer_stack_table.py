@@ -24,8 +24,9 @@
 
 from PyQt5 import Qt
 from ..qdelegates.dropdown_list_delegate import DropdownListDelegate
-from ..qdelegates.tint_delegate import TintDelegate
-from ..qdelegates.property_checkbox_delegate import PropertyCheckboxDelegate
+from ..qdelegates.slider_delegate import SliderDelegate
+from ..qdelegates.color_delegate import ColorDelegate
+from ..qdelegates.checkbox_delegate import CheckboxDelegate
 from ..shared_resources import CHOICES_QITEMDATA_ROLE
 from ..signaling_list import SignalingList
 from ..signaling_list_property_table_model import SignalingListPropertyTableModel
@@ -36,13 +37,15 @@ class LayerStackTableView(Qt.QTableView):
         super().__init__(parent)
         self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
 #       self.horizontalHeader().setStretchLastSection(True)
-        self.property_checkbox_delegate = PropertyCheckboxDelegate(self)
-        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['visible'], self.property_checkbox_delegate)
-        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['auto_min_max_enabled'], self.property_checkbox_delegate)
+        self.checkbox_delegate = CheckboxDelegate(self)
+        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['visible'], self.checkbox_delegate)
+        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['auto_min_max_enabled'], self.checkbox_delegate)
         self.blend_function_delegate = DropdownListDelegate(self)
         self.setItemDelegateForColumn(layer_stack_table_model.property_columns['blend_function'], self.blend_function_delegate)
-        self.tint_delegate = TintDelegate(self)
+        self.tint_delegate = ColorDelegate(self)
         self.setItemDelegateForColumn(layer_stack_table_model.property_columns['tint'], self.tint_delegate)
+        self.opacity_delegate = SliderDelegate(0.0, 1.0, self)
+        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['opacity'], self.opacity_delegate)
         self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
         self.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
         self.setModel(layer_stack_table_model)
@@ -99,6 +102,7 @@ class LayerStackTableModel(SignalingListPropertyTableModel):
         'blend_function',
         'auto_min_max_enabled',
         'tint',
+        'opacity',
         'getcolor_expression',
         'name',
         'transform_section',)

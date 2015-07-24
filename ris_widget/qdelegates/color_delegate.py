@@ -24,7 +24,7 @@
 
 from PyQt5 import Qt
 
-class TintDelegate(Qt.QStyledItemDelegate):
+class ColorDelegate(Qt.QStyledItemDelegate):
     def createEditor(self, parent, option, midx):
         if midx.isValid():
             e = Qt.QColorDialog(parent)
