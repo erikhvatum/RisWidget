@@ -42,13 +42,30 @@ class ColorDelegate(Qt.QStyledItemDelegate):
             return e
 
     def setEditorData(self, e, midx):
-        d = midx.data()
+        d = midx.data(Qt.Qt.DecorationRole)
         if isinstance(d, Qt.QVariant):
             d = d.value()
-        e.setCurrentColor(Qt.QColor(*(int(c*255) for c in d)))
+        e.setCurrentColor(d)
 
     def setModelData(self, e, model, midx):
         has_bb = not e.testOption(Qt.QColorDialog.NoButtons)
         if has_bb and e.result() or not has_bb:
             color = e.currentColor()
             model.setData(midx, (color.redF(), color.greenF(), color.blueF(), color.alphaF()))
+
+    def paint(self, qpainter, option, midx):
+        d = midx.data(Qt.Qt.DecorationRole)
+        if isinstance(d, Qt.QVariant):
+            d = d.value()
+        swatch_rect = Qt.QStyle.alignedRect(
+            option.direction,
+            Qt.Qt.AlignCenter,
+            option.decorationSize,
+            option.rect)
+        qpainter.save()
+        try:
+            qpainter.setPen(Qt.QPen(option.palette.color(Qt.QPalette.Normal, Qt.QPalette.Mid)))
+            qpainter.setBrush(Qt.QBrush(d))
+            qpainter.drawRect(swatch_rect)
+        finally:
+            qpainter.restore()

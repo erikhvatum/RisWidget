@@ -105,7 +105,8 @@ class LayerStackTableModel(SignalingListPropertyTableModel):
         'opacity',
         'getcolor_expression',
         'name',
-        'transform_section',)
+#       'transform_section',
+        )
 
     def __init__(self, signaling_list, LayerClass, blend_function_choice_to_value_mapping_pairs=None, parent=None):
         super().__init__(self.PROPERTIES, signaling_list, parent)
@@ -143,7 +144,7 @@ class LayerStackTableModel(SignalingListPropertyTableModel):
             'tint' : self._getf__always_editable,
             'name' : self._getf__always_editable,
             'getcolor_expression' : self._getf__always_editable,
-            'transform_section' : self._getf__always_editable,
+#           'transform_section' : self._getf__always_editable,
             'blend_function' : self._getf__always_editable}
         self._special_data_setters = {
             'visible' : self._setd_visible,
