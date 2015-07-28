@@ -212,6 +212,16 @@
 				<F N="ris_widget/ndimage_statistics/_ndimage_statistics_impl.h"/>
 				<F N="ris_widget/ndimage_statistics/ndimage_statistics.py"/>
 			</Folder>
+			<Folder Name="om">
+				<Folder Name="signaling_list">
+					<F N="ris_widget/om/signaling_list/__init__.py"/>
+					<F N="ris_widget/om/signaling_list/property_table_model.py"/>
+					<F N="ris_widget/om/signaling_list/recursive_property_table_model.py"/>
+					<F N="ris_widget/om/signaling_list/signaling_list.py"/>
+				</Folder>
+				<F N="ris_widget/om/__init__.py"/>
+				<F N="ris_widget/om/property.py"/>
+			</Folder>
 			<Folder Name="qdelegates">
 				<F N="ris_widget/qdelegates/__init__.py"/>
 				<F N="ris_widget/qdelegates/checkbox_delegate.py"/>
@@ -254,11 +264,8 @@
 			<F N="ris_widget/_qt_debug.py"/>
 			<F N="ris_widget/image.py"/>
 			<F N="ris_widget/layer.py"/>
-			<F N="ris_widget/property.py"/>
 			<F N="ris_widget/ris_widget.py"/>
 			<F N="ris_widget/shared_resources.py"/>
-			<F N="ris_widget/signaling_list.py"/>
-			<F N="ris_widget/signaling_list_property_table_model.py"/>
 		</Folder>
 		<F N="README.md"/>
 		<F N="setup.py"/>

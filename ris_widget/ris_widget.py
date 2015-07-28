@@ -28,6 +28,7 @@ import numpy
 import sys
 import weakref
 #from .qwidgets.layer_stack_current_row_flipbook import ImageStackCurrentRowFlipbook
+from . import om
 from .image import Image
 from .layer import Layer
 from .qwidgets.layer_stack_table import InvertingProxyModel, LayerStackTableModel, LayerStackTableView
@@ -39,7 +40,6 @@ from .qgraphicsviews.general_view import GeneralView
 from .qgraphicsscenes.histogram_scene import HistogramScene
 from .qgraphicsviews.histogram_view import HistogramView
 from .shared_resources import FREEIMAGE, GL_QSURFACE_FORMAT, NV_PATH_RENDERING_AVAILABLE
-from .signaling_list import SignalingList
 
 class RisWidget(Qt.QMainWindow):
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0), msaa_sample_count=2,

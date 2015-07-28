@@ -28,7 +28,7 @@ from PyQt5 import Qt
 from string import Template
 import textwrap
 import time
-from .property import Property
+from . import om
 
 class Layer(Qt.QObject):
     """BasicImage's properties are all either computed from that ndarray, provide views into that ndarray's data (in the case of .data
@@ -212,7 +212,7 @@ class Layer(Qt.QObject):
 
     properties = []
 
-    visible = Property(
+    visible = om.Property(
         properties, 'visible',
         doc = textwrap.dedent(
             """\
@@ -233,7 +233,7 @@ class Layer(Qt.QObject):
     def _auto_min_max_enabled_post_set(self, v):
         if v and self.image is not None:
             self.do_auto_min_max()
-    auto_min_max_enabled = Property(
+    auto_min_max_enabled = om.Property(
         properties, 'auto_min_max_enabled',
         default_value_callback = lambda image: False,
         take_arg_callback = lambda image, v: bool(v),
@@ -260,13 +260,13 @@ class Layer(Qt.QObject):
                 self.max = v
         if not self._retain_auto_min_max_enabled_on_min_max_change:
             self.auto_min_max_enabled = False
-    min = Property(
+    min = om.Property(
         properties, 'min',
         default_value_callback = lambda layer, f=_min_max_default: f(layer, False),
         take_arg_callback = lambda layer, v: float(v),
         pre_set_callback = _min_max_pre_set,
         post_set_callback = lambda layer, v, f=_min_max_post_set: f(layer, v, False))
-    max = Property(
+    max = om.Property(
         properties, 'max',
         default_value_callback = lambda layer, f=_min_max_default: f(layer, True),
         take_arg_callback = lambda layer, v: float(v),
@@ -277,13 +277,13 @@ class Layer(Qt.QObject):
         r = self.GAMMA_RANGE
         if not r[0] <= v <= r[1]:
             raise ValueError('gamma value must be in the closed interval [{}, {}].'.format(*r))
-    gamma = Property(
+    gamma = om.Property(
         properties, 'gamma',
         default_value_callback = lambda layer: 1.0,
         take_arg_callback = lambda layer, v: float(v),
         pre_set_callback = _gamma_pre_set)
 
-    trilinear_filtering_enabled = Property(
+    trilinear_filtering_enabled = om.Property(
         properties, 'trilinear_filtering_enabled',
         default_value_callback = lambda layer: True,
         take_arg_callback = lambda layer, v: bool(v))
@@ -319,7 +319,7 @@ class Layer(Qt.QObject):
             return ''
         else:
             return self.IMAGE_TYPE_TO_GETCOLOR_EXPRESSION[image.type]
-    getcolor_expression = Property(
+    getcolor_expression = om.Property(
         properties, 'getcolor_expression',
         default_value_callback = _getcolor_expression_default,
         take_arg_callback = lambda layer, v: '' if v is None else str(v),
@@ -335,7 +335,7 @@ class Layer(Qt.QObject):
     def _tint_preset(self, v):
         if self.tint[3] != v:
             self.opacity_changed.emit(self)
-    tint = Property(
+    tint = om.Property(
         properties, 'tint',
         default_value_callback = lambda layer: (1.0, 1.0, 1.0, 1.0),
         take_arg_callback = _tint_take_arg,
@@ -358,7 +358,7 @@ class Layer(Qt.QObject):
         t[3] = v
         self.tint = t #NB: tint takes care of emitting opacity_changed
 
-    transform_section = Property(
+    transform_section = om.Property(
         properties, 'transform_section',
         default_value_callback = lambda layer: layer.DEFAULT_TRANSFORM_SECTION,
         take_arg_callback = lambda layer, v: '' if v is None else str(v))
@@ -366,7 +366,7 @@ class Layer(Qt.QObject):
     def _blend_function_pre_set(self, v):
         if v not in self.BLEND_FUNCTIONS:
             raise ValueError('The string assigned to blend_function must be one of:\n' + '\n'.join("'" + s + "'" for s in sorted(self.BLEND_FUNCTIONS.keys())))
-    blend_function = Property(
+    blend_function = om.Property(
         properties, 'blend_function',
         default_value_callback = lambda layer: 'screen',
         take_arg_callback = lambda layer, v: str(v),
@@ -376,7 +376,7 @@ class Layer(Qt.QObject):
     def _histogram_mask_take_arg(self, v):
         pass
 
-    histogram_mask = Property(
+    histogram_mask = om.Property(
         properties, 'histogram_mask',
         default_value_callback = lambda layer: None,
         take_arg_callback = _histogram_mask_take_arg)

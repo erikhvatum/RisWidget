@@ -31,7 +31,7 @@ import sys
 import textwrap
 #from ._qt_debug import qtransform_to_numpy
 from ..layer import Layer
-from ..signaling_list import SignalingList
+from .. import om
 from ..shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
 from .shader_item import ShaderItem
 
@@ -112,7 +112,7 @@ class LayerStackItem(ShaderItem):
         super().__init__(parent_item)
         self._get_current_layer_idx = get_current_layer_idx
         self._bounding_rect = Qt.QRectF(self.DEFAULT_BOUNDING_RECT)
-        self.layer_stack = SignalingList(parent=self) # In ascending order, with bottom layer (backmost) as element 0
+        self.layer_stack = om.SignalingList(parent=self) # In ascending order, with bottom layer (backmost) as element 0
         self.layer_stack.inserted.connect(self._on_layers_inserted)
         self.layer_stack.removed.connect(self._on_layers_removed)
         self.layer_stack.replaced.connect(self._on_layers_replaced)

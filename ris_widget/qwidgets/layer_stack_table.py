@@ -28,8 +28,7 @@ from ..qdelegates.slider_delegate import SliderDelegate
 from ..qdelegates.color_delegate import ColorDelegate
 from ..qdelegates.checkbox_delegate import CheckboxDelegate
 from ..shared_resources import CHOICES_QITEMDATA_ROLE
-from ..signaling_list import SignalingList
-from ..signaling_list_property_table_model import SignalingListPropertyTableModel
+from .. import om
 
 #TODO: make list items drop targets so that layer contents can be replaced by dropping file on associated item
 class LayerStackTableView(Qt.QTableView):
@@ -78,7 +77,7 @@ class InvertingProxyModel(Qt.QSortFilterProxyModel):
         # We want the table upside-down and therefore will be sorting by index (aka row #)
         return lhs.row() < rhs.row()
 
-class LayerStackTableModel(SignalingListPropertyTableModel):
+class LayerStackTableModel(om.signaling_list.PropertyTableModel):
     # ImageStackTableModel accesses PROPERTIES strictly via self.PROPERTIES and never via ImageStackTableModel.PROPERTIES,
     # meaning that subclasses may safely add or remove columns by overridding PROPERTIES.  For example, adding a column for
     # a sublcassed Images having an "image_quality" property:

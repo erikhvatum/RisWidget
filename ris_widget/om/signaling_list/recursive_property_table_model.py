@@ -24,16 +24,23 @@
 
 from PyQt5 import Qt
 
-class SignalingListPropertyTableModel(Qt.QAbstractTableModel):
+class PNamepath:
+    __slots__ = ('name', 'path')
+    def __init__(self, name):
+        self.name = name
+        self.path = name.split('.')
+
+#TODO: finish implementing
+class RecursivePropertyTableModel(Qt.QAbstractTableModel):
     def __init__(self, property_names, signaling_list=None, parent=None):
         super().__init__(parent)
         self._signaling_list = None
-        self.property_names = list(property_names)
-        self.property_columns = {pn : idx for idx, pn in enumerate(self.property_names)}
-        assert all(map(lambda p: isinstance(p, str) and len(p) > 0, self.property_names)), 'property_names must be a non-empty iterable of non-empty strings.'
-        if len(self.property_names) != len(set(self.property_names)):
+        self.property_namepaths = [PNamepath(pn) for pn in property_names]
+        self.property_columns = {pnp.name : idx for idx, pnp in enumerate(self.property_namepaths)}
+        assert all(map(lambda pnp: isinstance(pnp.name, str) and len(pnp.name) > 0, self.property_namepaths)), 'property_names must be a non-empty iterable of non-empty strings.'
+        if len(self.property_namepaths) != len(set(pnp.name for pnp in self.property_namepaths)):
             raise ValueError('The property_names argument contains at least one duplicate.')
-        self._property_changed_slots = [lambda element, pn=pn: self._on_property_changed(element, pn) for pn in self.property_names]
+        self._property_changed_slots = [lambda element, pn=pnp.name: self._on_property_changed(element, pn) for pnp in self.property_namepaths]
         self._instance_counts = {}
         self.signaling_list = signaling_list
 
@@ -61,7 +68,7 @@ class SignalingListPropertyTableModel(Qt.QAbstractTableModel):
                 return Qt.QVariant(section)
         elif orientation == Qt.Qt.Horizontal:
             if role == Qt.Qt.DisplayRole and 0 <= section < self.columnCount():
-                return Qt.QVariant(self.property_names[section])
+                return Qt.QVariant(self.property_namepaths[section].name)
         return Qt.QVariant()
 
     def removeRows(self, row, count, parent=Qt.QModelIndex()):
