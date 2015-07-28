@@ -69,6 +69,7 @@ class HistogramItem(ShaderItem):
                 self.min_item.arrow_item._on_value_changed()
                 self.max_item.arrow_item._on_value_changed()
                 self.gamma_item._on_value_changed()
+                self._on_layer_image_changed()
 
     def type(self):
         return HistogramItem.QGRAPHICSITEM_TYPE
