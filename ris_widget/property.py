@@ -43,7 +43,7 @@ class Property(property):
             properties,
             "foo",
             default_value_callback=lambda c_instance: None,
-            transform_callback=lambda c_instance, in_: None if (in_ is None or in_ == '') else str(in_),
+            take_arg_callback=lambda c_instance, in_: None if (in_ is None or in_ == '') else str(in_),
             post_set_callback=lambda c_instance, in_: c_instance.__class__.bar.update_default(c_instance),
             doc="From wiktionary: \"[foo is a] metasyntactic variable used to represent an unspecified entity. "
                 "If part of a series of such entities, it is often the first in the series, and followed immediately by bar.\"")
@@ -76,13 +76,13 @@ class Property(property):
     NB: Property is derived from "property" for the sole reason that IPython's question-mark magic is special-cased for
     properties.  Deriving from property causes Property to receive the same treatment, providing useful output for
     something.prop? in IPython (where prop is a Property instance)."""
-    def __init__(self, properties, name, default_value_callback, transform_callback=None, pre_set_callback=None, post_set_callback=None, doc=None):
+    def __init__(self, properties, name, default_value_callback, take_arg_callback=None, pre_set_callback=None, post_set_callback=None, doc=None):
         self.name = name
         self.var_name = '_' + name
         self.default_val_var_name = '_default_' + name
         self.changed_signal_name = name + '_changed'
         self.default_value_callback = default_value_callback
-        self.transform_callback = transform_callback
+        self.take_arg_callback = take_arg_callback
         self.pre_set_callback = pre_set_callback
         self.post_set_callback = post_set_callback
         if doc is not None:
@@ -133,8 +133,8 @@ class Property(property):
             return getattr(obj, self.default_val_var_name)
 
     def __set__(self, obj, v):
-        if self.transform_callback is not None:
-            v = self.transform_callback(obj, v)
+        if self.take_arg_callback is not None:
+            v = self.take_arg_callback(obj, v)
         if not hasattr(obj, self.var_name) or not self.eq(v, getattr(obj, self.var_name)):
             if self.pre_set_callback is not None:
                 self.pre_set_callback(obj, v)

@@ -104,7 +104,7 @@ class Image(Qt.QObject):
                 d = self._data
                 self._data = numpy.ndarray(d.shape, strides=desired_strides, dtype=d.dtype.type)
                 self._data.flat = d.flat
-            self.stats_future = compute_ndimage_statistics(self._data, self.is_twelve_bit, return_future=True)
+            self.stats_future = compute_ndimage_statistics(self._data, twelve_bit=is_twelve_bit, return_future=True)
         elif self._data.ndim == 3:
             if not shape_is_width_height:
                 self._data = self._data.transpose(1, 0, 2)
@@ -119,7 +119,7 @@ class Image(Qt.QObject):
                 d = self._data
                 self._data = numpy.ndarray(d.shape, strides=desired_strides, dtype=d.dtype.type)
                 self._data.flat = d.flat
-            self.stats_future = compute_multichannel_ndimage_statistics(self._data, self.is_twelve_bit, return_future=True)
+            self.stats_future = compute_multichannel_ndimage_statistics(self._data, twelve_bit=self.is_twelve_bit, return_future=True)
         else:
             raise ValueError('data argument must be a 2D (grayscale) or 3D (grayscale with alpha, rgb, or rgba) iterable.')
 

@@ -228,7 +228,7 @@ class Layer(Qt.QObject):
             LayerStackItem's render function, although the histogram of the Image will still be visible in the output
             of the render function of a HistogramItem associated with the Image."""),
         default_value_callback = lambda image: True,
-        transform_callback = lambda image, v: bool(v))
+        take_arg_callback = lambda image, v: bool(v))
 
     def _auto_min_max_enabled_post_set(self, v):
         if v and self.image is not None:
@@ -236,7 +236,7 @@ class Layer(Qt.QObject):
     auto_min_max_enabled = Property(
         properties, 'auto_min_max_enabled',
         default_value_callback = lambda image: False,
-        transform_callback = lambda image, v: bool(v),
+        take_arg_callback = lambda image, v: bool(v),
         post_set_callback = _auto_min_max_enabled_post_set)
 
     def _min_max_default(self, is_max):
@@ -263,13 +263,13 @@ class Layer(Qt.QObject):
     min = Property(
         properties, 'min',
         default_value_callback = lambda layer, f=_min_max_default: f(layer, False),
-        transform_callback = lambda layer, v: float(v),
+        take_arg_callback = lambda layer, v: float(v),
         pre_set_callback = _min_max_pre_set,
         post_set_callback = lambda layer, v, f=_min_max_post_set: f(layer, v, False))
     max = Property(
         properties, 'max',
         default_value_callback = lambda layer, f=_min_max_default: f(layer, True),
-        transform_callback = lambda layer, v: float(v),
+        take_arg_callback = lambda layer, v: float(v),
         pre_set_callback = _min_max_pre_set,
         post_set_callback = lambda layer, v, f=_min_max_post_set: f(layer, v, True))
 
@@ -280,13 +280,13 @@ class Layer(Qt.QObject):
     gamma = Property(
         properties, 'gamma',
         default_value_callback = lambda layer: 1.0,
-        transform_callback = lambda layer, v: float(v),
+        take_arg_callback = lambda layer, v: float(v),
         pre_set_callback = _gamma_pre_set)
 
     trilinear_filtering_enabled = Property(
         properties, 'trilinear_filtering_enabled',
         default_value_callback = lambda layer: True,
-        transform_callback = lambda layer, v: bool(v))
+        take_arg_callback = lambda layer, v: bool(v))
 
     # TODO: finish updating SHAD_PROP_HELP
     SHAD_PROP_HELP = textwrap.dedent("""\
@@ -322,10 +322,10 @@ class Layer(Qt.QObject):
     getcolor_expression = Property(
         properties, 'getcolor_expression',
         default_value_callback = _getcolor_expression_default,
-        transform_callback = lambda layer, v: '' if v is None else str(v),
+        take_arg_callback = lambda layer, v: '' if v is None else str(v),
         doc = SHAD_PROP_HELP)
 
-    def _tint_transform(self, v):
+    def _tint_take_arg(self, v):
         v = tuple(map(float, v))
         if len(v) not in (3,4) or not all(map(lambda v_: 0 <= v_ <= 1, v)):
             raise ValueError('The iteraterable assigned to .tint must represent 3 or 4 real numbers in the interval [0, 1].')
@@ -338,7 +338,7 @@ class Layer(Qt.QObject):
     tint = Property(
         properties, 'tint',
         default_value_callback = lambda layer: (1.0, 1.0, 1.0, 1.0),
-        transform_callback = _tint_transform,
+        take_arg_callback = _tint_take_arg,
         pre_set_callback = _tint_preset,
         doc = textwrap.dedent("""\
             .tint: This property is used by the default .transform_section, and with that default, has
@@ -361,7 +361,7 @@ class Layer(Qt.QObject):
     transform_section = Property(
         properties, 'transform_section',
         default_value_callback = lambda layer: layer.DEFAULT_TRANSFORM_SECTION,
-        transform_callback = lambda layer, v: '' if v is None else str(v))
+        take_arg_callback = lambda layer, v: '' if v is None else str(v))
 
     def _blend_function_pre_set(self, v):
         if v not in self.BLEND_FUNCTIONS:
@@ -369,9 +369,17 @@ class Layer(Qt.QObject):
     blend_function = Property(
         properties, 'blend_function',
         default_value_callback = lambda layer: 'screen',
-        transform_callback = lambda layer, v: str(v),
+        take_arg_callback = lambda layer, v: str(v),
         pre_set_callback = _blend_function_pre_set,
         doc = SHAD_PROP_HELP + '\n\nSupported blend_functions:\n\n    ' + '\n    '.join("'" + s + "'" for s in sorted(BLEND_FUNCTIONS.keys())))
+
+    def _histogram_mask_take_arg(self, v):
+        pass
+
+    histogram_mask = Property(
+        properties, 'histogram_mask',
+        default_value_callback = lambda layer: None,
+        take_arg_callback = _histogram_mask_take_arg)
 
     for property in properties:
         exec(property.changed_signal_name + ' = Qt.pyqtSignal(object)')

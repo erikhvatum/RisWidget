@@ -42,6 +42,9 @@ extra_compile_args = []
 extra_link_args = []
 define_macros = []
 
+if sys.platform != 'win32':
+    extra_compile_args.append('-std=c++11')
+
 common_setup_args = {
     'classifiers' : [
         'Environment :: MacOS X',

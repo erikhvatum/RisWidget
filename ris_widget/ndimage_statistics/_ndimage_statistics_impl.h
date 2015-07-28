@@ -29,11 +29,118 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
 
-void _hist_min_max_uint16(const npy_uint16* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
-                          npy_uint32* hist, npy_uint16* min_max);
+// Copies u_shape to o_shape and u_strides to o_strides, reversing the elements of each if u_strides[0] < u_strides[1] 
+void reorder_to_inner_outer(const Py_ssize_t* u_shape, const Py_ssize_t* u_strides,
+                                  Py_ssize_t* o_shape,       Py_ssize_t* o_strides);
 
-void _hist_min_max_uint12(const npy_uint16* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
-                          npy_uint32* hist, npy_uint16* min_max);
+// Copies u_shape to o_shape and u_strides to o_strides, reversing the elements of each if u_strides[0] < u_strides[1]. 
+// Additionally, u_slave_shape is copied to o_slave_shape and u_slave_strides is copied to o_slave_strides, reversing 
+// the elements of each if u_strides[0] < u_strides[1]. 
+// 
+// The u_strides[0] < u_strides[1] comparison controlling slave shape and striding reversal is not a typo: slave
+// striding is reversed if non-slave striding is reversed. 
+void reorder_to_inner_outer(const Py_ssize_t* u_shape,       const Py_ssize_t* u_strides,
+                               Py_ssize_t* o_shape,             Py_ssize_t* o_strides,
+                         const Py_ssize_t* u_slave_shape, const Py_ssize_t* u_slave_strides,
+                               Py_ssize_t* o_slave_shape,       Py_ssize_t* o_slave_strides);
 
-void _hist_min_max_uint8(const npy_uint8* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
-                         npy_uint32* hist, npy_uint8* min_max);
+template<typename C>
+constexpr std::size_t bin_count();
+
+template<>
+constexpr std::size_t bin_count<npy_uint8>()
+{
+    return 256;
+}
+
+template<>
+constexpr std::size_t bin_count<npy_uint16>()
+{
+    return 1024;
+}
+
+template<typename C, bool is_twelve_bit>
+constexpr std::ptrdiff_t bin_shift()
+{
+    return (is_twelve_bit ? 12 : sizeof(C)) * 8 - static_cast<std::ptrdiff_t>( std::log2(static_cast<double>(bin_count<C>())) );
+}
+
+template<typename C, bool is_twelve_bit>
+void _hist_min_max(const C* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
+                   npy_uint32* hist, C* min_max)
+{
+    Py_ssize_t shape[2], strides[2];
+    reorder_to_inner_outer(im_shape, im_strides, shape, strides);
+
+    memset(hist, 0, bin_count<C>() * sizeof(npy_uint32));
+    min_max[0] = min_max[1] = im[0];
+
+    const npy_uint8* outer = reinterpret_cast<const npy_uint8*>(im);
+    const npy_uint8*const outer_end = outer + shape[0] * strides[0];
+    const npy_uint8* inner;
+    const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
+    const npy_uint8* inner_end;
+    for(; outer != outer_end; outer += strides[0])
+    {
+        inner = outer;
+        inner_end = inner + inner_end_offset;
+        for(; inner != inner_end; inner += strides[1])
+        {
+            const C& v = *reinterpret_cast<const C*>(inner);
+            ++hist[v >> bin_shift<C, is_twelve_bit>()];
+            if(v < min_max[0])
+            {
+                min_max[0] = v;
+            }
+            else if(v > min_max[1])
+            {
+                min_max[1] = v;
+            }
+        }
+    }
+}
+
+template<typename C, bool is_twelve_bit>
+void _masked_hist_min_max(const C* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
+                          const npy_uint8* mask, const Py_ssize_t* mask_shape, const Py_ssize_t* mask_strides,
+                          npy_uint32* hist, C* min_max)
+{
+    Py_ssize_t shape[2], strides[2], mshape[2], mstrides[2];
+    reorder_to_inner_outer(im_shape, im_strides, shape, strides,
+                           mask_shape, mask_strides, mshape, mstrides);
+    // At this point, it should be true that shape == mshape.  Our caller is expected to have verified 
+    // that this would be the case (ie, the caller of this function  
+
+    memset(hist, 0, bin_count<C>() * sizeof(npy_uint32));
+    min_max[0] = min_max[1] = im[0];
+
+    const npy_uint8* outer = reinterpret_cast<const npy_uint8*>(im);
+    const npy_uint8* mouter = mask;
+    const npy_uint8*const outer_end = outer + shape[0] * strides[0];
+    const npy_uint8* inner;
+    const npy_uint8* minner;
+    const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
+    const npy_uint8* inner_end;
+    for(; outer != outer_end; outer += strides[0], mouter += mstrides[0])
+    {
+        inner = outer;
+        inner_end = inner + inner_end_offset;
+        minner = mouter;
+        for(; inner != inner_end; inner += strides[1], minner += mstrides[1])
+        {
+            const C& v = *reinterpret_cast<const C*>(inner);
+            if(*minner != 0)
+            {
+                ++hist[v >> bin_shift<C, is_twelve_bit>()];
+                if(v < min_max[0])
+                {
+                    min_max[0] = v;
+                }
+                else if(v > min_max[1])
+                {
+                    min_max[1] = v;
+                }
+            }
+        }
+    }
+}
