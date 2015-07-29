@@ -60,10 +60,19 @@ constexpr std::size_t bin_count<npy_uint16>()
 }
 
 template<typename C, bool is_twelve_bit>
-constexpr std::ptrdiff_t bin_shift()
+constexpr const std::ptrdiff_t bin_shift()
 {
     return (is_twelve_bit ? 12 : sizeof(C)*8) - static_cast<std::ptrdiff_t>( std::log2(static_cast<double>(bin_count<C>())) );
 }
+
+template<typename C, bool is_twelve_bit>
+const C apply_bin_shift(const C& v)
+{
+    return v >> bin_shift<C, is_twelve_bit>();
+}
+
+template<>
+const npy_uint16 apply_bin_shift<npy_uint16, true>(const npy_uint16& v);
 
 template<typename C, bool is_twelve_bit>
 void _hist_min_max(const C* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
@@ -87,7 +96,7 @@ void _hist_min_max(const C* im, const Py_ssize_t* im_shape, const Py_ssize_t* im
         for(; inner != inner_end; inner += strides[1])
         {
             const C& v = *reinterpret_cast<const C*>(inner);
-            ++hist[v >> bin_shift<C, is_twelve_bit>()];
+            ++hist[apply_bin_shift<C, is_twelve_bit>(v)];
             if(v < min_max[0])
             {
                 min_max[0] = v;
@@ -131,7 +140,6 @@ void _masked_hist_min_max(const C* im, const Py_ssize_t* im_shape, const Py_ssiz
             const C& v = *reinterpret_cast<const C*>(inner);
             if(*minner != 0)
             {
-                ++hist[v >> bin_shift<C, is_twelve_bit>()];
                 if(v < min_max[0])
                 {
                     min_max[0] = v;

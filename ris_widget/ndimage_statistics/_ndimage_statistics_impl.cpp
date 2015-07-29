@@ -61,3 +61,15 @@ void reorder_to_inner_outer(const Py_ssize_t* u_shape,       const Py_ssize_t* u
         o_slave_shape[0] = u_slave_shape[1]; o_slave_shape[1] = u_slave_shape[0];
     }
 }
+
+#ifdef min
+ #undef min
+#endif
+
+#include <algorithm>
+
+template<>
+const npy_uint16 apply_bin_shift<npy_uint16, true>(const npy_uint16& v)
+{
+    return std::min(v, static_cast<const npy_uint16>(4095)) >> bin_shift<npy_uint16, true>();
+}
