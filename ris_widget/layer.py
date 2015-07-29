@@ -119,6 +119,7 @@ class Layer(Qt.QObject):
             property.instantiate(self)
         self.objectNameChanged.connect(lambda: self.name_changed.emit(self))
         self.name_changed.connect(self.changed)
+        self.image_changed.connect(self.changed)
         if name:
             self.setObjectName(name)
         self.image = image
