@@ -269,6 +269,14 @@ class LayerStackItem(ShaderItem):
 
     def _on_layer_image_changed(self, layer):
         self._layer_data_serials[layer] = self._generate_data_serial()
+        idx = self.layer_stack.index(layer)
+        if idx == 0:
+            image = layer.image
+            current_br = self.boundingRect()
+            new_br = self.DEFAULT_BOUNDING_RECT if image is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(image.size))
+            if new_br != current_br:
+                self.prepareGeometryChange()
+                self._bounding_rect = new_br
 
     def hoverMoveEvent(self, event):
         if self.examine_layer_mode_enabled and self._get_current_layer_idx is not None:
