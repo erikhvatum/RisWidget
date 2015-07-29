@@ -277,6 +277,7 @@ class LayerStackItem(ShaderItem):
             if new_br != current_br:
                 self.prepareGeometryChange()
                 self._bounding_rect = new_br
+                self.bounding_rect_changed.emit()
 
     def hoverMoveEvent(self, event):
         if self.examine_layer_mode_enabled and self._get_current_layer_idx is not None:
