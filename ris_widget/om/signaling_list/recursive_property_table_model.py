@@ -55,23 +55,24 @@ class PropertyDescrTreeNode:
         return len(self.children) == 0
 
 class PropertyInstTreeNode(Qt.QObject):
-    def __init__(self, parent, desc_tree_node):
+    def __init__(self, parent, descr_tree_node, value):
         self.parent = parent
-        self.desc_tree_node = desc_tree_node
+        self.descr_tree_node = descr_tree_node
         self.children = {}
 
     def on_property_changed(self, element):
         dtn = self.desc_tree_node
         is_leaf = dtn.is_leaf
-        if is_leaf:
+#       if is_leaf:
             #
-        else:
+#       else:
 
     @property
     def trunk_branch_element(self):
         # In order to emit a dataChanged signal for a leaf, it is necessary to determine which rows
         # in the table contain the leaf value in question.  Row # corresponds to signaling_list index,
         # and signaling_list actually contains branches from the trunk.
+        pass
 
 
 
@@ -214,7 +215,8 @@ class RecursivePropertyTableModel(Qt.QAbstractTableModel):
             else:
                 self._instance_counts[element] = instance_count
 
-    def _on_leaf_property_changed(self, ):
+    def _on_leaf_property_changed(self, _):
+        pass
 
     def _on_property_changed(self, element, property_name):
         column = self.property_columns[property_name]

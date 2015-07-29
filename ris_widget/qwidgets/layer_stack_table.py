@@ -104,6 +104,7 @@ class LayerStackTableModel(om.signaling_list.PropertyTableModel):
         'opacity',
         'getcolor_expression',
         'name',
+#       'image.name'
 #       'transform_section',
         )
 
