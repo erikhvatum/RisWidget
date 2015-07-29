@@ -134,12 +134,10 @@ class PropertyTableModel(Qt.QAbstractTableModel):
         next_idx = 0
         instance_count = self._instance_counts[element]
         assert instance_count > 0
-        rows = []
         for _ in range(instance_count):
             row = signaling_list.index(element, next_idx)
-            rows.append(row)
             next_idx = row + 1
-        self.dataChanged.emit(self.createIndex(min(rows), column), self.createIndex(max(rows), column))
+            self.dataChanged.emit(self.createIndex(row, column), self.createIndex(row, column))
 
     def _on_inserting(self, idx, elements):
         self.beginInsertRows(Qt.QModelIndex(), idx, idx+len(elements)-1)

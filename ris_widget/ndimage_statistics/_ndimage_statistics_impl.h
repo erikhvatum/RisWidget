@@ -40,9 +40,9 @@ void reorder_to_inner_outer(const Py_ssize_t* u_shape, const Py_ssize_t* u_strid
 // The u_strides[0] < u_strides[1] comparison controlling slave shape and striding reversal is not a typo: slave
 // striding and shape are reversed if non-slave striding and shape are reversed. 
 void reorder_to_inner_outer(const Py_ssize_t* u_shape,       const Py_ssize_t* u_strides,
-                               Py_ssize_t* o_shape,             Py_ssize_t* o_strides,
-                         const Py_ssize_t* u_slave_shape, const Py_ssize_t* u_slave_strides,
-                               Py_ssize_t* o_slave_shape,       Py_ssize_t* o_slave_strides);
+                                  Py_ssize_t* o_shape,             Py_ssize_t* o_strides,
+                            const Py_ssize_t* u_slave_shape, const Py_ssize_t* u_slave_strides,
+                                  Py_ssize_t* o_slave_shape,       Py_ssize_t* o_slave_strides);
 
 template<typename C>
 constexpr std::size_t bin_count();
@@ -62,7 +62,7 @@ constexpr std::size_t bin_count<npy_uint16>()
 template<typename C, bool is_twelve_bit>
 constexpr std::ptrdiff_t bin_shift()
 {
-    return (is_twelve_bit ? 12 : sizeof(C)) * 8 - static_cast<std::ptrdiff_t>( std::log2(static_cast<double>(bin_count<C>())) );
+    return (is_twelve_bit ? 12 : sizeof(C)*8) - static_cast<std::ptrdiff_t>( std::log2(static_cast<double>(bin_count<C>())) );
 }
 
 template<typename C, bool is_twelve_bit>

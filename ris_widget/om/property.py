@@ -30,7 +30,7 @@ class Property(property):
     depending on the value of "foo" (if .foo is None, .bar defaults to 42):
 
     class C(Qt.QObject):
-        changed = Qt.pyqtSignal()
+        changed = Qt.pyqtSignal(object)
 
         def __init__(self, parent=None):
             super().__init__(parent)

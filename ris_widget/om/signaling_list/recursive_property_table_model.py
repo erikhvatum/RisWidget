@@ -24,25 +24,89 @@
 
 from PyQt5 import Qt
 
-class PNamepath:
-    __slots__ = ('name', 'path')
-    def __init__(self, name):
-        self.name = name
-        self.path = name.split('.')
+class PropertyDescrTreeNode:
+    __slots__ = ('model', 'parent', 'name', 'full_name', 'children')
 
-#TODO: finish implementing
+    def __init__(self, model, parent, name):
+        self.model = model
+        self.parent = parent
+        self.name = name
+        self.children = {}
+        def getfullpath(node):
+            if node.parent is None:
+                # We have reached the root node.  Stop recursion and do not include the root node's name.
+                return []
+            else:
+                return getfullpath(node.parent) + [node.name]
+        self.full_name = '.'.join(getfullpath(self))
+
+    def __str__(self):
+        if self.is_leaf:
+            o = '<{}>'.format(self.name)
+        else:
+            o = '({}'.format(self.name)
+            o += ' : '
+            o += ', '.join(str(child) for child in self.children.values())
+            o+= ')'
+        return o
+
+    @property
+    def is_leaf(self):
+        return len(self.children) == 0
+
+class PropertyInstTreeNode(Qt.QObject):
+    def __init__(self, parent, desc_tree_node):
+        self.parent = parent
+        self.desc_tree_node = desc_tree_node
+        self.children = {}
+
+    def on_property_changed(self, element):
+        dtn = self.desc_tree_node
+        is_leaf = dtn.is_leaf
+        if is_leaf:
+            #
+        else:
+
+    @property
+    def trunk_branch_element(self):
+        # In order to emit a dataChanged signal for a leaf, it is necessary to determine which rows
+        # in the table contain the leaf value in question.  Row # corresponds to signaling_list index,
+        # and signaling_list actually contains branches from the trunk.
+
+
+
 class RecursivePropertyTableModel(Qt.QAbstractTableModel):
     def __init__(self, property_names, signaling_list=None, parent=None):
         super().__init__(parent)
         self._signaling_list = None
-        self.property_namepaths = [PNamepath(pn) for pn in property_names]
-        self.property_columns = {pnp.name : idx for idx, pnp in enumerate(self.property_namepaths)}
-        assert all(map(lambda pnp: isinstance(pnp.name, str) and len(pnp.name) > 0, self.property_namepaths)), 'property_names must be a non-empty iterable of non-empty strings.'
-        if len(self.property_namepaths) != len(set(pnp.name for pnp in self.property_namepaths)):
-            raise ValueError('The property_names argument contains at least one duplicate.')
-        self._property_changed_slots = [lambda element, pn=pnp.name: self._on_property_changed(element, pn) for pnp in self.property_namepaths]
-        self._instance_counts = {}
+        property_names = list(property_names)
+        if len(property_names) == 0 or \
+           any(not isinstance(pn, str) or len(pn) == 0 for pn in property_names) or \
+           len(set(property_names)) != len(property_names):
+            raise ValueError('The property_names must be a non-empty iterable of unique, non-empty strings.')
+        self.property_columns = {pn : idx for idx, pn in enumerate(property_names)}
+        # Having a null property description tree root node allows property paths with common intermediate components to share
+        # nodes up to the point of divergence.  EG, if the property_names argument is ('foo.bar.biff.baz', 'foo.bar.biff.zap'),
+        # there will be one PropertyDescrTreeNode for each of foo, foo.bar, and foo.bar.biff.  foo.bar.biff's node will have 
+        # two children: foo.bar.biff.baz and foo.bar.biff.zap.
+        self.property_descr_tree_root = PropertyDescrTreeNode(self, None, '*ROOT*')
+        for pn in property_names:
+            self._rec_init_desc_tree(self.property_descr_tree_root, pn.split('.'))
+        self.property_inst_tree_root = PropertyInstTreeNode(None, self.property_descr_tree_root)
         self.signaling_list = signaling_list
+
+    def _rec_init_desc_tree(self, parent, path):
+        assert len(path) > 0
+        name = path[0]
+        try:
+            node = parent.children[name]
+        except KeyError:
+            node = parent.children[name] = PropertyDescrTreeNode(self, parent, name)
+        # Even if parent already has a node for this name, there must be a divergence away from the existing branch or this
+        # function would not be called in the first place (entirely duplicate paths are not allowed).  So, we may only
+        # skip the next line if we have already arrived at the leaf.
+        if len(path) > 1:
+            self._rec_init_desc_tree(node, path[1:])
 
     def rowCount(self, _=None):
         sl = self.signaling_list
@@ -51,15 +115,30 @@ class RecursivePropertyTableModel(Qt.QAbstractTableModel):
     def columnCount(self, _=None):
         return len(self.property_names)
 
+    def _get_rec_prop_val(self, pv, pp):
+        if pv is not None:
+            if len(pp) == 1:
+                return getattr(pv, pp[0])
+            return self._get_rec_prop_val(getattr(pv, pp[0]), pp[1:])
+
     def data(self, midx, role=Qt.Qt.DisplayRole):
         if midx.isValid() and role in (Qt.Qt.DisplayRole, Qt.Qt.EditRole):
-            return Qt.QVariant(getattr(self.signaling_list[midx.row()], self.property_names[midx.column()]))
+            # NB: Qt.QVariant(None) is equivalent to Qt.QVariant(), so the case where self._get_rect_prop_val(..) returns None does
+            # not require special handling
+            return Qt.QVariant(self._get_rec_prop_val(self.signaling_list[midx.row()], self.property_namepaths[midx.column()].path))
         return Qt.QVariant()
+
+    def _set_rec_prop_val(self, pv, pp, v):
+        if pv is not None:
+            if len(pp) == 1:
+                setattr(pv, pp[0], v)
+                return True
+            return self._set_rec_prop_val(getattr(pv, pp[0]), pp[1:], v)
+        return False
 
     def setData(self, midx, value, role=Qt.Qt.EditRole):
         if midx.isValid() and role == Qt.Qt.EditRole:
-            setattr(self.signaling_list[midx.row()], self.property_names[midx.column()], value)
-            return True
+            return self._set_rec_prop_val(self.signaling_list[midx.row()], self.property_names[midx.column()].path, value)
         return False
 
     def headerData(self, section, orientation, role=Qt.Qt.DisplayRole):
@@ -135,18 +214,18 @@ class RecursivePropertyTableModel(Qt.QAbstractTableModel):
             else:
                 self._instance_counts[element] = instance_count
 
+    def _on_leaf_property_changed(self, ):
+
     def _on_property_changed(self, element, property_name):
         column = self.property_columns[property_name]
         signaling_list = self.signaling_list
         next_idx = 0
         instance_count = self._instance_counts[element]
         assert instance_count > 0
-        rows = []
         for _ in range(instance_count):
             row = signaling_list.index(element, next_idx)
-            rows.append(row)
             next_idx = row + 1
-        self.dataChanged.emit(self.createIndex(min(rows), column), self.createIndex(max(rows), column))
+            self.dataChanged.emit(self.createIndex(row, column), self.createIndex(row, column))
 
     def _on_inserting(self, idx, elements):
         self.beginInsertRows(Qt.QModelIndex(), idx, idx+len(elements)-1)
