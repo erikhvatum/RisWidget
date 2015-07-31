@@ -426,6 +426,17 @@ class LayerStackItem(ShaderItem):
                 prog.setUniformValue('rescale_range_'+tidxstr, min_max[1] - min_max[0])
                 prog.setUniformValue('gamma_'+tidxstr, layer.gamma)
                 prog.setUniformValue('tint_'+tidxstr, Qt.QVector4D(*layer.tint))
+            if not GL.glIsEnabled(GL.GL_BLEND):
+                GL.glEnable(GL.GL_BLEND)
+                estack.callback(lambda: GL.glDisable(GL.GL_BLEND))
+            bfs = GL.glGetIntegerv(GL.GL_BLEND_SRC), GL.glGetIntegerv(GL.GL_BLEND_DST)
+            if bfs != (GL.GL_SRC_ALPHA, GL.GL_DST_ALPHA):
+                GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_DST_ALPHA)
+                estack.callback(lambda: GL.glBlendFunc(*bfs))
+            be = GL.glGetIntegerv(GL.GL_BLEND_EQUATION)
+            if be != GL.GL_FUNC_ADD:
+                GL.glBlendEquation(GL.GL_FUNC_ADD)
+                estack.callback(lambda: GL.glBlendEquation(be))
             GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
             GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
 
