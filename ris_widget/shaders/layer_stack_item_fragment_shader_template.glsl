@@ -25,7 +25,7 @@
 // 
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-uniform float image_stack_item_opacity;
+uniform float layer_stack_item_opacity;
 uniform float viewport_height;
 uniform mat3 frag_to_tex;
 $uniforms
@@ -50,5 +50,5 @@ void main()
     float isa, ida, osa, oda, sada;
 
 $main
-    gl_FragColor = vec4(dca / da, da * image_stack_item_opacity);
+    gl_FragColor = vec4(dca / da, da * layer_stack_item_opacity);
 }
