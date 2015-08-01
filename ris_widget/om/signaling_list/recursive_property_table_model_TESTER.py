@@ -80,8 +80,8 @@ class TestWidget(Qt.QWidget):
 
     def _test_0(self):
         self.signaling_list.append(A())
-        self.signaling_list[-1].a = A()
-        self.signaling_list[-1].a.a = 'stuff'
+#       self.signaling_list[-1].a = A()
+#       self.signaling_list[-1].a.a = 'stuff'
 
     def _test_1(self):
         self.signaling_list.append(A())

@@ -53,6 +53,19 @@ class ShaderItemMixin:
         self.progs[desc] = prog
         return prog
 
+    def set_blend(self, GL, estack):
+        if not GL.glIsEnabled(GL.GL_BLEND):
+            GL.glEnable(GL.GL_BLEND)
+            estack.callback(lambda: GL.glDisable(GL.GL_BLEND))
+        bfs = GL.glGetIntegerv(GL.GL_BLEND_SRC), GL.glGetIntegerv(GL.GL_BLEND_DST)
+        if bfs != (GL.GL_SRC_ALPHA, GL.GL_DST_ALPHA):
+            GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_DST_ALPHA)
+            estack.callback(lambda: GL.glBlendFunc(*bfs))
+        be = GL.glGetIntegerv(GL.GL_BLEND_EQUATION)
+        if be != GL.GL_FUNC_ADD:
+            GL.glBlendEquation(GL.GL_FUNC_ADD)
+            estack.callback(lambda: GL.glBlendEquation(be))
+
 class ShaderItem(ShaderItemMixin, Qt.QGraphicsObject):
     def __init__(self, parent_item=None):
         Qt.QGraphicsObject.__init__(self, parent_item)

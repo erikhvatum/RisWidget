@@ -389,7 +389,7 @@ class LayerStackItem(ShaderItem):
             vert_coord_loc = prog.attributeLocation('vert_coord')
             prog.enableAttributeArray(vert_coord_loc)
             prog.setAttributeBuffer(vert_coord_loc, GL.GL_FLOAT, 0, 2, 0)
-            prog.setUniformValue('viewport_height', float(widget.size().height()))
+            prog.setUniformValue('viewport_height', GL.glGetFloatv(GL.GL_VIEWPORT)[3])
             prog.setUniformValue('layer_stack_item_opacity', self.opacity())
             # The next few lines of code compute frag_to_tex, representing an affine transform in 2D space from pixel coordinates
             # to normalized (unit square) texture coordinates.  That is, matrix multiplication of frag_to_tex and homogenous
@@ -411,6 +411,11 @@ class LayerStackItem(ShaderItem):
             # with the result that they are stretched to fill the LayerStackItem.
             frag_to_tex = Qt.QTransform()
             frame = Qt.QPolygonF(view.mapFromScene(Qt.QPolygonF(self.sceneTransform().mapToPolygon(self.boundingRect().toRect()))))
+            dpi_ratio = Qt.QApplication.instance().desktop().devicePixelRatio()
+            if dpi_ratio != 1:
+                dpi_transform = Qt.QTransform()
+                dpi_transform.scale(dpi_ratio, dpi_ratio)
+                frame = dpi_transform.map(frame)
             if not qpainter.transform().quadToSquare(frame, frag_to_tex):
                 raise RuntimeError('Failed to compute gl_FragCoord to texture coordinate transformation matrix.')
             prog.setUniformValue('frag_to_tex', frag_to_tex)
@@ -426,17 +431,7 @@ class LayerStackItem(ShaderItem):
                 prog.setUniformValue('rescale_range_'+tidxstr, min_max[1] - min_max[0])
                 prog.setUniformValue('gamma_'+tidxstr, layer.gamma)
                 prog.setUniformValue('tint_'+tidxstr, Qt.QVector4D(*layer.tint))
-            if not GL.glIsEnabled(GL.GL_BLEND):
-                GL.glEnable(GL.GL_BLEND)
-                estack.callback(lambda: GL.glDisable(GL.GL_BLEND))
-            bfs = GL.glGetIntegerv(GL.GL_BLEND_SRC), GL.glGetIntegerv(GL.GL_BLEND_DST)
-            if bfs != (GL.GL_SRC_ALPHA, GL.GL_DST_ALPHA):
-                GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_DST_ALPHA)
-                estack.callback(lambda: GL.glBlendFunc(*bfs))
-            be = GL.glGetIntegerv(GL.GL_BLEND_EQUATION)
-            if be != GL.GL_FUNC_ADD:
-                GL.glBlendEquation(GL.GL_FUNC_ADD)
-                estack.callback(lambda: GL.glBlendEquation(be))
+            self.set_blend(GL, estack)
             GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
             GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
 

@@ -88,9 +88,9 @@ class HistogramItem(ShaderItem):
             image = layer.image
             view = widget.view
             scene = self.scene()
-            with ExitStack() as stack:
+            with ExitStack() as estack:
                 qpainter.beginNativePainting()
-                stack.callback(qpainter.endNativePainting)
+                estack.callback(qpainter.endNativePainting)
                 GL = widget.GL
                 desired_shader_type = 'G'
                 if desired_shader_type in self.progs:
@@ -108,7 +108,7 @@ class HistogramItem(ShaderItem):
                 if tex is None:
                     tex = ShaderTexture(GL.GL_TEXTURE_1D, widget.GL)
                     tex.bind()
-                    stack.callback(tex.release)
+                    estack.callback(tex.release)
                     GL.glTexParameteri(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_WRAP_S, GL.GL_CLAMP_TO_EDGE)
                     GL.glTexParameteri(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_WRAP_T, GL.GL_CLAMP_TO_EDGE)
                     # tex stores histogram bin counts - values that are intended to be addressed by element without
@@ -118,7 +118,7 @@ class HistogramItem(ShaderItem):
                     tex.serial = -1
                 else:
                     tex.bind()
-                    stack.callback(tex.release)
+                    estack.callback(tex.release)
                 histogram = image.histogram
                 max_bin_val = histogram[image.max_histogram_bin]
                 if tex.serial != self._layer_data_serial:
@@ -128,7 +128,7 @@ class HistogramItem(ShaderItem):
                         # QPainter font rendering for OpenGL surfaces will become broken if we do not restore GL_UNPACK_ALIGNMENT
                         # to whatever QPainter had it set to (when it prepared the OpenGL context for our use as a result of
                         # qpainter.beginNativePainting()).
-                        stack.callback(lambda oua=orig_unpack_alignment: GL.glPixelStorei(GL.GL_UNPACK_ALIGNMENT, oua))
+                        estack.callback(lambda oua=orig_unpack_alignment: GL.glPixelStorei(GL.GL_UNPACK_ALIGNMENT, oua))
                     GL.glTexImage1D(GL.GL_TEXTURE_1D, 0,
                                     GL.GL_LUMINANCE32UI_EXT, desired_tex_width, 0,
                                     GL.GL_LUMINANCE_INTEGER_EXT, GL.GL_UNSIGNED_INT,
@@ -137,11 +137,11 @@ class HistogramItem(ShaderItem):
                     tex.width = desired_tex_width
                     self._tex = tex
                 view.quad_buffer.bind()
-                stack.callback(view.quad_buffer.release)
+                estack.callback(view.quad_buffer.release)
                 view.quad_vao.bind()
-                stack.callback(view.quad_vao.release)
+                estack.callback(view.quad_vao.release)
                 prog.bind()
-                stack.callback(prog.release)
+                estack.callback(prog.release)
                 vert_coord_loc = prog.attributeLocation('vert_coord')
                 prog.enableAttributeArray(vert_coord_loc)
                 prog.setAttributeBuffer(vert_coord_loc, GL.GL_FLOAT, 0, 2, 0)
@@ -150,6 +150,8 @@ class HistogramItem(ShaderItem):
                 inv_max_transformed_bin_val = max_bin_val**-self.gamma_gamma
                 prog.setUniformValue('inv_max_transformed_bin_val', inv_max_transformed_bin_val)
                 prog.setUniformValue('gamma_gamma', self.gamma_gamma)
+                prog.setUniformValue('opacity', self.opacity())
+                self.set_blend(GL, estack)
                 GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
                 GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
 
@@ -190,6 +192,7 @@ class MinMaxItem(Qt.QGraphicsObject):
         super().__init__(histogram_item)
         self._bounding_rect = Qt.QRectF(-0.1, 0, .2, 1)
         self.arrow_item = MinMaxArrowItem(self, histogram_item, name)
+        self.setFlag(Qt.QGraphicsItem.ItemIgnoresParentOpacity)
 
     def type(self):
         return MinMaxItem.QGRAPHICSITEM_TYPE
@@ -220,6 +223,7 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
         self._path.addPolygon(polygonf)
         self._path.closeSubpath()
         self._bounding_rect = self._path.boundingRect()
+        self.setFlag(Qt.QGraphicsItem.ItemIgnoresParentOpacity)
         self.setFlag(Qt.QGraphicsItem.ItemIgnoresTransformations)
         self.setFlag(Qt.QGraphicsItem.ItemIsMovable)
         # GUI behavior is much more predictable with min/max arrow item selectability disabled:
@@ -297,6 +301,7 @@ class GammaItem(Qt.QGraphicsObject):
         self.max_item = max_item
         self.max_item.xChanged.connect(self._on_min_or_max_x_changed)
         self._path = Qt.QPainterPath()
+        self.setFlag(Qt.QGraphicsItem.ItemIgnoresParentOpacity)
         self.setFlag(Qt.QGraphicsItem.ItemIsMovable)
         self.setZValue(-1)
         # This is a convenient way to ensure that only primary mouse button clicks cause

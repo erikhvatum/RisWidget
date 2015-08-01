@@ -25,7 +25,7 @@
 from PyQt5 import Qt
 
 class PropertyDescrTreeNode:
-    __slots__ = ('model', 'parent', 'name', 'full_name', 'children')
+    __slots__ = ('model', 'parent', 'name', 'full_name', 'children', '__weakref__')
     def __init__(self, model, parent, name):
         self.model = model
         self.parent = parent
@@ -54,10 +54,21 @@ class PropertyDescrTreeNode:
         return len(self.children) == 0
 
 class PropertyInstTreeBaseNode:
-    __slots__ = ('parent', 'children', 'desc_tree_node')
+    __slots__ = ('parent', 'children', 'desc_tree_node', '__weakref__')
     def __init__(self, parent, desc_tree_node):
         self.parent = parent
         self.desc_tree_node = desc_tree_node
+        # The .children of the root PropertyInstTreeBaseNode instance maps signaling list element -> PropertyInstTreeElementNode instance,
+        # and that PropertyInstTreeElementNode's .value is element.
+        #
+        # The .children of a PropertyInstTreeElementNode instance maps signaling list element attribute name -> PropertyInstTreeLeafPropNode
+        # instance if the attribute is top-level (contains no dots) and PropertyInstTreeIntermediatePropNode otherwise.
+        # 
+        # The .children of a PropertyInstTreeIntermediatePropNode maps .value attribute name (ie getattr(self.value, list(child.keys())[0])
+        # would give child's .value if child is also a PropertyInstTreeIntermediatePropNode or the desired property value if child is an
+        # PropertyInstTreeLeafPropNode).
+        #
+        # PropertyInstTreeLeafPropNode does not make use of its .children attribute.
         self.children = {}
 
     def __str__(self):
@@ -70,6 +81,18 @@ class PropertyInstTreeBaseNode:
             o += ', '.join(str(child) for child in self.children.values())
             o += ')'
         return o
+
+    def get_rec_value(self, pp):
+        pv = self.value
+#       try:
+#           return (True, getattr)
+        assert isinstance(pv, (PropertyInstTreeIntermediatePropNode, PropertyInstTreeLeafPropNode))
+        return pv.get_rec_value(pp)
+
+    def set_rec_value(self, pp, v):
+        pv = self.value
+        assert isinstance(pv, (PropertyInstTreeIntermediatePropNode, PropertyInstTreeLeafPropNode))
+        return pv.set_rec_value(pp, v)
 
 class PropertyInstTreeElementNode(PropertyInstTreeBaseNode):
     __slots__ = ('value', 'instance_count')
@@ -123,7 +146,10 @@ class PropertyInstTreeIntermediatePropNode(PropertyInstTreeBaseNode):
         name = dtn.name
         assert name not in self.parent.children
         self.parent.children[name] = self
-        value = self.value = getattr(self.parent.value, name)
+        try:
+            value = self.value = getattr(self.parent.value, name)
+        except AttributeError:
+            return
         if value is not None:
             for cdtn in dtn.children.values():
                 if cdtn.name not in self.children:
@@ -153,6 +179,13 @@ class PropertyInstTreeIntermediatePropNode(PropertyInstTreeBaseNode):
     @property
     def inst_tree_element_node(self):
         return self.parent.inst_tree_element_node
+
+    def get_rec_value(self, pp):
+        pv = self.value
+        if pv is None:
+            return (False,)
+        assert isinstance(pv, (PropertyInstTreeIntermediatePropNode, PropertyInstTreeLeafPropNode))
+        return pv.get_rec_value(pp)
 
 class PropertyInstTreeLeafPropNode(PropertyInstTreeBaseNode):
     __slots__ = tuple()

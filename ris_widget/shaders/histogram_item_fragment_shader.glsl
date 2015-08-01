@@ -29,6 +29,7 @@ uniform usampler1D tex;
 uniform vec2 inv_view_size;
 uniform float inv_max_transformed_bin_val;
 uniform float gamma_gamma;
+uniform float opacity;
 
 void main()
 {
@@ -36,5 +37,5 @@ void main()
     float bin_height = pow(bin_value, gamma_gamma) * inv_max_transformed_bin_val;
     float intensity = 1.0f - clamp(floor((gl_FragCoord.y * inv_view_size.y) / bin_height), 0, 1);
 
-    gl_FragColor = vec4(intensity, intensity, intensity, intensity);
+    gl_FragColor = vec4(intensity, intensity, intensity, intensity * opacity);
 }
