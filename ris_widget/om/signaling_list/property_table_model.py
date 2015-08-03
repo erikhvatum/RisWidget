@@ -64,7 +64,16 @@ class PropertyTableModel(Qt.QAbstractTableModel):
                 return Qt.QVariant(self.property_names[section])
         return Qt.QVariant()
 
+    def moveRows(self, source_parent, source_row, count, destination_parent, destination_child):
+        print('moveRows', source_parent, source_row, count, destination_parent, destination_child)
+        return False
+
+    def insertRows(self, row, count, parent=Qt.QModelIndex()):
+        print('insertRows', row, count)
+        return False
+
     def removeRows(self, row, count, parent=Qt.QModelIndex()):
+        print('removeRows', row, count, parent)
         try:
             del self.signaling_list[row:row+count]
             return True

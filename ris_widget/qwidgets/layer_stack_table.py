@@ -37,14 +37,14 @@ class LayerStackTableView(Qt.QTableView):
         self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
 #       self.horizontalHeader().setStretchLastSection(True)
         self.checkbox_delegate = CheckboxDelegate(self)
-        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['visible'], self.checkbox_delegate)
-        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['auto_min_max_enabled'], self.checkbox_delegate)
+#       self.setItemDelegateForColumn(layer_stack_table_model.property_columns['visible'], self.checkbox_delegate)
+#       self.setItemDelegateForColumn(layer_stack_table_model.property_columns['auto_min_max_enabled'], self.checkbox_delegate)
         self.blend_function_delegate = DropdownListDelegate(self)
-        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['blend_function'], self.blend_function_delegate)
+#       self.setItemDelegateForColumn(layer_stack_table_model.property_columns['blend_function'], self.blend_function_delegate)
         self.tint_delegate = ColorDelegate(self)
-        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['tint'], self.tint_delegate)
+#       self.setItemDelegateForColumn(layer_stack_table_model.property_columns['tint'], self.tint_delegate)
         self.opacity_delegate = SliderDelegate(0.0, 1.0, self)
-        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['opacity'], self.opacity_delegate)
+#       self.setItemDelegateForColumn(layer_stack_table_model.property_columns['opacity'], self.opacity_delegate)
         self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
         self.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
         self.setModel(layer_stack_table_model)
@@ -55,6 +55,12 @@ class LayerStackTableView(Qt.QTableView):
         self.delete_current_row_action.setShortcut(Qt.Qt.Key_Delete)
         self.delete_current_row_action.setShortcutContext(Qt.Qt.WidgetShortcut)
         self.addAction(self.delete_current_row_action)
+#       self.verticalHeader().setSectionsMovable(True)
+        self.setDragDropOverwriteMode(False)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDragDropMode(Qt.QAbstractItemView.InternalMove)
+        self.setDropIndicatorShown(True)
 
     def _on_delete_current_row_action_triggered(self):
         sm = self.selectionModel()
@@ -64,6 +70,9 @@ class LayerStackTableView(Qt.QTableView):
         midx = sm.currentIndex()
         if midx.isValid():
             m.removeRow(midx.row())
+
+    def dropEvent(self, event):
+        super().dropEvent(event)
 
 class InvertingProxyModel(Qt.QSortFilterProxyModel):
     # Making a full proxy model that reverses/inverts indexes from Qt.QAbstractProxyModel or Qt.QIdentityProxyModel turns
@@ -151,6 +160,17 @@ class LayerStackTableModel(om.signaling_list.PropertyTableModel):
             'auto_min_max_enabled' : self._setd_auto_min_max_enabled,
             'blend_function' : self._setd_blend_function}
 
+    def supportedDropActions(self):
+        return Qt.Qt.MoveAction | Qt.Qt.TargetMoveAction
+
+    def supportedDragActions(self):
+        return Qt.Qt.MoveAction | Qt.Qt.TargetMoveAction
+
+    def canDropMimeData(self, mime_data, drop_action, row, column, parent):
+        r = super().canDropMimeData(mime_data, drop_action, row, column, parent)
+        print('canDropMimeData', mime_data, drop_action, row, column, parent, ':', r)
+        return r
+
     # flags #
 
     def _getf_default(self, midx):
@@ -163,7 +183,7 @@ class LayerStackTableModel(om.signaling_list.PropertyTableModel):
         return Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren | Qt.Qt.ItemIsEditable
 
     def flags(self, midx):
-        return self._special_flag_getters.get(self.property_names[midx.column()], self._getf_default)(midx)
+        return self._special_flag_getters.get(self.property_names[midx.column()], self._getf_default)(midx) | Qt.Qt.ItemIsDragEnabled
 
     # data #
 
