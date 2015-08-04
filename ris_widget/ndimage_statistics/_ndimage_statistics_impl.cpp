@@ -23,7 +23,6 @@
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 #include "_ndimage_statistics_impl.h"
-#include <cstddef>
 #include <string.h>
 
 void reorder_to_inner_outer(const Py_ssize_t* u_shape, const Py_ssize_t* u_strides,
@@ -67,6 +66,20 @@ void reorder_to_inner_outer(const Py_ssize_t* u_shape,       const Py_ssize_t* u
 #endif
 
 #include <algorithm>
+
+#ifdef _WIN32
+template<>
+const std::size_t bin_count<npy_uint8>()
+{
+    return 256;
+}
+
+template<>
+const std::size_t bin_count<npy_uint16>()
+{
+    return 1024;
+}
+#endif
 
 template<>
 const npy_uint16 apply_bin_shift<npy_uint16, true>(const npy_uint16& v)

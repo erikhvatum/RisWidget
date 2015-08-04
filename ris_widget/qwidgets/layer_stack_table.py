@@ -167,6 +167,8 @@ class LayerStackTableModel(om.signaling_list.PropertyTableModel):
         return Qt.Qt.MoveAction | Qt.Qt.TargetMoveAction
 
     def canDropMimeData(self, mime_data, drop_action, row, column, parent):
+        if column != -1:
+            return False
         r = super().canDropMimeData(mime_data, drop_action, row, column, parent)
         print('canDropMimeData', mime_data, drop_action, row, column, parent, ':', r)
         return r
@@ -183,7 +185,9 @@ class LayerStackTableModel(om.signaling_list.PropertyTableModel):
         return Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren | Qt.Qt.ItemIsEditable
 
     def flags(self, midx):
-        return self._special_flag_getters.get(self.property_names[midx.column()], self._getf_default)(midx) | Qt.Qt.ItemIsDragEnabled
+        f = self._special_flag_getters.get(self.property_names[midx.column()], self._getf_default)(midx)
+        f |= Qt.Qt.ItemIsDragEnabled if midx.isValid() else Qt.Qt.ItemIsDropEnabled
+        return f
 
     # data #
 

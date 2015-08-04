@@ -28,6 +28,7 @@
 
 #define _USE_MATH_DEFINES
 #include <cmath>
+#include <cstddef>
 
 // Copies u_shape to o_shape and u_strides to o_strides, reversing the elements of each if u_strides[0] < u_strides[1] 
 void reorder_to_inner_outer(const Py_ssize_t* u_shape, const Py_ssize_t* u_strides,
@@ -44,6 +45,26 @@ void reorder_to_inner_outer(const Py_ssize_t* u_shape,       const Py_ssize_t* u
                             const Py_ssize_t* u_slave_shape, const Py_ssize_t* u_slave_strides,
                                   Py_ssize_t* o_slave_shape,       Py_ssize_t* o_slave_strides);
 
+#ifdef _WIN32
+// Inside of the Microsoft ghetto, we must do without constexpr, the sun never shines, the year is forever 1998,
+// and the only sure thing in life is that Microsoft will take your money.
+template<typename C>
+const std::size_t bin_count();
+
+template<>
+const std::size_t bin_count<npy_uint8>();
+
+template<>
+const std::size_t bin_count<npy_uint16>();
+
+template<typename C, bool is_twelve_bit>
+const std::ptrdiff_t bin_shift()
+{
+    return (is_twelve_bit ? 12 : sizeof(C)*8) - static_cast<std::ptrdiff_t>( std::log2(static_cast<double>(bin_count<C>())) );
+}
+#else
+// Outside of the Microsoft ghetto, humanity has transcended all limitations and explores the stars at warp speed,
+// sharing the gifts of justice and knowledge without expectation of reward.
 template<typename C>
 constexpr std::size_t bin_count();
 
@@ -64,12 +85,14 @@ constexpr const std::ptrdiff_t bin_shift()
 {
     return (is_twelve_bit ? 12 : sizeof(C)*8) - static_cast<std::ptrdiff_t>( std::log2(static_cast<double>(bin_count<C>())) );
 }
+#endif
 
 template<typename C, bool is_twelve_bit>
 const C apply_bin_shift(const C& v)
 {
     return v >> bin_shift<C, is_twelve_bit>();
 }
+
 
 template<>
 const npy_uint16 apply_bin_shift<npy_uint16, true>(const npy_uint16& v);

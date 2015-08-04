@@ -206,7 +206,7 @@ class LayerStackItem(ShaderItem):
             layer_stack = self.layer_stack
             nbi = layer_stack[0].image
             nbi_nN = nbi is not None
-            if len(layer_stack) == 1:
+            if len(layer_stack) == len(layers):
                 if nbi_nN:
                     br_change = True
             else:
