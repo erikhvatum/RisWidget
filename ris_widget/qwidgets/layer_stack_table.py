@@ -23,6 +23,7 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from PyQt5 import Qt
+from .rowwise_table_view import RowwiseTableView
 from ..qdelegates.dropdown_list_delegate import DropdownListDelegate
 from ..qdelegates.slider_delegate import SliderDelegate
 from ..qdelegates.color_delegate import ColorDelegate
@@ -31,7 +32,7 @@ from ..shared_resources import CHOICES_QITEMDATA_ROLE
 from .. import om
 
 #TODO: make list items drop targets so that layer contents can be replaced by dropping file on associated item
-class LayerStackTableView(Qt.QTableView):
+class LayerStackTableView(RowwiseTableView):
     def __init__(self, layer_stack_table_model, parent=None):
         super().__init__(parent)
         self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
@@ -161,16 +162,21 @@ class LayerStackTableModel(om.signaling_list.PropertyTableModel):
             'blend_function' : self._setd_blend_function}
 
     def supportedDropActions(self):
-        return Qt.Qt.MoveAction | Qt.Qt.TargetMoveAction
+        return Qt.Qt.MoveAction# | Qt.Qt.TargetMoveAction
 
     def supportedDragActions(self):
-        return Qt.Qt.MoveAction | Qt.Qt.TargetMoveAction
+        return Qt.Qt.MoveAction# | Qt.Qt.TargetMoveAction
 
     def canDropMimeData(self, mime_data, drop_action, row, column, parent):
         if column != -1:
             return False
         r = super().canDropMimeData(mime_data, drop_action, row, column, parent)
         print('canDropMimeData', mime_data, drop_action, row, column, parent, ':', r)
+        return r
+
+    def dropMimeData(self, mime_data, drop_action, row, column, parent):
+        r = super().dropMimeData(mime_data, drop_action, row, column, parent)
+        print('dropMimeData', mime_data, drop_action, row, column, parent, ':', r)
         return r
 
     # flags #
@@ -186,6 +192,11 @@ class LayerStackTableModel(om.signaling_list.PropertyTableModel):
 
     def flags(self, midx):
         f = self._special_flag_getters.get(self.property_names[midx.column()], self._getf_default)(midx)
+        # QAbstractItemView calls its model's flags method to determine if an item at a specific model index ("midx") can be
+        # dragged about or dropped upon.  If midx is valid, flags(..) is being called for an existing row, and we respond that
+        # it is draggable.  If midx is not valid, flags(..) is being called for an imaginary row between two existing rows or
+        # at the top or bottom of the table, all of which are valid spots for a row to be inserted, so we respond that the
+        # imaginary row in question is OK to drop upon.
         f |= Qt.Qt.ItemIsDragEnabled if midx.isValid() else Qt.Qt.ItemIsDropEnabled
         return f
 

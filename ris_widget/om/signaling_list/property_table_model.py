@@ -64,12 +64,17 @@ class PropertyTableModel(Qt.QAbstractTableModel):
                 return Qt.QVariant(self.property_names[section])
         return Qt.QVariant()
 
+    def moveRow(self, sourceParent, sourceRow, destinationParent, destinationChild):
+        print('moveRow', sourceParent, sourceRow, destinationParent, destinationChild)
+        return False
+
     def moveRows(self, source_parent, source_row, count, destination_parent, destination_child):
         print('moveRows', source_parent, source_row, count, destination_parent, destination_child)
         return False
 
     def insertRows(self, row, count, parent=Qt.QModelIndex()):
         print('insertRows', row, count)
+        self.signaling_list[row:row] = ()
         return False
 
     def removeRows(self, row, count, parent=Qt.QModelIndex()):
