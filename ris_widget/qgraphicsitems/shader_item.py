@@ -44,7 +44,7 @@ class ShaderItemMixin:
             with (source_dpath / frag_fn).open('r') as f:
                 frag_template = Template(f.read())
             s=frag_template.substitute(frag_template_mapping)
-            print(s)
+#           print(s)
             if not prog.addShaderFromSourceCode(Qt.QOpenGLShader.Fragment, s):
                 raise RuntimeError('Failed to compile fragment shader "{}" for {} {} shader program.'.format(frag_fn, type(self).__name__, desc))
 

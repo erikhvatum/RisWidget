@@ -23,7 +23,6 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from PyQt5 import Qt
-from .rowwise_table_view import RowwiseTableView
 from ..qdelegates.dropdown_list_delegate import DropdownListDelegate
 from ..qdelegates.slider_delegate import SliderDelegate
 from ..qdelegates.color_delegate import ColorDelegate
@@ -32,20 +31,20 @@ from ..shared_resources import CHOICES_QITEMDATA_ROLE
 from .. import om
 
 #TODO: make list items drop targets so that layer contents can be replaced by dropping file on associated item
-class LayerStackTableView(RowwiseTableView):
+class LayerStackTableView(Qt.QTableView):
     def __init__(self, layer_stack_table_model, parent=None):
         super().__init__(parent)
         self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
 #       self.horizontalHeader().setStretchLastSection(True)
         self.checkbox_delegate = CheckboxDelegate(self)
-#       self.setItemDelegateForColumn(layer_stack_table_model.property_columns['visible'], self.checkbox_delegate)
-#       self.setItemDelegateForColumn(layer_stack_table_model.property_columns['auto_min_max_enabled'], self.checkbox_delegate)
+        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['visible'], self.checkbox_delegate)
+        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['auto_min_max_enabled'], self.checkbox_delegate)
         self.blend_function_delegate = DropdownListDelegate(self)
-#       self.setItemDelegateForColumn(layer_stack_table_model.property_columns['blend_function'], self.blend_function_delegate)
+        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['blend_function'], self.blend_function_delegate)
         self.tint_delegate = ColorDelegate(self)
-#       self.setItemDelegateForColumn(layer_stack_table_model.property_columns['tint'], self.tint_delegate)
+        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['tint'], self.tint_delegate)
         self.opacity_delegate = SliderDelegate(0.0, 1.0, self)
-#       self.setItemDelegateForColumn(layer_stack_table_model.property_columns['opacity'], self.opacity_delegate)
+        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['opacity'], self.opacity_delegate)
         self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
         self.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
         self.setModel(layer_stack_table_model)
@@ -160,24 +159,6 @@ class LayerStackTableModel(om.signaling_list.PropertyTableModel):
             'visible' : self._setd_visible,
             'auto_min_max_enabled' : self._setd_auto_min_max_enabled,
             'blend_function' : self._setd_blend_function}
-
-    def supportedDropActions(self):
-        return Qt.Qt.MoveAction# | Qt.Qt.TargetMoveAction
-
-    def supportedDragActions(self):
-        return Qt.Qt.MoveAction# | Qt.Qt.TargetMoveAction
-
-    def canDropMimeData(self, mime_data, drop_action, row, column, parent):
-        if column != -1:
-            return False
-        r = super().canDropMimeData(mime_data, drop_action, row, column, parent)
-        print('canDropMimeData', mime_data, drop_action, row, column, parent, ':', r)
-        return r
-
-    def dropMimeData(self, mime_data, drop_action, row, column, parent):
-        r = super().dropMimeData(mime_data, drop_action, row, column, parent)
-        print('dropMimeData', mime_data, drop_action, row, column, parent, ':', r)
-        return r
 
     # flags #
 
