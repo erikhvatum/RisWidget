@@ -78,26 +78,28 @@ class PropertyTableModel(Qt.QAbstractTableModel):
             return False
 
     def supportedDropActions(self):
-        return Qt.Qt.MoveAction | Qt.Qt.TargetMoveAction
+        return Qt.Qt.LinkAction | Qt.Qt.CopyAction | Qt.Qt.MoveAction | Qt.Qt.TargetMoveAction
 
     def supportedDragActions(self):
-        return Qt.Qt.MoveAction | Qt.Qt.TargetMoveAction
+        return Qt.Qt.LinkAction | Qt.Qt.CopyAction | Qt.Qt.MoveAction | Qt.Qt.TargetMoveAction
 
     def canDropMimeData(self, mime_data, drop_action, row, column, parent):
         return super().canDropMimeData(mime_data, drop_action, row, column, parent)
-#       r = super().canDropMimeData(mime_data, drop_action, row, column, parent)
-#       print('canDropMimeData', mime_data, drop_action, row, column, parent, ':', r)
-#       return r
+        r = super().canDropMimeData(mime_data, drop_action, row, column, parent)
+        print('canDropMimeData', mime_data, drop_action, row, column, parent, ':', r)
+        return r
 
     def dropMimeData(self, mime_data, drop_action, row, column, parent):
         print('dropMimeData', row, mime_data.data(ROW_DRAG_MIME_TYPE))
         row_drag = self._decode_row_drag_mime(mime_data)
         if row_drag is None:
             return False
-#       print(row_drag)
+        if row == -1:
+            # Qt supplies a value of -1 for row to indicate the drop occurred on the widget background somewhere and not
+            # on or adjacent to a row.  We append such a drop to the end of our .signaling_list.
+            row = len(self.signaling_list)
         self.signaling_list[row:row] = row_drag[1:]
-#       print('dropMimeData', mime_data, mime_data.data('application/x-qabstractitemmodeldatalist'), drop_action, row, column, parent, self.sender())
-#       print(ROW_DRAG_MIME_TYPE, mime_data.data(ROW_DRAG_MIME_TYPE))
+        print('dropMimeData', drop_action, row, column, parent, row_drag)
         return True
 
     def _decode_row_drag_mime(self, mime_data):

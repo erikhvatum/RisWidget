@@ -374,14 +374,6 @@ class Layer(Qt.QObject):
         pre_set_callback = _blend_function_pre_set,
         doc = SHAD_PROP_HELP + '\n\nSupported blend_functions:\n\n    ' + '\n    '.join("'" + s + "'" for s in sorted(BLEND_FUNCTIONS.keys())))
 
-    def _histogram_mask_take_arg(self, v):
-        pass
-
-    histogram_mask = om.Property(
-        properties, 'histogram_mask',
-        default_value_callback = lambda layer: None,
-        take_arg_callback = _histogram_mask_take_arg)
-
     for property in properties:
         exec(property.changed_signal_name + ' = Qt.pyqtSignal(object)')
     del property

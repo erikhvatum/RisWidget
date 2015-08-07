@@ -80,7 +80,7 @@ def NV_PATH_RENDERING_AVAILABLE():
                 glw.setFormat(glf)
                 glw.show()
                 estack.callback(glw.hide)
-                if glw.context().hasExtension('GL_NV_path_rendering'):
+                if glw.context().hasExtension('GL_NV_path_rendering'.encode('utf-8')):
                     print('Detected GL_NV_path_rendering support...')
                     try:
                         import OpenGL

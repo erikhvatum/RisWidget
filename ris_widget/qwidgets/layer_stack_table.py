@@ -56,11 +56,12 @@ class LayerStackTableView(Qt.QTableView):
         self.delete_current_row_action.setShortcutContext(Qt.Qt.WidgetShortcut)
         self.addAction(self.delete_current_row_action)
 #       self.verticalHeader().setSectionsMovable(True)
-        self.setDragDropOverwriteMode(False)
+#       self.setDragDropOverwriteMode(False)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
-        self.setDragDropMode(Qt.QAbstractItemView.InternalMove)
+        self.setDragDropMode(Qt.QAbstractItemView.DragDrop)
         self.setDropIndicatorShown(True)
+        self.setDefaultDropAction(Qt.Qt.LinkAction)
 
     def _on_delete_current_row_action_triggered(self):
         sm = self.selectionModel()
