@@ -57,7 +57,7 @@ class PropertyDescrTreeNode:
         def mrec(n):
             r = 'n{};\n'.format(id(n))
             r+= 'n{}'.format(id(n)) + ' [label="{}"];\n'.format(n.name)
-            for c in n.children.values():
+            for c in sorted(n.children.values(), key=lambda cdtn: cdtn.name):
                 r+= mrec(c)
                 r+= 'n{}'.format(id(n)) + ' -> ' + 'n{};\n'.format(id(c))
             return r
@@ -105,11 +105,18 @@ class PropertyInstTreeBaseNode:
         def mrec(n):
             r = 'n{};\n'.format(id(n))
             r+= 'n{}'.format(id(n)) + ' [label="{}"];\n'.format('{} : {}'.format(n.name, n.value) if isinstance(n, PropertyInstTreeLeafPropNode) else n.name)
-            for c in n.children.values():
+            for c in sorted(n.children.values(), key=lambda citn: citn.desc_tree_node.name):
                 r+= mrec(c)
                 r+= 'n{}'.format(id(n)) + ' -> ' + 'n{};\n'.format(id(c))
             return r
         return 'digraph "DescrTree" {\n' + mrec(self) + '}'
+
+    def rec_get(self, pp):
+        try:
+            c = self.children[pp[0]]
+        except KeyError:
+            return
+        return c.rec_get(pp[1:])
 
 class PropertyInstTreeElementNode(PropertyInstTreeBaseNode):
     __slots__ = ('value', 'instance_count')
@@ -255,16 +262,9 @@ class PropertyInstTreeLeafPropNode(PropertyInstTreeBaseNode):
     def value(self):
         return getattr(self.parent.value, self.name)
 
-#   def _ascending_get_rec_value(self, pp, itn):
-#       if isinstance(itn, PropertyInstTreeElementNode):
-#           return self._get_rec_prop_val(itn.value, pp)
-#       return self._ascending_get_rec_value(pp + [itn.name], itn.parent)
-#
-#   def _get_rec_prop_val(self, pv, pp):
-#       if pv is not None:
-#           if len(pp) == 1:
-#               return getattr(pv, pp[0])
-#           return self._get_rec_prop_val(getattr(pv, pp[0]), pp[1:])
+    def rec_get(self, pp):
+        assert len(pp) == 0
+        return self.value
 
 class RecursivePropertyTableModel(Qt.QAbstractTableModel):
     def __init__(self, property_names, signaling_list=None, parent=None):
@@ -307,17 +307,12 @@ class RecursivePropertyTableModel(Qt.QAbstractTableModel):
     def columnCount(self, _=None):
         return len(self.property_names)
 
-    def _get_rec_prop_val(self, pv, pp):
-        if pv is not None:
-            if len(pp) == 1:
-                return getattr(pv, pp[0])
-            return self._get_rec_prop_val(getattr(pv, pp[0]), pp[1:])
-
     def data(self, midx, role=Qt.Qt.DisplayRole):
         if midx.isValid() and role in (Qt.Qt.DisplayRole, Qt.Qt.EditRole):
-            # NB: Qt.QVariant(None) is equivalent to Qt.QVariant(), so the case where self._get_rect_prop_val(..) returns None does
-            # not require special handling
-            return Qt.QVariant(self._get_rec_prop_val(self.signaling_list[midx.row()], self._property_paths[midx.column()]))
+            # NB: Qt.QVariant(None) is equivalent to Qt.QVariant(), so the case where eitn.rec_get returns None does not require
+            # special handling
+            eitn = self._property_inst_tree_root.children[self.signaling_list[midx.row()]]
+            return Qt.QVariant(eitn.rec_get(self._property_paths[midx.column()]))
         return Qt.QVariant()
 
     def _set_rec_prop_val(self, pv, pp, v):
