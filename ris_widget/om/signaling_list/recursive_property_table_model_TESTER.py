@@ -47,6 +47,11 @@ class A(Qt.QObject):
         exec(property.changed_signal_name + ' = Qt.pyqtSignal(object)')
     del property
 
+class TestModel(RecursivePropertyTableModel):
+    def flags(self, midx):
+        f = Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren | Qt.Qt.ItemIsEditable
+        f |= Qt.Qt.ItemIsDragEnabled if midx.isValid() else Qt.Qt.ItemIsDropEnabled
+        return f
 
 class TestWidget(Qt.QWidget):
     def __init__(self):
@@ -66,14 +71,47 @@ class TestWidget(Qt.QWidget):
                 hl.addWidget(btn)
             else:
                 break
+        hl = Qt.QHBoxLayout()
+        self.desc_graph_button = Qt.QPushButton('desc tree')
+        self.desc_graph_button.clicked.connect(self._on_desc_graph_button_clicked)
+        hl.addWidget(self.desc_graph_button)
+        self.inst_graph_button = Qt.QPushButton('inst tree')
+        self.inst_graph_button.clicked.connect(self._on_inst_graph_button_clicked)
+        hl.addWidget(self.inst_graph_button)
+        vl.addLayout(hl)
         self.signaling_list = SignalingList()
-        self.model = RecursivePropertyTableModel(
+        self.model = TestModel(
             (
-                'a','a.a','a.a.a','a.b','a.b.c.d.e'
-                'b','b.a','b.a.a','b.b','b.b.b','b.c.d.e',
-                'c','c.a','c.a.a','c.b','c.c.c','c.c.d.e',
-                'd','d.a','d.a.a','d.b','d.d.d','d.c.d.e',
-                'e','e.a','e.a.a','e.b','e.e.e','e.c.d.e'
+                #'a','a.a','a.a.a','a.b','a.b.c.d.e'
+                #'b','b.a','b.a.a','b.b','b.b.b','b.c.d.e',
+                #'c','c.a','c.a.a','c.b','c.c.c','c.c.d.e',
+                #'d','d.a','d.a.a','d.b','d.d.d','d.c.d.e',
+                #'e','e.a','e.a.a','e.b','e.e.e','e.c.d.e'
+                'a.a',
+                'a.b',
+                'a.c',
+                'a.d',
+                'a.e',
+                'b.a',
+                'b.b',
+                'b.c',
+                'b.d',
+                'b.e',
+                'c.a',
+                'c.b',
+                'c.c',
+                'c.d',
+                'c.e',
+                'd.a',
+                'd.b',
+                'd.c',
+                'd.d',
+                'd.e',
+                'e.a',
+                'e.b',
+                'e.c',
+                'e.d',
+                'e.e'
             ),
             self.signaling_list)
         self.table.setModel(self.model)
@@ -97,12 +135,24 @@ class TestWidget(Qt.QWidget):
         self.signaling_list[-1].c = A()
         self.signaling_list[-1].d = A()
         self.signaling_list[-1].e = A()
-        self.signaling_list[-1].a.a = A()
-        self.signaling_list[-1].a.a.a = A()
-        self.signaling_list[-1].a.b = A()
-        self.signaling_list[-1].a.b.c = A()
-        self.signaling_list[-1].a.b.c.d = A()
-        self.signaling_list[-1].a.b.c.d.e = A()
+#       self.signaling_list[-1].a.a = A()
+#       self.signaling_list[-1].a.a.a = A()
+#       self.signaling_list[-1].a.b = A()
+#       self.signaling_list[-1].a.b.c = A()
+#       self.signaling_list[-1].a.b.c.d = A()
+#       self.signaling_list[-1].a.b.c.d.e = A()
+
+    def _on_desc_graph_button_clicked(self):
+        self._show_dot_graph(self.model._property_descr_tree_root.dot_graph)
+
+    def _on_inst_graph_button_clicked(self):
+        self._show_dot_graph(self.model._property_inst_tree_root.dot_graph)
+
+    def _show_dot_graph(self, dot):
+        import io
+        import matplotlib.pyplot as plt
+        import pygraphviz
+        plt.imshow(plt.imread(io.BytesIO(pygraphviz.AGraph(string=dot, directed=True).draw(format='png', prog='dot'))))
 
 if __name__ == '__main__':
     import sys

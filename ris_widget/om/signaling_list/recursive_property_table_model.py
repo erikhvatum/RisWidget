@@ -53,6 +53,17 @@ class PropertyDescrTreeNode:
     def is_leaf(self):
         return len(self.children) == 0
 
+    @property
+    def dot_graph(self):
+        def mrec(n):
+            r = 'n{};\n'.format(id(n))
+            r+= 'n{}'.format(id(n)) + ' [label="{}"];\n'.format(n.name)
+            for c in n.children.values():
+                r+= mrec(c)
+                r+= 'n{}'.format(id(n)) + ' -> ' + 'n{};\n'.format(id(c))
+            return r
+        return 'digraph "DescrTree" {\n' + mrec(self) + '}'
+
 class PropertyInstTreeBaseNode:
     __slots__ = ('parent', 'children', 'desc_tree_node', '__weakref__')
     def __init__(self, parent, desc_tree_node):
@@ -72,7 +83,7 @@ class PropertyInstTreeBaseNode:
         self.children = {}
 
     def __str__(self):
-        name = '*ROOT*' if self.desc_tree_node is None else self.desc_tree_node.name
+        name = self.name
         if len(self.children) == 0:
             o = '<{}>'.format(name)
         else:
@@ -82,17 +93,35 @@ class PropertyInstTreeBaseNode:
             o += ')'
         return o
 
-    def get_rec_value(self, pp):
-        pv = self.value
-#       try:
-#           return (True, getattr)
-        assert isinstance(pv, (PropertyInstTreeIntermediatePropNode, PropertyInstTreeLeafPropNode))
-        return pv.get_rec_value(pp)
+#    def get_rec_value(self, pp):
+#        pv = self.value
+##       try:
+##           return (True, getattr)
+#        assert isinstance(pv, (PropertyInstTreeIntermediatePropNode, PropertyInstTreeLeafPropNode))
+#        return pv.get_rec_value(pp)
+#
+#    def set_rec_value(self, pp, v):
+#        pv = self.value
+#        assert isinstance(pv, (PropertyInstTreeIntermediatePropNode, PropertyInstTreeLeafPropNode))
+#        return pv.set_rec_value(pp, v)
 
-    def set_rec_value(self, pp, v):
-        pv = self.value
-        assert isinstance(pv, (PropertyInstTreeIntermediatePropNode, PropertyInstTreeLeafPropNode))
-        return pv.set_rec_value(pp, v)
+    @property
+    def name(self):
+        return self.get_name()
+
+    def get_name(self):
+        return '*INST ROOT*'
+
+    @property
+    def dot_graph(self):
+        def mrec(n):
+            r = 'n{};\n'.format(id(n))
+            r+= 'n{}'.format(id(n)) + ' [label="{}"];\n'.format('{} : {}'.format(n.name, n.value) if isinstance(n, PropertyInstTreeLeafPropNode) else n.name)
+            for c in n.children.values():
+                r+= mrec(c)
+                r+= 'n{}'.format(id(n)) + ' -> ' + 'n{};\n'.format(id(c))
+            return r
+        return 'digraph "DescrTree" {\n' + mrec(self) + '}'
 
 class PropertyInstTreeElementNode(PropertyInstTreeBaseNode):
     __slots__ = ('value', 'instance_count')
@@ -105,8 +134,8 @@ class PropertyInstTreeElementNode(PropertyInstTreeBaseNode):
         assert self.instance_count >= 0
         self.instance_count += 1
         if self.instance_count == 1:
-            name = self.desc_tree_node.name
-            assert name not in self.parent.children
+            name = self.name
+            assert name == '*ROOT*' or name not in self.parent.children
             self.parent.children[name] = self
             for cname, cdtn in self.desc_tree_node.children.items():
                 assert cname == cdtn.name
@@ -130,6 +159,9 @@ class PropertyInstTreeElementNode(PropertyInstTreeBaseNode):
     def inst_tree_element_node(self):
         return self
 
+    def get_name(self):
+        return self.value
+
 class PropertyInstTreeIntermediatePropNode(PropertyInstTreeBaseNode):
     __slots__ = ('value')
     def __init__(self, parent, descr_tree_node):
@@ -143,7 +175,7 @@ class PropertyInstTreeIntermediatePropNode(PropertyInstTreeBaseNode):
 
     def attach(self):
         dtn = self.desc_tree_node
-        name = dtn.name
+        name = self.name
         assert name not in self.parent.children
         self.parent.children[name] = self
         try:
@@ -166,8 +198,8 @@ class PropertyInstTreeIntermediatePropNode(PropertyInstTreeBaseNode):
 
     def detach(self):
         name = self.desc_tree_node.name
-        for citn in self.children.values():
-            citn.detach()
+        for child_node in list(self.children.values()):
+            child_node.detach()
         assert len(self.children) == 0
         del self.parent.children[name]
         try:
@@ -180,17 +212,16 @@ class PropertyInstTreeIntermediatePropNode(PropertyInstTreeBaseNode):
     def inst_tree_element_node(self):
         return self.parent.inst_tree_element_node
 
-    def get_rec_value(self, pp):
-        pv = self.value
-        if pv is None:
-            return (False,)
-        assert isinstance(pv, (PropertyInstTreeIntermediatePropNode, PropertyInstTreeLeafPropNode))
-        return pv.get_rec_value(pp)
+    def get_name(self):
+        return self.desc_tree_node.name
 
 class PropertyInstTreeLeafPropNode(PropertyInstTreeBaseNode):
     __slots__ = tuple()
+    def __str__(self):
+        return '<{} : {}>'.format(self.name, self.value)
+
     def attach(self):
-        name = self.desc_tree_node.name
+        name = self.name
         assert name not in self.parent.children
         self.parent.children[name] = self
         try:
@@ -201,7 +232,7 @@ class PropertyInstTreeLeafPropNode(PropertyInstTreeBaseNode):
         self.on_changed(self.parent.value)
 
     def detach(self):
-        name = self.desc_tree_node.name
+        name = self.name
         del self.parent.children[name]
         try:
             changed_signal = getattr(self.parent.value, name + '_changed')
@@ -229,6 +260,24 @@ class PropertyInstTreeLeafPropNode(PropertyInstTreeBaseNode):
     def inst_tree_element_node(self):
         return self.parent.inst_tree_element_node
 
+    def get_name(self):
+        return self.desc_tree_node.name
+
+    @property
+    def value(self):
+        return self._ascending_get_rec_value([], self)
+
+    def _ascending_get_rec_value(self, pp, itn):
+        if isinstance(itn, PropertyInstTreeElementNode):
+            return self._get_rec_prop_val(itn.value, pp)
+        return self._ascending_get_rec_value(pp + [itn.name], itn.parent)
+
+    def _get_rec_prop_val(self, pv, pp):
+        if pv is not None:
+            if len(pp) == 1:
+                return getattr(pv, pp[0])
+            return self._get_rec_prop_val(getattr(pv, pp[0]), pp[1:])
+
 class RecursivePropertyTableModel(Qt.QAbstractTableModel):
     def __init__(self, property_names, signaling_list=None, parent=None):
         super().__init__(parent)
@@ -244,7 +293,7 @@ class RecursivePropertyTableModel(Qt.QAbstractTableModel):
         # nodes up to the point of divergence.  EG, if the property_names argument is ('foo.bar.biff.baz', 'foo.bar.biff.zap'),
         # there will be one PropertyDescrTreeNode for each of foo, foo.bar, and foo.bar.biff.  foo.bar.biff's node will have 
         # two children: foo.bar.biff.baz and foo.bar.biff.zap.
-        self._property_descr_tree_root = PropertyDescrTreeNode(self, None, '*ROOT*')
+        self._property_descr_tree_root = PropertyDescrTreeNode(self, None, '*DESCR ROOT*')
         for pn in property_names:
             self._rec_init_descr_tree(self._property_descr_tree_root, pn.split('.'))
         self._property_inst_tree_root = PropertyInstTreeBaseNode(None, None)
