@@ -49,13 +49,17 @@ class A(Qt.QObject):
 
 class TestModel(RecursivePropertyTableModel):
     def flags(self, midx):
-        f = Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren | Qt.Qt.ItemIsEditable
-        f |= Qt.Qt.ItemIsDragEnabled if midx.isValid() else Qt.Qt.ItemIsDropEnabled
+        f = super().flags(midx)
+        if f & Qt.Qt.ItemIsEnabled:
+            f |= Qt.Qt.ItemIsEditable
         return f
 
 class TestWidget(Qt.QWidget):
-    def __init__(self):
+    def __init__(self, window_title=None):
         super().__init__()
+        if window_title is None:
+            window_title = __file__
+        self.setWindowTitle(window_title)
         self.gvs = set()
         vl = Qt.QVBoxLayout()
         self.setLayout(vl)
@@ -83,13 +87,9 @@ class TestWidget(Qt.QWidget):
         self.signaling_list = SignalingList()
         self.model = TestModel(
             (
-                #'a','a.a','a.a.a','a.b','a.b.c.d.e'
-                #'b','b.a','b.a.a','b.b','b.b.b','b.c.d.e',
-                #'c','c.a','c.a.a','c.b','c.c.c','c.c.d.e',
-                #'d','d.a','d.a.a','d.b','d.d.d','d.c.d.e',
-                #'e','e.a','e.a.a','e.b','e.e.e','e.c.d.e'
+                'a',
                 'a.a',
-                'a.b',
+                'a.b','a.b.c','a.b.c.d','a.b.c.d.e',
                 'a.c',
                 'a.d',
                 'a.e',

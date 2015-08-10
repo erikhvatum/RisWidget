@@ -164,13 +164,13 @@ class LayerStackTableModel(om.signaling_list.PropertyTableModel):
     # flags #
 
     def _getf_default(self, midx):
-        return Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
+        return super().flags(midx)
 
     def _getf__always_checkable(self, midx):
-        return Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren | Qt.Qt.ItemIsUserCheckable
+        return self._getf_default() | Qt.Qt.ItemIsUserCheckable
 
     def _getf__always_editable(self, midx):
-        return Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren | Qt.Qt.ItemIsEditable
+        return self._getf_default() | Qt.Qt.ItemIsEditable
 
     def flags(self, midx):
         f = self._special_flag_getters.get(self.property_names[midx.column()], self._getf_default)(midx)

@@ -25,7 +25,7 @@
 from PyQt5 import Qt
 
 class PropertyDescrTreeNode:
-    __slots__ = ('model', 'parent', 'name', 'full_name', 'children', '__weakref__')
+    __slots__ = ('model', 'parent', 'name', 'full_name', 'children', 'is_seen', '__weakref__')
     def __init__(self, model, parent, name):
         self.model = model
         self.parent = parent
@@ -37,6 +37,7 @@ class PropertyDescrTreeNode:
             else:
                 return getfullpath(node.parent) + [node.name]
         self.full_name = '.'.join(getfullpath(self))
+        self.is_seen = False
 
     def __str__(self):
         if self.is_leaf:
@@ -61,14 +62,14 @@ class PropertyDescrTreeNode:
                 r+= mrec(c)
                 r+= 'n{}'.format(id(n)) + ' -> ' + 'n{};\n'.format(id(c))
             return r
-        return 'digraph "DescrTree" {\n' + mrec(self) + '}'
+        return 'digraph "DescTree" {\nrankdir="LR";\n' + mrec(self) + '}'
 
 class PropertyInstTreeBaseNode:
     __slots__ = ('parent', 'children', 'desc_tree_node', '__weakref__')
     def __init__(self, parent, desc_tree_node):
         self.parent = parent
         self.desc_tree_node = desc_tree_node
-        # PropertyInstTreeBaseNode_inst.children is a dict mapping signaling list element -> PropertyInstTreeElementNode instance (whose
+        # PropertyInstTreeRootNode_inst.children is a dict mapping signaling list element -> PropertyInstTreeElementNode instance (whose
         # .value is element).  In other words, for RecursivePropertyTableModel instance r,
         # set(r.signaling_list) == set(r._property_inst_tree_root.children)
         #
@@ -76,8 +77,8 @@ class PropertyInstTreeBaseNode:
         # child.desc_tree_node.is_leaf is True and PropertyInstTreeIntermediatePropNode instance otherwise.
         # 
         # PropertyInstTreeIntermediatePropNode_inst.children maps .value attribute name such that getattr(self.value, list(child.keys())[0])
-        # would give child's .value if child is also a PropertyInstTreeIntermediatePropNode or the desired property value if child is an
-        # PropertyInstTreeLeafPropNode.
+        # would give child's .value if child is also a PropertyInstTreeIntermediatePropNode (itself either an Intermediate or Leaf) or the
+        # end property value if child is an PropertyInstTreeLeafPropNode.
         #
         # A PropertyInstTreeLeafPropNode instance does not make use of its .children attribute.
         self.children = {}
@@ -93,30 +94,58 @@ class PropertyInstTreeBaseNode:
             o += ')'
         return o
 
+    def path_exists(self, pp):
+        try:
+            citn = self.children[pp[0]]
+        except KeyError:
+            return False
+        return citn.path_exists(pp[1:])
+
     @property
     def name(self):
         return self.get_name()
-
-    def get_name(self):
-        return '*INST ROOT*'
 
     @property
     def dot_graph(self):
         def mrec(n):
             r = 'n{};\n'.format(id(n))
-            r+= 'n{}'.format(id(n)) + ' [label="{}"];\n'.format('{} : {}'.format(n.name, n.value) if isinstance(n, PropertyInstTreeLeafPropNode) else n.name)
-            for c in sorted(n.children.values(), key=lambda citn: citn.desc_tree_node.name):
+            r+= 'n{}'.format(id(n)) + ' [label="{}"];\n'.format(n.get_dot_graph_node_label())
+            for c in sorted(n.children.values(), key=lambda citn: citn.get_dot_graph_node_label()):
                 r+= mrec(c)
                 r+= 'n{}'.format(id(n)) + ' -> ' + 'n{};\n'.format(id(c))
             return r
-        return 'digraph "DescrTree" {\n' + mrec(self) + '}'
+        return 'digraph "InstTree" {\nrankdir="LR";\n' + mrec(self) + '}'
+
+    @property
+    def dot_graph_node_label(self):
+        return self.get_dot_graph_node_label()
+
+    def get_dot_graph_node_label(self):
+        return self.name
 
     def rec_get(self, pp):
         try:
-            c = self.children[pp[0]]
+            citn = self.children[pp[0]]
         except KeyError:
             return
-        return c.rec_get(pp[1:])
+        return citn.rec_get(pp[1:])
+
+    def rec_set(self, pp, v):
+        try:
+            citn = self.children[pp[0]]
+        except KeyError:
+            return False
+        return citn.rec_set(pp[1:], v)
+
+class PropertyInstTreeRootNode(PropertyInstTreeBaseNode):
+    def __init__(self):
+        super().__init__(None, None)
+
+    def get_name(self):
+        return '*INST ROOT*'
+
+    def get_dot_graph_node_label(self):
+        return 'signaling_list[..]'
 
 class PropertyInstTreeElementNode(PropertyInstTreeBaseNode):
     __slots__ = ('value', 'instance_count')
@@ -135,11 +164,12 @@ class PropertyInstTreeElementNode(PropertyInstTreeBaseNode):
             for cname, cdtn in self.desc_tree_node.children.items():
                 assert cname == cdtn.name
                 assert cname not in self.children
-                if cdtn.is_leaf:
-                    citn = PropertyInstTreeLeafPropNode(self, cdtn)
-                else:
-                    citn = PropertyInstTreeIntermediatePropNode(self, cdtn)
-                citn.attach()
+                if hasattr(self.value, cname):
+                    if cdtn.is_leaf:
+                        citn = PropertyInstTreeLeafPropNode(self, cdtn)
+                    else:
+                        citn = PropertyInstTreeIntermediatePropNode(self, cdtn)
+                    citn.attach()
 
     def detach(self):
         assert self.instance_count > 0
@@ -157,7 +187,39 @@ class PropertyInstTreeElementNode(PropertyInstTreeBaseNode):
     def get_name(self):
         return self.value
 
-class PropertyInstTreeIntermediatePropNode(PropertyInstTreeBaseNode):
+    def get_dot_graph_node_label(self):
+        instance_count = self.instance_count
+        assert instance_count > 0
+        model = self.desc_tree_node.model
+        signaling_list = model.signaling_list
+        element = self.value
+        next_idx = 0
+        idxs = []
+        for _ in range(instance_count):
+            row = signaling_list.index(element, next_idx)
+            next_idx = row + 1
+            idxs.append(str(row))
+        return ', '.join(idxs)
+
+# "Named" in PropertyInstTreeNamedNode indicates an instance represents a
+# RecursivePropertyTableModel.signaling_list[n].named.property.component.
+class PropertyInstTreeNamedNode(PropertyInstTreeBaseNode):
+    def on_seen_value_changed(self):
+        dtn = self.desc_tree_node
+        model = dtn.model
+        column = model._property_columns[dtn.full_name]
+        iten = self.inst_tree_element_node
+        element = iten.value
+        signaling_list = model.signaling_list
+        next_idx = 0
+        instance_count = iten.instance_count
+        assert instance_count > 0
+        for _ in range(instance_count):
+            row = signaling_list.index(element, next_idx)
+            next_idx = row + 1
+            model.dataChanged.emit(model.createIndex(row, column), model.createIndex(row, column))
+
+class PropertyInstTreeIntermediatePropNode(PropertyInstTreeNamedNode):
     __slots__ = ('value')
     def __init__(self, parent, descr_tree_node):
         super().__init__(parent, descr_tree_node)
@@ -179,7 +241,8 @@ class PropertyInstTreeIntermediatePropNode(PropertyInstTreeBaseNode):
             return
         if value is not None:
             for cdtn in dtn.children.values():
-                if cdtn.name not in self.children:
+                cname = cdtn.name
+                if hasattr(value, cname) and cname not in self.children:
                     if cdtn.is_leaf:
                         citn = PropertyInstTreeLeafPropNode(self, cdtn)
                     else:
@@ -190,18 +253,30 @@ class PropertyInstTreeIntermediatePropNode(PropertyInstTreeBaseNode):
             changed_signal.connect(self.on_changed)
         except AttributeError:
             pass
+        if dtn.is_seen:
+            self.on_seen_value_changed()
 
     def detach(self):
-        name = self.desc_tree_node.name
-        for child_node in list(self.children.values()):
-            child_node.detach()
+        name = self.name
+        for citn in list(self.children.values()):
+            citn.detach()
         assert len(self.children) == 0
-        del self.parent.children[name]
+        try:
+            del self.parent.children[name]
+        except KeyError:
+            return
         try:
             changed_signal = getattr(self.parent.value, name + '_changed')
             changed_signal.disconnect(self.on_changed)
         except AttributeError:
             pass
+        if self.desc_tree_node.is_seen:
+            self.on_seen_value_changed()
+
+    def path_exists(self, pp):
+        if len(pp) == 0:
+            return True
+        return super().path_exists(pp)
 
     @property
     def inst_tree_element_node(self):
@@ -210,10 +285,25 @@ class PropertyInstTreeIntermediatePropNode(PropertyInstTreeBaseNode):
     def get_name(self):
         return self.desc_tree_node.name
 
-class PropertyInstTreeLeafPropNode(PropertyInstTreeBaseNode):
+    def rec_get(self, pp):
+        if len(pp) == 0:
+            return self.value
+        return super().rec_get(pp)
+
+    def rec_set(self, pp, v):
+        if len(pp) == 0:
+            setattr(self.parent.value, self.name, v)
+            return True
+        return super().rec_set(pp, v)
+
+class PropertyInstTreeLeafPropNode(PropertyInstTreeNamedNode):
     __slots__ = tuple()
     def __str__(self):
         return '<{} : {}>'.format(self.name, self.value)
+
+    def on_changed(self, obj):
+        assert self.parent.value is obj
+        self.on_seen_value_changed()
 
     def attach(self):
         name = self.name
@@ -224,7 +314,7 @@ class PropertyInstTreeLeafPropNode(PropertyInstTreeBaseNode):
             changed_signal.connect(self.on_changed)
         except AttributeError:
             pass
-        self.on_changed(self.parent.value)
+        self.on_seen_value_changed()
 
     def detach(self):
         name = self.name
@@ -234,22 +324,11 @@ class PropertyInstTreeLeafPropNode(PropertyInstTreeBaseNode):
             changed_signal.disconnect(self.on_changed)
         except AttributeError:
             pass
+        self.on_seen_value_changed()
 
-    def on_changed(self, obj):
-        assert self.parent.value is obj
-        dtn = self.desc_tree_node
-        model = dtn.model
-        column = model._property_columns[dtn.full_name]
-        iten = self.inst_tree_element_node
-        element = iten.value
-        signaling_list = model.signaling_list
-        next_idx = 0
-        instance_count = iten.instance_count
-        assert instance_count > 0
-        for _ in range(instance_count):
-            row = signaling_list.index(element, next_idx)
-            next_idx = row + 1
-            model.dataChanged.emit(model.createIndex(row, column), model.createIndex(row, column))
+    def path_exists(self, pp):
+        assert len(pp) == 0
+        return True
 
     @property
     def inst_tree_element_node(self):
@@ -258,6 +337,9 @@ class PropertyInstTreeLeafPropNode(PropertyInstTreeBaseNode):
     def get_name(self):
         return self.desc_tree_node.name
 
+    def get_dot_graph_node_label(self):
+        return self.name + '\\n{}'.format(self.value)
+
     @property
     def value(self):
         return getattr(self.parent.value, self.name)
@@ -265,6 +347,11 @@ class PropertyInstTreeLeafPropNode(PropertyInstTreeBaseNode):
     def rec_get(self, pp):
         assert len(pp) == 0
         return self.value
+
+    def rec_set(self, pp, v):
+        assert len(pp) == 0
+        setattr(self.parent.value, self.name, v)
+        return True
 
 class RecursivePropertyTableModel(Qt.QAbstractTableModel):
     def __init__(self, property_names, signaling_list=None, parent=None):
@@ -284,7 +371,7 @@ class RecursivePropertyTableModel(Qt.QAbstractTableModel):
         self._property_descr_tree_root = PropertyDescrTreeNode(self, None, '*DESCR ROOT*')
         for pn in property_names:
             self._rec_init_descr_tree(self._property_descr_tree_root, pn.split('.'))
-        self._property_inst_tree_root = PropertyInstTreeBaseNode(None, None)
+        self._property_inst_tree_root = PropertyInstTreeRootNode()
         self.signaling_list = signaling_list
 
     def _rec_init_descr_tree(self, parent, path):
@@ -299,6 +386,8 @@ class RecursivePropertyTableModel(Qt.QAbstractTableModel):
         # skip the next line if we have already arrived at the leaf.
         if len(path) > 1:
             self._rec_init_descr_tree(node, path[1:])
+        else:
+            node.is_seen = True
 
     def rowCount(self, _=None):
         sl = self.signaling_list
@@ -306,6 +395,16 @@ class RecursivePropertyTableModel(Qt.QAbstractTableModel):
 
     def columnCount(self, _=None):
         return len(self.property_names)
+
+    def flags(self, midx):
+        f = Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
+        if midx.isValid():
+            f |= Qt.Qt.ItemIsDragEnabled
+            if self._property_inst_tree_root.children[self.signaling_list[midx.row()]].path_exists(self._property_paths[midx.column()]):
+                f |= Qt.Qt.ItemIsEnabled
+        else:
+            f |= Qt.Qt.ItemIsDropEnabled
+        return f
 
     def data(self, midx, role=Qt.Qt.DisplayRole):
         if midx.isValid() and role in (Qt.Qt.DisplayRole, Qt.Qt.EditRole):
@@ -315,17 +414,10 @@ class RecursivePropertyTableModel(Qt.QAbstractTableModel):
             return Qt.QVariant(eitn.rec_get(self._property_paths[midx.column()]))
         return Qt.QVariant()
 
-    def _set_rec_prop_val(self, pv, pp, v):
-        if pv is not None:
-            if len(pp) == 1:
-                setattr(pv, pp[0], v)
-                return True
-            return self._set_rec_prop_val(getattr(pv, pp[0]), pp[1:], v)
-        return False
-
     def setData(self, midx, value, role=Qt.Qt.EditRole):
         if midx.isValid() and role == Qt.Qt.EditRole:
-            return self._set_rec_prop_val(self.signaling_list[midx.row()], self._property_paths[midx.column()], value)
+            eitn = self._property_inst_tree_root.children[self.signaling_list[midx.row()]]
+            return eitn.rec_set(self._property_paths[midx.column()], value)
         return False
 
     def headerData(self, section, orientation, role=Qt.Qt.DisplayRole):
