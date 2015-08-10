@@ -207,7 +207,7 @@ class PropertyInstTreeNamedNode(PropertyInstTreeBaseNode):
     def on_seen_value_changed(self):
         dtn = self.desc_tree_node
         model = dtn.model
-        column = model._property_columns[dtn.full_name]
+        column = model.property_columns[dtn.full_name]
         iten = self.inst_tree_element_node
         element = iten.value
         signaling_list = model.signaling_list
@@ -362,8 +362,8 @@ class RecursivePropertyTableModel(Qt.QAbstractTableModel):
            any(not isinstance(pn, str) or len(pn) == 0 for pn in property_names) or \
            len(set(property_names)) != len(property_names):
             raise ValueError('property_names must be a non-empty iterable of unique, non-empty strings.')
-        self._property_paths = [pn.split('.') for pn in property_names]
-        self._property_columns = {pn : idx for idx, pn in enumerate(property_names)}
+        self.property_paths = [pn.split('.') for pn in property_names]
+        self.property_columns = {pn : idx for idx, pn in enumerate(property_names)}
         # Having a null property description tree root node allows property paths with common intermediate components to share
         # nodes up to the point of divergence.  EG, if the property_names argument is ('foo.bar.biff.baz', 'foo.bar.biff.zap'),
         # there will be one PropertyDescrTreeNode for each of foo, foo.bar, and foo.bar.biff.  foo.bar.biff's node will have 
@@ -400,7 +400,7 @@ class RecursivePropertyTableModel(Qt.QAbstractTableModel):
         f = Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
         if midx.isValid():
             f |= Qt.Qt.ItemIsDragEnabled
-            if self._property_inst_tree_root.children[self.signaling_list[midx.row()]].path_exists(self._property_paths[midx.column()]):
+            if self._property_inst_tree_root.children[self.signaling_list[midx.row()]].path_exists(self.property_paths[midx.column()]):
                 f |= Qt.Qt.ItemIsEnabled
         else:
             f |= Qt.Qt.ItemIsDropEnabled
@@ -411,13 +411,13 @@ class RecursivePropertyTableModel(Qt.QAbstractTableModel):
             # NB: Qt.QVariant(None) is equivalent to Qt.QVariant(), so the case where eitn.rec_get returns None does not require
             # special handling
             eitn = self._property_inst_tree_root.children[self.signaling_list[midx.row()]]
-            return Qt.QVariant(eitn.rec_get(self._property_paths[midx.column()]))
+            return Qt.QVariant(eitn.rec_get(self.property_paths[midx.column()]))
         return Qt.QVariant()
 
     def setData(self, midx, value, role=Qt.Qt.EditRole):
         if midx.isValid() and role == Qt.Qt.EditRole:
             eitn = self._property_inst_tree_root.children[self.signaling_list[midx.row()]]
-            return eitn.rec_set(self._property_paths[midx.column()], value)
+            return eitn.rec_set(self.property_paths[midx.column()], value)
         return False
 
     def headerData(self, section, orientation, role=Qt.Qt.DisplayRole):

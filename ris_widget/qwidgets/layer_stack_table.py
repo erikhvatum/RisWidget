@@ -87,7 +87,7 @@ class InvertingProxyModel(Qt.QSortFilterProxyModel):
         # We want the table upside-down and therefore will be sorting by index (aka row #)
         return lhs.row() < rhs.row()
 
-class LayerStackTableModel(om.signaling_list.PropertyTableModel):
+class LayerStackTableModel(om.signaling_list.RecursivePropertyTableModel):
     # ImageStackTableModel accesses PROPERTIES strictly via self.PROPERTIES and never via ImageStackTableModel.PROPERTIES,
     # meaning that subclasses may safely add or remove columns by overridding PROPERTIES.  For example, adding a column for
     # a sublcassed Images having an "image_quality" property:
@@ -114,7 +114,7 @@ class LayerStackTableModel(om.signaling_list.PropertyTableModel):
         'opacity',
         'getcolor_expression',
         'name',
-#       'image.name'
+        'image.name'
 #       'transform_section',
         )
 
@@ -153,6 +153,7 @@ class LayerStackTableModel(om.signaling_list.PropertyTableModel):
             'auto_min_max_enabled' : self._getf__always_checkable,
             'tint' : self._getf__always_editable,
             'name' : self._getf__always_editable,
+            'image.name' : self._getf__always_editable,
             'getcolor_expression' : self._getf__always_editable,
 #           'transform_section' : self._getf__always_editable,
             'blend_function' : self._getf__always_editable}
@@ -167,10 +168,10 @@ class LayerStackTableModel(om.signaling_list.PropertyTableModel):
         return super().flags(midx)
 
     def _getf__always_checkable(self, midx):
-        return self._getf_default() | Qt.Qt.ItemIsUserCheckable
+        return self._getf_default(midx) | Qt.Qt.ItemIsUserCheckable
 
     def _getf__always_editable(self, midx):
-        return self._getf_default() | Qt.Qt.ItemIsEditable
+        return self._getf_default(midx) | Qt.Qt.ItemIsEditable
 
     def flags(self, midx):
         f = self._special_flag_getters.get(self.property_names[midx.column()], self._getf_default)(midx)
