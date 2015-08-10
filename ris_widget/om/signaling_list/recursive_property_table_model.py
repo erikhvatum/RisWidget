@@ -33,7 +33,6 @@ class PropertyDescrTreeNode:
         self.children = {}
         def getfullpath(node):
             if node.parent is None:
-                # We have reached the root node.  Stop recursion and do not include the root node's name.
                 return []
             else:
                 return getfullpath(node.parent) + [node.name]
@@ -69,17 +68,18 @@ class PropertyInstTreeBaseNode:
     def __init__(self, parent, desc_tree_node):
         self.parent = parent
         self.desc_tree_node = desc_tree_node
-        # The .children of the root PropertyInstTreeBaseNode instance maps signaling list element -> PropertyInstTreeElementNode instance,
-        # and that PropertyInstTreeElementNode's .value is element.
+        # PropertyInstTreeBaseNode_inst.children is a dict mapping signaling list element -> PropertyInstTreeElementNode instance (whose
+        # .value is element).  In other words, for RecursivePropertyTableModel instance r,
+        # set(r.signaling_list) == set(r._property_inst_tree_root.children)
         #
-        # The .children of a PropertyInstTreeElementNode instance maps signaling list element attribute name -> PropertyInstTreeLeafPropNode
-        # instance if the attribute is top-level (contains no dots) and PropertyInstTreeIntermediatePropNode otherwise.
+        # PropertyInstTreeElementNode_inst.children maps signaling list element attribute name -> PropertyInstTreeLeafPropNode instance where
+        # child.desc_tree_node.is_leaf is True and PropertyInstTreeIntermediatePropNode instance otherwise.
         # 
-        # The .children of a PropertyInstTreeIntermediatePropNode maps .value attribute name (ie getattr(self.value, list(child.keys())[0])
+        # PropertyInstTreeIntermediatePropNode_inst.children maps .value attribute name such that getattr(self.value, list(child.keys())[0])
         # would give child's .value if child is also a PropertyInstTreeIntermediatePropNode or the desired property value if child is an
-        # PropertyInstTreeLeafPropNode).
+        # PropertyInstTreeLeafPropNode.
         #
-        # PropertyInstTreeLeafPropNode does not make use of its .children attribute.
+        # A PropertyInstTreeLeafPropNode instance does not make use of its .children attribute.
         self.children = {}
 
     def __str__(self):
@@ -92,18 +92,6 @@ class PropertyInstTreeBaseNode:
             o += ', '.join(str(child) for child in self.children.values())
             o += ')'
         return o
-
-#    def get_rec_value(self, pp):
-#        pv = self.value
-##       try:
-##           return (True, getattr)
-#        assert isinstance(pv, (PropertyInstTreeIntermediatePropNode, PropertyInstTreeLeafPropNode))
-#        return pv.get_rec_value(pp)
-#
-#    def set_rec_value(self, pp, v):
-#        pv = self.value
-#        assert isinstance(pv, (PropertyInstTreeIntermediatePropNode, PropertyInstTreeLeafPropNode))
-#        return pv.set_rec_value(pp, v)
 
     @property
     def name(self):
@@ -265,18 +253,18 @@ class PropertyInstTreeLeafPropNode(PropertyInstTreeBaseNode):
 
     @property
     def value(self):
-        return self._ascending_get_rec_value([], self)
+        return getattr(self.parent.value, self.name)
 
-    def _ascending_get_rec_value(self, pp, itn):
-        if isinstance(itn, PropertyInstTreeElementNode):
-            return self._get_rec_prop_val(itn.value, pp)
-        return self._ascending_get_rec_value(pp + [itn.name], itn.parent)
-
-    def _get_rec_prop_val(self, pv, pp):
-        if pv is not None:
-            if len(pp) == 1:
-                return getattr(pv, pp[0])
-            return self._get_rec_prop_val(getattr(pv, pp[0]), pp[1:])
+#   def _ascending_get_rec_value(self, pp, itn):
+#       if isinstance(itn, PropertyInstTreeElementNode):
+#           return self._get_rec_prop_val(itn.value, pp)
+#       return self._ascending_get_rec_value(pp + [itn.name], itn.parent)
+#
+#   def _get_rec_prop_val(self, pv, pp):
+#       if pv is not None:
+#           if len(pp) == 1:
+#               return getattr(pv, pp[0])
+#           return self._get_rec_prop_val(getattr(pv, pp[0]), pp[1:])
 
 class RecursivePropertyTableModel(Qt.QAbstractTableModel):
     def __init__(self, property_names, signaling_list=None, parent=None):

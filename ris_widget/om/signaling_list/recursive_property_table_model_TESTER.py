@@ -56,6 +56,7 @@ class TestModel(RecursivePropertyTableModel):
 class TestWidget(Qt.QWidget):
     def __init__(self):
         super().__init__()
+        self.gvs = set()
         vl = Qt.QVBoxLayout()
         self.setLayout(vl)
         self.table = Qt.QTableView()
@@ -143,16 +144,53 @@ class TestWidget(Qt.QWidget):
 #       self.signaling_list[-1].a.b.c.d.e = A()
 
     def _on_desc_graph_button_clicked(self):
-        self._show_dot_graph(self.model._property_descr_tree_root.dot_graph)
+        self._show_dot_graph(self.model._property_descr_tree_root.dot_graph, '.model._property_descr_tree_root.dot_graph')
 
     def _on_inst_graph_button_clicked(self):
-        self._show_dot_graph(self.model._property_inst_tree_root.dot_graph)
+        self._show_dot_graph(self.model._property_inst_tree_root.dot_graph, '._property_inst_tree_root.dot_graph')
 
-    def _show_dot_graph(self, dot):
+    def _show_dot_graph(self, dot, name):
         import io
-        import matplotlib.pyplot as plt
         import pygraphviz
-        plt.imshow(plt.imread(io.BytesIO(pygraphviz.AGraph(string=dot, directed=True).draw(format='png', prog='dot'))))
+        gs = Qt.QGraphicsScene(self)
+        gv = GV(gs)
+        self.gvs.add(gv)
+        gv.closing_signal.connect(lambda: self.gvs.remove(gv))
+        im = Qt.QImage.fromData(
+            pygraphviz.AGraph(string=dot, directed=True).draw(format='png', prog='dot'),
+            'png')
+        gs.addPixmap(Qt.QPixmap.fromImage(im))
+        gv.setDragMode(Qt.QGraphicsView.ScrollHandDrag)
+        gv.setBackgroundBrush(Qt.QBrush(Qt.Qt.black))
+        gv.setWindowTitle(name)
+        gv.show()
+
+class GV(Qt.QGraphicsView):
+    closing_signal = Qt.pyqtSignal()
+
+    def closeEvent(self, event):
+        self.closing_signal.emit()
+        super().closeEvent(event)
+
+    def wheelEvent(self, event):
+        zoom = self.transform().m22()
+        original_zoom = zoom
+        increments = event.angleDelta().y() / 120
+        if increments > 0:
+            zoom *= 1.25**increments
+        elif increments < 0:
+            zoom *= 0.8**(-increments)
+        else:
+            return
+        if zoom < 0.167772:
+            zoom = 0.167772
+        elif zoom > 18.1899:
+            zoom = 18.1899
+        elif abs(abs(zoom)-1) < 0.1:
+            zoom = 1
+        scale_zoom = zoom / original_zoom
+        self.setTransformationAnchor(Qt.QGraphicsView.AnchorUnderMouse)
+        self.scale(scale_zoom, scale_zoom)
 
 if __name__ == '__main__':
     import sys
