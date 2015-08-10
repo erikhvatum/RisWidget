@@ -119,8 +119,8 @@ class TestWidget(Qt.QWidget):
 
     def _test_0(self):
         self.signaling_list.append(A())
-#       self.signaling_list[-1].a = A()
-#       self.signaling_list[-1].a.a = 'stuff'
+        self.signaling_list[-1].a = A()
+        self.signaling_list[-1].a.a = 'stuff'
 
     def _test_1(self):
         self.signaling_list.append(A())
@@ -136,12 +136,11 @@ class TestWidget(Qt.QWidget):
         self.signaling_list[-1].c = A()
         self.signaling_list[-1].d = A()
         self.signaling_list[-1].e = A()
-#       self.signaling_list[-1].a.a = A()
-#       self.signaling_list[-1].a.a.a = A()
-#       self.signaling_list[-1].a.b = A()
-#       self.signaling_list[-1].a.b.c = A()
-#       self.signaling_list[-1].a.b.c.d = A()
-#       self.signaling_list[-1].a.b.c.d.e = A()
+        self.signaling_list[-1].a.a = 21
+        self.signaling_list[-1].a.b = A()
+        self.signaling_list[-1].a.b.c = A()
+        self.signaling_list[-1].a.b.c.d = A()
+        self.signaling_list[-1].a.b.c.d.e = 42
 
     def _on_desc_graph_button_clicked(self):
         self._show_dot_graph(self.model._property_descr_tree_root.dot_graph, '.model._property_descr_tree_root.dot_graph')
