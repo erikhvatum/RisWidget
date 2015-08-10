@@ -29,6 +29,7 @@ class SliderDelegate(Qt.QStyledItemDelegate):
         super().__init__(parent)
         self.min_value = min_value
         self.max_value = max_value
+        self._drag_grabber = None
 
     def sizeHint(self, option, midx):
         return Qt.QSize(100,10)
@@ -49,14 +50,51 @@ class SliderDelegate(Qt.QStyledItemDelegate):
         style.drawControl(Qt.QStyle.CE_ProgressBar, pbo, qpainter)
 
     def editorEvent(self, event, model, option, midx):
-        if not midx.isValid() or event.type() not in (Qt.QEvent.MouseButtonPress, Qt.QEvent.MouseMove) or event.buttons() != Qt.Qt.LeftButton:
+        if not midx.isValid() or not event.type() == Qt.QEvent.MouseButtonPress or event.buttons() != Qt.Qt.LeftButton:
             return False
-        r = option.rect
-        mx = event.localPos().x()
+        if self._drag_grabber is not None:
+            self._drag_grabber.deleteLater()
+        self._drag_grabber = DragGrabber(option.widget, model, option.rect, midx)
+        self._drag_grabber.destroyed.connect(self.on_drag_grabber_destroyed)
+        self._drag_grabber.drag_x_changed.connect(self.on_drag_x_changed)
+        return self.on_drag_x_changed(event.localPos().x(), option.rect, model, midx)
+
+    def on_drag_x_changed(self, x, r, model, midx):
         sl, sw = r.left(), r.width()
-        v = ((mx - sl) / sw) * (self.max_value - self.min_value) + self.min_value
+        v = ((x - sl) / sw) * (self.max_value - self.min_value) + self.min_value
         if v < self.min_value:
             v = self.min_value
         elif v > self.max_value:
             v = self.max_value
         return model.setData(midx, Qt.QVariant(v), Qt.Qt.EditRole)
+
+    def on_drag_grabber_destroyed(self):
+        self._drag_grabber = None
+
+class DragGrabber(Qt.QWidget):
+    drag_x_changed = Qt.pyqtSignal(int, Qt.QRect, Qt.QAbstractItemModel, Qt.QModelIndex)
+
+    def __init__(self, parent, model, rect, midx):
+        super().__init__(parent)
+        self.model = model
+        self.midx = midx
+        self.setMouseTracking(True)
+        self.setAutoFillBackground(False)
+        self.setFocusPolicy(Qt.Qt.ClickFocus)
+        self.setGeometry(rect)
+        self.show()
+        self.setFocus(Qt.Qt.MouseFocusReason)
+        self.grabMouse()
+
+    def mouseReleaseEvent(self, event):
+        super().mouseReleaseEvent(event)
+        self.releaseMouse()
+        self.deleteLater()
+
+    def mouseMoveEvent(self, event):
+        event.accept()
+        if event.buttons() != Qt.Qt.LeftButton:
+            self.releaseMouse()
+            self.deleteLater()
+        else:
+            self.drag_x_changed.emit(event.x(), self.rect(), self.model, self.midx)
