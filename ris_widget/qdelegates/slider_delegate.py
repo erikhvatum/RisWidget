@@ -51,7 +51,6 @@ class SliderDelegate(Qt.QStyledItemDelegate):
         style.drawControl(Qt.QStyle.CE_ProgressBar, pbo, qpainter)
 
     def editorEvent(self, event, model, option, midx):
-        print(option.rect, option.widget.visualRect(midx), option.widget.viewport().geometry())
         if not midx.isValid() or not event.type() == Qt.QEvent.MouseButtonPress or event.buttons() != Qt.Qt.LeftButton:
             return False
         if self._drag_grabber is not None:
