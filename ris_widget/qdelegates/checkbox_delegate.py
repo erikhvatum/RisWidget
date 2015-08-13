@@ -48,7 +48,7 @@ class CheckboxDelegate(Qt.QStyledItemDelegate):
                 return False
         else:
             return False
-        return model.setData(midx, Qt.QVariant(Qt.Qt.Unchecked if value else Qt.Qt.Checked), Qt.Qt.CheckStateRole)
+        return model.setData(midx, Qt.QVariant(Qt.Qt.Unchecked if value == Qt.Qt.Checked else Qt.Qt.Checked), Qt.Qt.CheckStateRole)
 
     def _compute_checkbox_rect(self, option):
         text_margin = Qt.QApplication.style().pixelMetric(Qt.QStyle.PM_FocusFrameHMargin) + 1

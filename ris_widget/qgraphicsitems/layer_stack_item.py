@@ -129,6 +129,13 @@ class LayerStackItem(ShaderItem):
         self.image_name_in_contextual_info_action.setText('Include Image.name in Contextual Info')
         self.image_name_in_contextual_info_action.setCheckable(True)
         self.image_name_in_contextual_info_action.setChecked(False)
+        self.override_enable_auto_min_max_action = Qt.QAction(self)
+        self.override_enable_auto_min_max_action.setText('Force Auto Min/Max')
+        self.override_enable_auto_min_max_action.setCheckable(True)
+        self.override_enable_auto_min_max_action.setChecked(False)
+        self.override_enable_auto_min_max_action.setShortcut(Qt.Qt.Key_F)
+        self.override_enable_auto_min_max_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
+        self.override_enable_auto_min_max_action.toggled.connect(self.update)
         self.examine_layer_mode_action = Qt.QAction(self)
         self.examine_layer_mode_action.setText('Examine Current Layer')
         self.examine_layer_mode_action.setCheckable(True)
@@ -423,7 +430,7 @@ class LayerStackItem(ShaderItem):
             for tidx, idx in enumerate(visible_idxs):
                 layer = self.layer_stack[idx]
                 image = layer.image
-                min_max[0], min_max[1] = layer.min, layer.max
+                min_max[0], min_max[1] = (layer._auto_min_max_values) if self.override_enable_auto_min_max_action.isChecked() else (layer.min, layer.max)
                 min_max = self._normalize_for_gl(min_max, image)
                 tidxstr = str(tidx)
                 prog.setUniformValue('tex_'+tidxstr, tidx)

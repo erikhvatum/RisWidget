@@ -175,10 +175,10 @@ class PropertyInstTreeElementNode(PropertyInstTreeBaseNode):
         assert self.instance_count > 0
         self.instance_count -= 1
         if self.instance_count == 0:
-            for citn in self.children.values():
+            for citn in list(self.children.values()):
                 citn.detach()
             assert len(self.children) == 0
-            del self.parent.children[self]
+            del self.parent.children[self.value]
 
     @property
     def inst_tree_element_node(self):
@@ -213,8 +213,7 @@ class PropertyInstTreeNamedNode(PropertyInstTreeBaseNode):
         signaling_list = model.signaling_list
         next_idx = 0
         instance_count = iten.instance_count
-        assert instance_count > 0
-        for _ in range(instance_count):
+        for _ in range(min(instance_count, 1)): # In the case where instance count is zero
             row = signaling_list.index(element, next_idx)
             next_idx = row + 1
             model.dataChanged.emit(model.createIndex(row, column), model.createIndex(row, column))
@@ -270,8 +269,6 @@ class PropertyInstTreeIntermediatePropNode(PropertyInstTreeNamedNode):
             changed_signal.disconnect(self.on_changed)
         except AttributeError:
             pass
-        if self.desc_tree_node.is_seen:
-            self.on_seen_value_changed()
 
     def path_exists(self, pp):
         if len(pp) == 0:
@@ -406,18 +403,22 @@ class RecursivePropertyTableModel(Qt.QAbstractTableModel):
             f |= Qt.Qt.ItemIsDropEnabled
         return f
 
+    def get_cell(self, row, column):
+        return self._property_inst_tree_root.children[self.signaling_list[row]].rec_get(self.property_paths[column])
+
     def data(self, midx, role=Qt.Qt.DisplayRole):
         if midx.isValid() and role in (Qt.Qt.DisplayRole, Qt.Qt.EditRole):
             # NB: Qt.QVariant(None) is equivalent to Qt.QVariant(), so the case where eitn.rec_get returns None does not require
             # special handling
-            eitn = self._property_inst_tree_root.children[self.signaling_list[midx.row()]]
-            return Qt.QVariant(eitn.rec_get(self.property_paths[midx.column()]))
+            return Qt.QVariant(self.get_cell(midx.row(), midx.column()))
         return Qt.QVariant()
+
+    def set_cell(self, row, column, value):
+        return self._property_inst_tree_root.children[self.signaling_list[row]].rec_set(self.property_paths[column], value)
 
     def setData(self, midx, value, role=Qt.Qt.EditRole):
         if midx.isValid() and role == Qt.Qt.EditRole:
-            eitn = self._property_inst_tree_root.children[self.signaling_list[midx.row()]]
-            return eitn.rec_set(self.property_paths[midx.column()], value)
+            return self.set_cell(midx.row(), midx.column(), value)
         return False
 
     def headerData(self, section, orientation, role=Qt.Qt.DisplayRole):
@@ -497,3 +498,54 @@ class RecursivePropertyTableModel(Qt.QAbstractTableModel):
     def _on_removed(self, idxs, elements):
         self.endRemoveRows()
         self._detach_elements(elements)
+
+    if __debug__:
+        def _show_desc_graph(self):
+            return self._show_dot_graph(self._property_descr_tree_root.dot_graph, 'desc tree')
+
+        def _show_inst_graph(self):
+            return self._show_dot_graph(self._property_inst_tree_root.dot_graph, 'inst tree')
+
+        def _show_dot_graph(self, dot, name):
+            import io
+            import pygraphviz
+            gs = Qt.QGraphicsScene(self)
+            gv = GV(gs)
+            im = Qt.QImage.fromData(
+                pygraphviz.AGraph(string=dot, directed=True).draw(format='png', prog='dot'),
+                'png')
+            gs.addPixmap(Qt.QPixmap.fromImage(im))
+            gv.setDragMode(Qt.QGraphicsView.ScrollHandDrag)
+            gv.setBackgroundBrush(Qt.QBrush(Qt.Qt.black))
+            gv.setWindowTitle(name)
+            gv.show()
+            return gv
+
+
+if __debug__:
+    class GV(Qt.QGraphicsView):
+        closing_signal = Qt.pyqtSignal()
+
+        def closeEvent(self, event):
+            self.closing_signal.emit()
+            super().closeEvent(event)
+
+        def wheelEvent(self, event):
+            zoom = self.transform().m22()
+            original_zoom = zoom
+            increments = event.angleDelta().y() / 120
+            if increments > 0:
+                zoom *= 1.25**increments
+            elif increments < 0:
+                zoom *= 0.8**(-increments)
+            else:
+                return
+            if zoom < 0.167772:
+                zoom = 0.167772
+            elif zoom > 18.1899:
+                zoom = 18.1899
+            elif abs(abs(zoom)-1) < 0.1:
+                zoom = 1
+            scale_zoom = zoom / original_zoom
+            self.setTransformationAnchor(Qt.QGraphicsView.AnchorUnderMouse)
+            self.scale(scale_zoom, scale_zoom)

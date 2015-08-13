@@ -153,10 +153,12 @@ class Layer(Qt.QObject):
 
     def _on_image_data_changed(self, image):
         assert image is self.image
+        self._find_auto_min_max()
         if image is not None:
             if self.auto_min_max_enabled:
                 self.do_auto_min_max()
             else:
+
                 r = image.range
                 if self.min < r[0]:
                     self.min = r[0]
@@ -196,18 +198,23 @@ class Layer(Qt.QObject):
         t += image_text
         return t
 
+    def _find_auto_min_max(self):
+        image = self.image
+        if image is None:
+            self._auto_min_max_values = 0.0, 1.0
+        else:
+            extremae = image.extremae
+            if image.has_alpha_channel:
+                self._auto_min_max_values = extremae[:-1, 0].min(), extremae[:-1, 1].max()
+            elif image.num_channels > 1:
+                self._auto_min_max_values = extremae[:, 0].min(), extremae[:, 1].max()
+            else:
+                self._auto_min_max_values = extremae
+
     def do_auto_min_max(self):
         self._retain_auto_min_max_enabled_on_min_max_change = True
         try:
-            image = self.image
-            extremae = image.extremae
-            if image.has_alpha_channel:
-                eae = extremae[:-1, 0].min(), extremae[:-1, 1].max()
-            elif image.num_channels > 1:
-                eae = extremae[:, 0].min(), extremae[:, 1].max()
-            else:
-                eae = extremae
-            self.min, self.max = eae
+            self.min, self.max = self._auto_min_max_values
         finally:
             self._retain_auto_min_max_enabled_on_min_max_change = False
 

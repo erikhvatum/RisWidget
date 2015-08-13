@@ -255,6 +255,7 @@
 				<F N="ris_widget/qwidgets/flipbook.py"/>
 				<F N="ris_widget/qwidgets/image_stack_current_row_flipbook.py"/>
 				<F N="ris_widget/qwidgets/layer_stack_table.py"/>
+				<F N="ris_widget/qwidgets/list_table.py"/>
 			</Folder>
 			<Folder Name="shaders">
 				<F N="ris_widget/shaders/histogram_item_fragment_shader.glsl"/>

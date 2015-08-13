@@ -36,7 +36,7 @@ class LayerStackTableView(Qt.QTableView):
         super().__init__(parent)
         self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
 #       self.horizontalHeader().setStretchLastSection(True)
-        self.checkbox_delegate = CheckboxDelegate(self)
+        self.checkbox_delegate = CheckboxDelegate(parent=self)
         self.setItemDelegateForColumn(layer_stack_table_model.property_columns['visible'], self.checkbox_delegate)
         self.setItemDelegateForColumn(layer_stack_table_model.property_columns['auto_min_max_enabled'], self.checkbox_delegate)
         self.blend_function_delegate = DropdownListDelegate(self)
@@ -118,12 +118,17 @@ class LayerStackTableModel(om.signaling_list.RecursivePropertyTableModel):
 #       'transform_section',
         )
 
-    def __init__(self, signaling_list, LayerClass, blend_function_choice_to_value_mapping_pairs=None, parent=None):
+    def __init__(self, signaling_list, override_enable_auto_min_max_action, examine_layer_mode_action, LayerClass, blend_function_choice_to_value_mapping_pairs=None, parent=None):
         super().__init__(self.PROPERTIES, signaling_list, parent)
+        self.override_enable_auto_min_max_action = override_enable_auto_min_max_action
+        self.override_enable_auto_min_max_action.toggled.connect(self._on_override_enable_auto_min_max_toggled)
+        self.examine_layer_mode_action = examine_layer_mode_action
+        self.examine_layer_mode_action.toggled.connect(self._on_examine_layer_mode_toggled)
+        self._current_row = -1
         if blend_function_choice_to_value_mapping_pairs is None:
             blend_function_choice_to_value_mapping_pairs = [
-                ('screen (normal)', 'screen'),
-                ('src-over (blend)', 'src-over')]
+                ('screen', 'screen'),
+                ('src-over (normal)', 'src-over')]
         else:
             blend_function_choice_to_value_mapping_pairs = list(blend_function_choice_to_value_mapping_pairs)
 
@@ -159,7 +164,7 @@ class LayerStackTableModel(om.signaling_list.RecursivePropertyTableModel):
             'blend_function' : self._getf__always_editable}
         self._special_data_setters = {
             'visible' : self._setd_visible,
-            'auto_min_max_enabled' : self._setd_auto_min_max_enabled,
+            'auto_min_max_enabled' : self._setd__checkable,
             'blend_function' : self._setd_blend_function}
 
     # flags #
@@ -185,15 +190,40 @@ class LayerStackTableModel(om.signaling_list.RecursivePropertyTableModel):
 
     # data #
 
-    def _getd__checkable(self, property_name, midx, role):
+    def _getd__checkable(self, midx, role):
         if role == Qt.Qt.CheckStateRole:
-            return Qt.QVariant(Qt.Qt.Checked if getattr(self.signaling_list[midx.row()], property_name) else Qt.Qt.Unchecked)
+            return Qt.QVariant(Qt.Qt.Checked if self.get_cell(midx.row(), midx.column()) else Qt.Qt.Unchecked)
 
     def _getd_visible(self, midx, role):
-        return self._getd__checkable('visible', midx, role)
+        if role == Qt.Qt.CheckStateRole:
+            is_checked = self.get_cell(midx.row(), midx.column())
+            if self.examine_layer_mode_action.isChecked():
+                if self._current_row == midx.row():
+                    if is_checked:
+                        r = Qt.Qt.Checked
+                    else:
+                        r = Qt.Qt.PartiallyChecked
+                else:
+                    if is_checked:
+                        r = Qt.Qt.PartiallyChecked
+                    else:
+                        r = Qt.Qt.Unchecked
+            else:
+                if is_checked:
+                    r = Qt.Qt.Checked
+                else:
+                    r = Qt.Qt.Unchecked
+            return Qt.QVariant(r)
 
     def _getd_auto_min_max_enabled(self, midx, role):
-        return self._getd__checkable('auto_min_max_enabled', midx, role)
+        if role == Qt.Qt.CheckStateRole:
+            if self.get_cell(midx.row(), midx.column()):
+                r = Qt.Qt.Checked
+            elif self.override_enable_auto_min_max_action.isChecked():
+                r = Qt.Qt.PartiallyChecked
+            else:
+                r = Qt.Qt.Unchecked
+            return Qt.QVariant(r)
 
     def _getd_tint(self, midx, role):
         if role == Qt.Qt.DecorationRole:
@@ -221,24 +251,34 @@ class LayerStackTableModel(om.signaling_list.RecursivePropertyTableModel):
 
     # setData #
 
-    def _setd__checkable(self, property_name, midx, value, role):
-        if isinstance(value, Qt.QVariant):
-            value = value.value()
+    def _setd__checkable(self, midx, value, role):
         if role == Qt.Qt.CheckStateRole:
-            setattr(self.signaling_list[midx.row()], property_name, value)
-            return True
+            if isinstance(value, Qt.QVariant):
+                value = value.value()
+            return self.set_cell(midx.row(), midx.column(), value)
         return False
 
     def _setd_visible(self, midx, value, role):
-        return self._setd__checkable('visible', midx, value, role)
-
-    def _setd_auto_min_max_enabled(self, midx, value, role):
-        return self._setd__checkable('auto_min_max_enabled', midx, value, role)
+        if role == Qt.Qt.CheckStateRole:
+            if isinstance(value, Qt.QVariant):
+                value = value.value()
+            if value == Qt.Qt.Checked and self.examine_layer_mode_action.isChecked() and self._current_row != midx.row():
+                # checkbox_delegate is telling us that, as a result of being hit, we should to check a visibility checkbox
+                # that is shown as partially checked.  However, it is shown as partially checked because it is actually checked,
+                # but the effect of its checkedness is being supressed because we are in "examine layer" mode and the layer
+                # containing the visibility checkbox in question is not the current layer in the layer table.  It is nominally
+                # checked, and so toggling it actually means unchecking it.  This is the only instance where an override 
+                # causes something checked to appear partially checked, rather than causing something unchecked to appear
+                # partially checked.  And, so, in this one instance, we must special case *setting* of an overridable checkbox
+                # property.
+                value = Qt.Qt.Unchecked
+            return self.set_cell(midx.row(), midx.column(), value)
+        return False
 
     def _setd_blend_function(self, midx, c, role):
-        if isinstance(c, Qt.QVariant):
-            c = c.value()
         if role == Qt.Qt.EditRole:
+            if isinstance(c, Qt.QVariant):
+                c = c.value()
             try:
                 v = self.blend_function_choice_to_value[c]
                 self.signaling_list[midx.row()].blend_function = v
@@ -251,3 +291,16 @@ class LayerStackTableModel(om.signaling_list.RecursivePropertyTableModel):
         if midx.isValid():
             return self._special_data_setters.get(self.property_names[midx.column()], super().setData)(midx, value, role)
         return False
+
+    def _refresh_column(self, column):
+        self.dataChanged.emit(self.createIndex(0, column), self.createIndex(len(self.signaling_list)-1, column))
+
+    def _on_override_enable_auto_min_max_toggled(self):
+        self._refresh_column(self.property_columns['auto_min_max_enabled'])
+
+    def _on_examine_layer_mode_toggled(self):
+        self._refresh_column(self.property_columns['visible'])
+
+    def on_view_current_row_changed(self, row):
+        self._current_row = row
+        self._on_examine_layer_mode_toggled()
