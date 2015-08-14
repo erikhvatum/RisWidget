@@ -70,7 +70,7 @@ class PropertyTableModel(Qt.QAbstractTableModel):
         return Qt.QVariant()
 
     def removeRows(self, row, count, parent=Qt.QModelIndex()):
-        print('removeRows', row, count, parent)
+#       print('removeRows', row, count, parent)
         try:
             del self.signaling_list[row:row+count]
             return True
@@ -86,11 +86,11 @@ class PropertyTableModel(Qt.QAbstractTableModel):
     def canDropMimeData(self, mime_data, drop_action, row, column, parent):
         return super().canDropMimeData(mime_data, drop_action, row, column, parent)
         r = super().canDropMimeData(mime_data, drop_action, row, column, parent)
-        print('canDropMimeData', mime_data, drop_action, row, column, parent, ':', r)
+#       print('canDropMimeData', mime_data, drop_action, row, column, parent, ':', r)
         return r
 
     def dropMimeData(self, mime_data, drop_action, row, column, parent):
-        print('dropMimeData', row, mime_data.data(ROW_DRAG_MIME_TYPE))
+#       print('dropMimeData', row, mime_data.data(ROW_DRAG_MIME_TYPE))
         row_drag = self._decode_row_drag_mime(mime_data)
         if row_drag is None:
             return False
@@ -99,7 +99,7 @@ class PropertyTableModel(Qt.QAbstractTableModel):
             # on or adjacent to a row.  We append such a drop to the end of our .signaling_list.
             row = len(self.signaling_list)
         self.signaling_list[row:row] = row_drag[1:]
-        print('dropMimeData', drop_action, row, column, parent, row_drag)
+#       print('dropMimeData', drop_action, row, column, parent, row_drag)
         return True
 
     def _decode_row_drag_mime(self, mime_data):
@@ -111,7 +111,7 @@ class PropertyTableModel(Qt.QAbstractTableModel):
             ret = []
             while not ds.atEnd():
                 ptr = ds.readUInt64()
-                print('<-{}'.format(ptr))
+#               print('<-{}'.format(ptr))
                 ret.append(None if ptr == 0 else ctypes.cast(ptr, ctypes.py_object).value)
             if ret:
                 return ret
@@ -135,7 +135,7 @@ class PropertyTableModel(Qt.QAbstractTableModel):
                 continue
             packed_rows.add(row)
             ptr = id(self.signaling_list[row])
-            print('->{}'.format(ptr))
+#           print('->{}'.format(ptr))
             ds.writeUInt64(ptr)
         mime_data.setData(ROW_DRAG_MIME_TYPE, d)
         return mime_data
