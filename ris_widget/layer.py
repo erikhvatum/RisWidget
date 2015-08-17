@@ -117,7 +117,7 @@ class Layer(Qt.QObject):
         self._image = None
         for property in self.properties:
             property.instantiate(self)
-        self.objectNameChanged.connect(lambda: self.name_changed.emit(self))
+        self.objectNameChanged.connect(self._on_objectNameChanged)
         self.name_changed.connect(self.changed)
         self.image_changed.connect(self.changed)
         if name:
@@ -389,8 +389,15 @@ class Layer(Qt.QObject):
     # NB: This a property, not a Property.  There is already a change signal, setter, and a getter for objectName, which
     # we proxy/use.
     name_changed = Qt.pyqtSignal(object)
+    def _on_objectNameChanged(self):
+        self.name_changed.emit(self)
     name = property(
         Qt.QObject.objectName,
         lambda self, name: self.setObjectName('' if name is None else name),
         doc='Property proxy for QObject::objectName Qt property, which is directly accessible via the objectName getter and '
-            'setObjectName setter.  Upon change, objectNameChanged is emitted.')
+            'setObjectName setter, with change notification signal objectNameChanged.  The proxied change signal, which conforms '
+            'to the requirements of ris_widget.om.signaling_list.PropertyTableModel, is name_changed.')
+
+
+
+

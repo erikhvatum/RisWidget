@@ -55,10 +55,21 @@ class SignalingList(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
 
     def __init__(self, iterable=None, parent=None):
         Qt.QObject.__init__(self, parent)
+        self.objectNameChanged.connect(self._on_objectNameChanged)
         if iterable is None:
             self._list = list()
         else:
             self._list = list(iterable)
+
+    name_changed = Qt.pyqtSignal(object)
+    def _on_objectNameChanged(self):
+        self.name_changed.emit(self)
+    name = property(
+        Qt.QObject.objectName,
+        lambda self, name: self.setObjectName('' if name is None else name),
+        doc='Property proxy for QObject::objectName Qt property, which is directly accessible via the objectName getter and '
+            'setObjectName setter, with change notification signal objectNameChanged.  The proxied change signal, which conforms '
+            'to the requirements of ris_widget.om.signaling_list.PropertyTableModel, is name_changed.')
 
     def __repr__(self):
         r = super().__repr__()[:-1]

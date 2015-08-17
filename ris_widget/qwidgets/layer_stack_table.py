@@ -114,6 +114,8 @@ class LayerStackTableModel(om.signaling_list.RecursivePropertyTableModel):
         'opacity',
         'getcolor_expression',
         'name',
+        'image.dtype',
+        'image.size',
         'image.name'
 #       'transform_section',
         )
@@ -152,7 +154,9 @@ class LayerStackTableModel(om.signaling_list.RecursivePropertyTableModel):
             'visible' : self._getd_visible,
             'auto_min_max_enabled' : self._getd_auto_min_max_enabled,
             'tint' : self._getd_tint,
-            'blend_function' : self._getd_blend_function}
+            'blend_function' : self._getd_blend_function,
+            'image.size' : self._getd_image_size,
+            'image.dtype' : self._getd_image_dtype}
         self._special_flag_getters = {
             'visible' : self._getf__always_checkable,
             'auto_min_max_enabled' : self._getf__always_checkable,
@@ -204,10 +208,7 @@ class LayerStackTableModel(om.signaling_list.RecursivePropertyTableModel):
                     else:
                         r = Qt.Qt.PartiallyChecked
                 else:
-                    if is_checked:
-                        r = Qt.Qt.PartiallyChecked
-                    else:
-                        r = Qt.Qt.Unchecked
+                    r = Qt.Qt.Unchecked
             else:
                 if is_checked:
                     r = Qt.Qt.Checked
@@ -241,6 +242,17 @@ class LayerStackTableModel(om.signaling_list.RecursivePropertyTableModel):
                 return Qt.QVariant(c)
             except KeyError:
                 Qt.qDebug('No choice for blend function "{}".'.format(v))
+
+    def _getd_image_size(self, midx, role):
+        if role == Qt.Qt.DisplayRole:
+            sz = self.get_cell(midx.row(), midx.column())
+            return Qt.QVariant('{}x{}'.format(sz.width(), sz.height()))
+
+    def _getd_image_dtype(self, midx, role):
+        if role == Qt.Qt.DisplayRole:
+            image = self.signaling_list[midx.row()].image
+            if image is not None:
+                return Qt.QVariant(str(image.data.dtype))
 
     def data(self, midx, role=Qt.Qt.DisplayRole):
         if midx.isValid():
