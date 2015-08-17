@@ -93,7 +93,7 @@ class LayerStackTableDragDropBehavior(om.signaling_list.DragDropModelBehavior):
             image = self.ImageClass.from_qimage(qimage=qimage, name=name)
             if image is not None:
                 layer = self.LayerClass(image=image)
-                self.signaling_list[dst_row:dst_row] = layer
+                self.signaling_list[dst_row:dst_row] = [layer]
                 return True
         return False
 

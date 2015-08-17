@@ -53,8 +53,8 @@ class DragDropModelBehavior:
         return Qt.Qt.LinkAction
 
     def canDropMimeData(self, mime_data, drop_action, row, column, parent):
-        print('canDropMimeData(self, mime_data={}, drop_action={}, row={}, column={}, parent={})'.format(mime_data, drop_action, row, column, parent))
-        print('mime_data.formats()', mime_data.formats())
+#       print('canDropMimeData(self, mime_data={}, drop_action={}, row={}, column={}, parent={})'.format(mime_data, drop_action, row, column, parent))
+#       print('mime_data.formats()', mime_data.formats())
         rows_drag = self._decode_rows_drag_mime_data(mime_data)
         if rows_drag is not None and len(rows_drag.rows) > 0:
             return self.can_drop_rows(rows_drag.src_model, rows_drag.rows, row, column, parent)
@@ -74,7 +74,7 @@ class DragDropModelBehavior:
         return False
 
     def dropMimeData(self, mime_data, drop_action, row, column, parent):
-        print('dropMimeData mime_data.hasImage()', mime_data.hasImage())
+#       print('dropMimeData mime_data.hasImage()', mime_data.hasImage())
         rows_drag = self._decode_rows_drag_mime_data(mime_data)
         if rows_drag is not None and len(rows_drag.rows) > 0:
             return self.handle_dropped_rows(rows_drag.src_model, rows_drag.rows, row, column, parent)
@@ -94,7 +94,7 @@ class DragDropModelBehavior:
         return False
 
     def can_drop_qimage(self, qimage, name, dst_row, dst_column, dst_parent):
-        print('can_drop_qimage(self, qimage={}, name={}, dst_row={}, dst_column={}, dst_parent={})'.format(qimage, name, dst_row, dst_column, dst_parent))
+#       print('can_drop_qimage(self, qimage={}, name={}, dst_row={}, dst_column={}, dst_parent={})'.format(qimage, name, dst_row, dst_column, dst_parent))
         return not qimage.isNull()
 
     def can_drop_files(self, fpaths, dst_row, dst_column, dst_parent):
@@ -141,8 +141,8 @@ class DragDropModelBehavior:
             if rows:
                 return RowsDrag(src_model, rows)
 
-#   def mimeTypes(self):
-#       return 'application/x-qabstractitemmodeldatalist', ROWS_DRAG_MIME_TYPE
+    def mimeTypes(self):
+        return 'application/x-qabstractitemmodeldatalist', 'application/x-qt-image', ROWS_DRAG_MIME_TYPE
 
     def mimeData(self, midxs):
         mime_data = super().mimeData(midxs)

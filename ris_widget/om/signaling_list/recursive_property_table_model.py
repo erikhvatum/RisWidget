@@ -93,6 +93,8 @@ class RecursivePropertyTableModel(Qt.QAbstractTableModel):
 
     def setData(self, midx, value, role=Qt.Qt.EditRole):
         if midx.isValid() and role == Qt.Qt.EditRole:
+            if isinstance(value, Qt.QVariant):
+                value = value.value()
             return self.set_cell(midx.row(), midx.column(), value)
         return False
 

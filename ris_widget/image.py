@@ -89,7 +89,7 @@ class Image(Qt.QObject):
             if qimage.isGrayscale():
                 # Note: Qt does not support grayscale with alpha channels, so we don't need to worry about that case
                 npyimage=npyimage[...,0]
-            return cls(data=npyimage, parent=parent, is_twelve_bit=is_twelve_bit, shape_is_width_height=False, name=name)
+            return cls(data=npyimage.copy(), parent=parent, is_twelve_bit=is_twelve_bit, shape_is_width_height=False, name=name)
 
     def __repr__(self):
         num_channels = self.num_channels
