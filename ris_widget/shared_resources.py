@@ -61,10 +61,6 @@ def UNIQUE_QITEMDATA_ROLE():
 
 CHOICES_QITEMDATA_ROLE = UNIQUE_QITEMDATA_ROLE()
 
-# Packed ROW_DRAG_MIME_TYPE data consists of a uint64 that is the sending model's Python id() followed by zero or
-# more uint64s that are Python id()s of the objects represented by the dropped rows.
-ROW_DRAG_MIME_TYPE = 'application/x-row_objects_drag_ZL1AO5IENFKSK9BQP0'
-
 _NV_PATH_RENDERING_AVAILABLE = None
 
 def NV_PATH_RENDERING_AVAILABLE():

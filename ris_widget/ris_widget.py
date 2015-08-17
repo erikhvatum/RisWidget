@@ -182,6 +182,7 @@ class RisWidget(Qt.QMainWindow):
             self.layer_stack,
             self.main_scene.layer_stack_item.override_enable_auto_min_max_action,
             self.main_scene.layer_stack_item.examine_layer_mode_action,
+            ImageClass,
             LayerClass)
 #       self.layer_stack_table_model_inverter = InvertingProxyModel(self.layer_stack_table_model)
 #       self.layer_stack_table_model_inverter.setSourceModel(self.layer_stack_table_model)

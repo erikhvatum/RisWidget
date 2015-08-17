@@ -23,6 +23,7 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from .ndimage_statistics.ndimage_statistics import compute_ndimage_statistics, compute_multichannel_ndimage_statistics
+import ctypes
 import numpy
 from PyQt5 import Qt
 
@@ -61,6 +62,34 @@ class Image(Qt.QObject):
         self.objectNameChanged.connect(lambda: self.name_changed.emit(self))
         self.name_changed.connect(self.changed)
         self.set_data(data, is_twelve_bit, float_range, shape_is_width_height, False, name)
+
+    @classmethod
+    def from_qimage(cls, qimage, parent=None, is_twelve_bit=False, name=None):
+        if not qimage.isNull() and qimage.format() != Qt.QImage.Format_Invalid:
+            if qimage.hasAlphaChannel():
+                desired_format = Qt.QImage.Format_RGBA8888
+                channel_count = 4
+            else:
+                desired_format = Qt.QImage.Format_RGB888
+                channel_count = 3
+            if qimage.format() != desired_format:
+                qimage = qimage.convertToFormat(desired_format)
+            if channel_count == 3:
+                # 24-bit RGB QImage rows are padded to 32-bit chunks, which we must match
+                row_stride = qimage.width() * 3
+                row_stride += 4 - (row_stride % 4)
+                padded = numpy.ctypeslib.as_array(ctypes.cast(int(qimage.bits()), ctypes.POINTER(ctypes.c_uint8)), shape=(qimage.height(), row_stride))
+                padded = padded[:, qimage.width() * 3].reshape((qimage.height(), qimage.width(), 3))
+                npyimage = numpy.empty((qimage.height(), qimage.width(), 3), dtype=numpy.uint8)
+                npyimage.flat = padded.flat
+            else:
+                npyimage = numpy.ctypeslib.as_array(
+                    ctypes.cast(int(qimage.bits()), ctypes.POINTER(ctypes.c_uint8)),
+                    shape=(qimage.height(), qimage.width(), channel_count))
+            if qimage.isGrayscale():
+                # Note: Qt does not support grayscale with alpha channels, so we don't need to worry about that case
+                npyimage=npyimage[...,0]
+            return cls(data=npyimage, parent=parent, is_twelve_bit=is_twelve_bit, shape_is_width_height=False, name=name)
 
     def __repr__(self):
         num_channels = self.num_channels

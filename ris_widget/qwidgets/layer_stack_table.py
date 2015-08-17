@@ -87,22 +87,32 @@ class InvertingProxyModel(Qt.QSortFilterProxyModel):
         # We want the table upside-down and therefore will be sorting by index (aka row #)
         return lhs.row() < rhs.row()
 
-class LayerStackTableModel(om.signaling_list.RecursivePropertyTableModel):
-    # ImageStackTableModel accesses PROPERTIES strictly via self.PROPERTIES and never via ImageStackTableModel.PROPERTIES,
+class LayerStackTableDragDropBehavior(om.signaling_list.DragDropModelBehavior):
+    def handle_dropped_qimage(self, qimage, name, dst_row, dst_column, dst_parent):
+        if not qimage.isNull():
+            image = self.ImageClass.from_qimage(qimage=qimage, name=name)
+            if image is not None:
+                layer = self.LayerClass(image=image)
+                self.signaling_list[dst_row:dst_row] = layer
+                return True
+        return False
+
+class LayerStackTableModel(LayerStackTableDragDropBehavior, om.signaling_list.RecursivePropertyTableModel):
+    # LayerStackTableModel accesses PROPERTIES strictly via self.PROPERTIES and never via LayerStackTableModel.PROPERTIES,
     # meaning that subclasses may safely add or remove columns by overridding PROPERTIES.  For example, adding a column for
     # a sublcassed Images having an "image_quality" property:
     #
-    # class ImageStackTableModel_ImageQuality(ImageStackTableModel):
-    #     PROPERTIES = ImageStackTableModel.PROPERTIES + ('image_quality',)
+    # class LayerStackTableModel_ImageQuality(LayerStackTableModel):
+    #     PROPERTIES = ImageStackTableModel.PROPERTIES + ('image.image_quality',)
     #
     # And that's it, provided image_quality is always a plain string and should not be editable.  Making it editable
     # would require adding an entry to self._special_flag_getters.  Alternative .flags may be overridden to activate the
     # Qt.Qt.ItemIsEditable flag, as in this example:
     #
-    # class ImageStackTableModel_ImageQuality(ImageStackTableModel):
-    #     PROPERTIES = ImageStackTableModel.PROPERTIES + ('image_quality',)
+    # class LayerStackTableModel_ImageQuality(LayerStackTableModel):
+    #     PROPERTIES = ImageStackTableModel.PROPERTIES + ('image.image_quality',)
     #     def flags(self, midx):
-    #         if midx.column() == self.property_columns['image_quality']:
+    #         if midx.column() == self.property_columns['image.image_quality']:
     #             return Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren | Qt.Qt.ItemIsEditable
     #         return super().flags(midx)
 
@@ -120,8 +130,18 @@ class LayerStackTableModel(om.signaling_list.RecursivePropertyTableModel):
 #       'transform_section',
         )
 
-    def __init__(self, signaling_list, override_enable_auto_min_max_action, examine_layer_mode_action, LayerClass, blend_function_choice_to_value_mapping_pairs=None, parent=None):
+    def __init__(
+            self,
+            signaling_list,
+            override_enable_auto_min_max_action,
+            examine_layer_mode_action,
+            ImageClass,
+            LayerClass,
+            blend_function_choice_to_value_mapping_pairs=None,
+            parent=None):
         super().__init__(self.PROPERTIES, signaling_list, parent)
+        self.ImageClass = ImageClass
+        self.LayerClass = LayerClass
         self.override_enable_auto_min_max_action = override_enable_auto_min_max_action
         self.override_enable_auto_min_max_action.toggled.connect(self._on_override_enable_auto_min_max_toggled)
         self.examine_layer_mode_action = examine_layer_mode_action

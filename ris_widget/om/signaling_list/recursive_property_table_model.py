@@ -24,7 +24,206 @@
 
 import ctypes
 from PyQt5 import Qt
-from ...shared_resources import ROW_DRAG_MIME_TYPE
+
+class RecursivePropertyTableModel(Qt.QAbstractTableModel):
+    def __init__(self, property_names, signaling_list=None, parent=None):
+        super().__init__(parent)
+        self._signaling_list = None
+        self.property_names = property_names = tuple(property_names)
+        if len(property_names) == 0 or \
+           any(not isinstance(pn, str) or len(pn) == 0 for pn in property_names) or \
+           len(set(property_names)) != len(property_names):
+            raise ValueError('property_names must be a non-empty iterable of unique, non-empty strings.')
+        self.property_paths = [pn.split('.') for pn in property_names]
+        self.property_columns = {pn : idx for idx, pn in enumerate(property_names)}
+        # Having a null property description tree root node allows property paths with common intermediate components to share
+        # nodes up to the point of divergence.  EG, if the property_names argument is ('foo.bar.biff.baz', 'foo.bar.biff.zap'),
+        # there will be one PropertyDescrTreeNode for each of foo, foo.bar, and foo.bar.biff.  foo.bar.biff's node will have 
+        # two children: foo.bar.biff.baz and foo.bar.biff.zap.
+        self._property_descr_tree_root = PropertyDescrTreeNode(self, None, '*DESCR ROOT*')
+        for pn in property_names:
+            self._rec_init_descr_tree(self._property_descr_tree_root, pn.split('.'))
+        self._property_inst_tree_root = PropertyInstTreeRootNode()
+        self.signaling_list = signaling_list
+
+    def _rec_init_descr_tree(self, parent, path):
+        assert len(path) > 0
+        name = path[0]
+        try:
+            node = parent.children[name]
+        except KeyError:
+            node = parent.children[name] = PropertyDescrTreeNode(self, parent, name)
+        # Even if parent already has a node for this name, there must be a divergence away from the existing branch or this
+        # function would not be called in the first place (entirely duplicate paths are not allowed).  So, we may only
+        # skip the next line if we have already arrived at the leaf.
+        if len(path) > 1:
+            self._rec_init_descr_tree(node, path[1:])
+        else:
+            node.is_seen = True
+
+    def rowCount(self, _=None):
+        sl = self.signaling_list
+        return 0 if sl is None else len(sl)
+
+    def columnCount(self, _=None):
+        return len(self.property_names)
+
+    def flags(self, midx):
+        f = Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
+        if midx.isValid():
+            f |= Qt.Qt.ItemIsDragEnabled
+            if self._property_inst_tree_root.children[self.signaling_list[midx.row()]].path_exists(self.property_paths[midx.column()]):
+                f |= Qt.Qt.ItemIsEnabled
+        else:
+            f |= Qt.Qt.ItemIsDropEnabled
+        return f
+
+    def get_cell(self, row, column):
+        return self._property_inst_tree_root.children[self.signaling_list[row]].rec_get(self.property_paths[column])
+
+    def data(self, midx, role=Qt.Qt.DisplayRole):
+        if midx.isValid() and role in (Qt.Qt.DisplayRole, Qt.Qt.EditRole):
+            # NB: Qt.QVariant(None) is equivalent to Qt.QVariant(), so the case where eitn.rec_get returns None does not require
+            # special handling
+            return Qt.QVariant(self.get_cell(midx.row(), midx.column()))
+        return Qt.QVariant()
+
+    def set_cell(self, row, column, value):
+        return self._property_inst_tree_root.children[self.signaling_list[row]].rec_set(self.property_paths[column], value)
+
+    def setData(self, midx, value, role=Qt.Qt.EditRole):
+        if midx.isValid() and role == Qt.Qt.EditRole:
+            return self.set_cell(midx.row(), midx.column(), value)
+        return False
+
+    def headerData(self, section, orientation, role=Qt.Qt.DisplayRole):
+        if orientation == Qt.Qt.Vertical:
+            if role == Qt.Qt.DisplayRole and 0 <= section < self.rowCount():
+                return Qt.QVariant(section)
+        elif orientation == Qt.Qt.Horizontal:
+            if role == Qt.Qt.DisplayRole and 0 <= section < self.columnCount():
+                return Qt.QVariant(self.property_names[section])
+        return Qt.QVariant()
+
+    def removeRows(self, row, count, parent=Qt.QModelIndex()):
+        try:
+            del self.signaling_list[row:row+count]
+            return True
+        except IndexError:
+            return False
+
+    @property
+    def signaling_list(self):
+        return self._signaling_list
+
+    @signaling_list.setter
+    def signaling_list(self, v):
+        if v is not self._signaling_list:
+            if self._signaling_list is not None or v is not None:
+                self.beginResetModel()
+                try:
+                    if self._signaling_list is not None:
+                        self._signaling_list.inserting.disconnect(self._on_inserting)
+                        self._signaling_list.inserted.disconnect(self._on_inserted)
+                        self._signaling_list.replaced.disconnect(self._on_replaced)
+                        self._signaling_list.removing.disconnect(self._on_removing)
+                        self._signaling_list.removed.disconnect(self._on_removed)
+                        self._detach_elements(self._signaling_list)
+                    assert len(self._property_inst_tree_root.children) == 0
+                    self._signaling_list = v
+                    if v is not None:
+                        v.inserting.connect(self._on_inserting)
+                        v.inserted.connect(self._on_inserted)
+                        v.replaced.connect(self._on_replaced)
+                        v.removing.connect(self._on_removing)
+                        v.removed.connect(self._on_removed)
+                        self._attach_elements(v)
+                finally:
+                    self.endResetModel()
+
+    def _attach_elements(self, elements):
+        property_inst_tree_root = self._property_inst_tree_root
+        for element in elements:
+            try:
+                element_inst_node = property_inst_tree_root.children[element]
+            except KeyError:
+                element_inst_node = PropertyInstTreeElementNode(property_inst_tree_root, element, self._property_descr_tree_root)
+            element_inst_node.attach()
+
+    def _detach_elements(self, elements):
+        for element in elements:
+            element_inst_node = self._property_inst_tree_root.children[element]
+            element_inst_node.detach()
+
+    def _on_inserting(self, idx, elements):
+        self.beginInsertRows(Qt.QModelIndex(), idx, idx+len(elements)-1)
+
+    def _on_inserted(self, idx, elements):
+        self.endInsertRows()
+        self._attach_elements(elements)
+
+    def _on_replaced(self, idxs, replaced_elements, elements):
+        self._detach_elements(replaced_elements)
+        self._attach_elements(elements)
+        self.dataChanged.emit(self.createIndex(min(idxs), 0), self.createIndex(max(idxs), len(self.property_names) - 1))
+
+    def _on_removing(self, idxs, elements):
+        self.beginRemoveRows(Qt.QModelIndex(), min(idxs), max(idxs))
+
+    def _on_removed(self, idxs, elements):
+        self.endRemoveRows()
+        self._detach_elements(elements)
+
+    if __debug__:
+        def _show_desc_graph(self):
+            return self._show_dot_graph(self._property_descr_tree_root.dot_graph, 'desc tree')
+
+        def _show_inst_graph(self):
+            return self._show_dot_graph(self._property_inst_tree_root.dot_graph, 'inst tree')
+
+        def _show_dot_graph(self, dot, name):
+            import io
+            import pygraphviz
+            gs = Qt.QGraphicsScene(self)
+            gv = GV(gs)
+            im = Qt.QImage.fromData(
+                pygraphviz.AGraph(string=dot, directed=True).draw(format='png', prog='dot'),
+                'png')
+            gs.addPixmap(Qt.QPixmap.fromImage(im))
+            gv.setDragMode(Qt.QGraphicsView.ScrollHandDrag)
+            gv.setBackgroundBrush(Qt.QBrush(Qt.Qt.black))
+            gv.setWindowTitle(name)
+            gv.show()
+            return gv
+
+
+if __debug__:
+    class GV(Qt.QGraphicsView):
+        closing_signal = Qt.pyqtSignal()
+
+        def closeEvent(self, event):
+            self.closing_signal.emit()
+            super().closeEvent(event)
+
+        def wheelEvent(self, event):
+            zoom = self.transform().m22()
+            original_zoom = zoom
+            increments = event.angleDelta().y() / 120
+            if increments > 0:
+                zoom *= 1.25**increments
+            elif increments < 0:
+                zoom *= 0.8**(-increments)
+            else:
+                return
+            if zoom < 0.167772:
+                zoom = 0.167772
+            elif zoom > 18.1899:
+                zoom = 18.1899
+            elif abs(abs(zoom)-1) < 0.1:
+                zoom = 1
+            scale_zoom = zoom / original_zoom
+            self.setTransformationAnchor(Qt.QGraphicsView.AnchorUnderMouse)
+            self.scale(scale_zoom, scale_zoom)
 
 class PropertyDescrTreeNode:
     __slots__ = ('model', 'parent', 'name', 'full_name', 'children', 'is_seen', '__weakref__')
@@ -351,266 +550,3 @@ class PropertyInstTreeLeafPropNode(PropertyInstTreeNamedNode):
         assert len(pp) == 0
         setattr(self.parent.value, self.name, v)
         return True
-
-class RecursivePropertyTableModel(Qt.QAbstractTableModel):
-    def __init__(self, property_names, signaling_list=None, parent=None):
-        super().__init__(parent)
-        self._signaling_list = None
-        self.property_names = property_names = tuple(property_names)
-        if len(property_names) == 0 or \
-           any(not isinstance(pn, str) or len(pn) == 0 for pn in property_names) or \
-           len(set(property_names)) != len(property_names):
-            raise ValueError('property_names must be a non-empty iterable of unique, non-empty strings.')
-        self.property_paths = [pn.split('.') for pn in property_names]
-        self.property_columns = {pn : idx for idx, pn in enumerate(property_names)}
-        # Having a null property description tree root node allows property paths with common intermediate components to share
-        # nodes up to the point of divergence.  EG, if the property_names argument is ('foo.bar.biff.baz', 'foo.bar.biff.zap'),
-        # there will be one PropertyDescrTreeNode for each of foo, foo.bar, and foo.bar.biff.  foo.bar.biff's node will have 
-        # two children: foo.bar.biff.baz and foo.bar.biff.zap.
-        self._property_descr_tree_root = PropertyDescrTreeNode(self, None, '*DESCR ROOT*')
-        for pn in property_names:
-            self._rec_init_descr_tree(self._property_descr_tree_root, pn.split('.'))
-        self._property_inst_tree_root = PropertyInstTreeRootNode()
-        self.signaling_list = signaling_list
-
-    def _rec_init_descr_tree(self, parent, path):
-        assert len(path) > 0
-        name = path[0]
-        try:
-            node = parent.children[name]
-        except KeyError:
-            node = parent.children[name] = PropertyDescrTreeNode(self, parent, name)
-        # Even if parent already has a node for this name, there must be a divergence away from the existing branch or this
-        # function would not be called in the first place (entirely duplicate paths are not allowed).  So, we may only
-        # skip the next line if we have already arrived at the leaf.
-        if len(path) > 1:
-            self._rec_init_descr_tree(node, path[1:])
-        else:
-            node.is_seen = True
-
-    def rowCount(self, _=None):
-        sl = self.signaling_list
-        return 0 if sl is None else len(sl)
-
-    def columnCount(self, _=None):
-        return len(self.property_names)
-
-    def flags(self, midx):
-        f = Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
-        if midx.isValid():
-            f |= Qt.Qt.ItemIsDragEnabled
-            if self._property_inst_tree_root.children[self.signaling_list[midx.row()]].path_exists(self.property_paths[midx.column()]):
-                f |= Qt.Qt.ItemIsEnabled
-        else:
-            f |= Qt.Qt.ItemIsDropEnabled
-        return f
-
-    def get_cell(self, row, column):
-        return self._property_inst_tree_root.children[self.signaling_list[row]].rec_get(self.property_paths[column])
-
-    def data(self, midx, role=Qt.Qt.DisplayRole):
-        if midx.isValid() and role in (Qt.Qt.DisplayRole, Qt.Qt.EditRole):
-            # NB: Qt.QVariant(None) is equivalent to Qt.QVariant(), so the case where eitn.rec_get returns None does not require
-            # special handling
-            return Qt.QVariant(self.get_cell(midx.row(), midx.column()))
-        return Qt.QVariant()
-
-    def set_cell(self, row, column, value):
-        return self._property_inst_tree_root.children[self.signaling_list[row]].rec_set(self.property_paths[column], value)
-
-    def setData(self, midx, value, role=Qt.Qt.EditRole):
-        if midx.isValid() and role == Qt.Qt.EditRole:
-            return self.set_cell(midx.row(), midx.column(), value)
-        return False
-
-    def headerData(self, section, orientation, role=Qt.Qt.DisplayRole):
-        if orientation == Qt.Qt.Vertical:
-            if role == Qt.Qt.DisplayRole and 0 <= section < self.rowCount():
-                return Qt.QVariant(section)
-        elif orientation == Qt.Qt.Horizontal:
-            if role == Qt.Qt.DisplayRole and 0 <= section < self.columnCount():
-                return Qt.QVariant(self.property_names[section])
-        return Qt.QVariant()
-
-    def removeRows(self, row, count, parent=Qt.QModelIndex()):
-        try:
-            del self.signaling_list[row:row+count]
-            return True
-        except IndexError:
-            return False
-
-    def supportedDropActions(self):
-        return Qt.Qt.LinkAction
-
-    def supportedDragActions(self):
-        return Qt.Qt.LinkAction
-
-    def canDropMimeData(self, mime_data, drop_action, row, column, parent):
-        return super().canDropMimeData(mime_data, drop_action, row, column, parent)
-        r = super().canDropMimeData(mime_data, drop_action, row, column, parent)
-#       print('canDropMimeData', mime_data, drop_action, row, column, parent, ':', r)
-        return r
-
-    def dropMimeData(self, mime_data, drop_action, row, column, parent):
-#       print('dropMimeData', row, mime_data.data(ROW_DRAG_MIME_TYPE))
-        row_drag = self._decode_row_drag_mime(mime_data)
-        if row_drag is None:
-            return False
-        if row == -1:
-            # Qt supplies a value of -1 for row to indicate the drop occurred on the widget background somewhere and not
-            # on or adjacent to a row.  We append such a drop to the end of our .signaling_list.
-            row = len(self.signaling_list)
-        self.signaling_list[row:row] = row_drag[1:]
-        print('dropMimeData', drop_action, row, column, parent, row_drag)
-        return True
-
-    def _decode_row_drag_mime(self, mime_data):
-        """If mime_data contains packed ROW_DRAG_MIME_TYPE mime data, it is unpacked into a list containing the source model
-        and objects dragged, and this tuple is returned.  None is returned otherwise."""
-        if mime_data.hasFormat(ROW_DRAG_MIME_TYPE):
-            d = mime_data.data(ROW_DRAG_MIME_TYPE)
-            ds = Qt.QDataStream(d, Qt.QIODevice.ReadOnly)
-            ret = []
-            while not ds.atEnd():
-                ptr = ds.readUInt64()
-#               print('<-{}'.format(ptr))
-                ret.append(None if ptr == 0 else ctypes.cast(ptr, ctypes.py_object).value)
-            if ret:
-                return ret
-
-    def mimeTypes(self):
-        return 'application/x-qabstractitemmodeldatalist', ROW_DRAG_MIME_TYPE
-
-    def mimeData(self, midxs):
-        mime_data = super().mimeData(midxs)
-        if mime_data is None:
-            mime_data = Qt.QMimeData()
-        d = Qt.QByteArray()
-        ds = Qt.QDataStream(d, Qt.QIODevice.WriteOnly)
-        ds.writeUInt64(id(self))
-        # There is an midx for every column of the dragged row(s), but our ROW_DRAG_MIME_TYPE data should contain only one entry per row
-        packed_rows = set()
-        for midx in midxs:
-            assert midx.isValid()
-            row = midx.row()
-            if row in packed_rows:
-                continue
-            packed_rows.add(row)
-            ptr = id(self.signaling_list[row])
-#           print('->{}'.format(ptr))
-            ds.writeUInt64(ptr)
-        mime_data.setData(ROW_DRAG_MIME_TYPE, d)
-        return mime_data
-
-    @property
-    def signaling_list(self):
-        return self._signaling_list
-
-    @signaling_list.setter
-    def signaling_list(self, v):
-        if v is not self._signaling_list:
-            if self._signaling_list is not None or v is not None:
-                self.beginResetModel()
-                try:
-                    if self._signaling_list is not None:
-                        self._signaling_list.inserting.disconnect(self._on_inserting)
-                        self._signaling_list.inserted.disconnect(self._on_inserted)
-                        self._signaling_list.replaced.disconnect(self._on_replaced)
-                        self._signaling_list.removing.disconnect(self._on_removing)
-                        self._signaling_list.removed.disconnect(self._on_removed)
-                        self._detach_elements(self._signaling_list)
-                    assert len(self._property_inst_tree_root.children) == 0
-                    self._signaling_list = v
-                    if v is not None:
-                        v.inserting.connect(self._on_inserting)
-                        v.inserted.connect(self._on_inserted)
-                        v.replaced.connect(self._on_replaced)
-                        v.removing.connect(self._on_removing)
-                        v.removed.connect(self._on_removed)
-                        self._attach_elements(v)
-                finally:
-                    self.endResetModel()
-
-    def _attach_elements(self, elements):
-        property_inst_tree_root = self._property_inst_tree_root
-        for element in elements:
-            try:
-                element_inst_node = property_inst_tree_root.children[element]
-            except KeyError:
-                element_inst_node = PropertyInstTreeElementNode(property_inst_tree_root, element, self._property_descr_tree_root)
-            element_inst_node.attach()
-
-    def _detach_elements(self, elements):
-        for element in elements:
-            element_inst_node = self._property_inst_tree_root.children[element]
-            element_inst_node.detach()
-
-    def _on_inserting(self, idx, elements):
-        self.beginInsertRows(Qt.QModelIndex(), idx, idx+len(elements)-1)
-
-    def _on_inserted(self, idx, elements):
-        self.endInsertRows()
-        self._attach_elements(elements)
-
-    def _on_replaced(self, idxs, replaced_elements, elements):
-        self._detach_elements(replaced_elements)
-        self._attach_elements(elements)
-        self.dataChanged.emit(self.createIndex(min(idxs), 0), self.createIndex(max(idxs), len(self.property_names) - 1))
-
-    def _on_removing(self, idxs, elements):
-        self.beginRemoveRows(Qt.QModelIndex(), min(idxs), max(idxs))
-
-    def _on_removed(self, idxs, elements):
-        self.endRemoveRows()
-        self._detach_elements(elements)
-
-    if __debug__:
-        def _show_desc_graph(self):
-            return self._show_dot_graph(self._property_descr_tree_root.dot_graph, 'desc tree')
-
-        def _show_inst_graph(self):
-            return self._show_dot_graph(self._property_inst_tree_root.dot_graph, 'inst tree')
-
-        def _show_dot_graph(self, dot, name):
-            import io
-            import pygraphviz
-            gs = Qt.QGraphicsScene(self)
-            gv = GV(gs)
-            im = Qt.QImage.fromData(
-                pygraphviz.AGraph(string=dot, directed=True).draw(format='png', prog='dot'),
-                'png')
-            gs.addPixmap(Qt.QPixmap.fromImage(im))
-            gv.setDragMode(Qt.QGraphicsView.ScrollHandDrag)
-            gv.setBackgroundBrush(Qt.QBrush(Qt.Qt.black))
-            gv.setWindowTitle(name)
-            gv.show()
-            return gv
-
-
-if __debug__:
-    class GV(Qt.QGraphicsView):
-        closing_signal = Qt.pyqtSignal()
-
-        def closeEvent(self, event):
-            self.closing_signal.emit()
-            super().closeEvent(event)
-
-        def wheelEvent(self, event):
-            zoom = self.transform().m22()
-            original_zoom = zoom
-            increments = event.angleDelta().y() / 120
-            if increments > 0:
-                zoom *= 1.25**increments
-            elif increments < 0:
-                zoom *= 0.8**(-increments)
-            else:
-                return
-            if zoom < 0.167772:
-                zoom = 0.167772
-            elif zoom > 18.1899:
-                zoom = 18.1899
-            elif abs(abs(zoom)-1) < 0.1:
-                zoom = 1
-            scale_zoom = zoom / original_zoom
-            self.setTransformationAnchor(Qt.QGraphicsView.AnchorUnderMouse)
-            self.scale(scale_zoom, scale_zoom)

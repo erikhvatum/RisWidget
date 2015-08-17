@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from .drag_drop_model_behavior import DragDropModelBehavior
 from .property_table_model import PropertyTableModel
 from .recursive_property_table_model import RecursivePropertyTableModel
 from .signaling_list import SignalingList

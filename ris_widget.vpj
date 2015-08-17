@@ -215,7 +215,7 @@
 			<Folder Name="om">
 				<Folder Name="signaling_list">
 					<F N="ris_widget/om/signaling_list/__init__.py"/>
-					<F N="ris_widget/om/signaling_list/list_table_model.py"/>
+					<F N="ris_widget/om/signaling_list/drag_drop_model_behavior.py"/>
 					<F N="ris_widget/om/signaling_list/property_table_model.py"/>
 					<F N="ris_widget/om/signaling_list/recursive_property_table_model.py"/>
 					<F N="ris_widget/om/signaling_list/recursive_property_table_model_TESTER.py"/>
