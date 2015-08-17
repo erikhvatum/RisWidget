@@ -183,10 +183,11 @@ class RisWidget(Qt.QMainWindow):
             self.main_scene.layer_stack_item.override_enable_auto_min_max_action,
             self.main_scene.layer_stack_item.examine_layer_mode_action,
             LayerClass)
-        self.layer_stack_table_model_inverter = InvertingProxyModel(self.layer_stack_table_model)
-        self.layer_stack_table_model_inverter.setSourceModel(self.layer_stack_table_model)
+#       self.layer_stack_table_model_inverter = InvertingProxyModel(self.layer_stack_table_model)
+#       self.layer_stack_table_model_inverter.setSourceModel(self.layer_stack_table_model)
         self.layer_stack_table_view = LayerStackTableView(self.layer_stack_table_model)
-        self.layer_stack_table_view.setModel(self.layer_stack_table_model_inverter)
+#       self.layer_stack_table_view.setModel(self.layer_stack_table_model_inverter)
+        self.layer_stack_table_view.setModel(self.layer_stack_table_model)
         self.layer_stack_table_model.setParent(self.layer_stack_table_view)
         self.layer_stack_table_selection_model = self.layer_stack_table_view.selectionModel()
         self.layer_stack_table_selection_model.currentRowChanged.connect(self._on_layer_stack_table_current_row_changed)
@@ -274,11 +275,14 @@ class RisWidget(Qt.QMainWindow):
 
     def _get_primary_image_stack_current_layer_row(self):
         # Selection model is with reference to table view's model, which is the inverting proxy model
-        pmidx = self.layer_stack_table_selection_model.currentIndex()
-        if pmidx.isValid():
-            midx = self.layer_stack_table_model_inverter.mapToSource(pmidx)
-            if midx.isValid():
-                return midx.row()
+#       pmidx = self.layer_stack_table_selection_model.currentIndex()
+#       if pmidx.isValid():
+#           midx = self.layer_stack_table_model_inverter.mapToSource(pmidx)
+#           if midx.isValid():
+#               return midx.row()
+        midx = self.layer_stack_table_selection_model.currentIndex()
+        if midx.isValid():
+            return midx.row()
 
     current_layer_row = property(_get_primary_image_stack_current_layer_row)
 
@@ -368,8 +372,11 @@ class RisWidget(Qt.QMainWindow):
     def _on_inserted_into_layer_stack(self, idx, layers):
         assert len(self.layer_stack) > 0
         if not self.layer_stack_table_selection_model.currentIndex().isValid():
+#           self.layer_stack_table_selection_model.setCurrentIndex(
+#               self.layer_stack_table_model_inverter.index(0, 0),
+#               Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
             self.layer_stack_table_selection_model.setCurrentIndex(
-                self.layer_stack_table_model_inverter.index(0, 0),
+                self.layer_stack_table_model.index(0, 0),
                 Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
 
     def _on_replaced_in_layer_stack(self, idxs, old_layers, new_layers):

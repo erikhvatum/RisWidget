@@ -22,7 +22,9 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+import ctypes
 from PyQt5 import Qt
+from ...shared_resources import ROW_DRAG_MIME_TYPE
 
 class PropertyDescrTreeNode:
     __slots__ = ('model', 'parent', 'name', 'full_name', 'children', 'is_seen', '__weakref__')
@@ -436,6 +438,69 @@ class RecursivePropertyTableModel(Qt.QAbstractTableModel):
             return True
         except IndexError:
             return False
+
+    def supportedDropActions(self):
+        return Qt.Qt.CopyAction
+
+    def supportedDragActions(self):
+        return Qt.Qt.CopyAction
+
+    def canDropMimeData(self, mime_data, drop_action, row, column, parent):
+        return super().canDropMimeData(mime_data, drop_action, row, column, parent)
+        r = super().canDropMimeData(mime_data, drop_action, row, column, parent)
+#       print('canDropMimeData', mime_data, drop_action, row, column, parent, ':', r)
+        return r
+
+    def dropMimeData(self, mime_data, drop_action, row, column, parent):
+#       print('dropMimeData', row, mime_data.data(ROW_DRAG_MIME_TYPE))
+        row_drag = self._decode_row_drag_mime(mime_data)
+        if row_drag is None:
+            return False
+        if row == -1:
+            # Qt supplies a value of -1 for row to indicate the drop occurred on the widget background somewhere and not
+            # on or adjacent to a row.  We append such a drop to the end of our .signaling_list.
+            row = len(self.signaling_list)
+        self.signaling_list[row:row] = row_drag[1:]
+        print('dropMimeData', drop_action, row, column, parent, row_drag)
+        return True
+
+    def _decode_row_drag_mime(self, mime_data):
+        """If mime_data contains packed ROW_DRAG_MIME_TYPE mime data, it is unpacked into a list containing the source model
+        and objects dragged, and this tuple is returned.  None is returned otherwise."""
+        if mime_data.hasFormat(ROW_DRAG_MIME_TYPE):
+            d = mime_data.data(ROW_DRAG_MIME_TYPE)
+            ds = Qt.QDataStream(d, Qt.QIODevice.ReadOnly)
+            ret = []
+            while not ds.atEnd():
+                ptr = ds.readUInt64()
+#               print('<-{}'.format(ptr))
+                ret.append(None if ptr == 0 else ctypes.cast(ptr, ctypes.py_object).value)
+            if ret:
+                return ret
+
+    def mimeTypes(self):
+        return 'application/x-qabstractitemmodeldatalist', ROW_DRAG_MIME_TYPE
+
+    def mimeData(self, midxs):
+        mime_data = super().mimeData(midxs)
+        if mime_data is None:
+            mime_data = Qt.QMimeData()
+        d = Qt.QByteArray()
+        ds = Qt.QDataStream(d, Qt.QIODevice.WriteOnly)
+        ds.writeUInt64(id(self))
+        # There is an midx for every column of the dragged row(s), but our ROW_DRAG_MIME_TYPE data should contain only one entry per row
+        packed_rows = set()
+        for midx in midxs:
+            assert midx.isValid()
+            row = midx.row()
+            if row in packed_rows:
+                continue
+            packed_rows.add(row)
+            ptr = id(self.signaling_list[row])
+#           print('->{}'.format(ptr))
+            ds.writeUInt64(ptr)
+        mime_data.setData(ROW_DRAG_MIME_TYPE, d)
+        return mime_data
 
     @property
     def signaling_list(self):

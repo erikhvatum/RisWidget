@@ -60,7 +60,7 @@ class LayerStackTableView(Qt.QTableView):
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         self.setDragDropMode(Qt.QAbstractItemView.DragDrop)
-        self.setDropIndicatorShown(False)
+        self.setDropIndicatorShown(True)
         self.setDefaultDropAction(Qt.Qt.CopyAction)
 
     def _on_delete_current_row_action_triggered(self):
