@@ -440,10 +440,10 @@ class RecursivePropertyTableModel(Qt.QAbstractTableModel):
             return False
 
     def supportedDropActions(self):
-        return Qt.Qt.CopyAction
+        return Qt.Qt.LinkAction
 
     def supportedDragActions(self):
-        return Qt.Qt.CopyAction
+        return Qt.Qt.LinkAction
 
     def canDropMimeData(self, mime_data, drop_action, row, column, parent):
         return super().canDropMimeData(mime_data, drop_action, row, column, parent)
