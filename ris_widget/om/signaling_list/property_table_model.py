@@ -75,10 +75,10 @@ class PropertyTableModel(Qt.QAbstractTableModel):
             return False
 
     def supportedDropActions(self):
-        return Qt.Qt.LinkAction | Qt.Qt.CopyAction | Qt.Qt.MoveAction | Qt.Qt.TargetMoveAction
+        return Qt.Qt.CopyAction
 
     def supportedDragActions(self):
-        return Qt.Qt.LinkAction | Qt.Qt.CopyAction | Qt.Qt.MoveAction | Qt.Qt.TargetMoveAction
+        return Qt.Qt.CopyAction
 
     def canDropMimeData(self, mime_data, drop_action, row, column, parent):
         return super().canDropMimeData(mime_data, drop_action, row, column, parent)
