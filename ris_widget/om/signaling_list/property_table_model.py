@@ -24,10 +24,7 @@
 
 import ctypes
 from PyQt5 import Qt
-
-# Packed ROW_DRAG_MIME_TYPE data consists of a uint64 that is the sending model's Python id() followed by zero or
-# more uint64s that are Python id()s of the objects represented by the dropped rows.
-ROW_DRAG_MIME_TYPE = 'application/x-row_objects_drag_ZL1AO5IENFKSK9BQP0'
+from ...shared_resources import ROW_DRAG_MIME_TYPE
 
 class PropertyTableModel(Qt.QAbstractTableModel):
     def __init__(self, property_names, signaling_list=None, parent=None):

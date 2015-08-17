@@ -22,4 +22,7 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-class :
+from PyQt5 import Qt
+
+class ListTableModel(Qt.QAbstractTableModel):
+    pass
