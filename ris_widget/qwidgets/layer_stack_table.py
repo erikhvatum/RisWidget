@@ -266,7 +266,8 @@ class LayerStackTableModel(LayerStackTableDragDropBehavior, om.signaling_list.Re
     def _getd_image_size(self, midx, role):
         if role == Qt.Qt.DisplayRole:
             sz = self.get_cell(midx.row(), midx.column())
-            return Qt.QVariant('{}x{}'.format(sz.width(), sz.height()))
+            if sz is not None:
+                return Qt.QVariant('{}x{}'.format(sz.width(), sz.height()))
 
     def _getd_image_dtype(self, midx, role):
         if role == Qt.Qt.DisplayRole:
