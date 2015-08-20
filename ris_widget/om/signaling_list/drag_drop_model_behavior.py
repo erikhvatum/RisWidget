@@ -94,7 +94,6 @@ class DragDropModelBehavior:
         return False
 
     def can_drop_qimage(self, qimage, name, dst_row, dst_column, dst_parent):
-#       print('can_drop_qimage(self, qimage={}, name={}, dst_row={}, dst_column={}, dst_parent={})'.format(qimage, name, dst_row, dst_column, dst_parent))
         return not qimage.isNull()
 
     def can_drop_files(self, fpaths, dst_row, dst_column, dst_parent):
@@ -123,9 +122,12 @@ class DragDropModelBehavior:
         return True
 
     def should_delete_rows_dragged_from_source(self, src_model):
-        # Dropping a row onto this model inserts that row.  If the row originated from the same model into which it is
-        # dropped, we return True in order that the source row is deleted, causing an intra-model drag to appear to be
-        # a re-ordering operation / move.
+        # Called by the various handle_dropped_* methods in order to determine whether the rows dropped should be removed
+        # from their origin model.
+        #
+        # The default behavior implemented in the following line of code: Dropping a row onto this model inserts that row.
+        # If the row originated from the same model into which it is dropped, we return True in order that the source row
+        # is deleted, causing an intra-model drag to appear to be a re-ordering operation / move.
         return src_model is self
 
     def _decode_rows_drag_mime_data(self, mime_data):

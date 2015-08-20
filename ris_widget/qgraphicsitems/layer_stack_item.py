@@ -107,15 +107,14 @@ class LayerStackItem(ShaderItem):
     TEXTURE_BORDER_COLOR = Qt.QColor(0, 0, 0, 0)
 
     bounding_rect_changed = Qt.pyqtSignal()
+    layer_stack_name_changed = Qt.pyqtSignal(str)
 
     def __init__(self, get_current_layer_idx=None, parent_item=None):
         super().__init__(parent_item)
         self._get_current_layer_idx = get_current_layer_idx
         self._bounding_rect = Qt.QRectF(self.DEFAULT_BOUNDING_RECT)
+        self._layer_stack = None
         self.layer_stack = om.SignalingList(parent=self) # In ascending order, with bottom layer (backmost) as element 0
-        self.layer_stack.inserted.connect(self._on_layers_inserted)
-        self.layer_stack.removed.connect(self._on_layers_removed)
-        self.layer_stack.replaced.connect(self._on_layers_replaced)
         self._texs = {}
         self._dead_texs = [] # Textures queued for deletion when an OpenGL context is available
         self._layer_data_serials = {}
@@ -173,6 +172,36 @@ class LayerStackItem(ShaderItem):
 
     def boundingRect(self):
         return self._bounding_rect
+
+    @property
+    def layer_stack(self):
+        return self._layer_stack
+
+    # TODO: find a proper solution for allowing .layer_stack to be replaced wholesale in both LayerStackItem and LayerStackTableModel,
+    # and also LayerStackItem with no associated LayerStackTableModel and vice versa.
+    @layer_stack.setter
+    def layer_stack(self, v):
+        if self._layer_stack is not None:
+            self._detach_layers(self._layer_stack)
+            self._layer_stack.inserted.disconnect(self._on_layers_inserted)
+            self._layer_stack.removed.disconnect(self._on_layers_removed)
+            self._layer_stack.replaced.disconnect(self._on_layers_replaced)
+            self._layer_stack.name_changed.disconnect(self._on_layer_stack_name_changed)
+            old_name = self._layer_stack.name
+        else:
+            old_name = None
+        # If v is not a SignalingList and also is missing at least one list modification signal that we need, convert v
+        # to a SignalingList
+        if not isinstance(v, om.SignalingList) and any(not hasattr(v, signal) for signal in ('inserted', 'removed', 'replaced', 'name_changed')):
+            v = om.SignalingList(v)
+        self._layer_stack = v
+        v.inserted.connect(self._on_layers_inserted)
+        v.removed.connect(self._on_layers_removed)
+        v.replaced.connect(self._on_layers_replaced)
+        v.name_changed.connect(self._on_layer_stack_name_changed)
+        self._attach_layers(v)
+        if v.name != old_name:
+            self.layer_stack_name_changed.emit(v.name)
 
     def _attach_layers(self, layers):
         for layer in layers:
@@ -285,6 +314,9 @@ class LayerStackItem(ShaderItem):
                 self.prepareGeometryChange()
                 self._bounding_rect = new_br
                 self.bounding_rect_changed.emit()
+
+    def _on_layer_stack_name_changed(self):
+        self.layer_stack_name_changed.emit(self.layer_stack.name)
 
     def hoverMoveEvent(self, event):
         if self.examine_layer_mode_enabled and self._get_current_layer_idx is not None:

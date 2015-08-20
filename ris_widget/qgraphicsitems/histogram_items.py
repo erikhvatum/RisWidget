@@ -120,7 +120,15 @@ class HistogramItem(ShaderItem):
                     tex.bind()
                     estack.callback(tex.release)
                 histogram = image.histogram
-                max_bin_val = histogram[image.max_histogram_bin]
+                #TODO: fix rgb hist computation in Image
+                if image.num_channels == 1:
+                    max_bin_val = histogram[image.max_histogram_bin]
+                elif image.num_channels == 2:
+                    histogram = histogram[...,0]
+                    max_bin_val = histogram.max()
+                elif image.num_channels >= 3:
+                    histogram = 0.2126 * histogram[...,0] + 0.7152 * histogram[...,1] + 0.0722 * histogram[...,2]
+                    max_bin_val = histogram.max()
                 if tex.serial != self._layer_data_serial:
                     orig_unpack_alignment = GL.glGetIntegerv(GL.GL_UNPACK_ALIGNMENT)
                     if orig_unpack_alignment != 1:
@@ -175,7 +183,10 @@ class HistogramItem(ShaderItem):
             else:
                 mst = '[{},{}] '.format(math.ceil(bin*bin_width), math.floor((bin+1)*bin_width))
             vt = '(' + ' '.join((c + ':{}' for c in image_type)) + ')'
-            vt = vt.format(histogram[bin])
+            if image.num_channels > 1:
+                vt = vt.format(*histogram[..., bin])
+            else:
+                vt = vt.format(histogram[bin])
             self.scene().update_contextual_info(mst + vt, self)
 
     def hoverLeaveEvent(self, event):

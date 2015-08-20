@@ -27,7 +27,7 @@ from ..qdelegates.dropdown_list_delegate import DropdownListDelegate
 from ..qdelegates.slider_delegate import SliderDelegate
 from ..qdelegates.color_delegate import ColorDelegate
 from ..qdelegates.checkbox_delegate import CheckboxDelegate
-from ..shared_resources import CHOICES_QITEMDATA_ROLE
+from ..shared_resources import CHOICES_QITEMDATA_ROLE, FREEIMAGE
 from .. import om
 
 #TODO: make list items drop targets so that layer contents can be replaced by dropping file on associated item
@@ -72,8 +72,8 @@ class LayerStackTableView(Qt.QTableView):
         if midx.isValid():
             m.removeRow(midx.row())
 
-    def dropEvent(self, event):
-        super().dropEvent(event)
+#   def dropEvent(self, event):
+#       super().dropEvent(event)
 
 class InvertingProxyModel(Qt.QSortFilterProxyModel):
     # Making a full proxy model that reverses/inverts indexes from Qt.QAbstractProxyModel or Qt.QIdentityProxyModel turns
@@ -89,13 +89,24 @@ class InvertingProxyModel(Qt.QSortFilterProxyModel):
 
 class LayerStackTableDragDropBehavior(om.signaling_list.DragDropModelBehavior):
     def handle_dropped_qimage(self, qimage, name, dst_row, dst_column, dst_parent):
-        if not qimage.isNull():
-            image = self.ImageClass.from_qimage(qimage=qimage, name=name)
-            if image is not None:
-                layer = self.LayerClass(image=image)
-                self.signaling_list[dst_row:dst_row] = [layer]
-                return True
+        image = self.ImageClass.from_qimage(qimage=qimage, name=name)
+        if image is not None:
+            layer = self.LayerClass(image=image)
+            self.signaling_list[dst_row:dst_row] = [layer]
+            return True
         return False
+
+    def handle_dropped_files(self, fpaths, dst_row, dst_column, dst_parent):
+        # Note: if the URL is a "file://..." representing a local file, toLocalFile returns a string
+        # appropriate for feeding to Python's open() function.  If the URL does not refer to a local file,
+        # toLocalFile returns None.
+        freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=None)
+        if freeimage is None:
+            return False
+        # TODO: read images in background thread and display modal progress bar dialog with cancel button
+        layers = [self.LayerClass(self.ImageClass(freeimage.read(fpath_str), name=fpath_str)) for fpath_str in (str(fpath) for fpath in fpaths)]
+        self.signaling_list[dst_row:dst_row] = layers
+        return True
 
 class LayerStackTableModel(LayerStackTableDragDropBehavior, om.signaling_list.RecursivePropertyTableModel):
     # LayerStackTableModel accesses PROPERTIES strictly via self.PROPERTIES and never via LayerStackTableModel.PROPERTIES,
@@ -138,7 +149,8 @@ class LayerStackTableModel(LayerStackTableDragDropBehavior, om.signaling_list.Re
             ImageClass,
             LayerClass,
             blend_function_choice_to_value_mapping_pairs=None,
-            parent=None):
+            parent=None
+        ):
         super().__init__(self.PROPERTIES, signaling_list, parent)
         self.ImageClass = ImageClass
         self.LayerClass = LayerClass

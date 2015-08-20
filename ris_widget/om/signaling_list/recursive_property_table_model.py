@@ -26,6 +26,39 @@ import ctypes
 from PyQt5 import Qt
 
 class RecursivePropertyTableModel(Qt.QAbstractTableModel):
+    """RecursivePropertyTableModel: Glue for making a Qt.TableView (or similar) in which the elements
+    of a SignalingList are rows whose columns contain the values of any mix of element properties,
+    property-properties, property-property-properties, and N-properties (no depth limit is enforced)
+    specified in the property_names argument supplied to PropertyTableModel's constructor.  A
+    property-property is specified by a dotted string in the usual Python format; EG, if .signaling_list
+    contains things that may have a .foo property, and the thing stored in .foo itself may have a
+    .bar property, such that the .foo.bar of signaling list element at index n is accessible in Python
+    via model_instance.signaling_list[n].foo.bar, the property_name string for that column would be
+    "foo.bar".
+
+    In the case of our "foo.bar" column, RecursivePropertyTableModel would attempt to connect to
+    each .signaling_list element's .foo_changed signal.  If an element's .foo contains an object,
+    RecursivePropertyTableModel will also attempt to connect to .foo.bar_changed.  This is generally
+    true to any depth; EG, for a "a.b.c.d.e.f.g.h.i" property, RecursivePropertyTableModel will
+    attempt to connect to a_changed, a.b_changed, a.b.c_changed, a.b.c.e_changed, etc.  If any
+    property value in the chain changes and emits its associated _changed signal, the remainder
+    of the chain is refreshed and all cells representing values further down the chain are refreshed.
+
+    A tree data structure is used internally to maintain a representation of N-property relationship
+    instances, so if two columns share a base path, their instance tree nodes are also shared.
+    The upshot is that, for example, if we have the columns "a.b.c.d" and "a.b.c.dd",
+    RecursivePropertyTableModel will connect to each element's a_changed, a.b_changed, and
+    a.b.c_changed signals only once.
+
+    Duplicate .signaling_list elements are fully supported, as are signaling list elements entirely
+    lacking a property at any depth (EG, if there is a column "foo" and
+    hasattr(model.signaling_list[0], "foo") returns false, row zero's "foo" cell will be empty.
+
+    Additionally, "properties" may be plain attributes, with the limitation that changes to plain
+    attributes will not be detected."""
+
+    signaling_list_changed = Qt.pyqtSignal(object)
+
     def __init__(self, property_names, signaling_list=None, parent=None):
         super().__init__(parent)
         self._signaling_list = None

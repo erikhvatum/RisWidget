@@ -26,6 +26,116 @@ import ctypes
 from PyQt5 import Qt
 
 class PropertyTableModel(Qt.QAbstractTableModel):
+    """PropertyTableModel: Glue for making a Qt.TableView (or similar) in which the elements of a
+    SignalingList are rows whose columns contain the values of the element properties specified in
+    the property_names argument supplied to PropertyTableModel's constructor.
+
+    On a per-element basis, PropertyTableModel attempts to connect to element."property_name"_changed
+    signals.  If an element provides a _changed signal for a column's property, PropertyTableModel
+    will connect to it and cause all associated views to update the appropriate cells when the that
+    _changed signal is emitted.
+
+    Duplicate elements are fully supported.
+
+    Additionally, "properties" may be plain attributes, with the limitation that changes to plain
+    attributes will not be detected.
+
+    An example of a widget containing an editable, drag-and-drop reorderable table containing
+    the x, y, and z property values of a SignalingList's elements:
+
+    from PyQt5 import Qt
+    from ris_widget import om
+
+    class PosTableWidget(Qt.QWidget):
+        def __init__(self, parent=None):
+            super().__init__(parent)
+            self.model = PosTableModel(('x', 'y', 'z'), om.SignalingList(), self)
+            self.view = PosTableView(self.model, self)
+            self.setLayout(Qt.QVBoxLayout())
+            self.layout().addWidget(self.view)
+
+        @property
+        def positions(self):
+            return self.model.signaling_list
+
+        @positions.setter
+        def positions(self, v):
+            self.model.signaling_list = v
+
+    class PosTableView(Qt.QTableView):
+        def __init__(self, model, parent=None):
+            super().__init__(parent)
+            self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
+            self.setDragDropOverwriteMode(False)
+            self.setDragEnabled(True)
+            self.setAcceptDrops(True)
+            self.setDragDropMode(Qt.QAbstractItemView.InternalMove)
+            self.setDropIndicatorShown(True)
+            self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
+            self.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
+            self.delete_current_row_action = Qt.QAction(self)
+            self.delete_current_row_action.setText('Delete current row')
+            self.delete_current_row_action.triggered.connect(self._on_delete_current_row_action_triggered)
+            self.delete_current_row_action.setShortcut(Qt.Qt.Key_Delete)
+            self.delete_current_row_action.setShortcutContext(Qt.Qt.WidgetShortcut)
+            self.addAction(self.delete_current_row_action)
+            self.setModel(model)
+
+        def _on_delete_current_row_action_triggered(self):
+            sm = self.selectionModel()
+            m = self.model()
+            if None in (m, sm):
+                return
+            midx = sm.currentIndex()
+            if midx.isValid():
+                m.removeRow(midx.row())
+
+    class PosTableModel(om.signaling_list.PropertyTableModel):
+        def flags(self, midx):
+            f = super().flags(midx) | Qt.Qt.ItemIsEditable
+            f |= Qt.Qt.ItemIsDragEnabled if midx.isValid() else Qt.Qt.ItemIsDropEnabled
+            return f
+
+    class Pos(Qt.QObject):
+        changed = Qt.pyqtSignal(object)
+
+        def __init__(self, x=None, y=None, z=None, parent=None):
+            super().__init__(parent)
+            for property in self.properties:
+                property.instantiate(self)
+            self.x, self.y, self.z = x, y, z
+
+        properties = []
+
+        def component_default_value_callback(self):
+            pass
+
+        def take_component_arg_callback(self, v):
+            if v is not None:
+                return float(v)
+
+        x = om.Property(
+            properties,
+            "x",
+            default_value_callback=component_default_value_callback,
+            take_arg_callback=take_component_arg_callback)
+
+        y = om.Property(
+            properties,
+            "y",
+            default_value_callback=component_default_value_callback,
+            take_arg_callback=take_component_arg_callback)
+
+        z = om.Property(
+            properties,
+            "z",
+            default_value_callback=component_default_value_callback,
+            take_arg_callback=take_component_arg_callback)
+
+        for property in properties:
+            exec(property.changed_signal_name + ' = Qt.pyqtSignal(object)')
+        del property"""
+
     def __init__(self, property_names, signaling_list=None, parent=None):
         super().__init__(parent)
         self._signaling_list = None
