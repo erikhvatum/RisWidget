@@ -216,6 +216,7 @@
 				<Folder Name="signaling_list">
 					<F N="ris_widget/om/signaling_list/__init__.py"/>
 					<F N="ris_widget/om/signaling_list/drag_drop_model_behavior.py"/>
+					<F N="ris_widget/om/signaling_list/list_table_model.py"/>
 					<F N="ris_widget/om/signaling_list/property_table_model.py"/>
 					<F N="ris_widget/om/signaling_list/recursive_property_table_model.py"/>
 					<F N="ris_widget/om/signaling_list/recursive_property_table_model_TESTER.py"/>
@@ -255,6 +256,7 @@
 				<F N="ris_widget/qwidgets/__init__.py"/>
 				<F N="ris_widget/qwidgets/flipbook.py"/>
 				<F N="ris_widget/qwidgets/image_stack_current_row_flipbook.py"/>
+				<F N="ris_widget/qwidgets/layer_stack_book_table.py"/>
 				<F N="ris_widget/qwidgets/layer_stack_table.py"/>
 				<F N="ris_widget/qwidgets/progress_thread_pool.py"/>
 			</Folder>
