@@ -44,6 +44,7 @@ from .shared_resources import FREEIMAGE, GL_QSURFACE_FORMAT, NV_PATH_RENDERING_A
 
 class RisWidget(Qt.QMainWindow):
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0), msaa_sample_count=2,
+                 layer_stack = tuple(),
                  ImageClass=Image, LayerClass=Layer,
                  LayerStackItemClass=LayerStackItem, GeneralSceneClass=GeneralScene, GeneralViewClass=GeneralView,
                  GeneralViewContextualInfoItemClass=None,
@@ -73,6 +74,8 @@ class RisWidget(Qt.QMainWindow):
             GeneralViewContextualInfoItemClass,
             HistogramItemClass, HistogramSceneClass, HistogramViewClass,
             HistgramViewContextualInfoItemClass)
+        self._layer_stack = None
+        self.layer_stack = layer_stack
         self._init_actions()
         self._init_toolbars()
         self._init_menus()
@@ -127,6 +130,43 @@ class RisWidget(Qt.QMainWindow):
                 return txt[:-1]
             return txt
 
+    def _init_scenes_and_views(self, ImageClass, LayerClass, LayerStackItemClass, GeneralSceneClass, GeneralViewClass, GeneralViewContextualInfoItemClass,
+                               HistogramItemClass, HistogramSceneClass, HistogramViewClass, HistgramViewContextualInfoItemClass):
+        self.main_scene = GeneralSceneClass(self, ImageClass, LayerStackItemClass, self._get_primary_image_stack_current_layer_row, GeneralViewContextualInfoItemClass)
+        self.main_view = GeneralViewClass(self.main_scene, self)
+        self.setCentralWidget(self.main_view)
+        self.histogram_scene = HistogramSceneClass(self, self.main_scene.layer_stack_item, HistogramItemClass, HistgramViewContextualInfoItemClass)
+        self.histogram_dock_widget = Qt.QDockWidget('Histogram', self)
+        self.histogram_view, self._histogram_frame = HistogramViewClass.make_histogram_view_and_frame(self.histogram_scene, self.histogram_dock_widget)
+        self.histogram_dock_widget.setWidget(self._histogram_frame)
+        self.histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
+        self.histogram_dock_widget.setFeatures(
+            Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable |
+            Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
+        self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self.histogram_dock_widget)
+        self.layer_stack_table_dock_widget = Qt.QDockWidget('Layer Stack', self)
+        self.layer_stack_table_model = LayerStackTableModel(
+            self.main_scene.layer_stack_item.override_enable_auto_min_max_action,
+            self.main_scene.layer_stack_item.examine_layer_mode_action,
+            ImageClass,
+            LayerClass)
+#       self.layer_stack_table_model_inverter = InvertingProxyModel(self.layer_stack_table_model)
+#       self.layer_stack_table_model_inverter.setSourceModel(self.layer_stack_table_model)
+        self.layer_stack_table_view = LayerStackTableView(self.layer_stack_table_model)
+#       self.layer_stack_table_view.setModel(self.layer_stack_table_model_inverter)
+        self.layer_stack_table_view.setModel(self.layer_stack_table_model)
+        self.layer_stack_table_model.setParent(self.layer_stack_table_view)
+        self.layer_stack_table_selection_model = self.layer_stack_table_view.selectionModel()
+        self.layer_stack_table_selection_model.currentRowChanged.connect(self._on_layer_stack_table_current_row_changed)
+        self.layer_stack_table_dock_widget.setWidget(self.layer_stack_table_view)
+        self.layer_stack_table_dock_widget.setAllowedAreas(Qt.Qt.AllDockWidgetAreas)
+        self.layer_stack_table_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
+        
+        # TODO: make layer stack table widget default location be at window bottom, adjacent to histogram
+        self.addDockWidget(Qt.Qt.TopDockWidgetArea, self.layer_stack_table_dock_widget)
+        self._most_recently_created_flipbook = None
+        self._make_main_flipbook()
+
     def _init_toolbars(self):
         self.main_view_toolbar = self.addToolBar('Main View')
         self.main_view_zoom_combo = Qt.QComboBox(self)
@@ -166,46 +206,6 @@ class RisWidget(Qt.QMainWindow):
         m.addAction(self.main_scene.layer_stack_item.layer_name_in_contextual_info_action)
         m.addAction(self.main_scene.layer_stack_item.image_name_in_contextual_info_action)
 
-    def _init_scenes_and_views(self, ImageClass, LayerClass, LayerStackItemClass, GeneralSceneClass, GeneralViewClass, GeneralViewContextualInfoItemClass,
-                               HistogramItemClass, HistogramSceneClass, HistogramViewClass, HistgramViewContextualInfoItemClass):
-        self.main_scene = GeneralSceneClass(self, ImageClass, LayerStackItemClass, self._get_primary_image_stack_current_layer_row, GeneralViewContextualInfoItemClass)
-        self.main_view = GeneralViewClass(self.main_scene, self)
-        self.setCentralWidget(self.main_view)
-        self.histogram_scene = HistogramSceneClass(self, self.main_scene.layer_stack_item, HistogramItemClass, HistgramViewContextualInfoItemClass)
-        self.histogram_dock_widget = Qt.QDockWidget('Histogram', self)
-        self.histogram_view, self._histogram_frame = HistogramViewClass.make_histogram_view_and_frame(self.histogram_scene, self.histogram_dock_widget)
-        self.histogram_dock_widget.setWidget(self._histogram_frame)
-        self.histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
-        self.histogram_dock_widget.setFeatures(
-            Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable |
-            Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
-        self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self.histogram_dock_widget)
-        self.layer_stack_table_dock_widget = Qt.QDockWidget('Layer Stack', self)
-        self.layer_stack_table_model = LayerStackTableModel(
-            self.layer_stack,
-            self.main_scene.layer_stack_item.override_enable_auto_min_max_action,
-            self.main_scene.layer_stack_item.examine_layer_mode_action,
-            ImageClass,
-            LayerClass)
-#       self.layer_stack_table_model_inverter = InvertingProxyModel(self.layer_stack_table_model)
-#       self.layer_stack_table_model_inverter.setSourceModel(self.layer_stack_table_model)
-        self.layer_stack_table_view = LayerStackTableView(self.layer_stack_table_model)
-#       self.layer_stack_table_view.setModel(self.layer_stack_table_model_inverter)
-        self.layer_stack_table_view.setModel(self.layer_stack_table_model)
-        self.layer_stack_table_model.setParent(self.layer_stack_table_view)
-        self.layer_stack_table_selection_model = self.layer_stack_table_view.selectionModel()
-        self.layer_stack_table_selection_model.currentRowChanged.connect(self._on_layer_stack_table_current_row_changed)
-        self.layer_stack.inserted.connect(self._on_inserted_into_layer_stack)
-        self.layer_stack.replaced.connect(self._on_replaced_in_layer_stack)
-        self.layer_stack_table_dock_widget.setWidget(self.layer_stack_table_view)
-        self.layer_stack_table_dock_widget.setAllowedAreas(Qt.Qt.AllDockWidgetAreas)
-        self.layer_stack_table_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
-        
-        # TODO: make layer stack table widget default location be at window bottom, adjacent to histogram
-        self.addDockWidget(Qt.Qt.TopDockWidgetArea, self.layer_stack_table_dock_widget)
-        self._most_recently_created_flipbook = None
-        self._make_main_flipbook()
-
     def dragEnterEvent(self, event):
         event.acceptProposedAction()
 
@@ -237,24 +237,37 @@ class RisWidget(Qt.QMainWindow):
 
     @property
     def layer_stack(self):
-        return self.main_scene.layer_stack_item.layer_stack
+        """If you wish to replace the current .layer_stack, it may be done by assigning to this
+        property.  For example:
+        rw.layer_stack = [rw.LayerClass(rw.ImageClass(freeimage.read(str(p))) for p in pathlib.Path('./').glob('*.png')]
+
+        Modifying rw.main_scene.layer_stack_item.layer_stack directly will not cause
+        rw.layer_stack_table_model.signling_list (which contains Layers and is therefore a layer
+        stack) to update, leaving the contents of the main view and layer table out of sync.  The
+        same is true for modifying rw.layer_stack_table_model.signling_list directly, mutatis
+        mutandis.  rw.layer_stack's setter takes care of setting both."""
+        return self._layer_stack
 
     @layer_stack.setter
     def layer_stack(self, v):
+        if self._layer_stack is not None:
+            self._layer_stack.name_changed.disconnect(self._on_layer_stack_name_changed)
+            self._layer_stack.inserted.disconnect(self._on_inserted_into_layer_stack)
+            self._layer_stack.replaced.disconnect(self._on_replaced_in_layer_stack)
+        # If v is not a SignalingList and also is missing at least one list modification signal that we need, convert v
+        # to a SignalingList
+        if not isinstance(v, om.SignalingList) and any(not hasattr(v, signal) for signal in ('inserted', 'removed', 'replaced', 'name_changed')):
+            v = om.SignalingList(v)
+        self._layer_stack = v
+        v.name_changed.connect(self._on_layer_stack_name_changed)
+        # Must be QueuedConnection in order to avoid race condition where self._on_inserted_into_layer_stack is
+        # called before self.layer_stack_table_model._on_inserted, causing self._on_inserted_into_layer_stack to
+        # attempt to make row 0 in self.layer_stack_table_view current before self.layer_stack_table_model
+        # is even aware that a row has been inserted.
+        v.inserted.connect(self._on_inserted_into_layer_stack, Qt.Qt.QueuedConnection)
+        v.replaced.connect(self._on_replaced_in_layer_stack)
         self.main_scene.layer_stack_item.layer_stack = v
-
-    @property
-    def bottom_layer(self):
-        layer_stack = self.layer_stack
-        return layer_stack[0] if layer_stack else None
-
-    @bottom_layer.setter
-    def bottom_layer(self, layer):
-        layer_stack = self.layer_stack
-        if layer_stack:
-            layer_stack[0] = layer
-        else:
-            layer_stack.append(layer)
+        self.layer_stack_table_model.signaling_list = v
 
     def _get_primary_image_stack_current_layer_row(self):
         # Selection model is with reference to table view's model, which is the inverting proxy model
@@ -283,7 +296,27 @@ class RisWidget(Qt.QMainWindow):
             self.layer_stack[row] = layer
 
     @property
+    def layer(self):
+        """rw.layer: A convenience property; equivalent to rw.layer_stack[0], with the minor difference
+        that assigning to rw.layer_stack[0] when len(rw.layer_stack) is 0 would raise an exception, whereas
+        assigning to rw.layer in that situation causes the assigned Layer to be inserted at rw.layer_stack[0]."""
+        layer_stack = self.layer_stack
+        return layer_stack[0] if layer_stack else None
+
+    @layer.setter
+    def layer(self, layer):
+        layer_stack = self.layer_stack
+        if layer_stack:
+            layer_stack[0] = layer
+        else:
+            layer_stack.append(layer)
+
+    @property
     def image(self):
+        """rw.image: A Convenience property; equivalent to rw.layer_stack[0].image, with minor differences:
+        * Querying rw.image will not raise an exception when len(rw.layer_stack) is 0.  Instead, None is returned.
+        * Assinging to rw.image when len(rw.layer_stack) is 0 does not raise an exception.  Instead, it causes
+          insertion of a new Layer at rw.layer_stack[0] containing the assigned image."""
         layer_stack = self.layer_stack
         if layer_stack:
             return layer_stack[0].image
@@ -291,7 +324,8 @@ class RisWidget(Qt.QMainWindow):
     @image.setter
     def image(self, image):
         if image is not None and not isinstance(image, Image):
-            raise ValueError('The value assigned to .image must be an instance of Image or a subclass thereof, or None.')
+            raise ValueError('The value assigned to rw.image must be an instance of Image or a subclass thereof, or None.  '
+                             '(Did you mean to assign to rw.image_data?)')
         if self.bottom_layer is None:
             self.bottom_layer = self.LayerClass(image)
         else:
@@ -299,6 +333,13 @@ class RisWidget(Qt.QMainWindow):
 
     @property
     def image_data(self):
+        """rw.image_data: A convenience property; equivalent to rw.layer_stack[0].image.data, with minor
+        differences:
+        * Querying rw.image_data will not raise an exception when len(rw.layer_stack) is 0 or
+        rw.layer_stack[0].image is None.  Instead, None is returned.
+        * Assigning to rw.image_data will not raise an exception when len(rw.layer_stack) is 0 or
+        rw.layer_stack[0].image is None.  Instead, it causes insertion of a new Layer at rw.layer_stack[0]
+        containing a new Image that contains the assigned data."""
         layer_stack = self.layer_stack
         if layer_stack:
             return layer_stack[0].image.data
@@ -314,6 +355,13 @@ class RisWidget(Qt.QMainWindow):
 
     @property
     def image_data_T(self):
+        """rw.image_data_T: A convenience property; equivalent to rw.layer_stack[0].image.data_T, with minor
+        differences:
+        * Querying rw.image_data_T will not raise an exception when len(rw.layer_stack) is 0 or
+        rw.layer_stack[0].image is None.  Instead, None is returned.
+        * Assigning to rw.image_data_T will not raise an exception when len(rw.layer_stack) is 0 or
+        rw.layer_stack[0].image is None.  Instead, it causes insertion of a new Layer at rw.layer_stack[0]
+        containing a new Image that contains the assigned data."""
         layer_stack = self.layer_stack
         if layer_stack:
             return layer_stack[0].image.data_T
@@ -370,6 +418,14 @@ class RisWidget(Qt.QMainWindow):
             except RuntimeError:
                 # Qt part of the object was deleted out from under the Python part
                 self._most_recently_created_flipbook = None # Clean up our weakref to the Python part
+
+    def _on_layer_stack_name_changed(self, layer_stack):
+        assert layer_stack is self.layer_stack
+        name = layer_stack.name
+        dw_title = 'Layer Stack'
+        if len(name) > 0:
+            dw_title += ' "{}"'.format(name)
+        self.layer_stack_table_dock_widget.setWindowTitle(dw_title)
 
     def _on_layer_stack_table_current_row_changed(self, midx, prev_midx):
         row = self.current_layer_row

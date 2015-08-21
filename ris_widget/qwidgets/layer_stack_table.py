@@ -143,11 +143,11 @@ class LayerStackTableModel(LayerStackTableDragDropBehavior, om.signaling_list.Re
 
     def __init__(
             self,
-            signaling_list,
             override_enable_auto_min_max_action,
             examine_layer_mode_action,
             ImageClass,
             LayerClass,
+            signaling_list=None,
             blend_function_choice_to_value_mapping_pairs=None,
             parent=None
         ):
@@ -215,14 +215,10 @@ class LayerStackTableModel(LayerStackTableDragDropBehavior, om.signaling_list.Re
         return self._getf_default(midx) | Qt.Qt.ItemIsEditable
 
     def flags(self, midx):
-        f = self._special_flag_getters.get(self.property_names[midx.column()], self._getf_default)(midx)
-        # QAbstractItemView calls its model's flags method to determine if an item at a specific model index ("midx") can be
-        # dragged about or dropped upon.  If midx is valid, flags(..) is being called for an existing row, and we respond that
-        # it is draggable.  If midx is not valid, flags(..) is being called for an imaginary row between two existing rows or
-        # at the top or bottom of the table, all of which are valid spots for a row to be inserted, so we respond that the
-        # imaginary row in question is OK to drop upon.
-        f |= Qt.Qt.ItemIsDragEnabled if midx.isValid() else Qt.Qt.ItemIsDropEnabled
-        return f
+        if midx.isValid():
+            return self._special_flag_getters.get(self.property_names[midx.column()], self._getf_default)(midx) | Qt.Qt.ItemIsDragEnabled
+        else:
+            return self._getf_default(midx) | Qt.Qt.ItemIsDropEnabled
 
     # data #
 

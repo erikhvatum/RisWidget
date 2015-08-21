@@ -102,11 +102,19 @@ class RecursivePropertyTableModel(Qt.QAbstractTableModel):
         return len(self.property_names)
 
     def flags(self, midx):
+        # QAbstractItemView calls its model's flags method to determine if an item at a specific model index ("midx") can be
+        # dragged about or dropped upon.  If midx is valid, flags(..) is being called for an existing row, and we respond that
+        # it is draggable.  If midx is not valid, flags(..) is being called for an imaginary row between two existing rows or
+        # at the top or bottom of the table, all of which are valid spots for a row to be inserted, so we respond that the
+        # imaginary row in question is OK to drop upon.
         f = Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
         if midx.isValid():
             f |= Qt.Qt.ItemIsDragEnabled
-            if self._property_inst_tree_root.children[self.signaling_list[midx.row()]].path_exists(self.property_paths[midx.column()]):
-                f |= Qt.Qt.ItemIsEnabled
+            try:
+                if self._property_inst_tree_root.children[self.signaling_list[midx.row()]].path_exists(self.property_paths[midx.column()]):
+                    f |= Qt.Qt.ItemIsEnabled
+            except KeyError:
+                pass
         else:
             f |= Qt.Qt.ItemIsDropEnabled
         return f

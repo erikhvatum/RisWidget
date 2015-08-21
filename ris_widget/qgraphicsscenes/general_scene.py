@@ -29,7 +29,7 @@ class GeneralScene(BaseScene):
     def __init__(self, parent, ImageClass, LayerStackItemClass, get_current_layer_idx, ContextualInfoItemClass):
         super().__init__(parent, ContextualInfoItemClass)
         self.ImageClass = ImageClass
-        self.layer_stack_item = LayerStackItemClass(get_current_layer_idx)
+        self.layer_stack_item = LayerStackItemClass(get_current_layer_idx=get_current_layer_idx)
         self.layer_stack_item.bounding_rect_changed.connect(self._on_layer_stack_item_bounding_rect_changed)
         self.addItem(self.layer_stack_item)
 
