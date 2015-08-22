@@ -29,7 +29,7 @@ class ListTableModel(Qt.QAbstractTableModel):
     """Glue for presenting a list of lists as a table whose rows are outer list elements, first column
     is specified inner list property (typically "name"), and remaining columns are inner list elements."""
 
-    def __init__(self, element_property_name, element_element_property_name=None, signaling_list=None, parent=None):
+    def __init__(self, element_property_name='name', element_element_property_name=None, signaling_list=None, parent=None):
         """element_property_name: The name of the property or attribute of self._signaling_list[r] to show
         in row r, column 0.
         element_element_property_name: The name of the property or attribute of self._signaling_list[r].signaling_list[n]
@@ -55,6 +55,8 @@ class ListTableModel(Qt.QAbstractTableModel):
             column = midx.column()
             if column == 0:
                 return Qt.QVariant(getattr(self.signaling_list[midx.row()], self.element_property_name))
+            if self.element_element_property_name is None:
+                return Qt.QVariant(self.signaling_list[midx.row()].signaling_list[column-1])
             return Qt.QVariant(getattr(self.signaling_list[midx.row()].signaling_list[column-1], self.element_element_property_name))
         return Qt.QVariant()
 
@@ -64,7 +66,10 @@ class ListTableModel(Qt.QAbstractTableModel):
             if column == 0:
                 setattr(self.signaling_list[midx.row()], self.element_property_name, v)
             else:
-                setattr(self.signaling_list[midx.row()].signaling_list[column-1], self.element_element_property_name, v)
+                if self.element_element_property_name is None:
+                    self.signaling_list[midx.row()].signaling_list[column-1] = v
+                else:
+                    setattr(self.signaling_list[midx.row()].signaling_list[column-1], self.element_element_property_name, v)
             return True
         return False
 
@@ -74,8 +79,13 @@ class ListTableModel(Qt.QAbstractTableModel):
                 if 0 <= section < self.rowCount():
                     return Qt.QVariant(section)
             if orientation == Qt.Qt.Horizontal:
-                 and 0 <= section < self.columnCount():
-                    return Qt.QVariant(self.property_names[section])
+                if section == 0:
+                    return Qt.QVariant(self.element_property_name)
+                if section < self.columnCount():
+                    r = '[{}]'.format(section - 1)
+                    if self.element_element_property_name is not None:
+                        r += '.{}'.format(self.element_element_property_name)
+                    return Qt.QVariant(r)
         return Qt.QVariant()
 
     def removeRows(self, row, count, parent=Qt.QModelIndex()):
