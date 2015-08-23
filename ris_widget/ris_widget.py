@@ -326,10 +326,10 @@ class RisWidget(Qt.QMainWindow):
         if image is not None and not isinstance(image, Image):
             raise ValueError('The value assigned to rw.image must be an instance of Image or a subclass thereof, or None.  '
                              '(Did you mean to assign to rw.image_data?)')
-        if self.bottom_layer is None:
-            self.bottom_layer = self.LayerClass(image)
+        if self.layer is None:
+            self.layer = self.LayerClass(image)
         else:
-            self.bottom_layer.image = image
+            self.layer.image = image
 
     @property
     def image_data(self):
@@ -346,12 +346,12 @@ class RisWidget(Qt.QMainWindow):
 
     @image_data.setter
     def image_data(self, image_data):
-        if self.bottom_layer is None:
-            self.bottom_layer = self.LayerClass(self.ImageClass(image_data))
-        elif self.bottom_layer.image is None:
-            self.bottom_layer.image = self.ImageClass(image_data)
+        if self.layer is None:
+            self.layer = self.LayerClass(self.ImageClass(image_data))
+        elif self.layer.image is None:
+            self.layer.image = self.ImageClass(image_data)
         else:
-            self.bottom_layer.image.set_data(image_data)
+            self.layer.image.set_data(image_data)
 
     @property
     def image_data_T(self):
@@ -368,12 +368,12 @@ class RisWidget(Qt.QMainWindow):
 
     @image_data.setter
     def image_data_T(self, image_data_T):
-        if self.bottom_layer is None:
-            self.bottom_layer = self.LayerClass(self.ImageClass(image_data, shape_is_width_height=False))
-        elif self.bottom_layer.image is None:
-            self.bottom_layer.image = self.ImageClass(image_data, shape_is_width_height=False)
+        if self.layer is None:
+            self.layer = self.LayerClass(self.ImageClass(image_data, shape_is_width_height=False))
+        elif self.layer.image is None:
+            self.layer.image = self.ImageClass(image_data, shape_is_width_height=False)
         else:
-            self.bottom_layer.image.set_data(image_data, shape_is_width_height=False)
+            self.layer.image.set_data(image_data, shape_is_width_height=False)
 
     @property
     def main_flipbook(self):
