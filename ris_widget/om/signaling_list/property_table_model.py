@@ -90,11 +90,8 @@ class PropertyTableModel(Qt.QAbstractTableModel):
             if midx.isValid():
                 m.removeRow(midx.row())
 
-    class PosTableModel(om.signaling_list.PropertyTableModel):
-        def flags(self, midx):
-            f = super().flags(midx) | Qt.Qt.ItemIsEditable
-            f |= Qt.Qt.ItemIsDragEnabled if midx.isValid() else Qt.Qt.ItemIsDropEnabled
-            return f
+    class PosTableModel(om.signaling_list.DragDropModelBehavior, om.signaling_list.PropertyTableModel):
+        pass
 
     class Pos(Qt.QObject):
         changed = Qt.pyqtSignal(object)
@@ -154,6 +151,16 @@ class PropertyTableModel(Qt.QAbstractTableModel):
 
     def columnCount(self, _=None):
         return len(self.property_names)
+
+    def flags(self, midx):
+        f = Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
+        if midx.isValid():
+            f |= Qt.Qt.ItemIsEnabled
+        f |= self.drag_drop_flags(midx)
+        return f
+
+    def drag_drop_flags(self, midx):
+        return 0
 
     def data(self, midx, role=Qt.Qt.DisplayRole):
         if midx.isValid() and role in (Qt.Qt.DisplayRole, Qt.Qt.EditRole):

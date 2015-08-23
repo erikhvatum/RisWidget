@@ -93,6 +93,17 @@ class DragDropModelBehavior:
             return self.handle_dropped_files(fpaths, row, column, parent)
         return False
 
+    def drag_drop_flags(self, midx):
+        # NB: drag_drop_flags_transform(..) is called by the flags method of om.signaling_list.*model instances.  Such a flags
+        # method either directly or indirectly overrides QAbstractItemView.flags(..).
+        #
+        # QAbstractItemView and derivatives call their model's flags method to determine if an item at a specific model index
+        # ("midx") can be dragged about or dropped upon.  If midx is valid, flags(..) is being called for an existing row, and
+        # we respond that it is draggable.  If midx is not valid, flags(..) is being called for an imaginary row between two
+        # existing rows or at the top or bottom of the table, all of which are valid spots for a row to be inserted, so we
+        # respond that the imaginary row in question is OK to drop upon.
+        return Qt.Qt.ItemIsDragEnabled if midx.isValid() else Qt.Qt.ItemIsDropEnabled
+
     def can_drop_qimage(self, qimage, name, dst_row, dst_column, dst_parent):
         return not qimage.isNull()
 

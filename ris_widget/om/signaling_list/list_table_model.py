@@ -39,7 +39,6 @@ class ListTableModel(Qt.QAbstractTableModel):
         self.element_property_name = element_property_name
         self.element_element_property_name = element_element_property_name
         self._element_inst_nodes = {}
-        # TODO: implement self._elements_by_element_element_count bookkeeping
         self._elements_by_element_element_count = {}
         self.signaling_list = signaling_list
 
@@ -49,6 +48,18 @@ class ListTableModel(Qt.QAbstractTableModel):
 
     def columnCount(self, _=None):
         return self._max_ein_width + 1
+
+    def flags(self, midx):
+        f = Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
+        if midx.isValid():
+            row = midx.row()
+            if row <= len(self.signaling_list[row])
+                f |= Qt.Qt.ItemIsEnabled
+        f |= self.drag_drop_flags(midx)
+        return f
+
+    def drag_drop_flags(self, midx):
+        return 0
 
     def data(self, midx, role=Qt.Qt.DisplayRole):
         if midx.isValid() and role in (Qt.Qt.DisplayRole, Qt.Qt.EditRole):
@@ -188,17 +199,17 @@ class _ElementInstNode(Qt.QObject):
     ee_removing = Qt.pyqtSignal(object, list, list)
     ee_removed = Qt.pyqtSignal(object, list, list)
 
-    def __init__(self, list_table_model, element, element_instance_count=1):
+    def __init__(self, element, element_instance_count=1, element_element_property_name=None):
         super().__init__()
-        self.eepn = list_table_model.element_element_property_name # eepn: "Element Element Property Name"
+        self.eepn = element_element_property_name # eepn: "Element Element Property Name"
         if self.eepn is not None:
+            self.eepcsn = self.eepn + '_changed' # eepcsn: "Element Element Property Change Signal Name"
             # NB: If there is no element element property name, it is because table cells beyond column 0
             # are to be filled with str(element_element) and not element_element."property_name".  An
             # element element to be rendered directly as its own stringification may therefore be a Python
             # immutable such as an int.  Attempting to count instances of an immutable per row can lead
             # to trouble, as two "1" values may appear to share the same object although the two list elements
             # are not otherwise related.  The apparent sharing is an artifact of the CPython's implementation.
-            self.eepcsn = self.eepn + '_changed' # eepcsn: "Element Element Property Change Signal Name"
             self.eeics = {} # eeics: "Element Element Instance CountS"
         self.e = element
         self.eic = element_instance_count #eic: "Element Instance Count"
