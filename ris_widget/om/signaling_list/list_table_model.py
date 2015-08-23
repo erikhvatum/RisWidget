@@ -39,8 +39,8 @@ class ListTableModel(Qt.QAbstractTableModel):
         self.element_property_name = element_property_name
         self.element_element_property_name = element_element_property_name
         self._element_inst_nodes = {}
-        self._max_ein_width = 0
-        self._max_width_eins = set()
+        # TODO: implement self._elements_by_element_element_count bookkeeping
+        self._elements_by_element_element_count = {}
         self.signaling_list = signaling_list
 
     def rowCount(self, _=None):
@@ -127,11 +127,20 @@ class ListTableModel(Qt.QAbstractTableModel):
     def _attach_elements(self, es):
         for e in es:
             if e not in self._element_inst_nodes:
-                self._element_inst_nodes[e] = _ElementInstNode(self, e)
-            ein count = self._element_inst_nodes.get()
+                ein = self._element_inst_nodes[e] = _ElementInstNode(self, e)
+            else:
+                ein = self._element_inst_nodes.get()
+                ein.eic += 1
+            assert ein.eic > 0
 
-    def _detach_elements(self, elements):
-        pass
+    def _detach_elements(self, es):
+        for e in es:
+            ein = self._element_inst_nodes[e]
+            ein.eic -= 1
+            assert ein.eic >= 0
+            if ein.eic == 0:
+                self._max_width_eins.remove(ein)
+                # TODO: 
 
     def _on_element_property_changed(self, element):
         sl = self.signaling_list
