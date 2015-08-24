@@ -39,7 +39,9 @@ class ListTableModel(Qt.QAbstractTableModel):
         self.element_property_name = element_property_name
         self.element_element_property_name = element_element_property_name
         self._element_inst_nodes = {}
-        self._elements_by_element_element_count = {}
+        # _el_to_ein: Element Length to Element Inst Node, where element length is
+        # len(ListTableModel_instance.signaling_list[row].signaling_list)
+        self._el_to_ein = {}
         self.signaling_list = signaling_list
 
     def rowCount(self, _=None):
@@ -144,6 +146,7 @@ class ListTableModel(Qt.QAbstractTableModel):
                 ein.eic += 1
             assert ein.eic > 0
 
+
     def _detach_elements(self, es):
         for e in es:
             ein = self._element_inst_nodes[e]
@@ -178,29 +181,47 @@ class ListTableModel(Qt.QAbstractTableModel):
     def _on_removed(self, idxs, elements):
         pass
 
-    def _on_ee_inserting(self, ein, idx, ees):
-        self.beginInsertRows(Qt.QModelIndex(), )
-
-    def _on_element_element_property_changed(self, e, ee, min_eeidx, max_eeidx):
+    def _on_ees_changed(self, e, ee, eeidxs):
         sl = self.signaling_list
         next_eidx = 0
         eic = self._element_inst_nodes[e].eic
         assert eic > 0
         for _ in range(eic):
-            eidx = sl.index(element, next_eidx)
+            eidx = sl.index(e, next_eidx)
             next_eidx = eidx + 1
-            self.dataChanged.emit(self.createIndex(idx, min_eeidx-1), self.createIndex(row, max_eeidx-1))
+            for eeidx in eeidxs:
+                self.dataChanged.emit(self.createIndex(idx, eeidx+1), self.createIndex(row, eeidx+1))
+
+    def _on_ees_inserting(self, ein, idx, ees):
+        self.beginInsertRows(Qt.QModelIndex(), )
+
+    def _on_ees_inserted(self, ein, idx, ees):
+        pass
+
+    def _on_ees_replaced(self, ein, idxs, replaced_ees, ees):
+        pass
+
+    def _on_ees_removing(self, ein, idxs, ees):
+        pass
+
+    def _on_ees_removed(self, ein, idxs, ees):
+        pass
 
 class _ElementInstNode(Qt.QObject):
-    ee_changed = Qt.pyqtSignal(object, object, int, int)
-    ee_inserting = Qt.pyqtSignal(object, int, list)
-    ee_inserted = Qt.pyqtSignal(object, int, list)
-    ee_replaced = Qt.pyqtSignal(object, list, list, list)
-    ee_removing = Qt.pyqtSignal(object, list, list)
-    ee_removed = Qt.pyqtSignal(object, list, list)
+    ees_changed = Qt.pyqtSignal(object, object, idxs)
+    ees_inserting = Qt.pyqtSignal(object, int, list)
+    ees_inserted = Qt.pyqtSignal(object, int, list)
+    ees_replaced = Qt.pyqtSignal(object, list, list, list)
+    ees_removing = Qt.pyqtSignal(object, list, list)
+    ees_removed = Qt.pyqtSignal(object, list, list)
 
     def __init__(self, element, element_instance_count=1, element_element_property_name=None):
         super().__init__()
+        # len: maintained by ListTableModel, _ElementInstNode.len represents ListTableModel's concept of
+        # len(_ElementInstNode.e.signaling_list), which will be out of date during _ElementInstNode
+        # construction and when _ElementInstNode._on_inserted(..) and _ElementInstNode._on_removed(..)
+        # are called.
+        self.len = None
         self.eepn = element_element_property_name # eepn: "Element Element Property Name"
         if self.eepn is not None:
             self.eepcsn = self.eepn + '_changed' # eepcsn: "Element Element Property Change Signal Name"
@@ -239,8 +260,8 @@ class _ElementInstNode(Qt.QObject):
             self.eeics[ee] = eeic
             if eeic == 1 and self.eepn is not None:
                 try:
-                    eecs = getattr(ee, eecsn)
-                    eecs.connect(self._on_ee_change_signal)
+                    eecs = getattr(ee, self.eepcsn)
+                    eecs.connect(self._on_property_changed)
                 except AttributeError:
                     pass
 
@@ -252,45 +273,41 @@ class _ElementInstNode(Qt.QObject):
                 if self.eepn is not None:
                     try:
                         eecs = getattr(ee, self.eepcsn)
-                        eecs.disconnect(self._on_ee_change_signal)
+                        eecs.disconnect(self._on_property_changed)
                     except AttributeError:
                         pass
                 del self.eeics[ee]
             else:
                 self.eeics[ee] = eeic
 
-    def _on_changed_signal(self, ee):
+    def _on_property_changed(self, ee):
         sl = self.e.signaling_list
         assert ee in sl
         next_idx = 0
         eeic = self.eeics[ee]
         assert eeic > 0
-        min_idx = 32768
-        max_idx = -1
+        idxs = []
         for _ in range(eeic):
             idx = sl.index(ee, next_idx)
             next_idx = idx + 1
-            if idx < min_idx:
-                min_idx = idx
-            if idx > max_idx:
-                max_idx = idx
-        self.ee_changed.emit(self, ee, min_idx, max_idx)
+            idxs.append(idx)
+        self.ees_changed.emit(self, ee, idxs)
 
     def _on_inserting(self, idx, ees):
-        self.ee_inserting.emit(self, idx, ees)
+        self.ees_inserting.emit(self, idx, ees)
 
     def _on_inserted(self, idx, ees):
         self._attach_ees(ees)
-        self.ee_inserted.emit(self, idx, ees)
+        self.ees_inserted.emit(self, idx, ees)
 
     def _on_replaced(self, idxs, replaced_ees, ees):
         self._detach_ees(replaced_ees)
         self._attach_ees(ees)
-        self.ee_replaced.emit(self, idxs, replaced_ees, ees)
+        self.ees_replaced.emit(self, idxs, replaced_ees, ees)
 
     def _on_removing(self, idxs, ees):
-        self.ee_removing.emit(self, idxs, ees)
+        self.ees_removing.emit(self, idxs, ees)
 
     def _on_removed(self, idxs, ees):
         self._detach_ees(ees)
-        self.ee_removed.emit(self, idxs, ees)
+        self.ees_removed.emit(self, idxs, ees)
