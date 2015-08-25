@@ -54,7 +54,16 @@ class BasicSignalingListView(Qt.QListView):
     bslv = BasicSignalingListView(list_=[1,2,3,4,'a'])
     bslv.show()
     bslv.signaling_list.extend(list('hello world'))
-    bslv.signaling_list = sorted(bslv.signaling_list, key=lambda e: str(e))'''
+    bslv.signaling_list = sorted(bslv.signaling_list, key=lambda e: str(e))
+    def selection_changed(view, row):
+        print('newly selected row:', row)
+    bslv.current_row_changed.connect(selection_changed)
+
+    Signals:
+    * current_row_changed(BasicSignalingListView instance, row #): If no row is focused, row # is -1.'''
+
+    current_row_changed = Qt.pyqtSignal(object, int)
+
     def __init__(self, property_name=None, list_=None, model=None, parent=None):
         super().__init__(parent)
         if model is None:
@@ -83,6 +92,9 @@ class BasicSignalingListView(Qt.QListView):
         if smidx.isValid():
             m.removeRow(smidx.row())
 
+    def _on_selection_model_current_row_changed(self, old_midx, new_midx):
+        self.current_row_changed.emit(self, new_midx.row())
+
     @property
     def signaling_list(self):
         return self.model().signaling_list
@@ -92,6 +104,17 @@ class BasicSignalingListView(Qt.QListView):
         if not isinstance(list_, om.SignalingList) and any(not hasattr(list_, signal) for signal in ('inserted', 'removed', 'replaced', 'name_changed')):
             list_ = om.SignalingList(list_)
         self.model().signaling_list = list_
+
+    def setSelectionModel(self, sm):
+        osm = self.selectionModel()
+        if osm is not None:
+            try:
+                osm.currentRowChanged.disconnect(self._on_selection_model_current_row_changed)
+            except TypeError:
+                pass
+        super().setSelectionModel(sm)
+        if sm is not None:
+            sm.currentRowChanged.connect(self._on_selection_model_current_row_changed)
 
 class BasicSignalingListModel(om.signaling_list.DragDropModelBehavior, om.signaling_list.ListModel):
     '''BasicSignalingListModel is a composition of DragDropModelBehavior and ListModel that does not
