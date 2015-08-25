@@ -1,278 +1,279 @@
 <!DOCTYPE Project SYSTEM "http://www.slickedit.com/dtd/vse/10.0/vpj.dtd">
 <Project
-	Version="10.0"
-	VendorName="SlickEdit"
-	TemplateName="GNU C/C++"
-	WorkingDir="."
-	BuildSystem="vsbuild">
-	<Config
-		Name="Debug"
-		Type="gnuc"
-		DebugCallbackName="gdb"
-		Version="1"
-		OutputFile="%bdris_widget"
-		CompilerConfigName="Latest Version"
-		Defines="">
-		<Menu>
-			<Target
-				Name="Compile"
-				MenuCaption="&amp;Compile"
-				Dialog="_gnuc_options_form Compile"
-				CaptureOutputWith="ProcessBuffer"
-				Deletable="0"
-				OutputExts="*.o"
-				SaveOption="SaveCurrent"
-				RunFromDir="%rw">
-				<Exec CmdLine='g++ -c %xup %defd -g -o "%bd%n%oe" %i %f'/>
-			</Target>
-			<Target
-				Name="Link"
-				MenuCaption="&amp;Link"
-				ShowOnMenu="Never"
-				Dialog="_gnuc_options_form Link"
-				CaptureOutputWith="ProcessBuffer"
-				Deletable="0"
-				SaveOption="SaveCurrent"
-				RunFromDir="%rw">
-				<Exec CmdLine='g++ %xup -g -o "%o" %objs'/>
-			</Target>
-			<Target
-				Name="Build"
-				MenuCaption="&amp;Build"
-				Dialog="_gnuc_options_form Compile"
-				CaptureOutputWith="ProcessBuffer"
-				Deletable="0"
-				SaveOption="SaveWorkspaceFiles"
-				RunFromDir="%rw">
-				<Exec CmdLine='"%(VSLICKBIN1)vsbuild" "%w" "%r" -t build'/>
-			</Target>
-			<Target
-				Name="Rebuild"
-				MenuCaption="&amp;Rebuild"
-				Dialog="_gnuc_options_form Compile"
-				CaptureOutputWith="ProcessBuffer"
-				Deletable="0"
-				SaveOption="SaveWorkspaceFiles"
-				RunFromDir="%rw">
-				<Exec CmdLine='"%(VSLICKBIN1)vsbuild" "%w" "%r" -t rebuild'/>
-			</Target>
-			<Target
-				Name="Debug"
-				MenuCaption="&amp;Debug"
-				Dialog="_gnuc_options_form Run/Debug"
-				BuildFirst="1"
-				CaptureOutputWith="ProcessBuffer"
-				Deletable="0"
-				SaveOption="SaveNone"
-				RunFromDir="%rw">
-				<Exec CmdLine='gdb "%o"'/>
-			</Target>
-			<Target
-				Name="Execute"
-				MenuCaption="E&amp;xecute"
-				Dialog="_gnuc_options_form Run/Debug"
-				BuildFirst="1"
-				CaptureOutputWith="ProcessBuffer"
-				Deletable="0"
-				SaveOption="SaveWorkspaceFiles"
-				RunFromDir="%rw">
-				<Exec CmdLine='"%o"'/>
-			</Target>
-			<Target
-				Name="dash"
-				MenuCaption="-"
-				Deletable="0">
-				<Exec/>
-			</Target>
-			<Target
-				Name="GNU C Options"
-				MenuCaption="GNU C &amp;Options..."
-				ShowOnMenu="HideIfNoCmdLine"
-				Deletable="0"
-				SaveOption="SaveNone">
-				<Exec
-					CmdLine="gnucoptions"
-					Type="Slick-C"/>
-			</Target>
-		</Menu>
-		<List Name="GNUC Options">
-			<Item
-				Name="LinkerOutputType"
-				Value="Executable"/>
-		</List>
-		<Includes/>
-		<Libs PreObjects="0"/>
-	</Config>
-	<Config
-		Name="Release"
-		Type="gnuc"
-		DebugCallbackName="gdb"
-		Version="1"
-		OutputFile="%bdris_widget"
-		CompilerConfigName="Latest Version"
-		Defines="">
-		<Menu>
-			<Target
-				Name="Compile"
-				MenuCaption="&amp;Compile"
-				Dialog="_gnuc_options_form Compile"
-				CaptureOutputWith="ProcessBuffer"
-				Deletable="0"
-				OutputExts="*.o"
-				SaveOption="SaveCurrent"
-				RunFromDir="%rw">
-				<Exec CmdLine='g++ -c %xup %defd -o "%bd%n%oe" %i %f'/>
-			</Target>
-			<Target
-				Name="Link"
-				MenuCaption="&amp;Link"
-				ShowOnMenu="Never"
-				Dialog="_gnuc_options_form Link"
-				CaptureOutputWith="ProcessBuffer"
-				Deletable="0"
-				SaveOption="SaveCurrent"
-				RunFromDir="%rw">
-				<Exec CmdLine='g++ %xup -o "%o" %objs'/>
-			</Target>
-			<Target
-				Name="Build"
-				MenuCaption="&amp;Build"
-				Dialog="_gnuc_options_form Compile"
-				CaptureOutputWith="ProcessBuffer"
-				Deletable="0"
-				SaveOption="SaveWorkspaceFiles"
-				RunFromDir="%rw">
-				<Exec CmdLine='"%(VSLICKBIN1)vsbuild" "%w" "%r" -t build'/>
-			</Target>
-			<Target
-				Name="Rebuild"
-				MenuCaption="&amp;Rebuild"
-				Dialog="_gnuc_options_form Compile"
-				CaptureOutputWith="ProcessBuffer"
-				Deletable="0"
-				SaveOption="SaveWorkspaceFiles"
-				RunFromDir="%rw">
-				<Exec CmdLine='"%(VSLICKBIN1)vsbuild" "%w" "%r" -t rebuild'/>
-			</Target>
-			<Target
-				Name="Debug"
-				MenuCaption="&amp;Debug"
-				Dialog="_gnuc_options_form Run/Debug"
-				BuildFirst="1"
-				CaptureOutputWith="ProcessBuffer"
-				Deletable="0"
-				SaveOption="SaveNone"
-				RunFromDir="%rw">
-				<Exec CmdLine='gdb "%o"'/>
-			</Target>
-			<Target
-				Name="Execute"
-				MenuCaption="E&amp;xecute"
-				Dialog="_gnuc_options_form Run/Debug"
-				BuildFirst="1"
-				CaptureOutputWith="ProcessBuffer"
-				Deletable="0"
-				SaveOption="SaveWorkspaceFiles"
-				RunFromDir="%rw">
-				<Exec CmdLine='"%o"'/>
-			</Target>
-			<Target
-				Name="dash"
-				MenuCaption="-"
-				Deletable="0">
-				<Exec/>
-			</Target>
-			<Target
-				Name="GNU C Options"
-				MenuCaption="GNU C &amp;Options..."
-				ShowOnMenu="HideIfNoCmdLine"
-				Deletable="0"
-				SaveOption="SaveNone">
-				<Exec
-					CmdLine="gnucoptions"
-					Type="Slick-C"/>
-			</Target>
-		</Menu>
-		<List Name="GNUC Options">
-			<Item
-				Name="LinkerOutputType"
-				Value="Executable"/>
-		</List>
-		<Includes/>
-		<Libs PreObjects="0"/>
-	</Config>
-	<CustomFolders></CustomFolders>
-	<Files AutoFolders="DirectoryView">
-		<Folder Name="ris_widget">
-			<Folder Name="ndimage_statistics">
-				<F N="ris_widget/ndimage_statistics/__init__.py"/>
-				<F N="ris_widget/ndimage_statistics/_ndimage_statistics.cpp"/>
-				<F N="ris_widget/ndimage_statistics/_ndimage_statistics.pyx"/>
-				<F N="ris_widget/ndimage_statistics/_ndimage_statistics_impl.cpp"/>
-				<F N="ris_widget/ndimage_statistics/_ndimage_statistics_impl.h"/>
-				<F N="ris_widget/ndimage_statistics/ndimage_statistics.py"/>
-			</Folder>
-			<Folder Name="om">
-				<Folder Name="signaling_list">
-					<F N="ris_widget/om/signaling_list/__init__.py"/>
-					<F N="ris_widget/om/signaling_list/drag_drop_model_behavior.py"/>
-					<F N="ris_widget/om/signaling_list/list_table_model.py"/>
-					<F N="ris_widget/om/signaling_list/property_table_model.py"/>
-					<F N="ris_widget/om/signaling_list/recursive_property_table_model.py"/>
-					<F N="ris_widget/om/signaling_list/recursive_property_table_model_TESTER.py"/>
-					<F N="ris_widget/om/signaling_list/signaling_list.py"/>
-				</Folder>
-				<F N="ris_widget/om/__init__.py"/>
-				<F N="ris_widget/om/property.py"/>
-			</Folder>
-			<Folder Name="qdelegates">
-				<F N="ris_widget/qdelegates/__init__.py"/>
-				<F N="ris_widget/qdelegates/checkbox_delegate.py"/>
-				<F N="ris_widget/qdelegates/color_delegate.py"/>
-				<F N="ris_widget/qdelegates/dropdown_list_delegate.py"/>
-				<F N="ris_widget/qdelegates/slider_delegate.py"/>
-			</Folder>
-			<Folder Name="qgraphicsitems">
-				<F N="ris_widget/qgraphicsitems/__init__.py"/>
-				<F N="ris_widget/qgraphicsitems/contextual_info_item.py"/>
-				<F N="ris_widget/qgraphicsitems/contextual_info_item_nv.py"/>
-				<F N="ris_widget/qgraphicsitems/histogram_items.py"/>
-				<F N="ris_widget/qgraphicsitems/layer_stack_item.py"/>
-				<F N="ris_widget/qgraphicsitems/shader_item.py"/>
-			</Folder>
-			<Folder Name="qgraphicsscenes">
-				<F N="ris_widget/qgraphicsscenes/__init__.py"/>
-				<F N="ris_widget/qgraphicsscenes/base_scene.py"/>
-				<F N="ris_widget/qgraphicsscenes/general_scene.py"/>
-				<F N="ris_widget/qgraphicsscenes/histogram_scene.py"/>
-			</Folder>
-			<Folder Name="qgraphicsviews">
-				<F N="ris_widget/qgraphicsviews/__init__.py"/>
-				<F N="ris_widget/qgraphicsviews/base_view.py"/>
-				<F N="ris_widget/qgraphicsviews/general_view.py"/>
-				<F N="ris_widget/qgraphicsviews/histogram_view.py"/>
-			</Folder>
-			<Folder Name="qwidgets">
-				<F N="ris_widget/qwidgets/__init__.py"/>
-				<F N="ris_widget/qwidgets/flipbook.py"/>
-				<F N="ris_widget/qwidgets/image_stack_current_row_flipbook.py"/>
-				<F N="ris_widget/qwidgets/layer_stack_book_table.py"/>
-				<F N="ris_widget/qwidgets/layer_stack_table.py"/>
-				<F N="ris_widget/qwidgets/progress_thread_pool.py"/>
-			</Folder>
-			<Folder Name="shaders">
-				<F N="ris_widget/shaders/histogram_item_fragment_shader.glsl"/>
-				<F N="ris_widget/shaders/layer_stack_item_fragment_shader_template.glsl"/>
-				<F N="ris_widget/shaders/planar_quad_vertex_shader.glsl"/>
-			</Folder>
-			<F N="ris_widget/__init__.py"/>
-			<F N="ris_widget/_qt_debug.py"/>
-			<F N="ris_widget/image.py"/>
-			<F N="ris_widget/layer.py"/>
-			<F N="ris_widget/ris_widget.py"/>
-			<F N="ris_widget/shared_resources.py"/>
-		</Folder>
-		<F N="README.md"/>
-		<F N="setup.py"/>
-	</Files>
+    Version="10.0"
+    VendorName="SlickEdit"
+    TemplateName="GNU C/C++"
+    WorkingDir="."
+    BuildSystem="vsbuild">
+    <Config
+        Name="Debug"
+        Type="gnuc"
+        DebugCallbackName="gdb"
+        Version="1"
+        OutputFile="%bdris_widget"
+        CompilerConfigName="Latest Version"
+        Defines="">
+        <Menu>
+            <Target
+                Name="Compile"
+                MenuCaption="&amp;Compile"
+                Dialog="_gnuc_options_form Compile"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                OutputExts="*.o"
+                SaveOption="SaveCurrent"
+                RunFromDir="%rw">
+                <Exec CmdLine='g++ -c %xup %defd -g -o "%bd%n%oe" %i %f'/>
+            </Target>
+            <Target
+                Name="Link"
+                MenuCaption="&amp;Link"
+                ShowOnMenu="Never"
+                Dialog="_gnuc_options_form Link"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                SaveOption="SaveCurrent"
+                RunFromDir="%rw">
+                <Exec CmdLine='g++ %xup -g -o "%o" %objs'/>
+            </Target>
+            <Target
+                Name="Build"
+                MenuCaption="&amp;Build"
+                Dialog="_gnuc_options_form Compile"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                SaveOption="SaveWorkspaceFiles"
+                RunFromDir="%rw">
+                <Exec CmdLine='"%(VSLICKBIN1)vsbuild" "%w" "%r" -t build'/>
+            </Target>
+            <Target
+                Name="Rebuild"
+                MenuCaption="&amp;Rebuild"
+                Dialog="_gnuc_options_form Compile"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                SaveOption="SaveWorkspaceFiles"
+                RunFromDir="%rw">
+                <Exec CmdLine='"%(VSLICKBIN1)vsbuild" "%w" "%r" -t rebuild'/>
+            </Target>
+            <Target
+                Name="Debug"
+                MenuCaption="&amp;Debug"
+                Dialog="_gnuc_options_form Run/Debug"
+                BuildFirst="1"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                SaveOption="SaveNone"
+                RunFromDir="%rw">
+                <Exec CmdLine='gdb "%o"'/>
+            </Target>
+            <Target
+                Name="Execute"
+                MenuCaption="E&amp;xecute"
+                Dialog="_gnuc_options_form Run/Debug"
+                BuildFirst="1"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                SaveOption="SaveWorkspaceFiles"
+                RunFromDir="%rw">
+                <Exec CmdLine='"%o"'/>
+            </Target>
+            <Target
+                Name="dash"
+                MenuCaption="-"
+                Deletable="0">
+                <Exec/>
+            </Target>
+            <Target
+                Name="GNU C Options"
+                MenuCaption="GNU C &amp;Options..."
+                ShowOnMenu="HideIfNoCmdLine"
+                Deletable="0"
+                SaveOption="SaveNone">
+                <Exec
+                    CmdLine="gnucoptions"
+                    Type="Slick-C"/>
+            </Target>
+        </Menu>
+        <List Name="GNUC Options">
+            <Item
+                Name="LinkerOutputType"
+                Value="Executable"/>
+        </List>
+        <Includes/>
+        <Libs PreObjects="0"/>
+    </Config>
+    <Config
+        Name="Release"
+        Type="gnuc"
+        DebugCallbackName="gdb"
+        Version="1"
+        OutputFile="%bdris_widget"
+        CompilerConfigName="Latest Version"
+        Defines="">
+        <Menu>
+            <Target
+                Name="Compile"
+                MenuCaption="&amp;Compile"
+                Dialog="_gnuc_options_form Compile"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                OutputExts="*.o"
+                SaveOption="SaveCurrent"
+                RunFromDir="%rw">
+                <Exec CmdLine='g++ -c %xup %defd -o "%bd%n%oe" %i %f'/>
+            </Target>
+            <Target
+                Name="Link"
+                MenuCaption="&amp;Link"
+                ShowOnMenu="Never"
+                Dialog="_gnuc_options_form Link"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                SaveOption="SaveCurrent"
+                RunFromDir="%rw">
+                <Exec CmdLine='g++ %xup -o "%o" %objs'/>
+            </Target>
+            <Target
+                Name="Build"
+                MenuCaption="&amp;Build"
+                Dialog="_gnuc_options_form Compile"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                SaveOption="SaveWorkspaceFiles"
+                RunFromDir="%rw">
+                <Exec CmdLine='"%(VSLICKBIN1)vsbuild" "%w" "%r" -t build'/>
+            </Target>
+            <Target
+                Name="Rebuild"
+                MenuCaption="&amp;Rebuild"
+                Dialog="_gnuc_options_form Compile"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                SaveOption="SaveWorkspaceFiles"
+                RunFromDir="%rw">
+                <Exec CmdLine='"%(VSLICKBIN1)vsbuild" "%w" "%r" -t rebuild'/>
+            </Target>
+            <Target
+                Name="Debug"
+                MenuCaption="&amp;Debug"
+                Dialog="_gnuc_options_form Run/Debug"
+                BuildFirst="1"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                SaveOption="SaveNone"
+                RunFromDir="%rw">
+                <Exec CmdLine='gdb "%o"'/>
+            </Target>
+            <Target
+                Name="Execute"
+                MenuCaption="E&amp;xecute"
+                Dialog="_gnuc_options_form Run/Debug"
+                BuildFirst="1"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                SaveOption="SaveWorkspaceFiles"
+                RunFromDir="%rw">
+                <Exec CmdLine='"%o"'/>
+            </Target>
+            <Target
+                Name="dash"
+                MenuCaption="-"
+                Deletable="0">
+                <Exec/>
+            </Target>
+            <Target
+                Name="GNU C Options"
+                MenuCaption="GNU C &amp;Options..."
+                ShowOnMenu="HideIfNoCmdLine"
+                Deletable="0"
+                SaveOption="SaveNone">
+                <Exec
+                    CmdLine="gnucoptions"
+                    Type="Slick-C"/>
+            </Target>
+        </Menu>
+        <List Name="GNUC Options">
+            <Item
+                Name="LinkerOutputType"
+                Value="Executable"/>
+        </List>
+        <Includes/>
+        <Libs PreObjects="0"/>
+    </Config>
+    <CustomFolders></CustomFolders>
+    <Files AutoFolders="DirectoryView">
+        <Folder Name="ris_widget">
+            <Folder Name="ndimage_statistics">
+                <F N="ris_widget/ndimage_statistics/__init__.py"/>
+                <F N="ris_widget/ndimage_statistics/_ndimage_statistics.cpp"/>
+                <F N="ris_widget/ndimage_statistics/_ndimage_statistics.pyx"/>
+                <F N="ris_widget/ndimage_statistics/_ndimage_statistics_impl.cpp"/>
+                <F N="ris_widget/ndimage_statistics/_ndimage_statistics_impl.h"/>
+                <F N="ris_widget/ndimage_statistics/ndimage_statistics.py"/>
+            </Folder>
+            <Folder Name="om">
+                <Folder Name="signaling_list">
+                    <F N="ris_widget/om/signaling_list/__init__.py"/>
+                    <F N="ris_widget/om/signaling_list/drag_drop_model_behavior.py"/>
+                    <F N="ris_widget/om/signaling_list/list_model.py"/>
+                    <F N="ris_widget/om/signaling_list/list_table_model.py"/>
+                    <F N="ris_widget/om/signaling_list/property_table_model.py"/>
+                    <F N="ris_widget/om/signaling_list/recursive_property_table_model.py"/>
+                    <F N="ris_widget/om/signaling_list/recursive_property_table_model_TESTER.py"/>
+                    <F N="ris_widget/om/signaling_list/signaling_list.py"/>
+                </Folder>
+                <F N="ris_widget/om/__init__.py"/>
+                <F N="ris_widget/om/property.py"/>
+            </Folder>
+            <Folder Name="qdelegates">
+                <F N="ris_widget/qdelegates/__init__.py"/>
+                <F N="ris_widget/qdelegates/checkbox_delegate.py"/>
+                <F N="ris_widget/qdelegates/color_delegate.py"/>
+                <F N="ris_widget/qdelegates/dropdown_list_delegate.py"/>
+                <F N="ris_widget/qdelegates/slider_delegate.py"/>
+            </Folder>
+            <Folder Name="qgraphicsitems">
+                <F N="ris_widget/qgraphicsitems/__init__.py"/>
+                <F N="ris_widget/qgraphicsitems/contextual_info_item.py"/>
+                <F N="ris_widget/qgraphicsitems/contextual_info_item_nv.py"/>
+                <F N="ris_widget/qgraphicsitems/histogram_items.py"/>
+                <F N="ris_widget/qgraphicsitems/layer_stack_item.py"/>
+                <F N="ris_widget/qgraphicsitems/shader_item.py"/>
+            </Folder>
+            <Folder Name="qgraphicsscenes">
+                <F N="ris_widget/qgraphicsscenes/__init__.py"/>
+                <F N="ris_widget/qgraphicsscenes/base_scene.py"/>
+                <F N="ris_widget/qgraphicsscenes/general_scene.py"/>
+                <F N="ris_widget/qgraphicsscenes/histogram_scene.py"/>
+            </Folder>
+            <Folder Name="qgraphicsviews">
+                <F N="ris_widget/qgraphicsviews/__init__.py"/>
+                <F N="ris_widget/qgraphicsviews/base_view.py"/>
+                <F N="ris_widget/qgraphicsviews/general_view.py"/>
+                <F N="ris_widget/qgraphicsviews/histogram_view.py"/>
+            </Folder>
+            <Folder Name="qwidgets">
+                <F N="ris_widget/qwidgets/__init__.py"/>
+                <F N="ris_widget/qwidgets/flipbook.py"/>
+                <F N="ris_widget/qwidgets/image_stack_current_row_flipbook.py"/>
+                <F N="ris_widget/qwidgets/layer_stack_book_table.py"/>
+                <F N="ris_widget/qwidgets/layer_stack_table.py"/>
+                <F N="ris_widget/qwidgets/progress_thread_pool.py"/>
+            </Folder>
+            <Folder Name="shaders">
+                <F N="ris_widget/shaders/histogram_item_fragment_shader.glsl"/>
+                <F N="ris_widget/shaders/layer_stack_item_fragment_shader_template.glsl"/>
+                <F N="ris_widget/shaders/planar_quad_vertex_shader.glsl"/>
+            </Folder>
+            <F N="ris_widget/__init__.py"/>
+            <F N="ris_widget/_qt_debug.py"/>
+            <F N="ris_widget/image.py"/>
+            <F N="ris_widget/layer.py"/>
+            <F N="ris_widget/ris_widget.py"/>
+            <F N="ris_widget/shared_resources.py"/>
+        </Folder>
+        <F N="README.md"/>
+        <F N="setup.py"/>
+    </Files>
 </Project>
