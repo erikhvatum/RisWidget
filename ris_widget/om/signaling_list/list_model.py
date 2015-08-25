@@ -82,7 +82,7 @@ class ListModel(Qt.QAbstractListModel):
     def flags(self, midx):
         f = Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
         if midx.isValid():
-            f |= Qt.Qt.ItemIsEnabled
+            f |= Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsEditable
         f |= self.drag_drop_flags(midx)
         return f
 
