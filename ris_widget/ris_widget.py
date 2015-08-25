@@ -45,7 +45,6 @@ from .shared_resources import FREEIMAGE, GL_QSURFACE_FORMAT, NV_PATH_RENDERING_A
 class RisWidget(Qt.QMainWindow):
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0), msaa_sample_count=2,
                  layer_stack = tuple(),
-                 ImageClass=Image, LayerClass=Layer,
                  LayerStackItemClass=LayerStackItem, GeneralSceneClass=GeneralScene, GeneralViewClass=GeneralView,
                  GeneralViewContextualInfoItemClass=None,
                  HistogramItemClass=HistogramItem, HistogramSceneClass=HistogramScene, HistogramViewClass=HistogramView,
@@ -65,11 +64,9 @@ class RisWidget(Qt.QMainWindow):
                 GeneralViewContextualInfoItemClass = ContextualInfoItemNV if NV_PATH_RENDERING_AVAILABLE() else ContextualInfoItem
             if HistgramViewContextualInfoItemClass is None:
                 HistgramViewContextualInfoItemClass = ContextualInfoItemNV if NV_PATH_RENDERING_AVAILABLE() else ContextualInfoItem
-        self.ImageClass = ImageClass
         self.LayerClass = LayerClass
         self.FlipbookClass = FlipbookClass
         self._init_scenes_and_views(
-            ImageClass, LayerClass,
             LayerStackItemClass, GeneralSceneClass, GeneralViewClass,
             GeneralViewContextualInfoItemClass,
             HistogramItemClass, HistogramSceneClass, HistogramViewClass,
@@ -130,9 +127,9 @@ class RisWidget(Qt.QMainWindow):
                 return txt[:-1]
             return txt
 
-    def _init_scenes_and_views(self, ImageClass, LayerClass, LayerStackItemClass, GeneralSceneClass, GeneralViewClass, GeneralViewContextualInfoItemClass,
+    def _init_scenes_and_views(self, LayerStackItemClass, GeneralSceneClass, GeneralViewClass, GeneralViewContextualInfoItemClass,
                                HistogramItemClass, HistogramSceneClass, HistogramViewClass, HistgramViewContextualInfoItemClass):
-        self.main_scene = GeneralSceneClass(self, ImageClass, LayerStackItemClass, self._get_primary_image_stack_current_layer_row, GeneralViewContextualInfoItemClass)
+        self.main_scene = GeneralSceneClass(self, LayerStackItemClass, self._get_primary_image_stack_current_layer_row, GeneralViewContextualInfoItemClass)
         self.main_view = GeneralViewClass(self.main_scene, self)
         self.setCentralWidget(self.main_view)
         self.histogram_scene = HistogramSceneClass(self, self.main_scene.layer_stack_item, HistogramItemClass, HistgramViewContextualInfoItemClass)
@@ -147,9 +144,7 @@ class RisWidget(Qt.QMainWindow):
         self.layer_stack_table_dock_widget = Qt.QDockWidget('Layer Stack', self)
         self.layer_stack_table_model = LayerStackTableModel(
             self.main_scene.layer_stack_item.override_enable_auto_min_max_action,
-            self.main_scene.layer_stack_item.examine_layer_mode_action,
-            ImageClass,
-            LayerClass)
+            self.main_scene.layer_stack_item.examine_layer_mode_action)
 #       self.layer_stack_table_model_inverter = InvertingProxyModel(self.layer_stack_table_model)
 #       self.layer_stack_table_model_inverter.setSourceModel(self.layer_stack_table_model)
         self.layer_stack_table_view = LayerStackTableView(self.layer_stack_table_model)
@@ -215,7 +210,7 @@ class RisWidget(Qt.QMainWindow):
     def dropEvent(self, event):
         mime_data = event.mimeData()
         if mime_data.hasImage():
-            image = self.ImageClass.from_qimage(qimage=qimage, name=mime_data.urls()[0].toDisplayString() if mime_data.hasUrls() else None)
+            image = Image.from_qimage(qimage=qimage, name=mime_data.urls()[0].toDisplayString() if mime_data.hasUrls() else None)
             if image is not None:
                 layer = self.LayerClass(image=image)
                 self.main_flipbook.pages[:] = [layer]
@@ -232,20 +227,31 @@ class RisWidget(Qt.QMainWindow):
             freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
             if freeimage is None:
                 return
-            self.main_flipbook.pages[:] = [self.LayerClass(self.ImageClass(freeimage.read(fpath), name=fpath)) for fpath in fpaths]
+            self.main_flipbook.pages[:] = [self.LayerClass(Image(freeimage.read(fpath), name=fpath)) for fpath in fpaths]
             event.accept()
 
     @property
     def layer_stack(self):
-        """If you wish to replace the current .layer_stack, it may be done by assigning to this
+        '''If you wish to replace the current .layer_stack, it may be done by assigning to this
         property.  For example:
-        rw.layer_stack = [rw.LayerClass(rw.ImageClass(freeimage.read(str(p))) for p in pathlib.Path('./').glob('*.png')]
+        import freeimage
+        from ris_widget.layer import Layer
+        rw.layer_stack = [Layer(freeimage.read(str(p))) for p in pathlib.Path('./').glob('*.png')]
 
-        Modifying rw.main_scene.layer_stack_item.layer_stack directly will not cause
-        rw.layer_stack_table_model.signling_list (which contains Layers and is therefore a layer
-        stack) to update, leaving the contents of the main view and layer table out of sync.  The
-        same is true for modifying rw.layer_stack_table_model.signling_list directly, mutatis
-        mutandis.  rw.layer_stack's setter takes care of setting both."""
+        Assigning to rw.main_scene.layer_stack_item.layer_stack directly will not cause
+        assignment to rw.layer_stack_table_model.signling_list (which contains Layers and
+        is therefore a layer stack), leaving the contents of the main view and layer table
+        out of sync.  The same is true for assigning to 
+        rw.layer_stack_table_model.signling_list directly, mutatis mutandis.  rw.layer_stack's
+        setter takes care of setting both.
+
+        Although assigning directly to rw.main_scene.layer_stack_item.layer_stack
+        or rw.layer_stack_table_model.signling_list is not recommended, modifying the SignalingList
+        instance returned by either of these property getters is safe.  EG,
+        rw.main_scene.layer_stack_item.layer_stack.insert(Layer(numpy.zeros((800,800), dtype=numpy.uint8)))
+        will cause the layer stack table to update, provided that rw.layer_stack_table_model.signling_list
+        and rw.main_scene.layer_stack_item.layer_stack refer to the same SignalingList, as they
+        do by default.'''
         return self._layer_stack
 
     @layer_stack.setter
@@ -298,6 +304,9 @@ class RisWidget(Qt.QMainWindow):
     @property
     def layer(self):
         """rw.layer: A convenience property; equivalent to rw.layer_stack[0], with the minor difference
+        that rw.layer "just works", even when len(rw.layer_stack) is 0.
+
+        When len(rw.layer_stack) is 0, querying rw.layer_stack causes a new 
         that assigning to rw.layer_stack[0] when len(rw.layer_stack) is 0 would raise an exception, whereas
         assigning to rw.layer in that situation causes the assigned Layer to be inserted at rw.layer_stack[0]."""
         layer_stack = self.layer_stack
@@ -330,50 +339,6 @@ class RisWidget(Qt.QMainWindow):
             self.layer = self.LayerClass(image)
         else:
             self.layer.image = image
-
-    @property
-    def image_data(self):
-        """rw.image_data: A convenience property; equivalent to rw.layer_stack[0].image.data, with minor
-        differences:
-        * Querying rw.image_data will not raise an exception when len(rw.layer_stack) is 0 or
-        rw.layer_stack[0].image is None.  Instead, None is returned.
-        * Assigning to rw.image_data will not raise an exception when len(rw.layer_stack) is 0 or
-        rw.layer_stack[0].image is None.  Instead, it causes insertion of a new Layer at rw.layer_stack[0]
-        containing a new Image that contains the assigned data."""
-        layer_stack = self.layer_stack
-        if layer_stack:
-            return layer_stack[0].image.data
-
-    @image_data.setter
-    def image_data(self, image_data):
-        if self.layer is None:
-            self.layer = self.LayerClass(self.ImageClass(image_data))
-        elif self.layer.image is None:
-            self.layer.image = self.ImageClass(image_data)
-        else:
-            self.layer.image.set_data(image_data)
-
-    @property
-    def image_data_T(self):
-        """rw.image_data_T: A convenience property; equivalent to rw.layer_stack[0].image.data_T, with minor
-        differences:
-        * Querying rw.image_data_T will not raise an exception when len(rw.layer_stack) is 0 or
-        rw.layer_stack[0].image is None.  Instead, None is returned.
-        * Assigning to rw.image_data_T will not raise an exception when len(rw.layer_stack) is 0 or
-        rw.layer_stack[0].image is None.  Instead, it causes insertion of a new Layer at rw.layer_stack[0]
-        containing a new Image that contains the assigned data."""
-        layer_stack = self.layer_stack
-        if layer_stack:
-            return layer_stack[0].image.data_T
-
-    @image_data.setter
-    def image_data_T(self, image_data_T):
-        if self.layer is None:
-            self.layer = self.LayerClass(self.ImageClass(image_data, shape_is_width_height=False))
-        elif self.layer.image is None:
-            self.layer.image = self.ImageClass(image_data, shape_is_width_height=False)
-        else:
-            self.layer.image.set_data(image_data, shape_is_width_height=False)
 
     @property
     def main_flipbook(self):

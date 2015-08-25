@@ -82,6 +82,11 @@ class SignalingList(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
 
     def clear(self):
         'S.clear() -> None -- remove all items from S'
+        idxs = list(range(0, len(self._list)))
+        objs = list(self._list)
+        self.removing.emit(idxs, objs)
+        del self._list[:]
+        self.removed.emit(idxs, objs)
 
     def __contains__(self, obj):
         return obj in self._list
