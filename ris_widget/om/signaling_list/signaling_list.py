@@ -173,9 +173,9 @@ class SignalingList(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
 
     def __delitem__(self, idx_or_slice):
         objs = self._list[idx_or_slice]
-        if not objs:
-            return
         if isinstance(idx_or_slice, slice):
+            if not objs:
+                return
             idxs = list(range(*idx_or_slice.indices(len(self._list))))
         else:
             idxs = [idx_or_slice]
