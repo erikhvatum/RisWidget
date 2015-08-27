@@ -23,6 +23,7 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from PyQt5 import Qt
+from ..image import Image
 from ..layer import Layer
 from ..qdelegates.dropdown_list_delegate import DropdownListDelegate
 from ..qdelegates.slider_delegate import SliderDelegate
@@ -111,7 +112,7 @@ class LayerStackTableDragDropBehavior(om.signaling_list.DragDropModelBehavior):
         return super().dropMimeData(mime_data, drop_action, self._fix_row_for_inversion(row), column, parent)
 
     def handle_dropped_qimage(self, qimage, name, dst_row, dst_column, dst_parent):
-        image = self.ImageClass.from_qimage(qimage=qimage, name=name)
+        image = Image.from_qimage(qimage=qimage, name=name)
         if image is not None:
             layer = self.LayerClass(image=image)
             self.signaling_list[dst_row:dst_row] = [layer]
@@ -126,7 +127,7 @@ class LayerStackTableDragDropBehavior(om.signaling_list.DragDropModelBehavior):
         if freeimage is None:
             return False
         # TODO: read images in background thread and display modal progress bar dialog with cancel button
-        layers = [self.LayerClass(self.ImageClass(freeimage.read(fpath_str), name=fpath_str)) for fpath_str in (str(fpath) for fpath in fpaths)]
+        layers = [Layer(Image(freeimage.read(fpath_str), name=fpath_str)) for fpath_str in (str(fpath) for fpath in fpaths)]
         self.signaling_list[dst_row:dst_row] = layers
         return True
 

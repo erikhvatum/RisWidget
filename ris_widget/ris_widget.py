@@ -352,7 +352,7 @@ class RisWidget(Qt.QMainWindow):
         If None is supplied for images, an empty flipbook is created."""
         if images is not None:
             if not isinstance(images, SignalingList):
-                images = SignalingList([image if isinstance(image, self.ImageClass) else self.ImageClass(image, name=str(image_idx)) for image_idx, image in enumerate(images)])
+                images = SignalingList([image if isinstance(image, Image) else Image(image, name=str(image_idx)) for image_idx, image in enumerate(images)])
         flipbook = (self.layer_stack, self.layer_stack_table_selection_model, images)
         dock_widget = Qt.QDockWidget(name, self)
         dock_widget.setAttribute(Qt.Qt.WA_DeleteOnClose)
