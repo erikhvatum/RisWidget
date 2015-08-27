@@ -28,6 +28,7 @@ from PyQt5 import Qt
 from string import Template
 import textwrap
 import time
+from .image import Image
 from . import om
 
 class Layer(Qt.QObject):
@@ -143,6 +144,8 @@ class Layer(Qt.QObject):
             if self._image is not None:
                 self._image.data_changed.disconnect(self._on_image_data_changed)
             if v is not None:
+                if not isinstance(v, Image):
+                    v = Image(image)
                 try:
                     v.data_changed.connect(self._on_image_data_changed)
                 except Exception as e:
@@ -158,7 +161,6 @@ class Layer(Qt.QObject):
             if self.auto_min_max_enabled:
                 self.do_auto_min_max()
             else:
-
                 r = image.range
                 if self.min < r[0]:
                     self.min = r[0]

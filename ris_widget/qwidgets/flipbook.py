@@ -25,7 +25,7 @@
 from PyQt5 import Qt
 from .. import om
 
-class Flipbook(Qt.QListView):
+class Flipbook(Qt.QWidget):
     """Flipbook: a widget containing a list box showing the name property values of the elements of its pages property.
     Changing which row is selected in the list box causes the current_page_changed signal to be emitted with the newly
     selected page's index and the page itself as parameters.
@@ -37,14 +37,11 @@ class Flipbook(Qt.QListView):
     image_flipbook.pages.append(Image(numpy.zeros((400,400,3), dtype=numpy.uint8)))
 
     Signals:
-    current_page_changed(index of new page in .pages, the new page)"""
-    pass
-    current_page_changed = Qt.pyqtSignal(int, object)
+    * current_page_changed(Flipbook instance, page #)"""
+    current_page_changed = Qt.pyqtSignal(object, int)
 
     def __init__(self, pages=None, displayed_page_properties=('name', 'type'), parent=None):
-        assert pages is None or isinstance(pages, SignalingList)
         super().__init__(parent)
-        self.setAttribute(Qt.Qt.WA_DeleteOnClose)
         vlayout = Qt.QVBoxLayout()
         self.setLayout(vlayout)
         self.pages_view = Qt.QTableView()
@@ -55,21 +52,6 @@ class Flipbook(Qt.QListView):
         self.pages_view.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
         self.pages_view.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
         vlayout.addWidget(self.pages_view)
-        self.delete_current_row_action = Qt.QAction(self)
-        self.delete_current_row_action.setText('Delete current row')
-        self.delete_current_row_action.triggered.connect(self._on_delete_current_row_action_triggered)
-        self.delete_current_row_action.setShortcut(Qt.Qt.Key_Delete)
-        self.delete_current_row_action.setShortcutContext(Qt.Qt.WidgetShortcut)
-        self.addAction(self.delete_current_row_action)
-
-    def _on_delete_current_row_action_triggered(self):
-        sm = self.selectionModel()
-        m = self.model()
-        if None in (m, sm):
-            return
-        midx = sm.currentIndex()
-        if midx.isValid():
-            m.removeRow(midx.row())
 
     @property
     def pages(self):
@@ -87,4 +69,37 @@ class Flipbook(Qt.QListView):
         else:
             self.current_page_changed.emit(-1, None)
 
-#class FlipbookModel():
+class PagesView(Qt.QTableView):
+    def __init__(self, pages_model, parent=None):
+        super().__init__(parent)
+        self.horizontalHeader().setStretchLastSection(True)
+        self.verticalHeader().setHighlightSections(False)
+        self.verticalHeader().setSectionsClickable(False)
+        self.setTextElideMode(Qt.Qt.ElideMiddle)
+        self.delete_current_row_action = Qt.QAction(self)
+        self.delete_current_row_action.setText('Delete current row')
+        self.delete_current_row_action.triggered.connect(self._on_delete_current_row_action_triggered)
+        self.delete_current_row_action.setShortcut(Qt.Qt.Key_Delete)
+        self.delete_current_row_action.setShortcutContext(Qt.Qt.WidgetShortcut)
+        self.addAction(self.delete_current_row_action)
+
+    def _on_delete_current_row_action_triggered(self):
+        sm = self.selectionModel()
+        m = self.model()
+        if None in (m, sm):
+            return
+        midx = sm.currentIndex()
+        if midx.isValid():
+            m.removeRow(midx.row())
+
+class PagesDragDropBehavior(om.signaling_list.DragDropModelBehavior):
+    pass
+
+class PagesModel(PagesDragDropBehavior, om.signaling_list.RecursivePropertyTableModel):
+    PROPERTIES = (
+        'name',
+        )
+
+    def __init__(self, signaling_list=None, parent=None):
+        super().__init__('name', signaling_list, parent)
+

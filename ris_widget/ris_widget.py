@@ -128,7 +128,7 @@ class RisWidget(Qt.QMainWindow):
 
     def _init_scenes_and_views(self, LayerStackItemClass, GeneralSceneClass, GeneralViewClass, GeneralViewContextualInfoItemClass,
                                HistogramItemClass, HistogramSceneClass, HistogramViewClass, HistgramViewContextualInfoItemClass):
-        self.main_scene = GeneralSceneClass(self, LayerStackItemClass, self._get_primary_image_stack_current_layer_row, GeneralViewContextualInfoItemClass)
+        self.main_scene = GeneralSceneClass(self, LayerStackItemClass, self._get_primary_image_stack_current_layer_idx, GeneralViewContextualInfoItemClass)
         self.main_view = GeneralViewClass(self.main_scene, self)
         self.setCentralWidget(self.main_view)
         self.histogram_scene = HistogramSceneClass(self, self.main_scene.layer_stack_item, HistogramItemClass, HistgramViewContextualInfoItemClass)
@@ -151,7 +151,7 @@ class RisWidget(Qt.QMainWindow):
 #       self.layer_stack_table_view.setModel(self.layer_stack_table_model)
         self.layer_stack_table_model.setParent(self.layer_stack_table_view)
         self.layer_stack_table_selection_model = self.layer_stack_table_view.selectionModel()
-        self.layer_stack_table_selection_model.currentRowChanged.connect(self._on_layer_stack_table_current_row_changed)
+        self.layer_stack_table_selection_model.currentRowChanged.connect(self._on_layer_stack_table_current_idx_changed)
         self.layer_stack_table_dock_widget.setWidget(self.layer_stack_table_view)
         self.layer_stack_table_dock_widget.setAllowedAreas(Qt.Qt.AllDockWidgetAreas)
         self.layer_stack_table_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
@@ -259,10 +259,17 @@ class RisWidget(Qt.QMainWindow):
             self._layer_stack.name_changed.disconnect(self._on_layer_stack_name_changed)
             self._layer_stack.inserted.disconnect(self._on_inserted_into_layer_stack)
             self._layer_stack.replaced.disconnect(self._on_replaced_in_layer_stack)
-        # If v is not a SignalingList and also is missing at least one list modification signal that we need, convert v
-        # to a SignalingList
-        if not isinstance(v, om.SignalingList) and any(not hasattr(v, signal) for signal in ('inserted', 'removed', 'replaced', 'name_changed')):
-            v = om.SignalingList(v)
+        if v is None:
+            v = om.SignalingList()
+        elif isinstance(v, Image):
+            v = om.SignalingList([Layer(v)])
+        elif isinstance(v, Layer):
+            v = om.SignalingList([v])
+        elif not isinstance(v, om.SignalingList) and any(not hasattr(v, signal) for signal in ('inserted', 'removed', 'replaced', 'name_changed'))\
+             or any(not isinstance(ve, Layer) for ve in v):
+            # If v is not a SignalingList and also is missing at least one list modification signal that we need, or if at least one element of v
+            # is not a Layer, convert v to a SignalingList of Layers
+            v = om.SignalingList([ve if isinstance(ve, Layer) else Layer(ve) for ve in v])
         self._layer_stack = v
         v.name_changed.connect(self._on_layer_stack_name_changed)
         # Must be QueuedConnection in order to avoid race condition where self._on_inserted_into_layer_stack is
@@ -274,70 +281,72 @@ class RisWidget(Qt.QMainWindow):
         self.main_scene.layer_stack_item.layer_stack = v
         self.layer_stack_table_model.signaling_list = v
 
-    def _get_primary_image_stack_current_layer_row(self):
+    def _get_primary_image_stack_current_layer_idx(self):
         # Selection model is with reference to table view's model, which is the inverting proxy model
         pmidx = self.layer_stack_table_selection_model.currentIndex()
         if pmidx.isValid():
             midx = self.layer_stack_table_model_inverter.mapToSource(pmidx)
             if midx.isValid():
                 return midx.row()
-#       midx = self.layer_stack_table_selection_model.currentIndex()
-#       if midx.isValid():
-#           return midx.row()
 
-    current_layer_row = property(_get_primary_image_stack_current_layer_row)
+    current_layer_idx = property(_get_primary_image_stack_current_layer_idx)
 
     @property
     def current_layer(self):
-        row = self.current_layer_row
-        if row is not None:
-            return self.layer_stack[row]
+        """rw.current_layer: A convenience property equivalent to rw.layer_stack[rw.current_layer_idx], with a minor
+        difference: in addition to instances of Layer, Image instances and even raw image data may be assigned to rw.layer.
+        Image instances and raw image data assigned to rw.layer are wrapped in a Layer, or in an Image wrapped in a layer,
+        as required."""
+        idx = self.current_layer_idx
+        if idx is not None:
+            return self.layer_stack[idx]
 
-    def replace_current_layer(self, layer):
-        row = self.current_layer_row
-        if row is None:
+    @current_layer.setter
+    def current_layer(self, v):
+        idx = self.current_layer_idx
+        if idx is None:
             raise IndexError('No row in .layer_stack_table_view is current/focused.')
         else:
-            self.layer_stack[row] = layer
+            if not isinstance(v, Layer):
+                v = Layer(v)
+            self.layer_stack[idx] = v
 
     @property
     def layer(self):
-        """rw.layer: A convenience property; equivalent to rw.layer_stack[0], with the minor difference
-        that rw.layer "just works", even when len(rw.layer_stack) is 0.
-
-        When len(rw.layer_stack) is 0, querying rw.layer_stack causes a new 
-        that assigning to rw.layer_stack[0] when len(rw.layer_stack) is 0 would raise an exception, whereas
-        assigning to rw.layer in that situation causes the assigned Layer to be inserted at rw.layer_stack[0]."""
+        """rw.layer: A convenience property equivalent to rw.layer_stack[0], with minor differences:
+        * If len(rw.layer_stack) == 0, querying rw.layer causes a new Layer to be inserted at rw.layer_stack[0] and
+        returned, and assigning to rw.layer causes the assigned thing to be inserted at rw.layer_stack[0].
+        * In addition to instances of Layer, Image instances and even raw image data may be assigned to rw.layer.
+        Image instances and raw image data assigned to rw.layer are wrapped in a Layer, or in an Image wrapped
+        in a layer, as required."""
         layer_stack = self.layer_stack
-        return layer_stack[0] if layer_stack else None
+        if not layer_stack:
+            layer = Layer()
+            layer_stack.insert(0, layer)
+            return layer
+        return layer_stack[0]
 
     @layer.setter
-    def layer(self, layer):
+    def layer(self, v):
+        if not isinstance(v, Layer):
+            v = Layer(v)
         layer_stack = self.layer_stack
         if layer_stack:
-            layer_stack[0] = layer
+            layer_stack[0] = v
         else:
-            layer_stack.append(layer)
+            layer_stack.insert(0, layer)
 
     @property
     def image(self):
-        """rw.image: A Convenience property; equivalent to rw.layer_stack[0].image, with minor differences:
-        * Querying rw.image will not raise an exception when len(rw.layer_stack) is 0.  Instead, None is returned.
-        * Assinging to rw.image when len(rw.layer_stack) is 0 does not raise an exception.  Instead, it causes
-          insertion of a new Layer at rw.layer_stack[0] containing the assigned image."""
-        layer_stack = self.layer_stack
-        if layer_stack:
-            return layer_stack[0].image
+        """rw.image: A Convenience property exactly equivalent to rw.layer.image, and equivalent to 
+        rw.layer_stack[0].image with a minor difference: if len(rw.layer_stack) == 0, a query of rw.image
+        returns None rather than raising an exception, and an assignment to it in this scenario is
+        equivalent to rw.layer_stack.insert(0, Layer(v))."""
+        return self.layer.image
 
     @image.setter
-    def image(self, image):
-        if image is not None and not isinstance(image, Image):
-            raise ValueError('The value assigned to rw.image must be an instance of Image or a subclass thereof, or None.  '
-                             '(Did you mean to assign to rw.image_data?)')
-        if self.layer is None:
-            self.layer = self.Layer(image)
-        else:
-            self.layer.image = image
+    def image(self, v):
+        self.layer.image = v
 
     @property
     def main_flipbook(self):
@@ -391,8 +400,8 @@ class RisWidget(Qt.QMainWindow):
             dw_title += ' "{}"'.format(name)
         self.layer_stack_table_dock_widget.setWindowTitle(dw_title)
 
-    def _on_layer_stack_table_current_row_changed(self, midx, prev_midx):
-        row = self.current_layer_row
+    def _on_layer_stack_table_current_idx_changed(self, midx, prev_midx):
+        row = self.current_layer_idx
         layer = None if row is None else self.layer_stack[row]
         self.layer_stack_table_model.on_view_current_row_changed(row)
         self.histogram_scene.histogram_item.layer = layer
@@ -408,9 +417,6 @@ class RisWidget(Qt.QMainWindow):
             self.layer_stack_table_selection_model.setCurrentIndex(
                 self.layer_stack_table_model_inverter.index(0, 0),
                 Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
-#           self.layer_stack_table_selection_model.setCurrentIndex(
-#               self.layer_stack_table_model.index(0, 0),
-#               Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
 
     def _on_replaced_in_layer_stack(self, idxs, old_layers, new_layers):
         current_midx = self.layer_stack_table_selection_model.currentIndex()

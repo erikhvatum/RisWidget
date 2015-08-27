@@ -34,6 +34,9 @@ from .. import om
 
 #TODO: make list items drop targets so that layer contents can be replaced by dropping file on associated item
 class LayerStackTableView(Qt.QTableView):
+    model_changed = Qt.pyqtSignal(object)
+    selection_model_changed = Qt.pyqtSignal(object)
+
     def __init__(self, layer_stack_table_model, parent=None):
         super().__init__(parent)
         self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.Interactive)
@@ -75,6 +78,14 @@ class LayerStackTableView(Qt.QTableView):
         # position within the column and opacity slider integer % values
         col = layer_stack_table_model.property_columns['opacity']
         self.horizontalHeader().resizeSection(col, 100)
+
+    def setModel(self, model):
+        super().setModel(model)
+        self.model_changed.emit(self)
+
+    def setSelectionModel(self, selection_model):
+        super().setSelectionModel(selection_model)
+        self.selection_model_changed.emit(self)
 
     def _on_delete_current_row_action_triggered(self):
         sm = self.selectionModel()
