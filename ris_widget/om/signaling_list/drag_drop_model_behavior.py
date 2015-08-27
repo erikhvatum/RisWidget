@@ -53,9 +53,9 @@ class DragDropModelBehavior:
         return Qt.Qt.LinkAction
 
     def canDropMimeData(self, mime_data, drop_action, row, column, parent):
-#       print('canDropMimeData(self, mime_data={}, drop_action={}, row={}, column={}, parent={})'.format(mime_data, drop_action, row, column, parent))
 #       print('mime_data.formats()', mime_data.formats())
         rows_drag = self._decode_rows_drag_mime_data(mime_data)
+#       print('canDropMimeData(self, rows_drag={}, drop_action={}, row={}, column={}, parent={})'.format(rows_drag.rows, drop_action, row, column, parent))
         if rows_drag is not None and len(rows_drag.rows) > 0:
             return self.can_drop_rows(rows_drag.src_model, rows_drag.rows, row, column, parent)
         if mime_data.hasImage():

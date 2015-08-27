@@ -106,7 +106,7 @@ class RecursivePropertyTableModel(Qt.QAbstractTableModel):
         if midx.isValid():
             try:
                 if self._property_inst_tree_root.children[self.signaling_list[midx.row()]].path_exists(self.property_paths[midx.column()]):
-                    f |= Qt.Qt.ItemIsEnabled
+                    f |= Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsEditable
             except KeyError:
                 pass
         f |= self.drag_drop_flags(midx)

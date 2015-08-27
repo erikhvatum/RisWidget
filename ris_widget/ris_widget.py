@@ -64,7 +64,6 @@ class RisWidget(Qt.QMainWindow):
                 GeneralViewContextualInfoItemClass = ContextualInfoItemNV if NV_PATH_RENDERING_AVAILABLE() else ContextualInfoItem
             if HistgramViewContextualInfoItemClass is None:
                 HistgramViewContextualInfoItemClass = ContextualInfoItemNV if NV_PATH_RENDERING_AVAILABLE() else ContextualInfoItem
-        self.LayerClass = LayerClass
         self.FlipbookClass = FlipbookClass
         self._init_scenes_and_views(
             LayerStackItemClass, GeneralSceneClass, GeneralViewClass,
@@ -145,11 +144,11 @@ class RisWidget(Qt.QMainWindow):
         self.layer_stack_table_model = LayerStackTableModel(
             self.main_scene.layer_stack_item.override_enable_auto_min_max_action,
             self.main_scene.layer_stack_item.examine_layer_mode_action)
-#       self.layer_stack_table_model_inverter = InvertingProxyModel(self.layer_stack_table_model)
-#       self.layer_stack_table_model_inverter.setSourceModel(self.layer_stack_table_model)
+        self.layer_stack_table_model_inverter = InvertingProxyModel(self.layer_stack_table_model)
+        self.layer_stack_table_model_inverter.setSourceModel(self.layer_stack_table_model)
         self.layer_stack_table_view = LayerStackTableView(self.layer_stack_table_model)
-#       self.layer_stack_table_view.setModel(self.layer_stack_table_model_inverter)
-        self.layer_stack_table_view.setModel(self.layer_stack_table_model)
+        self.layer_stack_table_view.setModel(self.layer_stack_table_model_inverter)
+#       self.layer_stack_table_view.setModel(self.layer_stack_table_model)
         self.layer_stack_table_model.setParent(self.layer_stack_table_view)
         self.layer_stack_table_selection_model = self.layer_stack_table_view.selectionModel()
         self.layer_stack_table_selection_model.currentRowChanged.connect(self._on_layer_stack_table_current_row_changed)
@@ -160,7 +159,7 @@ class RisWidget(Qt.QMainWindow):
         # TODO: make layer stack table widget default location be at window bottom, adjacent to histogram
         self.addDockWidget(Qt.Qt.TopDockWidgetArea, self.layer_stack_table_dock_widget)
         self._most_recently_created_flipbook = None
-        self._make_main_flipbook()
+#       self._make_main_flipbook()
 
     def _init_toolbars(self):
         self.main_view_toolbar = self.addToolBar('Main View')
@@ -212,7 +211,7 @@ class RisWidget(Qt.QMainWindow):
         if mime_data.hasImage():
             image = Image.from_qimage(qimage=qimage, name=mime_data.urls()[0].toDisplayString() if mime_data.hasUrls() else None)
             if image is not None:
-                layer = self.LayerClass(image=image)
+                layer = Layer(image=image)
                 self.main_flipbook.pages[:] = [layer]
                 event.accept()
         elif mime_data.hasUrls():
@@ -227,7 +226,7 @@ class RisWidget(Qt.QMainWindow):
             freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
             if freeimage is None:
                 return
-            self.main_flipbook.pages[:] = [self.LayerClass(Image(freeimage.read(fpath), name=fpath)) for fpath in fpaths]
+            self.main_flipbook.pages[:] = [Layer(Image(freeimage.read(fpath), name=fpath)) for fpath in fpaths]
             event.accept()
 
     @property
@@ -277,14 +276,14 @@ class RisWidget(Qt.QMainWindow):
 
     def _get_primary_image_stack_current_layer_row(self):
         # Selection model is with reference to table view's model, which is the inverting proxy model
-#       pmidx = self.layer_stack_table_selection_model.currentIndex()
-#       if pmidx.isValid():
-#           midx = self.layer_stack_table_model_inverter.mapToSource(pmidx)
-#           if midx.isValid():
-#               return midx.row()
-        midx = self.layer_stack_table_selection_model.currentIndex()
-        if midx.isValid():
-            return midx.row()
+        pmidx = self.layer_stack_table_selection_model.currentIndex()
+        if pmidx.isValid():
+            midx = self.layer_stack_table_model_inverter.mapToSource(pmidx)
+            if midx.isValid():
+                return midx.row()
+#       midx = self.layer_stack_table_selection_model.currentIndex()
+#       if midx.isValid():
+#           return midx.row()
 
     current_layer_row = property(_get_primary_image_stack_current_layer_row)
 
@@ -336,7 +335,7 @@ class RisWidget(Qt.QMainWindow):
             raise ValueError('The value assigned to rw.image must be an instance of Image or a subclass thereof, or None.  '
                              '(Did you mean to assign to rw.image_data?)')
         if self.layer is None:
-            self.layer = self.LayerClass(image)
+            self.layer = self.Layer(image)
         else:
             self.layer.image = image
 
@@ -406,12 +405,12 @@ class RisWidget(Qt.QMainWindow):
     def _on_inserted_into_layer_stack(self, idx, layers):
         assert len(self.layer_stack) > 0
         if not self.layer_stack_table_selection_model.currentIndex().isValid():
-#           self.layer_stack_table_selection_model.setCurrentIndex(
-#               self.layer_stack_table_model_inverter.index(0, 0),
-#               Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
             self.layer_stack_table_selection_model.setCurrentIndex(
-                self.layer_stack_table_model.index(0, 0),
+                self.layer_stack_table_model_inverter.index(0, 0),
                 Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
+#           self.layer_stack_table_selection_model.setCurrentIndex(
+#               self.layer_stack_table_model.index(0, 0),
+#               Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
 
     def _on_replaced_in_layer_stack(self, idxs, old_layers, new_layers):
         current_midx = self.layer_stack_table_selection_model.currentIndex()

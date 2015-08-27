@@ -23,6 +23,7 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from PyQt5 import Qt
+from ..layer import Layer
 from ..qdelegates.dropdown_list_delegate import DropdownListDelegate
 from ..qdelegates.slider_delegate import SliderDelegate
 from ..qdelegates.color_delegate import ColorDelegate
@@ -34,8 +35,13 @@ from .. import om
 class LayerStackTableView(Qt.QTableView):
     def __init__(self, layer_stack_table_model, parent=None):
         super().__init__(parent)
-        self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
-#       self.horizontalHeader().setStretchLastSection(True)
+        self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.Interactive)
+        self.horizontalHeader().setHighlightSections(False)
+        self.horizontalHeader().setSectionsClickable(False)
+        self.horizontalHeader().setStretchLastSection(True)
+        self.verticalHeader().setHighlightSections(False)
+        self.verticalHeader().setSectionsClickable(False)
+        self.setTextElideMode(Qt.Qt.ElideMiddle)
         self.checkbox_delegate = CheckboxDelegate(parent=self)
         self.setItemDelegateForColumn(layer_stack_table_model.property_columns['visible'], self.checkbox_delegate)
         self.setItemDelegateForColumn(layer_stack_table_model.property_columns['auto_min_max_enabled'], self.checkbox_delegate)
@@ -48,20 +54,26 @@ class LayerStackTableView(Qt.QTableView):
         self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
         self.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
         self.setModel(layer_stack_table_model)
-#       self.setEditTriggers(Qt.QAbstractItemView.EditKeyPressed | Qt.QAbstractItemView.SelectedClicked)
         self.delete_current_row_action = Qt.QAction(self)
         self.delete_current_row_action.setText('Delete current row')
         self.delete_current_row_action.triggered.connect(self._on_delete_current_row_action_triggered)
         self.delete_current_row_action.setShortcut(Qt.Qt.Key_Delete)
         self.delete_current_row_action.setShortcutContext(Qt.Qt.WidgetShortcut)
         self.addAction(self.delete_current_row_action)
-#       self.verticalHeader().setSectionsMovable(True)
-#       self.setDragDropOverwriteMode(False)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         self.setDragDropMode(Qt.QAbstractItemView.DragDrop)
         self.setDropIndicatorShown(True)
         self.setDefaultDropAction(Qt.Qt.LinkAction)
+        self.horizontalHeader().resizeSections(Qt.QHeaderView.ResizeToContents)
+        # The text 'image.size' is typically somewhat shorter than '2160x2560', so we widen that column
+        # by an arbitrary fudge factor...
+        col = layer_stack_table_model.property_columns['image.size']
+        self.horizontalHeader().resizeSection(col, self.horizontalHeader().sectionSize(col) + 6)
+        # Making the opacity column exactly 100 pixels wide gives 1:1 mapping between horizontal
+        # position within the column and opacity slider integer % values
+        col = layer_stack_table_model.property_columns['opacity']
+        self.horizontalHeader().resizeSection(col, 100)
 
     def _on_delete_current_row_action_triggered(self):
         sm = self.selectionModel()
@@ -71,9 +83,6 @@ class LayerStackTableView(Qt.QTableView):
         midx = sm.currentIndex()
         if midx.isValid():
             m.removeRow(midx.row())
-
-#   def dropEvent(self, event):
-#       super().dropEvent(event)
 
 class InvertingProxyModel(Qt.QSortFilterProxyModel):
     # Making a full proxy model that reverses/inverts indexes from Qt.QAbstractProxyModel or Qt.QIdentityProxyModel turns
@@ -88,6 +97,19 @@ class InvertingProxyModel(Qt.QSortFilterProxyModel):
         return lhs.row() < rhs.row()
 
 class LayerStackTableDragDropBehavior(om.signaling_list.DragDropModelBehavior):
+    def _fix_row_for_inversion(self, row):
+        if row == -1:
+            return 0
+        if row == len(self.signaling_list):
+            return 0
+        return row + 1
+
+    def canDropMimeData(self, mime_data, drop_action, row, column, parent):
+        return super().canDropMimeData(mime_data, drop_action, self._fix_row_for_inversion(row), column, parent)
+
+    def dropMimeData(self, mime_data, drop_action, row, column, parent):
+        return super().dropMimeData(mime_data, drop_action, self._fix_row_for_inversion(row), column, parent)
+
     def handle_dropped_qimage(self, qimage, name, dst_row, dst_column, dst_parent):
         image = self.ImageClass.from_qimage(qimage=qimage, name=name)
         if image is not None:
@@ -145,15 +167,11 @@ class LayerStackTableModel(LayerStackTableDragDropBehavior, om.signaling_list.Re
             self,
             override_enable_auto_min_max_action,
             examine_layer_mode_action,
-            ImageClass,
-            LayerClass,
             signaling_list=None,
             blend_function_choice_to_value_mapping_pairs=None,
             parent=None
         ):
         super().__init__(self.PROPERTIES, signaling_list, parent)
-        self.ImageClass = ImageClass
-        self.LayerClass = LayerClass
         self.override_enable_auto_min_max_action = override_enable_auto_min_max_action
         self.override_enable_auto_min_max_action.toggled.connect(self._on_override_enable_auto_min_max_toggled)
         self.examine_layer_mode_action = examine_layer_mode_action
@@ -168,7 +186,7 @@ class LayerStackTableModel(LayerStackTableDragDropBehavior, om.signaling_list.Re
 
         # Tack less commonly used / advanced blend function names onto list of dropdown choices without duplicating
         # entries for values that have verbose choice names
-        adv_blend_functions = set(LayerClass.BLEND_FUNCTIONS.keys())
+        adv_blend_functions = set(Layer.BLEND_FUNCTIONS.keys())
         adv_blend_functions -= set(v for c, v in blend_function_choice_to_value_mapping_pairs)
         blend_function_choice_to_value_mapping_pairs += [(v + ' (advanced)', v) for v in sorted(adv_blend_functions)]
 
@@ -192,12 +210,8 @@ class LayerStackTableModel(LayerStackTableDragDropBehavior, om.signaling_list.Re
         self._special_flag_getters = {
             'visible' : self._getf__always_checkable,
             'auto_min_max_enabled' : self._getf__always_checkable,
-            'tint' : self._getf__always_editable,
-            'name' : self._getf__always_editable,
-            'image.name' : self._getf__always_editable,
-            'getcolor_expression' : self._getf__always_editable,
-#           'transform_section' : self._getf__always_editable,
-            'blend_function' : self._getf__always_editable}
+            'image.dtype' : self._getf__never_editable,
+            'image.size' : self._getf__never_editable}
         self._special_data_setters = {
             'visible' : self._setd_visible,
             'auto_min_max_enabled' : self._setd__checkable,
@@ -209,16 +223,16 @@ class LayerStackTableModel(LayerStackTableDragDropBehavior, om.signaling_list.Re
         return super().flags(midx)
 
     def _getf__always_checkable(self, midx):
-        return self._getf_default(midx) | Qt.Qt.ItemIsUserCheckable
+        return self._getf_default(midx) & ~Qt.Qt.ItemIsEditable | Qt.Qt.ItemIsUserCheckable
 
-    def _getf__always_editable(self, midx):
-        return self._getf_default(midx) | Qt.Qt.ItemIsEditable
+    def _getf__never_editable(self, midx):
+        return super().flags(midx) & ~Qt.Qt.ItemIsEditable
 
     def flags(self, midx):
         if midx.isValid():
-            return self._special_flag_getters.get(self.property_names[midx.column()], self._getf_default)(midx) | Qt.Qt.ItemIsDragEnabled
+            return self._special_flag_getters.get(self.property_names[midx.column()], self._getf_default)(midx)
         else:
-            return self._getf_default(midx) | Qt.Qt.ItemIsDropEnabled
+            return self._getf_default(midx)
 
     # data #
 

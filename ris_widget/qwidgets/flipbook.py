@@ -25,7 +25,7 @@
 from PyQt5 import Qt
 from .. import om
 
-class Flipbook(Qt.QWidget):
+class Flipbook(Qt.QListView):
     """Flipbook: a widget containing a list box showing the name property values of the elements of its pages property.
     Changing which row is selected in the list box causes the current_page_changed signal to be emitted with the newly
     selected page's index and the page itself as parameters.
@@ -87,4 +87,4 @@ class Flipbook(Qt.QWidget):
         else:
             self.current_page_changed.emit(-1, None)
 
-class FlipbookModel():
+#class FlipbookModel():
