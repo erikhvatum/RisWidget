@@ -180,23 +180,28 @@ class LayerStackItem(ShaderItem):
 
     @layer_stack.setter
     def layer_stack(self, v):
+        old_sz = None
         if self._layer_stack is not None:
+            if self._layer_stack and self._layer_stack[0].image is not None:
+                old_sz = self._layer_stack[0].image.size
             self._detach_layers(self._layer_stack)
             self._layer_stack.inserted.disconnect(self._on_layers_inserted)
             self._layer_stack.removed.disconnect(self._on_layers_removed)
             self._layer_stack.replaced.disconnect(self._on_layers_replaced)
-            old_name = self._layer_stack.name
-        else:
-            old_name = None
-        # If v is not a SignalingList and also is missing at least one list modification signal that we need, convert v
-        # to a SignalingList
-        if not isinstance(v, om.SignalingList) and any(not hasattr(v, signal) for signal in ('inserted', 'removed', 'replaced', 'name_changed')):
-            v = om.SignalingList(v)
+        new_sz = None
+        if v and v[0].image is not None:
+            new_sz = v[0].image.size
+        if new_sz != old_sz:
+            self.prepareGeometryChange()
+            self._bounding_rect = self.DEFAULT_BOUNDING_RECT if new_sz is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(new_sz))
         self._layer_stack = v
         v.inserted.connect(self._on_layers_inserted)
         v.removed.connect(self._on_layers_removed)
         v.replaced.connect(self._on_layers_replaced)
         self._attach_layers(v)
+        self.update()
+        if new_sz != old_sz:
+            self.bounding_rect_changed.emit()
 
     def _attach_layers(self, layers):
         for layer in layers:
