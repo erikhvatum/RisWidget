@@ -80,6 +80,15 @@ class SignalingList(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
     def __iter__(self):
         return iter(self._list)
 
+    def __hash__(self):
+        # We want this to be hashable even though it's a mutable list.  Same list?  As in,
+        # lhs is rhs.  Same hash.  Perfect for our needs.  Equality comparison to verify
+        # that a hash collision has not occurred may still go element-wise, which wouldn't
+        # be the smartest.
+        # TODO: implement __eq__ operator that does "is" before resorting to element-wise.
+        # See if doing so makes hashing big signaling lists more efficient.
+        return id(self)
+
     def clear(self):
         'S.clear() -> None -- remove all items from S'
         idxs = list(range(0, len(self._list)))

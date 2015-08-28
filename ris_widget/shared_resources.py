@@ -24,6 +24,7 @@
 
 from contextlib import ExitStack
 import numpy
+from pathlib import Path
 from PyQt5 import Qt
 import sys
 
@@ -150,3 +151,14 @@ def FREEIMAGE(show_messagebox_on_error=False, error_messagebox_owner=None):
             import freeimage
             _freeimage = freeimage
     return _freeimage
+
+_icons = None
+
+def ICONS():
+    global _icons
+    if _icons is None:
+        _icons = {}
+        for fn in ('image_icon.svg', 'layer_icon.svg', 'layer_stack_icon.svg'):
+            fpath = Path(__file__).parent / fn
+            _icons[fpath.stem] = Qt.QIcon(str(fpath))
+    return _icons

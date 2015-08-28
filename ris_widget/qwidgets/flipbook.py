@@ -24,6 +24,9 @@
 
 from PyQt5 import Qt
 from .. import om
+from ..image import Image
+from ..layer import Layer
+from ..shared_resources import FREEIMAGE, ICONS
 
 class Flipbook(Qt.QWidget):
     """Flipbook: a widget containing a list box showing the name property values of the elements of its pages property.
@@ -40,18 +43,81 @@ class Flipbook(Qt.QWidget):
     * current_page_changed(Flipbook instance, page #)"""
     current_page_changed = Qt.pyqtSignal(object, int)
 
-    def __init__(self, pages=None, displayed_page_properties=('name', 'type'), parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        vlayout = Qt.QVBoxLayout()
-        self.setLayout(vlayout)
-        self.pages_view = Qt.QTableView()
-        self.pages_model = SignalingListPropertyTableModel(displayed_page_properties, pages, self.pages_view)
+        l = Qt.QVBoxLayout()
+        self.setLayout(l)
+        self.pages_model = PagesModel(om.SignalingList())
+        self.pages_view = PagesView(self.pages_model)
         self.pages_view.setModel(self.pages_model)
-        self.pages_view.selectionModel().currentRowChanged.connect(self._on_pages_model_current_row_changed)
-        self.pages_view.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
-        self.pages_view.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
-        self.pages_view.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
-        vlayout.addWidget(self.pages_view)
+        self.pages_view.selectionModel().currentRowChanged.connect(self._on_pages_current_idx_changed)
+        l.addLayout(self._make_behavior_grid())
+        l.addWidget(self.pages_view)
+
+    def _make_behavior_grid(self):
+        icons = ICONS()
+        l = Qt.QGridLayout()
+
+        w = self.stack_label = Qt.QLabel()
+        w.setPixmap(icons['layer_stack_icon'].pixmap(60, 60))
+        w.setToolTip('Layer stack')
+        l.addWidget(w, 0, 1, Qt.Qt.AlignCenter)
+
+        w = self.layer_label = Qt.QLabel()
+        w.setPixmap(icons['layer_icon'].pixmap(60, 60))
+        w.setToolTip('Layer')
+        l.addWidget(w, 0, 2, Qt.Qt.AlignCenter)
+
+        w = self.image_label = Qt.QLabel()
+        w.setPixmap(icons['image_icon'].pixmap(60, 60))
+        w.setToolTip('Image')
+        l.addWidget(w, 0, 3, Qt.Qt.AlignCenter)
+
+
+        bg = self.pages_model.drop_as_button_group = self.drop_as_button_group = Qt.QButtonGroup(self)
+        bg.setExclusive(True)
+        w = self.drop_as_label = Qt.QLabel('Drop as:')
+        l.addWidget(w, 1, 0, Qt.Qt.AlignLeft)
+
+        w = self.drop_as_stack_radio = Qt.QRadioButton()
+        bg.addButton(w, 0)
+        w.setChecked(True)
+        w.setToolTip('Drop as Layer stack')
+        l.addWidget(w, 1, 1, Qt.Qt.AlignCenter)
+
+        w = self.drop_as_layer_radio = Qt.QRadioButton()
+        bg.addButton(w, 1)
+        w.setToolTip('Drop as Layer')
+        l.addWidget(w, 1, 2, Qt.Qt.AlignCenter)
+
+        w = self.drop_as_image_radio = Qt.QRadioButton()
+        bg.addButton(w, 2)
+        w.setToolTip('Drop as Image')
+        l.addWidget(w, 1, 3, Qt.Qt.AlignCenter)
+
+
+        bg = self.pages_model.show_as_button_group = self.show_as_button_group = Qt.QButtonGroup(self)
+        bg.setExclusive(True)
+        w = self.show_as_label = Qt.QLabel('Show as:')
+        l.addWidget(w, 2, 0, Qt.Qt.AlignLeft)
+
+        w = self.show_as_stack_radio = Qt.QRadioButton()
+        bg.addButton(w, 0)
+        w.setChecked(True)
+        w.setToolTip('Show as Layer stack')
+        l.addWidget(w, 2, 1, Qt.Qt.AlignCenter)
+
+        w = self.show_as_layer_radio = Qt.QRadioButton()
+        bg.addButton(w, 1)
+        w.setToolTip('Show as Layer')
+        l.addWidget(w, 2, 2, Qt.Qt.AlignCenter)
+
+        w = self.show_as_image_radio = Qt.QRadioButton()
+        bg.addButton(w, 2)
+        w.setToolTip('Show as Image')
+        l.addWidget(w, 2, 3, Qt.Qt.AlignCenter)
+
+        return l
 
     @property
     def pages(self):
@@ -61,21 +127,29 @@ class Flipbook(Qt.QWidget):
     def pages(self, pages):
         assert isinstance(pages, SignalingList)
         self.pages_model.signaling_list = pages
+        self.current_page_changed.emit(self, self.selectionModel().currentIndex().row())
 
-    def _on_pages_model_current_row_changed(self, midx, old_midx):
-        if midx.isValid():
-            row = midx.row()
-            self.current_page_changed.emit(row, self.pages[row])
-        else:
-            self.current_page_changed.emit(-1, None)
+    def _on_pages_current_idx_changed(self, midx, old_midx):
+        self.current_page_changed.emit(self, midx.row())
 
 class PagesView(Qt.QTableView):
     def __init__(self, pages_model, parent=None):
         super().__init__(parent)
+        self.setModel(pages_model)
         self.horizontalHeader().setStretchLastSection(True)
         self.verticalHeader().setHighlightSections(False)
         self.verticalHeader().setSectionsClickable(False)
+        self.verticalHeader().setHighlightSections(False)
+        self.verticalHeader().setSectionsClickable(False)
         self.setTextElideMode(Qt.Qt.ElideMiddle)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDragDropMode(Qt.QAbstractItemView.DragDrop)
+        self.setDropIndicatorShown(True)
+        self.setDefaultDropAction(Qt.Qt.LinkAction)
+        self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
+        self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
+        self.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
         self.delete_current_row_action = Qt.QAction(self)
         self.delete_current_row_action.setText('Delete current row')
         self.delete_current_row_action.triggered.connect(self._on_delete_current_row_action_triggered)
@@ -93,13 +167,42 @@ class PagesView(Qt.QTableView):
             m.removeRow(midx.row())
 
 class PagesDragDropBehavior(om.signaling_list.DragDropModelBehavior):
-    pass
+    def handle_dropped_files(self, fpaths, dst_row, dst_column, dst_parent):
+        # Note: if the URL is a "file://..." representing a local file, toLocalFile returns a string
+        # appropriate for feeding to Python's open() function.  If the URL does not refer to a local file,
+        # toLocalFile returns None.
+        freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=None)
+        if freeimage is None:
+            return False
+        # TODO: read images in background thread and display modal progress bar dialog with cancel button
+        drop_as = self.drop_as_button_group.checkedId()
+        if drop_as == 0:
+            layers = [Layer(Image(freeimage.read(fpath_str), name=fpath_str), name=fpath_str) for fpath_str in (str(fpath) for fpath in fpaths)]
+            self.signaling_list.insert(dst_row, om.SignalingList(layers))
+        elif drop_as == 1:
+            layers = [Layer(Image(freeimage.read(fpath_str), name=fpath_str), name=fpath_str) for fpath_str in (str(fpath) for fpath in fpaths)]
+            self.signaling_list[dst_row:dst_row] = layers
+        else:
+            images = [Image(freeimage.read(fpath_str), name=fpath_str) for fpath_str in (str(fpath) for fpath in fpaths)]
+            self.signaling_list[dst_row:dst_row] = images
+        return True
 
-class PagesModel(PagesDragDropBehavior, om.signaling_list.RecursivePropertyTableModel):
+class PagesModel(PagesDragDropBehavior, om.signaling_list.PropertyTableModel):
     PROPERTIES = (
         'name',
         )
 
     def __init__(self, signaling_list=None, parent=None):
-        super().__init__('name', signaling_list, parent)
+        super().__init__(self.PROPERTIES, signaling_list, parent)
+        icons = ICONS()
+        self.icons = {
+            Image : icons['image_icon'],
+            Layer : icons['layer_icon'],
+            om.SignalingList : icons['layer_stack_icon']
+            }
 
+    def data(self, midx, role=Qt.Qt.DisplayRole):
+        if role == Qt.Qt.DecorationRole and midx.isValid() and midx.column() == self.PROPERTIES.index('name'):
+            element = self.signaling_list[midx.row()]
+            return Qt.QVariant(self.icons.get(type(element)))
+        return super().data(midx, role)

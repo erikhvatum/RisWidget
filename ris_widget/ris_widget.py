@@ -26,8 +26,6 @@ import ctypes
 from PyQt5 import Qt
 import numpy
 import sys
-import weakref
-#from .qwidgets.layer_stack_current_row_flipbook import ImageStackCurrentRowFlipbook
 from . import om
 from .image import Image
 from .layer import Layer
@@ -72,6 +70,7 @@ class RisWidget(Qt.QMainWindow):
             HistgramViewContextualInfoItemClass)
         self._layer_stack = None
         self.layer_stack = layer_stack
+        self._init_main_flipbook()
         self._init_actions()
         self._init_toolbars()
         self._init_menus()
@@ -148,18 +147,40 @@ class RisWidget(Qt.QMainWindow):
         self.layer_stack_table_model_inverter.setSourceModel(self.layer_stack_table_model)
         self.layer_stack_table_view = LayerStackTableView(self.layer_stack_table_model)
         self.layer_stack_table_view.setModel(self.layer_stack_table_model_inverter)
-#       self.layer_stack_table_view.setModel(self.layer_stack_table_model)
         self.layer_stack_table_model.setParent(self.layer_stack_table_view)
         self.layer_stack_table_selection_model = self.layer_stack_table_view.selectionModel()
         self.layer_stack_table_selection_model.currentRowChanged.connect(self._on_layer_stack_table_current_idx_changed)
         self.layer_stack_table_dock_widget.setWidget(self.layer_stack_table_view)
         self.layer_stack_table_dock_widget.setAllowedAreas(Qt.Qt.AllDockWidgetAreas)
         self.layer_stack_table_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
-        
-        # TODO: make layer stack table widget default location be at window bottom, adjacent to histogram
         self.addDockWidget(Qt.Qt.TopDockWidgetArea, self.layer_stack_table_dock_widget)
-        self._most_recently_created_flipbook = None
-#       self._make_main_flipbook()
+
+#   def make_flipbook(self, images=None, name='Flipbook'):
+#       """The images argument may be any mixture of ris_widget.image.Image objects and raw data iterables of the sort that
+#       may be assigned to RisWidget.image_data or RisWidget.image_data_T.
+#       If None is supplied for images, an empty flipbook is created."""
+#       if images is not None:
+#           if not isinstance(images, SignalingList):
+#               images = SignalingList([image if isinstance(image, Image) else Image(image, name=str(image_idx)) for image_idx, image in enumerate(images)])
+#       flipbook = (self.layer_stack, self.layer_stack_table_selection_model, images)
+#       flipbook.setAttribute(Qt.Qt.WA_DeleteOnClose)
+#       dock_widget = Qt.QDockWidget(name, self)
+#       dock_widget.setAttribute(Qt.Qt.WA_DeleteOnClose)
+#       dock_widget.setWidget(flipbook)
+#       flipbook.destroyed.connect(dock_widget.deleteLater) # Get rid of containing dock widget when flipbook is programatically destroyed
+#       dock_widget.setAllowedAreas(Qt.Qt.LeftDockWidgetArea | Qt.Qt.RightDockWidgetArea)
+#       dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
+#       self.addDockWidget(Qt.Qt.RightDockWidgetArea, dock_widget)
+#       return flipbook
+
+    def _init_main_flipbook(self):
+        self._main_flipbook = fb = self.FlipbookClass(self)
+        fb.current_page_changed.connect(self._on_flipbook_current_page_changed)
+        self.main_flipbook_dock_widget = Qt.QDockWidget('Main Flipbook', self)
+        self.main_flipbook_dock_widget.setWidget(fb)
+        self.main_flipbook_dock_widget.setAllowedAreas(Qt.Qt.RightDockWidgetArea | Qt.Qt.LeftDockWidgetArea)
+        self.main_flipbook_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
+        self.addDockWidget(Qt.Qt.RightDockWidgetArea, self.main_flipbook_dock_widget)
 
     def _init_toolbars(self):
         self.main_view_toolbar = self.addToolBar('Main View')
@@ -181,8 +202,10 @@ class RisWidget(Qt.QMainWindow):
         self.main_view_toolbar.addAction(self.main_scene.layer_stack_item.override_enable_auto_min_max_action)
         self.main_view_toolbar.addAction(self.main_scene.layer_stack_item.examine_layer_mode_action)
         self.main_view_toolbar.addAction(self.layer_stack_table_dock_widget.toggleViewAction())
-        self.histogram_view_toolbar = self.addToolBar('Histogram View')
-        self.histogram_view_toolbar.addAction(self.histogram_dock_widget.toggleViewAction())
+        self.dock_widget_visibility_toolbar = self.addToolBar('Dock Widget Visibility')
+        self.dock_widget_visibility_toolbar.addAction(self.layer_stack_table_dock_widget.toggleViewAction())
+        self.dock_widget_visibility_toolbar.addAction(self.main_flipbook_dock_widget.toggleViewAction())
+        self.dock_widget_visibility_toolbar.addAction(self.histogram_dock_widget.toggleViewAction())
 
     def _init_menus(self):
         mb = self.menuBar()
@@ -223,11 +246,8 @@ class RisWidget(Qt.QMainWindow):
                 e = 'In order for image file drag & drop to work on OS X >=10.10 (Yosemite), please upgrade to at least Qt 5.4.1.'
                 Qt.QMessageBox.information(self, 'Qt Upgrade Required', e)
                 return
-            freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
-            if freeimage is None:
-                return
-            self.main_flipbook.pages[:] = [Layer(Image(freeimage.read(fpath), name=fpath)) for fpath in fpaths]
-            event.accept()
+            if self.main_flipbook.pages_model.handle_dropped_files(fpaths, len(self.main_flipbook.pages), 0, Qt.QModelIndex()):
+                event.accept()
 
     @property
     def layer_stack(self):
@@ -352,45 +372,56 @@ class RisWidget(Qt.QMainWindow):
     def main_flipbook(self):
         return self._main_flipbook
 
-    def _make_main_flipbook(self):
-        self._main_flipbook = self.FlipbookClass(self)
-
-    def make_flipbook(self, images=None, name='Flipbook'):
-        """The images argument may be any mixture of ris_widget.image.Image objects and raw data iterables of the sort that
-        may be assigned to RisWidget.image_data or RisWidget.image_data_T.
-        If None is supplied for images, an empty flipbook is created."""
-        if images is not None:
-            if not isinstance(images, SignalingList):
-                images = SignalingList([image if isinstance(image, Image) else Image(image, name=str(image_idx)) for image_idx, image in enumerate(images)])
-        flipbook = (self.layer_stack, self.layer_stack_table_selection_model, images)
-        dock_widget = Qt.QDockWidget(name, self)
-        dock_widget.setAttribute(Qt.Qt.WA_DeleteOnClose)
-        dock_widget.setWidget(flipbook)
-        flipbook.destroyed.connect(dock_widget.deleteLater) # Get rid of containing dock widget when flipbook is programatically destroyed
-        dock_widget.setAllowedAreas(Qt.Qt.LeftDockWidgetArea | Qt.Qt.RightDockWidgetArea)
-        dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
-        self.addDockWidget(Qt.Qt.RightDockWidgetArea, dock_widget)
-        self._most_recently_created_flipbook = weakref.ref(flipbook)
-        return flipbook
-
-    @property
-    def most_recently_created_flipbook(self):
-        """The .most_recently_created_flipbook property represents the flipbook most recently created by calling the
-        .make_flipbook(..) method.  If that flipbook has since been closed, or if none has been created, the value of
-        .most_recently_created_flipbook is None.
-
-        Note that the main flipbook, where images dropped into the main view end up, is available via the
-        main_flipbook property."""
-        if self._most_recently_created_flipbook is None:
+    def _on_flipbook_current_page_changed(self, flipbook, idx):
+        show_as = flipbook.show_as_button_group.checkedId()
+        page = None if idx < 0 else flipbook.pages[idx]
+        if page is None:
             return
-        fb = self._most_recently_created_flipbook()
-        if fb is not None:
-            try:
-                fb.objectName()
-                return fb
-            except RuntimeError:
-                # Qt part of the object was deleted out from under the Python part
-                self._most_recently_created_flipbook = None # Clean up our weakref to the Python part
+        current_layer_idx = self.current_layer_idx
+        if current_layer_idx is None:
+            current_layer_idx = 0
+        layer_stack = self.layer_stack
+        if show_as == 0:
+            self.layer_stack = page
+        elif show_as == 1:
+            if isinstance(page, om.SignalingList):
+                if layer_stack:
+                    for layer_idx, layer in enumerate(page):
+                        if not isinstance(layer, Layer):
+                            layer = Layer(layer)
+                        if layer_idx + current_layer_idx >= len(layer_stack):
+                            layer_stack.append(layer)
+                        else:
+                            layer_stack[layer_idx + current_layer_idx] = layer
+                else:
+                    self.layer_stack = page
+            else:
+                if layer_stack:
+                    if not isinstance(page, Layer):
+                        page = Layer(page)
+                    self.layer_stack[current_layer_idx] = page
+                else:
+                    self.layer_stack = page
+        else:
+            if isinstance(page, om.SignalingList):
+                if layer_stack:
+                    for image_idx, image in enumerate(page):
+                        if isinstance(image, Layer):
+                            image = image.image
+                        if image_idx + current_layer_idx >= len(layer_stack):
+                            layer_stack.append(Layer(image))
+                        else:
+                            layer_stack[image_idx + current_layer_idx].image = image
+                else:
+                    self.layer_stack = page
+            else:
+                if layer_stack:
+                    if isinstance(page, Layer):
+                        page = page.image
+                    self.layer_stack[current_layer_idx].image = page
+                else:
+                    self.layer_stack = page
+
 
     def _on_layer_stack_name_changed(self, layer_stack):
         assert layer_stack is self.layer_stack
