@@ -149,7 +149,7 @@ class PagesView(Qt.QTableView):
         self.setDefaultDropAction(Qt.Qt.LinkAction)
         self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
         self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
-        self.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
+        self.setSelectionMode(Qt.QAbstractItemView.ExtendedSelection)
         self.delete_current_row_action = Qt.QAction(self)
         self.delete_current_row_action.setText('Delete current row')
         self.delete_current_row_action.triggered.connect(self._on_delete_current_row_action_triggered)

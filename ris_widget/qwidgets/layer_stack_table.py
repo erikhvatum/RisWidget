@@ -56,7 +56,7 @@ class LayerStackTableView(Qt.QTableView):
         self.opacity_delegate = SliderDelegate(0.0, 1.0, self)
         self.setItemDelegateForColumn(layer_stack_table_model.property_columns['opacity'], self.opacity_delegate)
         self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
-        self.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
+        self.setSelectionMode(Qt.QAbstractItemView.ExtendedSelection)
         self.setModel(layer_stack_table_model)
         self.delete_current_row_action = Qt.QAction(self)
         self.delete_current_row_action.setText('Delete current row')
