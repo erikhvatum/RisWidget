@@ -145,7 +145,7 @@ class Layer(Qt.QObject):
                 self._image.data_changed.disconnect(self._on_image_data_changed)
             if v is not None:
                 if not isinstance(v, Image):
-                    v = Image(image)
+                    v = Image(v)
                 try:
                     v.data_changed.connect(self._on_image_data_changed)
                 except Exception as e:

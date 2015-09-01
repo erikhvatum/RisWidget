@@ -81,12 +81,12 @@ class Flipbook(Qt.QWidget):
 
         w = self.drop_as_stack_radio = Qt.QRadioButton()
         bg.addButton(w, 0)
-        w.setChecked(True)
         w.setToolTip('Drop as Layer stack')
         l.addWidget(w, 1, 1, Qt.Qt.AlignCenter)
 
         w = self.drop_as_layer_radio = Qt.QRadioButton()
         bg.addButton(w, 1)
+        w.setChecked(True)
         w.setToolTip('Drop as Layer')
         l.addWidget(w, 1, 2, Qt.Qt.AlignCenter)
 

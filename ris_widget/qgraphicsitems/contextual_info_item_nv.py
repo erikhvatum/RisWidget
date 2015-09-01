@@ -69,7 +69,6 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
         self.hide()
 
     def __del__(self):
-        print('Qt.QApplication.instance().closingDown():', Qt.QApplication.instance().closingDown())
         scene = self.scene()
         if scene is None:
             return

@@ -28,52 +28,100 @@ import multiprocessing
 from PyQt5 import Qt
 from .. import om
 
-class Task:
-    __slots__ = ('callable', 'callable_va', 'callable_kw', '_future', '_progress_thread_pool', '_prev_non_pooled', '_next_non_pooled')
+class _TaskStatus(Enum):
+    Unqueued = 0   # Task is not in a ProgressThreadPool's .tasks
+    Queued = 1     # Task is in a ProgressThreadPool's .tasks but has not been submitted to its thread pool
+    Pooled = 2     # Task has been submitted to a ProgressThreadPool's thread pool, and is waiting for the thread pool to start running it
+    Started = 3    # Task is running
+    Completed = 4  # Task was submitted to the thread pool, started, and returned normally
+    Failed = 5     # Either task was submitted to the thread pool, started, and raised an exception, or submission to the pool failed
+    Cancelled = 6  # Task was cancelled before it finished
+
+class _Task:
+    __slots__ = ('callable', 'callable_va', 'callable_kw', '_status', '_future', '_progress_thread_pool', '_prev_queued', '_next_queued')
     def __init__(self, callable, *callable_va, **callable_kw):
         self.callable = callable
         self.callable_va = callable_va
         self.callable_kw = callable_kw
+        self._status = _TaskStatus.Unqueued
+        self._next_queued = self._prev_queued = self._progress_thread_pool = self._future = None
+
+    def _submit(self):
+        assert self._progress_thread_pool is not None
+        assert self._future is None
+        assert Qt.QThread.currentThread() is Qt.QApplication.instance().thread()
+        assert self._status == _TaskStatus.Queued
+        self._status = _TaskStatus.Pooled
+        try:
+            self._future = self._progress_thread_pool._thread_pool_executor.submit(self._pool_thread_proc)
+        except Exception as e:
+            self._status = _TaskStatus.Failed
+            self._post_task_status_change_event()
+            raise e
+        self._post_task_status_change_event()
+        self._future.add_done_callback(self._done_callback)
+
+    def _cancel(self):
+        if self._status == _TaskStatus.Queued:
+            self._status = _TaskStatus.Cancelled
+            self._post_task_status_change_event()
+        elif self._status in (_TaskStatus.Pooled, _TaskStatus.Started):
+            self._future.cancel()
+
+    def _done_callback(self, future):
+        assert future is self._future
+        if future.cancelled():
+            self._status = _TaskStatus.Cancelled
+        elif self._future.done():
+            self._status = _TaskStatus.Completed
+        else:
+            self._status = _TaskStatus.Failed
+        self._post_task_status_change_event()
 
     def _pool_thread_proc(self):
-        Qt.QApplication.instance().postEvent(self._progress_thread_pool, _task_event(task=self, is_starting=True))
-        try:
-            r = self.callable(*self.callable_va, **self.callable_kw)
-        except Exception as e:
-            Qt.QApplication.instance().postEvent(self._progress_thread_pool, _task_event(task=self, is_starting=False))
-            raise e
-        Qt.QApplication.instance().postEvent(self._progress_thread_pool, _task_event(task=self, is_starting=False))
+        if self._status == _TaskStatus.Pooled:
+            self._status = _TaskStatus.Started
+            self._post_task_status_change_event()
+            self.callable(*self.callable_va, **self.callable_kw)
+
+    def _post_task_status_change_event(self):
+        ptp = self._progress_thread_pool
+        if ptp is not None:
+            Qt.QApplication.instance().postEvent(ptp, _task_status_change_event(self))
 
     @property
     def result(self):
-        '''If the next line raises an AttributeError, it is because this Task has not yet been pooled (submitted to
-        self._progress_thread_pool._thread_pool_executor) or perhaps has not even been added to a ProgressThreadPool.'''
-        return self._future.result()
+        '''If the following return statement raises an AttributeError, it is because this Task has not yet been pooled
+        (submitted to self._progress_thread_pool._thread_pool_executor) or perhaps has not even been added to a
+        ProgressThreadPool.'''
+        return self._future.result(0)
 
     @property
-    def is_pooled(self):
-        return hasattr(self, '_future')
+    def status(self):
+        return self._status
 
-_TASK_EVENT = Qt.QEvent.registerEventType()
+_TASK_STATUS_CHANGED_EVENT = Qt.QEvent.registerEventType()
 
-class _task_event(Qt.QEvent):
-    def __init__(self, task, is_starting):
-        super().__init__(_TASK_EVENT)
+class _task_status_change_event(Qt.QEvent):
+    def __init__(self, task):
+        super().__init__(_TASK_STATUS_CHANGED_EVENT)
         self.task = task
-        self.is_starting = is_starting
 
 class ProgressThreadPool(Qt.QWidget):
-    """Signals:
-    * task_count_changed(ProgressThreadPool)
-    * task_started(Task)
-    * task_done(Task)
+    """ProgressThreadPool: A Qt widget for running an ordered collection of tasks in a thread pool, with a cancel
+    button and a progress bar showing the percentage of tasks in the collection that have completed.  The collection
+    of tasks is accessible via the .tasks property as a SignalingList containing Task instances.  
+
+    Signals:
+
+    * done(ProgressThreadPool): 
     """
     task_count_changed = Qt.pyqtSignal(object)
     task_started = Qt.pyqtSignal(Task)
-    task_done = Qt.pyqtSignal(Task)
+    task_finished = Qt.pyqtSignal(Task)
     _x_thread_cancel = Qt.pyqtSignal()
 
-    def __init__(self, tasks=tuple(), thread_pool_executor=None, max_workers=None, parent=None, show_cancel=True):
+    def __init__(self, thread_pool_executor=None, max_workers=None, parent=None, show_cancel=True):
         '''If None is supplied for thread_pool_executor, a new concurrent.futures.ThreadPoolExecutor is created
         with max_workers.  If max_workers is None, max thread count is clamp(int(multiprocessing.cpu_count()/2),1,8)
         (IE, if None is supplied for max_workers, floor(cpu_count/2), bounded to the interval [1,8], is used).
@@ -84,11 +132,6 @@ class ProgressThreadPool(Qt.QWidget):
         thread pool at a time although the pool could ostensibly run eight in parallel.'''
         super().__init__(parent)
         self._ignore_task_list_change = False
-        if not isinstance(tasks, om.SignalingList) and any(not hasattr(tasks, signal) for signal in ('inserted', 'removed', 'replaced')):
-            tasks = om.SignalingList(tasks)
-        for idx, task in enumerate(tasks):
-            if not isinstance(task, Task):
-                tasks[idx] = Task(task[0], task[1:])
         if max_workers is None:
             max_workers = max(1, int(multiprocessing.cpu_count() / 2))
             max_workers = min(8, max_workers)
@@ -103,12 +146,14 @@ class ProgressThreadPool(Qt.QWidget):
         l.addWidget(self._progress_bar)
         self._cancel_button = Qt.QPushButton('Cancel')
         l.addWidget(self._cancel_button)
-        self._cancel_button.clicked.connect(self._on_cancel)
-        self._x_thread_cancel.connect(self._on_cancel, Qt.Qt.QueuedConnection)
-        self._tasks = tasks
-        self._non_pooled_tasks = set(tasks)
-        self._done_tasks = set()
+        self._cancel_button.clicked.connect(self._cancel)
+        if not show_cancel:
+            self._cancel_button.hide()
+        self._x_thread_cancel.connect(self._cancel, Qt.Qt.QueuedConnection)
+        self._tasks = om.SignalingList()
+        self._queued_tasks = set(tasks)
         self._started_tasks = set()
+        self._done_tasks = set()
         self._first_non_pooled_task = None
         tasks.inserted.connect(self._on_inserted)
         tasks.replaced.connect(self._on_replaced)
@@ -120,13 +165,17 @@ class ProgressThreadPool(Qt.QWidget):
         return task
 
     def cancel(self):
-        if self.thread() is Qt.QThread.currentThread():
-            self._on_cancel()
-        else:
+        '''Attempts to cancel any running and queued tasks.  Safe to call from any thread.'''
+        if Qt.QThread.currentThread() is not Qt.QApplication.instance().thread():
             self._x_thread_cancel.emit()
+        else:
+            self._cancel()
 
-    def _on_cancel(self):
-        self._tasks.clear()
+    def _cancel(self):
+        for task in self._queued_tasks:
+            task._cancel()
+        for task in self._started_tasks:
+            task._cancel()
 
     @property
     def max_workers(self):
@@ -135,7 +184,7 @@ class ProgressThreadPool(Qt.QWidget):
     @property
     def tasks(self):
         assert Qt.QThread.currentThread() is Qt.QApplication.instance().thread(),\
-               'ProgressThreadPool.tasks should only be accessed from the main/GUI thread.'
+               'ProgressThreadPool.tasks should only be accessed and/or manipulated from the main/GUI thread.'
         return self._tasks
 
     @property
@@ -143,8 +192,9 @@ class ProgressThreadPool(Qt.QWidget):
         return self._thread_pool_executor
 
     def event(self, event):
-        if event.type() == _TASK_EVENT:
-            assert isinstance(event, _task_event)
+        if event.type() == _TASK_STATUS_CHANGED_EVENT:
+            assert isinstance(event, _task_change_status_event)
+
             if event.is_starting:
                 self._on_task_starting(event.task)
             else:
