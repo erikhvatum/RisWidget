@@ -143,9 +143,10 @@ class ProgressThreadPool(Qt.QWidget):
     t; other Task instances for which "other_task_instance is t" is False may remain in ptp.tasks) causes
     t.progress_thread_pool to become None.  If t.status was Queued when t was removed, t.status changes to New.
     If t.status was Pooled, it usually changes to New, but there exists a small window during which the thread
-    pool executor has started the task and we do not yet know it, in which case t.status remains Pooled, eventually
-    changing to Completed or Failed if t's callable ever exits.  If t.status was Started, Completed, Failed,
-    or Cancelled, removal of t from ptp.tasks does not change the value of t.status.
+    pool executor has started the task and we do not yet know it, which we learn is the case if the Tasks's future
+    rejects it cancel call, in which case t.status changes to Started, eventually changing to Completed or Failed
+    if t's callable ever exits.  If t.status was Started, Completed, Failed, or Cancelled, removal of t from ptp.tasks
+    does not change the value of t.status.
 
     Signals:
 
@@ -270,9 +271,18 @@ class ProgressThreadPool(Qt.QWidget):
         for task in tasks:
             if not isinstance(task, Task):
                 raise ValueError("Only instances of Task (or subclasses thereof) may be inserted into a ProgressThreadPool's .tasks list.")
-            if task._progress_thread_pool is not self:
+            if task._progress_thread_pool is None:
+                assert task._status not in (TaskStatus.Queued, TaskStatus.Pooled), "Inconsistent state: a detached Task is Queued or Pooled."
+                if task._status is not in ProgressThreadPool._ACCEPTABLE_ADDED_DETACHED_TASK_STATUSES:
+                    raise ValueError(
+                        "A running Task (IE, with .status of TaskStatus.Started) may only be inserted into a ProgressThreadPool's .tasks "
+                        "list if it is already a member of that ProgressThreadPool's .tasks list.  That is, there may be multiple entries "
+                        "referring to a single running Task in a ProgressThreadPool's .tasks, but a running Task can not appear in more "
+                        "than one ProgressThreadPool's .tasks list.")
+
 
     def _on_tasks_inserted(self, insertion_idx, tasks):
+        # Note: It is expected that _on_tasks_inserting has run without raising an exception if we are here.
         for task in tasks:
             if :
         if not tasks:
