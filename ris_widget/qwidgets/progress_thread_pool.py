@@ -200,7 +200,9 @@ class ProgressThreadPool(Qt.QWidget):
             TaskStatus.Failed : self._retired_tasks,
             TaskStatus.Cancelled : self._retired_tasks}
         self._first_queued_task = None # Head of Queued Task linked list
+        self._tasks.inserting.connect(self._on_tasks_inserting)
         self._tasks.inserted.connect(self._on_tasks_inserted)
+        self._tasks.replacing.connect(self._on_tasks_replacing)
         self._tasks.replaced.connect(self._on_tasks_replaced)
         self._tasks.removed.connect(self._on_tasks_removed)
 
@@ -255,7 +257,7 @@ class ProgressThreadPool(Qt.QWidget):
             return True
         return super().event(event)
 
-    _EXTERNALLY_SET_STATUSES = set(TaskStatus.Started, TaskStatus.Completed, TaskStatus.Failed, TaskStatus.Cancelled)
+    _EXTERNALLY_SET_STATUSES = frozenset(TaskStatus.Started, TaskStatus.Completed, TaskStatus.Failed, TaskStatus.Cancelled)
     def _on_task_status_changed_ev(self, task, old_status):
         if task.status in ProgressThreadPool._EXTERNALLY_SET_STATUSES:
             self._task_status_sets[old_status].remove(task)
@@ -263,9 +265,14 @@ class ProgressThreadPool(Qt.QWidget):
             self._update_progressbar()
             self._update_pool()
 
+    _ACCEPTABLE_ADDED_DETACHED_TASK_STATUSES = frozenset(TaskStatus.New, TaskStatus.Completed, TaskStatus.Failed, TaskStatus.Cancelled)
+    def _on_tasks_inserting(self, insertion_idx, tasks):
+        for task in tasks:
+            if not isinstance(task, Task):
+                raise ValueError("Only instances of Task (or subclasses thereof) may be inserted into a ProgressThreadPool's .tasks list.")
+            if task._progress_thread_pool is not self:
+
     def _on_tasks_inserted(self, insertion_idx, tasks):
-        assert tasks is self._tasks
-        assert all(isinstance(task, Task) for task in tasks)
         for task in tasks:
             if :
         if not tasks:
@@ -336,8 +343,13 @@ class ProgressThreadPool(Qt.QWidget):
             self._update_progressbar()
             self._update_pool()
 
+    def _on_tasks_replacing(self, idxs, replaced_tasks, tasks):
+        assert tasks is self._tasks
+        if not all(isinstance(task) for task in tasks):
+            raise ValueError("Only instances of Task (or subclasses thereof) may be added to a ProgressThreadPool's .tasks list.")
+
     def _on_tasks_replaced(self, idxs, replaced_tasks, tasks):
-        assert all(isinstance(task, Task) for task in tasks)
+        pass
 
     def _on_tasks_removed(self, idxs, tasks):
         assert all(isinstance(task, Task) for task in tasks)

@@ -35,8 +35,8 @@ class SignalingList(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
 
     Pre-change signals:
     * inserting(index where objects will be inserted, the objects that will be inserted)
-    * replacing(indexes of the objects to be replaced, the objects that will be replaced, the objects that will replace them)
     * removing(indexes of objects to be removed, the objects that will be removed)
+    * replacing(indexes of the objects to be replaced, the objects that will be replaced, the objects that will replace them)
 
     Post-change signals:
     * inserted(index of first inserted object, the objects inserted)
@@ -58,6 +58,7 @@ class SignalingList(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
 
     inserting = Qt.pyqtSignal(int, list)
     removing = Qt.pyqtSignal(list, list)
+    replacing = Qt.pyqtSignal(list, list, list)
 
     inserted = Qt.pyqtSignal(int, list)
     removed = Qt.pyqtSignal(list, list)
@@ -145,6 +146,7 @@ class SignalingList(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
                     replace_slice = slice(dest_idxs[0], dest_idxs[0]+common_len)
                     replaceds = self._list[replace_slice]
                     replacements = srcs[:common_len]
+                    self.replacing.emit(dest_idxs[:common_len], replaceds, replacements)
                     self._list[replace_slice] = srcs[:common_len]
                     self.replaced.emit(dest_idxs[:common_len], replaceds, replacements)
                 if srcs_surplus_len > 0:
@@ -161,6 +163,7 @@ class SignalingList(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
                 if len(dest_idxs) != len(srcs):
                     raise ValueError('attempt to assign sequence of size {} to extended slice of size {}'.format(len(srcs), len(idxs)))
                 replaceds = self._list[idx_or_slice]
+                self.replacing.emit(dest_idxs, replaceds, srcs)
                 self._list[idx_or_slice] = srcs
                 self.replaced.emit(dest_idxs, replaceds, srcs)
         else:
