@@ -144,7 +144,7 @@ class ProgressThreadPool(Qt.QWidget):
     t.progress_thread_pool to become None.  If t.status was Queued when t was removed, t.status changes to New.
     If t.status was Pooled, it usually changes to New, but there exists a small window during which the thread
     pool executor has started the task and we do not yet know it, which we learn is the case if the Tasks's future
-    rejects it cancel call, in which case t.status changes to Started, eventually changing to Completed or Failed
+    rejects it cancel call.  If this happens, t.status changes to Started, eventually changing to Completed or Failed
     if t's callable ever exits.  If t.status was Started, Completed, Failed, or Cancelled, removal of t from ptp.tasks
     does not change the value of t.status.
 

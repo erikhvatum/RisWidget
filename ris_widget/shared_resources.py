@@ -44,14 +44,6 @@ def UNIQUE_QGRAPHICSITEM_TYPE():
     _NEXT_QGRAPHICSITEM_USERTYPE += 1
     return ret
 
-#_NEXT_QLISTWIDGETITEM_USERTYPE = Qt.QListWidgetItem.UserType + 1
-#
-#def UNIQUE_QLISTWIDGETITEM_TYPE():
-#    global _NEXT_QLISTWIDGETITEM_USERTYPE
-#    ret = _NEXT_QLISTWIDGETITEM_USERTYPE
-#    _NEXT_QLISTWIDGETITEM_USERTYPE += 1
-#    return ret
-#
 _NEXT_QITEMDATA_ROLE = Qt.Qt.UserRole + 1
 
 def UNIQUE_QITEMDATA_ROLE():
@@ -138,13 +130,15 @@ def FREEIMAGE(show_messagebox_on_error=False, error_messagebox_owner=None):
                 import freeimage
                 _freeimage = freeimage
             except ImportError:
-                Qt.QMessageBox.information(error_messagebox_owner,
-                                           'freeimage.py Not Found',
-                                           "Zach's freeimage module is required for loading drag & dropped image files.")
+                Qt.QMessageBox.information(
+                    error_messagebox_owner,
+                    'freeimage.py Not Found',
+                    "Zach's freeimage module is required for loading drag & dropped image files.")
                 return
             except RuntimeError as e:
-                estr = '\n'.join(("freeimage.py was found, but an error occurred while importing it " + \
-                                  "(likely because freeimage.so/dylib/dll could not be found):\n",) + e.args)
+                estr = '\n'.join((
+                    "freeimage.py was found, but an error occurred while importing it " + \
+                    "(likely because freeimage.so/dylib/dll could not be found):\n",) + e.args)
                 Qt.QMessageBox.information(error_messagebox_owner, 'Error While Importing freeimage Module', estr)
                 return
         else:
