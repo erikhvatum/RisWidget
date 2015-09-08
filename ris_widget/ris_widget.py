@@ -31,6 +31,7 @@ from .image import Image
 from .layer import Layer
 from .qwidgets.flipbook import Flipbook
 from .qwidgets.layer_stack_table import InvertingProxyModel, LayerStackTableModel, LayerStackTableView
+from .qwidgets import progress_thread_pool
 from .qgraphicsitems.contextual_info_item import ContextualInfoItem
 from .qgraphicsitems.histogram_items import HistogramItem
 from .qgraphicsitems.layer_stack_item import LayerStackItem
@@ -375,7 +376,7 @@ class RisWidget(Qt.QMainWindow):
     def _on_flipbook_current_page_changed(self, flipbook, idx):
         show_as = flipbook.show_as_button_group.checkedId()
         page = None if idx < 0 else flipbook.pages[idx]
-        if page is None:
+        if isinstance(page, progress_thread_pool.Task):
             return
         current_layer_idx = self.current_layer_idx
         if current_layer_idx is None:
@@ -421,7 +422,6 @@ class RisWidget(Qt.QMainWindow):
                     self.layer_stack[current_layer_idx].image = page
                 else:
                     self.layer_stack = page
-
 
     def _on_layer_stack_name_changed(self, layer_stack):
         assert layer_stack is self.layer_stack

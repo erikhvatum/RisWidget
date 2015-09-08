@@ -27,6 +27,7 @@ from .. import om
 from ..image import Image
 from ..layer import Layer
 from ..shared_resources import FREEIMAGE, ICONS
+from .progress_thread_pool import ProgressThreadPool, Task, TaskStatus
 
 class Flipbook(Qt.QWidget):
     """Flipbook: a widget containing a list box showing the name property values of the elements of its pages property.
@@ -48,11 +49,13 @@ class Flipbook(Qt.QWidget):
         l = Qt.QVBoxLayout()
         self.setLayout(l)
         self.pages_model = PagesModel(om.SignalingList())
+        self.pages_model.handle_dropped_files = self._handle_dropped_files
         self.pages_view = PagesView(self.pages_model)
         self.pages_view.setModel(self.pages_model)
         self.pages_view.selectionModel().currentRowChanged.connect(self._on_pages_current_idx_changed)
         l.addLayout(self._make_behavior_grid())
         l.addWidget(self.pages_view)
+        self.progress_thread_pool = None
 
     def _make_behavior_grid(self):
         icons = ICONS()
@@ -119,6 +122,53 @@ class Flipbook(Qt.QWidget):
 
         return l
 
+    def _handle_dropped_files(self, fpaths, dst_row, dst_column, dst_parent):
+        freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=None)
+        if freeimage is None:
+            return False
+        drop_as = self.drop_as_button_group.checkedId()
+        if drop_as > 0 and self.progress_thread_pool is None:
+            self.progress_thread_pool = ProgressThreadPool()
+            self.progress_thread_pool.task_status_changed.connect(self._on_progress_thread_pool_task_status_changed)
+            self.progress_thread_pool.all_tasks_retired.connect(self._on_all_progress_thread_pool_tasks_retired)
+            self.layout().addWidget(self.progress_thread_pool)
+        if drop_as == 0:
+            layers = [Layer(Image(freeimage.read(fpath_str), name=fpath_str), name=fpath_str) for fpath_str in (str(fpath) for fpath in fpaths)]
+            self.pages.insert(dst_row, om.SignalingList(layers))
+        elif drop_as == 1:
+            def read_layer(fpath):
+                fpath = str(fpath)
+                return Layer(Image(freeimage.read(fpath), name=fpath), name=fpath)
+            tasks = []
+            for fpath in fpaths:
+                task = Task(read_layer, fpath)
+                task.drop_as = drop_as
+                tasks.append(task)
+            self.pages[dst_row:dst_row] = tasks
+            self.progress_thread_pool.tasks.extend(tasks)
+        else:
+            def read_image(fpath):
+                fpath = str(fpath)
+                return Image(freeimage.read(fpath_str), name=fpath_str)
+            tasks = [self.progress_thread_pool.submit(read_image, fpath) for fpath in fpaths]
+            self.pages[dst_row:dst_row] = tasks
+        return True
+
+    def _on_progress_thread_pool_task_status_changed(self, task, old_status):
+        if task.status is TaskStatus.Completed:
+            element_inst_count = self.pages_model._instance_counts[task]
+            next_idx = 0
+            pages = self.pages
+            for _ in range(element_inst_count):
+                idx = pages.index(task, next_idx)
+                next_idx = idx + 1
+                pages[idx] = task.result
+
+    def _on_all_progress_thread_pool_tasks_retired(self):
+        self.layout().removeWidget(self.progress_thread_pool)
+        self.progress_thread_pool.deleteLater()
+        self.progress_thread_pool = None
+
     @property
     def pages(self):
         return self.pages_model.signaling_list
@@ -166,28 +216,7 @@ class PagesView(Qt.QTableView):
         if midx.isValid():
             m.removeRow(midx.row())
 
-class PagesDragDropBehavior(om.signaling_list.DragDropModelBehavior):
-    def handle_dropped_files(self, fpaths, dst_row, dst_column, dst_parent):
-        # Note: if the URL is a "file://..." representing a local file, toLocalFile returns a string
-        # appropriate for feeding to Python's open() function.  If the URL does not refer to a local file,
-        # toLocalFile returns None.
-        freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=None)
-        if freeimage is None:
-            return False
-        # TODO: read images in background thread and display modal progress bar dialog with cancel button
-        drop_as = self.drop_as_button_group.checkedId()
-        if drop_as == 0:
-            layers = [Layer(Image(freeimage.read(fpath_str), name=fpath_str), name=fpath_str) for fpath_str in (str(fpath) for fpath in fpaths)]
-            self.signaling_list.insert(dst_row, om.SignalingList(layers))
-        elif drop_as == 1:
-            layers = [Layer(Image(freeimage.read(fpath_str), name=fpath_str), name=fpath_str) for fpath_str in (str(fpath) for fpath in fpaths)]
-            self.signaling_list[dst_row:dst_row] = layers
-        else:
-            images = [Image(freeimage.read(fpath_str), name=fpath_str) for fpath_str in (str(fpath) for fpath in fpaths)]
-            self.signaling_list[dst_row:dst_row] = images
-        return True
-
-class PagesModel(PagesDragDropBehavior, om.signaling_list.PropertyTableModel):
+class PagesModel(om.signaling_list.DragDropModelBehavior, om.signaling_list.PropertyTableModel):
     PROPERTIES = (
         'name',
         )
@@ -201,8 +230,23 @@ class PagesModel(PagesDragDropBehavior, om.signaling_list.PropertyTableModel):
             om.SignalingList : icons['layer_stack_icon']
             }
 
-    def data(self, midx, role=Qt.Qt.DisplayRole):
-        if role == Qt.Qt.DecorationRole and midx.isValid() and midx.column() == self.PROPERTIES.index('name'):
+    def flags(self, midx):
+        if midx.isValid() and midx.column() == self.PROPERTIES.index('name'):
             element = self.signaling_list[midx.row()]
-            return Qt.QVariant(self.icons.get(type(element)))
+            if isinstance(element, Task):
+                return super().flags(midx) & ~Qt.Qt.ItemIsEnabled & ~Qt.Qt.ItemIsEditable
+        return super().flags(midx)
+
+    def data(self, midx, role=Qt.Qt.DisplayRole):
+        if midx.isValid() and midx.column() == self.PROPERTIES.index('name'):
+            element = self.signaling_list[midx.row()]
+            if element is None:
+                return Qt.QVariant()
+            if isinstance(element, Task):
+                if role == Qt.Qt.DecorationRole:
+                    return Qt.QVariant(ICONS()[('layer_stack_icon', 'layer_icon', 'image_icon')[element.drop_as]])
+                if role == Qt.Qt.DisplayRole:
+                    return Qt.QVariant(element.callable_va[0])
+            if role == Qt.Qt.DecorationRole:
+                return Qt.QVariant(self.icons.get(type(element)))
         return super().data(midx, role)

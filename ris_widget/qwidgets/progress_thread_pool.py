@@ -37,8 +37,6 @@ class TaskStatus(Enum):
     Cancelled = 6 # Task was cancelled before it finished
 
 class Task:
-    __slots__ = (
-        'callable', 'callable_va', 'callable_kw', '_status', '_future', '_progress_thread_pool', '_instance_count', '_qnodes')
     def __init__(self, callable, *callable_va, **callable_kw):
         self.callable = callable
         self.callable_va = callable_va
@@ -87,7 +85,7 @@ class Task:
         assert(self._status == TaskStatus.Pooled)
         self._status = TaskStatus.Started
         self._post_task_status_change_event(TaskStatus.Pooled)
-        self.callable(*self.callable_va, **self.callable_kw)
+        return self.callable(*self.callable_va, **self.callable_kw)
 
     def _send_task_status_change_event(self, old_status):
         Qt.QApplication.instance().sendEvent(self._progress_thread_pool, _TaskStatusChangeEvent(self, self.status, old_status))
@@ -102,7 +100,7 @@ class Task:
         '''If the following return statement raises an AttributeError, it is because this Task has not yet been pooled
         (submitted to self._progress_thread_pool._thread_pool_executor) or perhaps has not even been added to a
         ProgressThreadPool.'''
-        return self._future.result(0)
+        return self._future.result()
 
     @property
     def progress_thread_pool(self):
@@ -164,6 +162,8 @@ class ProgressThreadPool(Qt.QWidget):
 
     * task_status_changed(task, task_status): task.status changed from task_status.'''
     task_status_changed = Qt.pyqtSignal(Task, TaskStatus)
+    all_tasks_retired = Qt.pyqtSignal()
+    cancelled = Qt.pyqtSignal()
     _x_thread_submit = Qt.pyqtSignal(Task)
     _x_thread_cancel = Qt.pyqtSignal()
 
@@ -177,7 +177,7 @@ class ProgressThreadPool(Qt.QWidget):
         thread_pool_executor, the resulting ProgressThreadPool will only allow two of its Tasks to be in the
         thread pool at a time although the pool could ostensibly run eight in parallel.'''
         super().__init__(parent)
-        self._ignore_task_list_change = False
+        self._updating_pool = False
         if max_workers is None:
             import multiprocessing
             max_workers = max(1, int(multiprocessing.cpu_count() / 2))
@@ -241,6 +241,7 @@ class ProgressThreadPool(Qt.QWidget):
             task._cancel()
         for task in list(self._started_tasks):
             task._cancel()
+        self.cancelled.emit()
 
     @property
     def max_workers(self):
@@ -397,19 +398,28 @@ class ProgressThreadPool(Qt.QWidget):
         raise NotImplementedError()
 
     def _update_pool(self):
-        add_task_count_to_pool = min(
-            self._max_workers - (len(self._pooled_tasks) + len(self._started_tasks)),
-            len(self._queued_tasks))
-#       print('len(self._queued_tasks)', len(self._queued_tasks), 'add_task_count_to_pool', add_task_count_to_pool)
-        if add_task_count_to_pool <= 0:
+        if self._updating_pool:
             return
-        for _ in range(add_task_count_to_pool):
-            n = self._task_qhead
-            assert n is not None
-            assert n.prev_queued is None
-            n.task._submit()
+        try:
+            self._updating_pool = True
+            add_task_count_to_pool = min(
+                self._max_workers - (len(self._pooled_tasks) + len(self._started_tasks)),
+                len(self._queued_tasks))
+#           print('len(self._queued_tasks)', len(self._queued_tasks), 'add_task_count_to_pool', add_task_count_to_pool)
+            if add_task_count_to_pool <= 0:
+                return
+            for _ in range(add_task_count_to_pool):
+                n = self._task_qhead
+                assert n is not None
+                assert n.prev_queued is None
+                n.task._submit()
+        finally:
+            self._updating_pool = False
 
     def _update_progressbar(self):
-        tc = len(self._tasks)
-        self._progress_bar.setMaximum(tc)
-        self._progress_bar.setValue(len(self._retired_tasks))
+        rtc = len(self._retired_tasks)
+        ttc = len(self._queued_tasks) + len(self._pooled_tasks) + len(self._started_tasks) + rtc
+        self._progress_bar.setMaximum(ttc)
+        self._progress_bar.setValue(rtc)
+        if ttc > 0 and ttc == rtc:
+            self.all_tasks_retired.emit()
