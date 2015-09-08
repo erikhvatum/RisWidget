@@ -521,7 +521,7 @@ class LayerStackItem(ShaderItem):
                 tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
                 tex.setFormat(desired_texture_format)
                 tex.setWrapMode(Qt.QOpenGLTexture.ClampToBorder)
-                if sys.platform != 'darwin':
+                if 0:#sys.platform != 'darwin':
                     # TODO: determine why the following call segfaults on OS X and remove the enclosing if statement
                     tex.setBorderColor(self.TEXTURE_BORDER_COLOR)
                 if layer.trilinear_filtering_enabled:
