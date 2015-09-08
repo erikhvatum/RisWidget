@@ -55,13 +55,14 @@ class Task:
         assert self._status == TaskStatus.Queued
         old_status = self._status
         self._status = TaskStatus.Pooled
+        self._send_task_status_change_event(old_status)
+        old_status = TaskStatus.Pooled
         try:
             self._future = self._progress_thread_pool._thread_pool_executor.submit(self._pool_thread_proc)
         except Exception as e:
             self._status = TaskStatus.Failed
-            self._post_task_status_change_event(old_status)
+            self._send_task_status_change_event(old_status)
             raise e
-        self._post_task_status_change_event(old_status)
         self._future.add_done_callback(self._done_callback)
 
     def _cancel(self):
@@ -87,6 +88,9 @@ class Task:
         self._status = TaskStatus.Started
         self._post_task_status_change_event(TaskStatus.Pooled)
         self.callable(*self.callable_va, **self.callable_kw)
+
+    def _send_task_status_change_event(self, old_status):
+        Qt.QApplication.instance().sendEvent(self._progress_thread_pool, _TaskStatusChangeEvent(self, self.status, old_status))
 
     def _post_task_status_change_event(self, old_status):
         ptp = self._progress_thread_pool
@@ -118,10 +122,10 @@ class _TaskStatusChangeEvent(Qt.QEvent):
         self.old_status = old_status
 
 class _TaskQNode:
-    __slots__ = ('prevqn', 'task', 'nextqn')
+    __slots__ = ('prev_queued', 'task', 'next_queued')
     def __init__(self, task):
         self.task = task
-        self.prevqn = self.nextqn = None
+        self.prev_queued = self.next_queued = None
 
 class ProgressThreadPool(Qt.QWidget):
     '''ProgressThreadPool: A Qt widget for running an ordered collection of tasks in a thread pool, with a cancel
@@ -217,7 +221,7 @@ class ProgressThreadPool(Qt.QWidget):
     def submit(self, callable, *callable_va, **callable_kw):
         task = Task(callable, *callable_va, **callable_kw)
         if Qt.QThread.currentThread() is Qt.QApplication.instance().thread():
-            self._tasks.append()
+            self._tasks.append(task)
         else:
             self._x_thread_submit.emit(task)
         return task
@@ -254,30 +258,37 @@ class ProgressThreadPool(Qt.QWidget):
 
     def event(self, event):
         if event.type() == _TASK_STATUS_CHANGED_EVENT:
-            assert isinstance(event, _task_change_status_event)
+            assert isinstance(event, _TaskStatusChangeEvent)
             task = event.task
             status = task.status
             assert status is not TaskStatus.New
             old_status = event.old_status
-            if status is not old_status:
-                self._on_task_status_changed_ev(task, old_status)
+            new_status = event.new_status
+            if new_status is not old_status:
+                self._on_task_status_changed_ev(task, new_status, old_status)
                 self.task_status_changed.emit(task, old_status)
             return True
         return super().event(event)
 
-    def _on_task_status_changed_ev(self, task, old_status):
+    def _on_task_status_changed_ev(self, task, new_status, old_status):
+        print('_on_task_status_changed_ev:', new_status, old_status)
+        n = None
         if old_status is TaskStatus.Queued:
             for n in task._qnodes:
                 assert n.task is task
-                if n.prev is None:
-                    self._task_qhead = n.next
+                if n.prev_queued is None:
+                    print('changing task_qhead from', self._task_qhead, 'to', n.next_queued)
+                    if n.next_queued is None:
+                        print('is none!')
+                    self._task_qhead = n.next_queued
                 else:
-                    n.prev.next = n.next
-                if n.next is not None:
-                    n.next.prev = n.prev
-                n.next = n.prev = None
-        self._task_status_sets[old_status].remove(task)
-        self._task_status_sets[task.status].add(task)
+                    n.prev_queued.next_queued = n.next_queued
+                if n.next_queued is not None:
+                    n.next_queued.prev_queued = n.prev_queued
+                n.next_queued = n.prev_queued = None
+        if old_status is not TaskStatus.New:
+            self._task_status_sets[old_status].remove(task)
+        self._task_status_sets[new_status].add(task)
         self._update_progressbar()
         self._update_pool()
 
@@ -302,11 +313,11 @@ class ProgressThreadPool(Qt.QWidget):
         new_tasks = []
         new_qnodes = []
         for tidx, t in enumerate(tasks, insertion_idx):
-            n = _TaskQNode(task)
-            if task._status is TaskStatus.New or task._status is TaskStatus.Queued:
+            n = _TaskQNode(t)
+            if t._status is TaskStatus.New or task._status is TaskStatus.Queued:
                 new_tasks.append(t)
                 new_qnodes.append(n)
-            self._task_qnodes.insert(tidx, _TaskQNode(task))
+            self._task_qnodes.insert(tidx, _TaskQNode(t))
             t._qnodes.add(n)
         if not new_tasks:
             self._update_progressbar()
@@ -320,26 +331,26 @@ class ProgressThreadPool(Qt.QWidget):
                 if not bE:
                     n = self._task_qnodes[bidx]
                     if n is not None:
-                        nn = n.next
+                        nn = n.next_queued
                         n0 = new_qnodes[0]
                         n1 = new_qnodes[-1]
-                        n0.prev = n
-                        n.next = n0
-                        n1.next = nn
+                        n0.prev_queued = n
+                        n.next_queued = n0
+                        n1.next_queued = nn
                         if nn is not None:
-                            nn.prev = n1
+                            nn.prev_queued = n1
                         break
                     bidx -= 1
                     bE = bidx < 0
                 if not Fe:
                     n = self._task_qnodes[fidx]
                     if n is not None:
-                        np = n.prev
+                        np = n.prev_queued
                         n0 = new_qnodes[0]
                         n1 = new_qnodes[-1]
-                        n1.next = n
-                        n.prev = n1
-                        n0.prev = np
+                        n1.next_queued = n
+                        n.prev_queued = n1
+                        n0.prev_queued = np
                         if np is None:
                             # We scanned forward and the first Queued Task we found has no preceeding Queued Tasks.  The inserted Tasks
                             # preceed found task, which itself was previously the Queued Task linked-list head, making the first inserted, 
@@ -347,9 +358,9 @@ class ProgressThreadPool(Qt.QWidget):
                             if n is not self._task_qhead:
                                 raise RuntimeError('Inconsistent state: scanning forward found a Queued Task that had no preceeding '
                                                    'Queued Task and yet somehow is not the Queued Task linked-list head.')
-                            self._first_queued_task = n0
+                            self._task_qhead = n0
                         else:
-                            np.next = n0
+                            np.next_queued = n0
                         break
                     fidx += 1
                     fE = fidx >= len(self._tasks)
@@ -360,8 +371,8 @@ class ProgressThreadPool(Qt.QWidget):
         else:
             self._task_qhead = new_qnodes[0]
         for nl, nr in zip(new_qnodes, new_qnodes[1:]):
-            nl.next = nr
-            nr.prev = nl
+            nl.next_queued = nr
+            nr.prev_queued = nl
         for t in tasks:
             t._instance_count += 1
             if t._instance_count == 1 and t._status is TaskStatus.New:
@@ -376,12 +387,14 @@ class ProgressThreadPool(Qt.QWidget):
         assert tasks is self._tasks
         if not all(isinstance(task) for task in tasks):
             raise ValueError("Only instances of Task (or subclasses thereof) may be added to a ProgressThreadPool's .tasks list.")
+        raise NotImplementedError()
 
     def _on_tasks_replaced(self, idxs, replaced_tasks, tasks):
-        pass
+        raise NotImplementedError()
 
     def _on_tasks_removed(self, idxs, tasks):
         assert all(isinstance(task, Task) for task in tasks)
+        raise NotImplementedError()
 
     def _update_pool(self):
         add_task_count_to_pool = min(
@@ -393,7 +406,7 @@ class ProgressThreadPool(Qt.QWidget):
         for _ in range(add_task_count_to_pool):
             n = self._task_qhead
             assert n is not None
-            assert n.prev is None
+            assert n.prev_queued is None
             n.task._submit()
 
     def _update_progressbar(self):
