@@ -271,15 +271,15 @@ class ProgressThreadPool(Qt.QWidget):
         return super().event(event)
 
     def _on_task_status_changed_ev(self, task, new_status, old_status):
-        print('_on_task_status_changed_ev:', new_status, old_status)
+#       print('_on_task_status_changed_ev:', new_status, old_status)
         n = None
         if old_status is TaskStatus.Queued:
             for n in task._qnodes:
                 assert n.task is task
                 if n.prev_queued is None:
-                    print('changing task_qhead from', self._task_qhead, 'to', n.next_queued)
-                    if n.next_queued is None:
-                        print('is none!')
+#                   print('changing task_qhead from', self._task_qhead, 'to', n.next_queued)
+#                   if n.next_queued is None:
+#                       print('is none!')
                     self._task_qhead = n.next_queued
                 else:
                     n.prev_queued.next_queued = n.next_queued
@@ -317,7 +317,7 @@ class ProgressThreadPool(Qt.QWidget):
             if t._status is TaskStatus.New or task._status is TaskStatus.Queued:
                 new_tasks.append(t)
                 new_qnodes.append(n)
-            self._task_qnodes.insert(tidx, _TaskQNode(t))
+            self._task_qnodes.insert(tidx, n)
             t._qnodes.add(n)
         if not new_tasks:
             self._update_progressbar()
@@ -400,7 +400,7 @@ class ProgressThreadPool(Qt.QWidget):
         add_task_count_to_pool = min(
             self._max_workers - (len(self._pooled_tasks) + len(self._started_tasks)),
             len(self._queued_tasks))
-        print('len(self._queued_tasks)', len(self._queued_tasks), 'add_task_count_to_pool', add_task_count_to_pool)
+#       print('len(self._queued_tasks)', len(self._queued_tasks), 'add_task_count_to_pool', add_task_count_to_pool)
         if add_task_count_to_pool <= 0:
             return
         for _ in range(add_task_count_to_pool):
