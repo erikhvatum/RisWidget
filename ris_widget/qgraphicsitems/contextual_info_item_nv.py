@@ -84,6 +84,8 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
         try:
             if self._glyph_base is not None:
                 PR.glDeletePathsNV(self._glyph_base, 256)
+        except:
+            pass
         finally:
             gl_widget.doneCurrent()
 

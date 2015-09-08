@@ -155,14 +155,28 @@ class Flipbook(Qt.QWidget):
         return True
 
     def _on_progress_thread_pool_task_status_changed(self, task, old_status):
-        if task.status is TaskStatus.Completed:
+        try:
             element_inst_count = self.pages_model._instance_counts[task]
+        except KeyError:
+            # We received queued notification informing us that something already removed from Tasks
+            # changed to Completed status before being removed.
+            return
+        if task.status is TaskStatus.Completed:
             next_idx = 0
             pages = self.pages
             for _ in range(element_inst_count):
                 idx = pages.index(task, next_idx)
                 next_idx = idx + 1
                 pages[idx] = task.result
+                task._progress_thread_pool = None
+        else:
+            next_idx = 0
+            pages = self.pages
+            m = self.pages_model
+            for _ in range(element_inst_count):
+                idx = pages.index(task, next_idx)
+                next_idx = idx + 1
+                m.dataChanged.emit(m.createIndex(idx, 0), m.createIndex(idx, 0))
 
     def _on_all_progress_thread_pool_tasks_retired(self):
         self.layout().removeWidget(self.progress_thread_pool)
@@ -175,7 +189,7 @@ class Flipbook(Qt.QWidget):
 
     @pages.setter
     def pages(self, pages):
-        assert isinstance(pages, SignalingList)
+        assert isinstance(pages, om.SignalingList)
         self.pages_model.signaling_list = pages
         self.current_page_changed.emit(self, self.selectionModel().currentIndex().row())
 
@@ -200,21 +214,37 @@ class PagesView(Qt.QTableView):
         self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
         self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
         self.setSelectionMode(Qt.QAbstractItemView.ExtendedSelection)
-        self.delete_current_row_action = Qt.QAction(self)
-        self.delete_current_row_action.setText('Delete current row')
-        self.delete_current_row_action.triggered.connect(self._on_delete_current_row_action_triggered)
-        self.delete_current_row_action.setShortcut(Qt.Qt.Key_Delete)
-        self.delete_current_row_action.setShortcutContext(Qt.Qt.WidgetShortcut)
-        self.addAction(self.delete_current_row_action)
+        self.delete_selection_action = Qt.QAction(self)
+        self.delete_selection_action.setText('Delete selection')
+        self.delete_selection_action.triggered.connect(self._on_delete_selection_action_triggered)
+        self.delete_selection_action.setShortcut(Qt.Qt.Key_Delete)
+        self.delete_selection_action.setShortcutContext(Qt.Qt.WidgetShortcut)
+        self.addAction(self.delete_selection_action)
 
-    def _on_delete_current_row_action_triggered(self):
+    def _on_delete_selection_action_triggered(self):
         sm = self.selectionModel()
         m = self.model()
         if None in (m, sm):
             return
-        midx = sm.currentIndex()
-        if midx.isValid():
-            m.removeRow(midx.row())
+        midxs = sorted(sm.selectedRows(), key=lambda midx: midx.row())
+        # "run" as in RLE as in consecutive indexes specified as range rather than individually
+        runs = []
+        run_start_idx = None
+        run_end_idx = None
+        for midx in midxs:
+            if midx.isValid():
+                idx = midx.row()
+                if run_start_idx is None:
+                    run_end_idx = run_start_idx = idx
+                elif idx - run_end_idx == 1:
+                    run_end_idx = idx
+                else:
+                    runs.append((run_start_idx, run_end_idx))
+                    run_end_idx = run_start_idx = idx
+        if run_start_idx is not None:
+            runs.append((run_start_idx, run_end_idx))
+        for run_start_idx, run_end_idx in reversed(runs):
+            m.removeRows(run_start_idx, run_end_idx - run_start_idx + 1)
 
 class PagesModel(om.signaling_list.DragDropModelBehavior, om.signaling_list.PropertyTableModel):
     PROPERTIES = (
@@ -246,7 +276,7 @@ class PagesModel(om.signaling_list.DragDropModelBehavior, om.signaling_list.Prop
                 if role == Qt.Qt.DecorationRole:
                     return Qt.QVariant(ICONS()[('layer_stack_icon', 'layer_icon', 'image_icon')[element.drop_as]])
                 if role == Qt.Qt.DisplayRole:
-                    return Qt.QVariant(element.callable_va[0])
+                    return Qt.QVariant('({}) {}'.format(element.status.name, element.callable_va[0]))
             if role == Qt.Qt.DecorationRole:
                 return Qt.QVariant(self.icons.get(type(element)))
         return super().data(midx, role)

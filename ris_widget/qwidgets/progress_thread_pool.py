@@ -66,7 +66,7 @@ class Task:
     def _cancel(self):
         if self._status in (TaskStatus.New, TaskStatus.Queued):
             self._status = TaskStatus.Cancelled
-            self._post_task_status_change_event(TaskStatus.Queued)
+            self._send_task_status_change_event(TaskStatus.Queued)
         elif self._status in (TaskStatus.Pooled, TaskStatus.Started):
             self._future.cancel()
 
@@ -237,10 +237,14 @@ class ProgressThreadPool(Qt.QWidget):
             self._x_thread_cancel.emit()
 
     def _cancel(self):
-        for task in list(self._queued_tasks):
-            task._cancel()
-        for task in list(self._started_tasks):
-            task._cancel()
+        try:
+            self._updating_pool = True
+            for task in list(self._queued_tasks):
+                task._cancel()
+            for task in list(self._started_tasks):
+                task._cancel()
+        finally:
+            self._updating_pool = False
         self.cancelled.emit()
 
     @property
