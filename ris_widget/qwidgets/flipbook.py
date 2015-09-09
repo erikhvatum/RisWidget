@@ -196,6 +196,7 @@ class Flipbook(Qt.QWidget):
     def _on_pages_current_idx_changed(self, midx, old_midx):
         self.current_page_changed.emit(self, midx.row())
 
+@om.item_view_shortcuts.with_multi_selection_deletion_shortcut
 class PagesView(Qt.QTableView):
     def __init__(self, pages_model, parent=None):
         super().__init__(parent)
@@ -214,37 +215,6 @@ class PagesView(Qt.QTableView):
         self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
         self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
         self.setSelectionMode(Qt.QAbstractItemView.ExtendedSelection)
-        self.delete_selection_action = Qt.QAction(self)
-        self.delete_selection_action.setText('Delete selection')
-        self.delete_selection_action.triggered.connect(self._on_delete_selection_action_triggered)
-        self.delete_selection_action.setShortcut(Qt.Qt.Key_Delete)
-        self.delete_selection_action.setShortcutContext(Qt.Qt.WidgetShortcut)
-        self.addAction(self.delete_selection_action)
-
-    def _on_delete_selection_action_triggered(self):
-        sm = self.selectionModel()
-        m = self.model()
-        if None in (m, sm):
-            return
-        midxs = sorted(sm.selectedRows(), key=lambda midx: midx.row())
-        # "run" as in RLE as in consecutive indexes specified as range rather than individually
-        runs = []
-        run_start_idx = None
-        run_end_idx = None
-        for midx in midxs:
-            if midx.isValid():
-                idx = midx.row()
-                if run_start_idx is None:
-                    run_end_idx = run_start_idx = idx
-                elif idx - run_end_idx == 1:
-                    run_end_idx = idx
-                else:
-                    runs.append((run_start_idx, run_end_idx))
-                    run_end_idx = run_start_idx = idx
-        if run_start_idx is not None:
-            runs.append((run_start_idx, run_end_idx))
-        for run_start_idx, run_end_idx in reversed(runs):
-            m.removeRows(run_start_idx, run_end_idx - run_start_idx + 1)
 
 class PagesModel(om.signaling_list.DragDropModelBehavior, om.signaling_list.PropertyTableModel):
     PROPERTIES = (

@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from . import item_view_shortcuts
 from .property import Property
 from . import signaling_list
 from .signaling_list.signaling_list import SignalingList

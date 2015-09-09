@@ -32,7 +32,7 @@ from ..qdelegates.checkbox_delegate import CheckboxDelegate
 from ..shared_resources import CHOICES_QITEMDATA_ROLE, FREEIMAGE
 from .. import om
 
-#TODO: make list items drop targets so that layer contents can be replaced by dropping file on associated item
+@om.item_view_shortcuts.with_multi_selection_deletion_shortcut
 class LayerStackTableView(Qt.QTableView):
     model_changed = Qt.pyqtSignal(object)
     selection_model_changed = Qt.pyqtSignal(object)
@@ -58,12 +58,6 @@ class LayerStackTableView(Qt.QTableView):
         self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
         self.setSelectionMode(Qt.QAbstractItemView.ExtendedSelection)
         self.setModel(layer_stack_table_model)
-        self.delete_current_row_action = Qt.QAction(self)
-        self.delete_current_row_action.setText('Delete current row')
-        self.delete_current_row_action.triggered.connect(self._on_delete_current_row_action_triggered)
-        self.delete_current_row_action.setShortcut(Qt.Qt.Key_Delete)
-        self.delete_current_row_action.setShortcutContext(Qt.Qt.WidgetShortcut)
-        self.addAction(self.delete_current_row_action)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         self.setDragDropMode(Qt.QAbstractItemView.DragDrop)
@@ -86,15 +80,6 @@ class LayerStackTableView(Qt.QTableView):
     def setSelectionModel(self, selection_model):
         super().setSelectionModel(selection_model)
         self.selection_model_changed.emit(self)
-
-    def _on_delete_current_row_action_triggered(self):
-        sm = self.selectionModel()
-        m = self.model()
-        if None in (m, sm):
-            return
-        midx = sm.currentIndex()
-        if midx.isValid():
-            m.removeRow(midx.row())
 
 class InvertingProxyModel(Qt.QSortFilterProxyModel):
     # Making a full proxy model that reverses/inverts indexes from Qt.QAbstractProxyModel or Qt.QIdentityProxyModel turns

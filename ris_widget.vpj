@@ -258,8 +258,6 @@
                 <F N="ris_widget/qwidgets/__init__.py"/>
                 <F N="ris_widget/qwidgets/basic_signaling_list.py"/>
                 <F N="ris_widget/qwidgets/flipbook.py"/>
-                <F N="ris_widget/qwidgets/image_stack_current_row_flipbook.py"/>
-                <F N="ris_widget/qwidgets/layer_stack_book_table.py"/>
                 <F N="ris_widget/qwidgets/layer_stack_table.py"/>
                 <F N="ris_widget/qwidgets/progress_thread_pool.py"/>
             </Folder>
