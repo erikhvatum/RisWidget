@@ -224,6 +224,7 @@
                     <F N="ris_widget/om/signaling_list/signaling_list.py"/>
                 </Folder>
                 <F N="ris_widget/om/__init__.py"/>
+                <F N="ris_widget/om/item_view_shortcuts.py"/>
                 <F N="ris_widget/om/property.py"/>
             </Folder>
             <Folder Name="qdelegates">
