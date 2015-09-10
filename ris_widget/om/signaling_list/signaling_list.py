@@ -207,7 +207,11 @@ class SignalingList(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
         self.removed.emit(idxs, objs)
 
     def __eq__(self, other):
-        return len(self) == len(other) and all(s == o for s, o in zip(self, other))
+        try:
+            other_len = len(other)
+        except TypeError:
+            return False
+        return len(self) == other_len and all(s == o for s, o in zip(self, other))
 
     if __debug__:
         @classmethod

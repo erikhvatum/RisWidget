@@ -202,7 +202,6 @@ class RisWidget(Qt.QMainWindow):
         self.main_view_toolbar.addAction(self.layer_stack_reset_curr_gamma)
         self.main_view_toolbar.addAction(self.main_scene.layer_stack_item.override_enable_auto_min_max_action)
         self.main_view_toolbar.addAction(self.main_scene.layer_stack_item.examine_layer_mode_action)
-        self.main_view_toolbar.addAction(self.layer_stack_table_dock_widget.toggleViewAction())
         self.dock_widget_visibility_toolbar = self.addToolBar('Dock Widget Visibility')
         self.dock_widget_visibility_toolbar.addAction(self.layer_stack_table_dock_widget.toggleViewAction())
         self.dock_widget_visibility_toolbar.addAction(self.main_flipbook_dock_widget.toggleViewAction())
@@ -301,6 +300,9 @@ class RisWidget(Qt.QMainWindow):
         v.replaced.connect(self._on_replaced_in_layer_stack)
         self.main_scene.layer_stack_item.layer_stack = v
         self.layer_stack_table_model.signaling_list = v
+        if v:
+            self._on_inserted_into_layer_stack()
+            self.histogram_scene.histogram_item.layer = self.current_layer
 
     def _get_primary_image_stack_current_layer_idx(self):
         # Selection model is with reference to table view's model, which is the inverting proxy model
@@ -374,54 +376,60 @@ class RisWidget(Qt.QMainWindow):
         return self._main_flipbook
 
     def _on_flipbook_current_page_changed(self, flipbook, idx):
-        show_as = flipbook.show_as_button_group.checkedId()
         page = None if idx < 0 else flipbook.pages[idx]
         if isinstance(page, progress_thread_pool.Task):
             return
-        current_layer_idx = self.current_layer_idx
-        if current_layer_idx is None:
-            current_layer_idx = 0
-        layer_stack = self.layer_stack
-        if show_as == 0:
-            self.layer_stack = page
-        elif show_as == 1:
-            if isinstance(page, om.SignalingList):
-                if layer_stack:
-                    for layer_idx, layer in enumerate(page):
-                        if not isinstance(layer, Layer):
-                            layer = Layer(layer)
-                        if layer_idx + current_layer_idx >= len(layer_stack):
-                            layer_stack.append(layer)
-                        else:
-                            layer_stack[layer_idx + current_layer_idx] = layer
-                else:
-                    self.layer_stack = page
-            else:
-                if layer_stack:
-                    if not isinstance(page, Layer):
-                        page = Layer(page)
-                    self.layer_stack[current_layer_idx] = page
-                else:
-                    self.layer_stack = page
-        else:
-            if isinstance(page, om.SignalingList):
-                if layer_stack:
-                    for image_idx, image in enumerate(page):
-                        if isinstance(image, Layer):
-                            image = image.image
-                        if image_idx + current_layer_idx >= len(layer_stack):
-                            layer_stack.append(Layer(image))
-                        else:
-                            layer_stack[image_idx + current_layer_idx].image = image
-                else:
-                    self.layer_stack = page
-            else:
-                if layer_stack:
-                    if isinstance(page, Layer):
-                        page = page.image
-                    self.layer_stack[current_layer_idx].image = page
-                else:
-                    self.layer_stack = page
+        self.layer_stack = page
+
+#   def _on_flipbook_current_page_changed(self, flipbook, idx):
+#       show_as = flipbook.show_as_button_group.checkedId()
+#       page = None if idx < 0 else flipbook.pages[idx]
+#       if isinstance(page, progress_thread_pool.Task):
+#           return
+#       current_layer_idx = self.current_layer_idx
+#       if current_layer_idx is None:
+#           current_layer_idx = 0
+#       layer_stack = self.layer_stack
+#       if show_as == 0:
+#           self.layer_stack = page
+#       elif show_as == 1:
+#           if isinstance(page, om.SignalingList):
+#               if layer_stack:
+#                   for layer_idx, layer in enumerate(page):
+#                       if not isinstance(layer, Layer):
+#                           layer = Layer(layer)
+#                       if layer_idx + current_layer_idx >= len(layer_stack):
+#                           layer_stack.append(layer)
+#                       else:
+#                           layer_stack[layer_idx + current_layer_idx] = layer
+#               else:
+#                   self.layer_stack = page
+#           else:
+#               if layer_stack:
+#                   if not isinstance(page, Layer):
+#                       page = Layer(page)
+#                   self.layer_stack[current_layer_idx] = page
+#               else:
+#                   self.layer_stack = page
+#       else:
+#           if isinstance(page, om.SignalingList):
+#               if layer_stack:
+#                   for image_idx, image in enumerate(page):
+#                       if isinstance(image, Layer):
+#                           image = image.image
+#                       if image_idx + current_layer_idx >= len(layer_stack):
+#                           layer_stack.append(Layer(image))
+#                       else:
+#                           layer_stack[image_idx + current_layer_idx].image = image
+#               else:
+#                   self.layer_stack = page
+#           else:
+#               if layer_stack:
+#                   if isinstance(page, Layer):
+#                       page = page.image
+#                   self.layer_stack[current_layer_idx].image = page
+#               else:
+#                   self.layer_stack = page
 
     def _on_layer_stack_name_changed(self, layer_stack):
         assert layer_stack is self.layer_stack
@@ -442,14 +450,14 @@ class RisWidget(Qt.QMainWindow):
             # "examine layer mode" is enabled.
             lsi.update()
 
-    def _on_inserted_into_layer_stack(self, idx, layers):
-        assert len(self.layer_stack) > 0
+    def _on_inserted_into_layer_stack(self, idx=None, layers=None):
         if not self.layer_stack_table_selection_model.currentIndex().isValid():
             self.layer_stack_table_selection_model.setCurrentIndex(
                 self.layer_stack_table_model_inverter.index(0, 0),
                 Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
 
     def _on_replaced_in_layer_stack(self, idxs, old_layers, new_layers):
+        self._on_inserted_into_layer_stack()
         current_midx = self.layer_stack_table_selection_model.currentIndex()
         if current_midx.isValid():
             try:
@@ -457,7 +465,7 @@ class RisWidget(Qt.QMainWindow):
             except ValueError:
                 return
             old_current, new_current = old_layers[change_idx], new_layers[change_idx]
-            self.histogram_scene.histogram_item.image = new_current
+            self.histogram_scene.histogram_item.layer = new_current
 
     def _main_view_zoom_changed(self, zoom_preset_idx, custom_zoom):
         assert zoom_preset_idx == -1 and custom_zoom != 0 or zoom_preset_idx != -1 and custom_zoom == 0, \
