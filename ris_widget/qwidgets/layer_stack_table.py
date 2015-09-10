@@ -32,7 +32,7 @@ from ..qdelegates.checkbox_delegate import CheckboxDelegate
 from ..shared_resources import CHOICES_QITEMDATA_ROLE, FREEIMAGE
 from .. import om
 
-@om.item_view_shortcuts.with_multi_selection_deletion_shortcut
+@om.item_view_shortcuts.with_selected_rows_deletion_shortcut
 class LayerStackTableView(Qt.QTableView):
     model_changed = Qt.pyqtSignal(object)
     selection_model_changed = Qt.pyqtSignal(object)

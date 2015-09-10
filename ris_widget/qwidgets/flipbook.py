@@ -196,7 +196,7 @@ class Flipbook(Qt.QWidget):
     def _on_pages_current_idx_changed(self, midx, old_midx):
         self.current_page_changed.emit(self, midx.row())
 
-@om.item_view_shortcuts.with_multi_selection_deletion_shortcut
+@om.item_view_shortcuts.with_selected_rows_deletion_shortcut
 class PagesView(Qt.QTableView):
     def __init__(self, pages_model, parent=None):
         super().__init__(parent)

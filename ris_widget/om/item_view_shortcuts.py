@@ -24,14 +24,47 @@
 
 from PyQt5 import Qt
 
-def with_multi_selection_deletion_shortcut(cls,
-                                           desc='Delete selection',
-                                           shortcut=Qt.Qt.Key_Delete,
-                                           shortcut_context=Qt.Qt.WidgetShortcut,
-                                           action_attr_name='delete_selection_action',
-                                           make_handler_method=True,
-                                           handler_method_name='_on_delete_selection_action_triggered',
-                                           connect_action_triggered_to_handler_method=True):
+def with_selected_rows_deletion_shortcut(
+        cls,
+        desc='Delete selection',
+        shortcut=Qt.Qt.Key_Delete,
+        shortcut_context=Qt.Qt.WidgetShortcut,
+        action_attr_name='delete_selection_action',
+        make_handler_method=True,
+        handler_method_name='delete_selection',
+        connect_action_triggered_to_handler_method=True):
+    # Function prototype is included in docstring so that the enum names "Qt.Qt.Key_Delete" and "Qt.Qt.WidgetShortcut" may be
+    # seen, rather than their integer values, which they are boiled down to in the function signature known to CPython
+    '''with_selected_rows_deletion_shortcut(
+        cls,
+        desc='Delete selection',
+        shortcut=Qt.Qt.Key_Delete,
+        shortcut_context=Qt.Qt.WidgetShortcut,
+        action_attr_name='delete_selection_action',
+        make_handler_method=True,
+        handler_method_name='delete_selection',
+        connect_action_triggered_to_handler_method=True):
+
+    A class decorator function intended to operate on descendants of QAbstractItemView that adds a delete shortcut and, if
+    make_handler_method=False has not been supplied as a decorator argument, a shortcut-triggered handler function.
+
+    The generated shortcut-triggered handler function, named 'delete_section' by default, issues a single delete-slice call for each
+    group of adjacent, selected rows.  So, for a QTableView subclass attached to a QAbstractTableModel derivative implemented in
+    Python and containing 100k rows, select-all followed by hitting delete may be nearly instantaneous, whereas calling the model's
+    removeRow method one hundred thousand times would certainly take a while.
+
+    Ex:
+    from PyQt5 import Qt
+    from ris_widget import om
+
+    @om.item_view_shortcuts.with_selected_rows_deletion_shortcut
+    class LW(Qt.QListWidget): pass
+
+    lw=LW()
+    lw.setSelectionMode(Qt.QAbstractItemView.ExtendedSelection)
+    lw.addItems(bytearray((c,)).decode('ascii') for c in range('A'.encode('ascii')[0], 'A'.encode('ascii')[0] + 56))
+    lw.show()
+    # Now, select some items in the list widget that appeared and hit the delete key.'''
     orig_init = cls.__init__
     def init(self, *va, **kw):
         orig_init(self, *va, **kw)
@@ -52,7 +85,7 @@ def with_multi_selection_deletion_shortcut(cls,
             if None in (m, sm):
                 return
             midxs = sorted(sm.selectedRows(), key=lambda midx: midx.row())
-            # "run" as in RLE as in consecutive indexes specified as range rather than individually
+            # "run" as in consecutive indexes specified as range rather than individually
             runs = []
             run_start_idx = None
             run_end_idx = None
