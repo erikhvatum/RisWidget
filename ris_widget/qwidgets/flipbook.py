@@ -29,6 +29,8 @@ from ..layer import Layer
 from ..shared_resources import FREEIMAGE
 from .progress_thread_pool import ProgressThreadPool, Task, TaskStatus
 
+#TODO: feed entirety of .pages to ProgressThreadPool and make ProgressThreadPool entirely ignore non-Task elements
+#rather than raising exceptions
 class Flipbook(Qt.QWidget):
     """Flipbook: a widget containing a list box showing the name property values of the elements of its pages property.
     Changing which row is selected in the list box causes the current_page_changed signal to be emitted with the newly
