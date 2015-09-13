@@ -22,10 +22,9 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from contextlib import ExitStack
 import numpy
 from PyQt5 import Qt
-from ..shared_resources import GL_QSURFACE_FORMAT
+from ..shared_resources import QGL, GL_QSURFACE_FORMAT
 
 class BaseView(Qt.QGraphicsView):
     """Updates to things depending directly on the view's size (eg, in many cases, the view's own transformation), if any,
@@ -102,7 +101,7 @@ class BaseView(Qt.QGraphicsView):
 
     def drawBackground(self, p, rect):
         p.beginNativePainting()
-        GL = self.gl_widget.GL
+        GL = QGL()
         GL.glClearColor(0,0,0,1)
         GL.glClearDepth(1)
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
@@ -135,7 +134,6 @@ class _ShaderViewGLViewport(Qt.QOpenGLWidget):
         super().__init__()
         self.setFormat(GL_QSURFACE_FORMAT())
         self.view = view
-        self._GL = None
 
     def initializeGL(self):
         self.view._on_gl_initializing()
@@ -145,45 +143,6 @@ class _ShaderViewGLViewport(Qt.QOpenGLWidget):
 
     def resizeGL(self, w, h):
         raise NotImplementedError(_ShaderViewGLViewport._DONT_CALL_ME_ERROR)
-
-    @property
-    def GL(self):
-        """GL returns an instance of QOpenGLFunctions_2_1 (or QOpenGLFunctions_2_0 for old PyQt5 versions).  QOpenGLFunctions_VER
-        are large namespaces containing all OpenGL plain procedural C functions and #define values valid for the associated
-        OpenGL version, in Python wrappers.  The functions contained in an QOpenGLFunctions namespace created by one context typically
-        work with any other identical (same version, same extensions) context.  However, this is not guaranteed, and we avoid
-        depending on it by using a GL namespace only with the context that created it."""
-        if self._GL is None:
-            with ExitStack() as estack:
-                context = Qt.QOpenGLContext.currentContext()
-                if context is None:
-                    context = self.context()
-                    context.makeCurrent()
-                    estack.callback(context.doneCurrent)
-                try:
-                    self._GL = context.versionFunctions()
-                    if self._GL is None:
-                        # Some platforms seem to need version profile specification
-                        vp = Qt.QOpenGLVersionProfile()
-                        vp.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
-                        vp.setVersion(2, 1)
-                        self._GL = context.versionFunctions(vp)
-                except ImportError:
-                    # PyQt5 v5.4.0 and v5.4.1 provide access to OpenGL functions up to OpenGL 2.0, but we have made
-                    # an OpenGL 2.1 context.  QOpenGLContext.versionFunctions(..) will, by default, attempt to return
-                    # a wrapper around QOpenGLFunctions2_1, which has failed in the try block above.  Therefore,
-                    # we fall back to explicitly requesting 2.0 functions.  We don't need any of the C _GL 2.1
-                    # constants or calls, anyway - these address non-square shader uniform transformation matrices and
-                    # specification of sRGB texture formats, neither of which we use.
-                    vp = Qt.QOpenGLVersionProfile()
-                    vp.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
-                    vp.setVersion(2, 0)
-                    self._GL = context.versionFunctions(vp)
-                if not self._GL:
-                    raise RuntimeError('Failed to retrieve OpenGL wrapper namespace.')
-                if not self._GL.initializeOpenGLFunctions():
-                    raise RuntimeError('Failed to initialize OpenGL wrapper namespace.')
-        return self._GL
 
     _DONT_CALL_ME_ERROR =\
         'This method should not be called; any event or signal that ' \

@@ -25,6 +25,7 @@
 from pathlib import Path
 from PyQt5 import Qt
 from string import Template
+from ..shared_resources import QGL, NoGLContextIsCurrentError
 
 class ShaderItemMixin:
     def __init__(self):
@@ -53,7 +54,8 @@ class ShaderItemMixin:
         self.progs[desc] = prog
         return prog
 
-    def set_blend(self, GL, estack):
+    def set_blend(self, estack):
+        GL = QGL()
         if not GL.glIsEnabled(GL.GL_BLEND):
             GL.glEnable(GL.GL_BLEND)
             estack.callback(lambda: GL.glDisable(GL.GL_BLEND))
@@ -81,17 +83,22 @@ class ShaderTexture:
     but these were introduced with OpenGL 3.0 and should not be relied upon in 2.1 contexts).  So, in
     cases where GL_LUMINANCE*_EXT format textures may be required, we use ShaderTexture rather than
     QOpenGLTexture."""
-    def __init__(self, target, GL):
-        self._GL = GL
-        self.texture_id = GL.glGenTextures(1)
+    def __init__(self, target):
+        self.texture_id = QGL().glGenTextures(1)
         self.target = target
 
+    def __del__(self):
+        self.destroy()
+
     def bind(self):
-        self._GL.glBindTexture(self.target, self.texture_id)
+        QGL().glBindTexture(self.target, self.texture_id)
 
     def release(self):
-        self._GL.glBindTexture(self.target, 0)
+        QGL().glBindTexture(self.target, 0)
 
     def destroy(self):
-        self._GL.glDeleteTextures(1, (self.texture_id,))
-        del self.texture_id
+        try:
+            QGL().glDeleteTextures(1, (self.texture_id,))
+            del self.texture_id
+        except NoGLContextIsCurrentError:
+            pass

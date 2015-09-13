@@ -32,7 +32,7 @@ import textwrap
 #from ._qt_debug import qtransform_to_numpy
 from ..layer import Layer
 from .. import om
-from ..shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
+from ..shared_resources import QGL, UNIQUE_QGRAPHICSITEM_TYPE
 from .shader_item import ShaderItem
 
 class LayerStackItem(ShaderItem):
@@ -380,7 +380,7 @@ class LayerStackItem(ShaderItem):
         with ExitStack() as estack:
             estack.callback(qpainter.endNativePainting)
             self._destroy_dead_texs()
-            GL = widget.GL
+            GL = QGL()
             visible_idxs = self._get_visible_idxs_and_update_texs(GL, estack)
             if not visible_idxs:
                 return
@@ -467,7 +467,7 @@ class LayerStackItem(ShaderItem):
                 prog.setUniformValue('rescale_range_'+tidxstr, min_max[1] - min_max[0])
                 prog.setUniformValue('gamma_'+tidxstr, layer.gamma)
                 prog.setUniformValue('tint_'+tidxstr, Qt.QVector4D(*layer.tint))
-            self.set_blend(GL, estack)
+            self.set_blend(estack)
             GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
             GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
 

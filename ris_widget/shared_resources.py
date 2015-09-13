@@ -54,6 +54,62 @@ def UNIQUE_QITEMDATA_ROLE():
 
 CHOICES_QITEMDATA_ROLE = UNIQUE_QITEMDATA_ROLE()
 
+class NoGLContextIsCurrentError(RuntimeError):
+    pass
+
+_GL_CACHE = {}
+
+def QGL():
+    current_thread = Qt.QThread.currentThread()
+    if current_thread is None:
+        # We are probably being called by a destructor being called by an at-exit cleanup routine, but too much
+        # Qt infrastructure has already been torn down for whatever is calling us to complete its cleanup.
+        return
+    context = Qt.QOpenGLContext.currentContext()
+    if context is None:
+        raise NoGLContextIsCurrentError(
+            'QOpenGLContext.currentContext() returned None, indicating that no OpenGL '
+            'context is current.  This usually indicates that a routine that makes '
+            'OpenGL calls was invoked in an unanticipated manner (EG, at-exit execution '
+            'of a destructor for an module-level object that wraps an OpenGL primitive).')
+    assert current_thread is context.thread()
+    # Attempt to return cache entry, a Qt.QOpenGLVersionFunctions object...
+    try:
+        return _GL_CACHE[context]
+    except KeyError:
+        pass
+    # There is no entry for the current OpenGL context in our cache.  Acquire, cache, and return a
+    # Qt.QOpenGLVersionFunctions object.
+    try:
+        GL = context.versionFunctions()
+        if GL is None:
+            # Some platforms seem to need version profile specification
+            vp = Qt.QOpenGLVersionProfile()
+            vp.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
+            vp.setVersion(2, 1)
+            GL = context.versionFunctions(vp)
+    except ImportError:
+        # PyQt5 v5.4.0 and v5.4.1 provide access to OpenGL functions up to OpenGL 2.0, but we have made
+        # an OpenGL 2.1 context.  QOpenGLContext.versionFunctions(..) will, by default, attempt to return
+        # a wrapper around QOpenGLFunctions2_1, which has failed in the try block above.  Therefore,
+        # we fall back to explicitly requesting 2.0 functions.  We don't need any of the C _GL 2.1
+        # constants or calls, anyway - these address non-square shader uniform transformation matrices and
+        # specification of sRGB texture formats, neither of which we use.
+        vp = Qt.QOpenGLVersionProfile()
+        vp.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
+        vp.setVersion(2, 0)
+        GL = context.versionFunctions(vp)
+    if GL is None:
+        raise RuntimeError('Failed to retrieve QOpenGL.')
+    if not GL.initializeOpenGLFunctions():
+        raise RuntimeError('Failed to initialize OpenGL wrapper namespace.')
+    _GL_CACHE[context] = GL
+    context.destroyed[Qt.QObject].connect(_on_destruction_of_context_with_cached_gl)
+    return GL
+
+def _on_destruction_of_context_with_cached_gl(context):
+    del _GL_CACHE[context]
+
 _NV_PATH_RENDERING_AVAILABLE = None
 
 def NV_PATH_RENDERING_AVAILABLE():

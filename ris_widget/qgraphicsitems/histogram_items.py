@@ -28,7 +28,7 @@ import numpy
 from PyQt5 import Qt
 import sys
 from .shader_item import ShaderItem, ShaderTexture
-from ..shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
+from ..shared_resources import QGL, UNIQUE_QGRAPHICSITEM_TYPE
 
 class HistogramItem(ShaderItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
@@ -91,7 +91,7 @@ class HistogramItem(ShaderItem):
             with ExitStack() as estack:
                 qpainter.beginNativePainting()
                 estack.callback(qpainter.endNativePainting)
-                GL = widget.GL
+                GL = QGL()
                 desired_shader_type = 'G'
                 if desired_shader_type in self.progs:
                     prog = self.progs[desired_shader_type]
@@ -106,7 +106,7 @@ class HistogramItem(ShaderItem):
                         tex.destroy()
                         tex = self._tex = None
                 if tex is None:
-                    tex = ShaderTexture(GL.GL_TEXTURE_1D, widget.GL)
+                    tex = ShaderTexture(GL.GL_TEXTURE_1D)
                     tex.bind()
                     estack.callback(tex.release)
                     GL.glTexParameteri(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_WRAP_S, GL.GL_CLAMP_TO_EDGE)
@@ -159,7 +159,7 @@ class HistogramItem(ShaderItem):
                 prog.setUniformValue('inv_max_transformed_bin_val', inv_max_transformed_bin_val)
                 prog.setUniformValue('gamma_gamma', self.gamma_gamma)
                 prog.setUniformValue('opacity', self.opacity())
-                self.set_blend(GL, estack)
+                self.set_blend(estack)
                 GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
                 GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
 
