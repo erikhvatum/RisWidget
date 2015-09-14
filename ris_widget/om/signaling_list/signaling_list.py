@@ -193,6 +193,9 @@ class SignalingList(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
         self._list.insert(idx, obj)
         self.inserted.emit(idx, objs)
 
+    def sort(self, key=None, reverse=False):
+        self[:] = sorted(self._list, key=key, reverse=reverse)
+
     def __delitem__(self, idx_or_slice):
         objs = self._list[idx_or_slice]
         if isinstance(idx_or_slice, slice):

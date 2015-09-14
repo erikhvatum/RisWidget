@@ -109,9 +109,10 @@ class Flipbook(Qt.QWidget):
 
     @pages.setter
     def pages(self, pages):
-        assert isinstance(pages, om.SignalingList)
+        if not isinstance(pages, om.SignalingList) and any(not hasattr(pages, signal) for signal in ('inserted', 'removed', 'replaced', 'name_changed')):
+            pages = om.SignalingList(pages)
         self.pages_model.signaling_list = pages
-        self.current_page_changed.emit(self, self.selectionModel().currentIndex().row())
+        self.current_page_changed.emit(self, self.pages_view.selectionModel().currentIndex().row())
 
     def _on_pages_current_idx_changed(self, midx, old_midx):
         self.current_page_changed.emit(self, midx.row())
