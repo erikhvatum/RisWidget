@@ -41,6 +41,16 @@ from .qgraphicsscenes.histogram_scene import HistogramScene
 from .qgraphicsviews.histogram_view import HistogramView
 from .shared_resources import FREEIMAGE, GL_QSURFACE_FORMAT, NV_PATH_RENDERING_AVAILABLE
 
+def _atexit():
+    #TODO: find a better way to do this or a way to avoid the need
+    try:
+        from IPython import Application
+        Application.instance().shell.del_var('rw')
+    except:
+        pass
+    import gc
+    gc.collect()
+
 class RisWidget(Qt.QMainWindow):
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0), msaa_sample_count=2,
                  layer_stack = tuple(),
@@ -75,6 +85,8 @@ class RisWidget(Qt.QMainWindow):
         self._init_actions()
         self._init_toolbars()
         self._init_menus()
+        import atexit
+        atexit.register(_atexit)
 
     def _init_actions(self):
         self.layer_stack_reset_curr_min_max = Qt.QAction(self)
