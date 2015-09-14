@@ -25,7 +25,7 @@
       <stop
          offset="0.77812815"
          id="stop5899"
-         style="stop-color:#000000;stop-opacity:0" />
+         style="stop-color:#ffffff;stop-opacity:1" />
       <stop
          offset="1"
          id="stop5901"
@@ -70,7 +70,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="8.3645835"
-     inkscape:cx="39.548416"
+     inkscape:cx="-18.434148"
      inkscape:cy="77.005387"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"

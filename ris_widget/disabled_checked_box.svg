@@ -15,7 +15,7 @@
    id="svg2"
    version="1.1"
    inkscape:version="0.91 r13725"
-   sodipodi:docname="pseudo_checked_box.svg">
+   sodipodi:docname="disabled_checked_box.svg">
   <defs
      id="defs4">
     <marker
@@ -74,8 +74,8 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="8.3645833"
-     inkscape:cx="50.325878"
-     inkscape:cy="5.8702745"
+     inkscape:cx="50.745333"
+     inkscape:cy="26.634116"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="true"
@@ -116,7 +116,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -126,7 +126,7 @@
      id="layer1"
      transform="translate(0,-952.3622)">
     <rect
-       style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:7;stroke-miterlimit:4;stroke-dasharray:none"
+       style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:#7f7f7f;stroke-width:7;stroke-miterlimit:4;stroke-dasharray:none"
        id="rect4216"
        width="90"
        height="90"
@@ -134,14 +134,11 @@
        y="957.36218"
        rx="25"
        ry="25" />
-    <rect
-       style="fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:5.0999999;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-       id="rect4843"
-       width="65"
-       height="65"
-       x="17.5"
-       y="969.86218"
-       rx="10"
-       ry="10" />
+    <path
+       style="fill:#7f7f7f;fill-opacity:1;fill-rule:evenodd;stroke:#7f7f7f;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="m 14.399432,1004.6987 19.105144,32.8068 11.926797,0 c 0,0 9.339038,-28.1599 13.906894,-34.2613 3.780294,-6.65605 11.297507,-15.68464 18.70017,-21.979 1.496366,-1.58477 6.02199,-4.60744 6.02199,-4.60744 l -20.176398,-0.0792 c 0,0 -9.136352,9.37334 -17.376956,28.04094 -2.938961,7.5779 -7.597113,21.6379 -7.597113,21.6379 l -12.111195,-21.5587 z"
+       id="path4294"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="ccccccccccc" />
   </g>
 </svg>

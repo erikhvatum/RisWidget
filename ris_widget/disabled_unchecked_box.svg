@@ -15,37 +15,9 @@
    id="svg2"
    version="1.1"
    inkscape:version="0.91 r13725"
-   sodipodi:docname="pseudo_checked_box.svg">
+   sodipodi:docname="disabled_unchecked_box.svg">
   <defs
      id="defs4">
-    <marker
-       inkscape:stockid="EmptyDiamondLend"
-       orient="auto"
-       refY="0.0"
-       refX="0.0"
-       id="EmptyDiamondLend"
-       style="overflow:visible"
-       inkscape:isstock="true">
-      <path
-         id="path4452"
-         d="M 0,-7.0710768 L -7.0710894,0 L 0,7.0710589 L 7.0710462,0 L 0,-7.0710768 z "
-         style="fill-rule:evenodd;fill:#ffffff;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
-         transform="scale(0.8) translate(-7,0)" />
-    </marker>
-    <marker
-       inkscape:stockid="Arrow1Lend"
-       orient="auto"
-       refY="0.0"
-       refX="0.0"
-       id="Arrow1Lend"
-       style="overflow:visible;"
-       inkscape:isstock="true">
-      <path
-         id="path4331"
-         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
-         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
-         transform="scale(0.8) rotate(180) translate(12.5,0)" />
-    </marker>
     <inkscape:perspective
        sodipodi:type="inkscape:persp3d"
        inkscape:vp_x="0 : 526.18109 : 1"
@@ -73,9 +45,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="8.3645833"
-     inkscape:cx="50.325878"
-     inkscape:cy="5.8702745"
+     inkscape:zoom="16.729167"
+     inkscape:cx="24.513462"
+     inkscape:cy="53.841989"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="true"
@@ -116,7 +88,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -126,7 +98,7 @@
      id="layer1"
      transform="translate(0,-952.3622)">
     <rect
-       style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:7;stroke-miterlimit:4;stroke-dasharray:none"
+       style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:#7f7f7f;stroke-width:5.0999999;stroke-miterlimit:4;stroke-dasharray:none"
        id="rect4216"
        width="90"
        height="90"
@@ -134,14 +106,5 @@
        y="957.36218"
        rx="25"
        ry="25" />
-    <rect
-       style="fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:5.0999999;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-       id="rect4843"
-       width="65"
-       height="65"
-       x="17.5"
-       y="969.86218"
-       rx="10"
-       ry="10" />
   </g>
 </svg>
