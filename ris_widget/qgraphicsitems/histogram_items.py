@@ -95,6 +95,10 @@ class HistogramItem(ShaderItem):
                 desired_shader_type = 'G'
                 if desired_shader_type in self.progs:
                     prog = self.progs[desired_shader_type]
+                    if not GL.glIsProgram(prog.programId()):
+                        # The current GL context is in a state of flux, likely because a histogram view is in a dock widget that is in
+                        # the process of being floated or docked.
+                        return
                 else:
                     prog = self.build_shader_prog(desired_shader_type,
                                                   'planar_quad_vertex_shader.glsl',
@@ -137,10 +141,11 @@ class HistogramItem(ShaderItem):
                         # to whatever QPainter had it set to (when it prepared the OpenGL context for our use as a result of
                         # qpainter.beginNativePainting()).
                         estack.callback(lambda oua=orig_unpack_alignment: GL.glPixelStorei(GL.GL_UNPACK_ALIGNMENT, oua))
+                    # TODO: zero copy upload.
                     GL.glTexImage1D(GL.GL_TEXTURE_1D, 0,
                                     GL.GL_LUMINANCE32UI_EXT, desired_tex_width, 0,
                                     GL.GL_LUMINANCE_INTEGER_EXT, GL.GL_UNSIGNED_INT,
-                                    histogram.data)
+                                    list(histogram))
                     tex.serial = self._layer_data_serial
                     tex.width = desired_tex_width
                     self._tex = tex
