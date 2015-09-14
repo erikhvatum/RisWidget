@@ -169,8 +169,7 @@ class ProgressThreadPool(Qt.QWidget):
 
     def __init__(self, thread_pool_executor=None, max_workers=None, parent=None, show_cancel=True):
         '''If None is supplied for thread_pool_executor, a new concurrent.futures.ThreadPoolExecutor is created
-        with max_workers.  If max_workers is None, max thread count is clamp(int(multiprocessing.cpu_count()/2),1,8)
-        (IE, if None is supplied for max_workers, floor(cpu_count/2), bounded to the interval [1,8], is used).
+        with max_workers.  If max_workers is None, max thread count is multiprocessing.cpu_count() + 1.
 
         If a value is supplied for thread_pool_executor, the max_workers argument controls the maximum number of
         outstanding Tasks.  If you supply 2 for max_workers and futures.ThreadPoolExecutor(max_workers=8) for
@@ -180,8 +179,7 @@ class ProgressThreadPool(Qt.QWidget):
         self._updating_pool = False
         if max_workers is None:
             import multiprocessing
-            max_workers = max(1, int(multiprocessing.cpu_count() / 2))
-            max_workers = min(8, max_workers)
+            max_workers = multiprocessing.cpu_count()
         self._max_workers = max_workers
         if thread_pool_executor is None:
             thread_pool_executor = futures.ThreadPoolExecutor(max_workers)
