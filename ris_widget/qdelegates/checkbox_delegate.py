@@ -55,7 +55,8 @@ class CheckboxDelegate(Qt.QStyledItemDelegate):
                 v = v.value()
             if v not in cs_icons:
                 v = None
-            painter.drawPixmap(icon_rect, cs_icons[v].pixmap(icon_rect.size()))
+            dpi_ratio = Qt.QApplication.instance().desktop().devicePixelRatio()
+            painter.drawPixmap(icon_rect, cs_icons[v].pixmap(icon_rect.width() * dpi_ratio, icon_rect.height() * dpi_ratio))
 #           painter.save()
 #           painter.setRenderHints(Qt.QPainter.TextAntialiasing | Qt.QPainter.Antialiasing)
 #           painter.restore()
