@@ -15,7 +15,7 @@
    id="svg2"
    version="1.1"
    inkscape:version="0.91 r13725"
-   sodipodi:docname="unchecked_box.svg">
+   sodipodi:docname="unchecked_box_icon.svg">
   <defs
      id="defs4">
     <inkscape:perspective
@@ -46,7 +46,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="16.729167"
-     inkscape:cx="24.513462"
+     inkscape:cx="23.467385"
      inkscape:cy="53.841989"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
@@ -98,7 +98,7 @@
      id="layer1"
      transform="translate(0,-952.3622)">
     <rect
-       style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:5.0999999;stroke-miterlimit:4;stroke-dasharray:none"
+       style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:7;stroke-miterlimit:4;stroke-dasharray:none"
        id="rect4216"
        width="90"
        height="90"

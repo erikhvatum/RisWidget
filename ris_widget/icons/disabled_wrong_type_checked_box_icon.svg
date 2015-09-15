@@ -16,7 +16,7 @@
    id="svg2"
    version="1.1"
    inkscape:version="0.91 r13725"
-   sodipodi:docname="disabled_wrong_type_checked_box.svg">
+   sodipodi:docname="disabled_wrong_type_checked_box_icon.svg">
   <defs
      id="defs4">
     <linearGradient
@@ -70,7 +70,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="11.829307"
-     inkscape:cx="36.713627"
+     inkscape:cx="35.23425"
      inkscape:cy="37.125833"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
@@ -112,7 +112,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -122,7 +122,7 @@
      id="layer1"
      transform="translate(0,-952.3622)">
     <rect
-       style="fill:url(#radialGradient5903);fill-opacity:1;fill-rule:nonzero;stroke:#7f7f7f;stroke-width:5.1;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       style="fill:url(#radialGradient5903);fill-opacity:1;fill-rule:nonzero;stroke:#7f7f7f;stroke-width:7;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
        id="rect4216"
        width="90"
        height="90"
