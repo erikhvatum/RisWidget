@@ -22,13 +22,49 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+from contextlib import ExitStack
 from PyQt5 import Qt
+from ..shared_resources import ICONS
+
+_ENABLED_CHECKBOX_STATE_ICONS = {
+    Qt.Qt.Unchecked : ICONS()['unchecked_box_icon'],
+    Qt.Qt.Checked : ICONS()['checked_box_icon'],
+    Qt.Qt.PartiallyChecked : ICONS()['pseudo_checked_box_icon'],
+    None : ICONS()['wrong_type_checked_box_icon']}
+
+_DISABLED_CHECKBOX_STATE_ICONS = {
+    Qt.Qt.Unchecked : ICONS()['disabled_unchecked_box_icon'],
+    Qt.Qt.Checked : ICONS()['disabled_checked_box_icon'],
+    Qt.Qt.PartiallyChecked : ICONS()['disabled_pseudo_checked_box_icon'],
+    None : ICONS()['disabled_wrong_type_checked_box_icon']}
 
 class CheckboxDelegate(Qt.QStyledItemDelegate):
     def paint(self, painter, option, midx):
-        vi_option = Qt.QStyleOptionViewItem(option)
-        vi_option.rect = self._compute_checkbox_rect(option)
-        super().paint(painter, vi_option, midx)
+        assert isinstance(painter, Qt.QPainter)
+        if midx.isValid():
+            cell_rect = self._compute_checkbox_rect(option)
+            min_constraint = min(cell_rect.width(), cell_rect.height())
+            icon_rect = Qt.QStyle.alignedRect(
+                option.direction,
+                Qt.Qt.AlignCenter,
+                Qt.QSize(min_constraint, min_constraint),
+                cell_rect)
+            cs_icons = _ENABLED_CHECKBOX_STATE_ICONS if midx.flags() & (Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsEditable) else _DISABLED_CHECKBOX_STATE_ICONS
+            v = midx.data(Qt.Qt.CheckStateRole)
+            if isinstance(v, Qt.QVariant):
+                v = v.value()
+            if v not in cs_icons:
+                v = None
+            painter.drawPixmap(icon_rect, cs_icons[v].pixmap(icon_rect.size()))
+#           painter.save()
+#           painter.setRenderHints(Qt.QPainter.TextAntialiasing | Qt.QPainter.Antialiasing)
+#           painter.restore()
+            
+    def sizeHint(self, option, midx):
+        if midx.isValid():
+            margin = Qt.QApplication.style().pixelMetric(Qt.QStyle.PM_FocusFrameHMargin) + 1
+            return Qt.QSize(50 + margin, 50 + margin)
+        return super().sizeHint(option, midx)
 
     def editorEvent(self, event, model, option, midx):
         flags = model.flags(midx)

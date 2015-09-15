@@ -208,7 +208,24 @@ def ICONS():
     global _icons
     if _icons is None:
         _icons = {}
-        for fn in ('image_icon.svg', 'layer_icon.svg', 'layer_stack_icon.svg'):
-            fpath = Path(__file__).parent / fn
+        fns = (
+            'image_icon.svg',
+            'layer_icon.svg',
+            'layer_stack_icon.svg',
+
+            'checked_box_icon.svg',
+            'disabled_checked_box_icon.svg',
+
+            'pseudo_checked_box_icon.svg',
+            'disabled_pseudo_checked_box_icon.svg',
+
+            'unchecked_box_icon.svg',
+            'disabled_unchecked_box_icon.svg',
+
+            'wrong_type_checked_box_icon.svg',
+            'disabled_wrong_type_checked_box_icon.svg'
+        )
+        for fn in fns:
+            fpath = Path(__file__).parent / 'icons' / fn
             _icons[fpath.stem] = Qt.QIcon(str(fpath))
     return _icons

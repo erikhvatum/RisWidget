@@ -293,7 +293,7 @@ class RisWidget(Qt.QMainWindow):
             self._layer_stack.replaced.disconnect(self._on_replaced_in_layer_stack)
         if v is None:
             v = om.SignalingList()
-        elif isinstance(v, Image):
+        elif isinstance(v, (Image, numpy.ndarray)):
             v = om.SignalingList([Layer(v)])
         elif isinstance(v, Layer):
             v = om.SignalingList([v])
