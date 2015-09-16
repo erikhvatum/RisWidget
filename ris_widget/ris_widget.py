@@ -51,6 +51,13 @@ def _atexit():
     import gc
     gc.collect()
 
+if sys.platform == 'darwin':
+    class NonTransientScrollbarsStyle(Qt.QProxyStyle):
+        def styleHint(self, sh, option=None, widget=None, returnData=None):
+            if sh == Qt.QStyle.SH_ScrollBar_Transient:
+                return 0
+            return self.baseStyle().styleHint(sh, option, widget, returnData)
+
 class RisWidget(Qt.QMainWindow):
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0), msaa_sample_count=2,
                  layer_stack = tuple(),
@@ -62,6 +69,12 @@ class RisWidget(Qt.QMainWindow):
         """A None value for GeneralViewContextualInfoItemClass or HistgramViewContextualInfoItemClass represents 
         ContextualInfoItemNV if the GL_NV_path_rendering extension is available and ContextualInfoItem otherwise."""
         super().__init__(parent, window_flags)
+        # TODO: look deeper into opengl buffer swapping order and such to see if we can become compatible with OS X auto-hiding scrollbars
+        # rather than needing to disable them
+        if sys.platform == 'darwin':
+            style = Qt.QApplication.style()
+            if style.styleHint(Qt.QStyle.SH_ScrollBar_Transient) != 0:
+                Qt.QApplication.setStyle(NonTransientScrollbarsStyle(style))
         GL_QSURFACE_FORMAT(msaa_sample_count)
         if window_title is not None:
             self.setWindowTitle(window_title)
