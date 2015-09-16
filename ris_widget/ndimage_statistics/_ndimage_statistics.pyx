@@ -64,19 +64,22 @@ cdef extern from "_ndimage_statistics_impl.h":
         )
 
 cpdef _min_max_float32(numpy.float32_t[:, :] arr, numpy.float32_t[:] min_max):
+    assert min_max.shape[0] >= 2
     _min_max[numpy.float32_t](
         &arr[0][0], &arr.shape[0], &arr.strides[0],
         &min_max[0])
 
 cpdef _masked_min_max_float32(numpy.float32_t[:, :] arr, numpy.uint8_t[:, :] mask, numpy.float32_t[:] min_max):
+    assert min_max.shape[0] >= 2
     _masked_min_max_[numpy.float32_t](
         &arr[0][0], &arr.shape[0], &arr.strides[0],
         &mask[0][0], &mask.shape[0], &mask.strides[0],
         &min_max[0])
 
-cpdef _ranged_hist()
+cpdef _ranged_hist_float32(numpy.uint32_t[:, :] arr, numpy.uint32_t[:] hist):
 
 cpdef hist_min_max_uint8(numpy.uint8_t[:, :] arr, numpy.uint32_t[:] hist, numpy.uint8_t[:] min_max):
+    assert min_max.shape[0] >= 2
     assert hist.shape[0] == bin_count[numpy.uint8_t]()
     _hist_min_max[numpy.uint8_t, bool_f](
         &arr[0][0], &arr.shape[0], &arr.strides[0],
@@ -84,6 +87,7 @@ cpdef hist_min_max_uint8(numpy.uint8_t[:, :] arr, numpy.uint32_t[:] hist, numpy.
         &min_max[0])
 
 cpdef hist_min_max_uint12(numpy.uint16_t[:, :] arr, numpy.uint32_t[:] hist, numpy.uint16_t[:] min_max):
+    assert min_max.shape[0] >= 2
     assert hist.shape[0] == bin_count[numpy.uint16_t]()
     _hist_min_max[numpy.uint16_t, bool_t](
         &arr[0][0], &arr.shape[0], &arr.strides[0],
@@ -91,6 +95,7 @@ cpdef hist_min_max_uint12(numpy.uint16_t[:, :] arr, numpy.uint32_t[:] hist, nump
         &min_max[0])
 
 cpdef hist_min_max_uint16(numpy.uint16_t[:, :] arr, numpy.uint32_t[:] hist, numpy.uint16_t[:] min_max):
+    assert min_max.shape[0] >= 2
     assert hist.shape[0] == bin_count[numpy.uint16_t]()
     _hist_min_max[numpy.uint16_t, bool_f](
         &arr[0][0], &arr.shape[0], &arr.strides[0],
@@ -98,6 +103,7 @@ cpdef hist_min_max_uint16(numpy.uint16_t[:, :] arr, numpy.uint32_t[:] hist, nump
         &min_max[0])
 
 cpdef masked_hist_min_max_uint8(numpy.uint8_t[:, :] arr, numpy.uint8_t[:, :] mask, numpy.uint32_t[:] hist, numpy.uint8_t[:] min_max):
+    assert min_max.shape[0] >= 2
     assert hist.shape[0] == bin_count[numpy.uint8_t]()
     _masked_hist_min_max[numpy.uint8_t, bool_f](
         &arr[0][0], &arr.shape[0], &arr.strides[0],
@@ -106,6 +112,7 @@ cpdef masked_hist_min_max_uint8(numpy.uint8_t[:, :] arr, numpy.uint8_t[:, :] mas
         &min_max[0])
 
 cpdef masked_hist_min_max_uint12(numpy.uint16_t[:, :] arr, numpy.uint8_t[:, :] mask, numpy.uint32_t[:] hist, numpy.uint16_t[:] min_max):
+    assert min_max.shape[0] >= 2
     assert hist.shape[0] == bin_count[numpy.uint16_t]()
     _masked_hist_min_max[numpy.uint16_t, bool_t](
         &arr[0][0], &arr.shape[0], &arr.strides[0],
