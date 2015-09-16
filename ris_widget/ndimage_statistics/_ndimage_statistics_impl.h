@@ -86,7 +86,8 @@ void _masked_min_max(const C* im, const Py_ssize_t* im_shape, const Py_ssize_t* 
     // At this point, it should be true that shape == mshape.  Our caller is expected to have verified 
     // that this is the case.
 
-    min_max[0] = min_max[1] = im[0];
+    min_max[0] = min_max[1] = 0;
+    bool seen_unmasked = false;
 
     const npy_uint8* outer = reinterpret_cast<const npy_uint8*>(im);
     const npy_uint8* mouter = mask;
@@ -105,13 +106,21 @@ void _masked_min_max(const C* im, const Py_ssize_t* im_shape, const Py_ssize_t* 
             const C& v = *reinterpret_cast<const C*>(inner);
             if(*minner != 0)
             {
-                if(v < min_max[0])
+                if(seen_unmasked)
                 {
-                    min_max[0] = v;
+                    if(v < min_max[0])
+                    {
+                        min_max[0] = v;
+                    }
+                    else if(v > min_max[1])
+                    {
+                        min_max[1] = v;
+                    }
                 }
-                else if(v > min_max[1])
+                else
                 {
-                    min_max[1] = v;
+                    seen_unmasked = true;
+                    min_max[1] = min_max[0] = v;
                 }
             }
         }
@@ -119,8 +128,8 @@ void _masked_min_max(const C* im, const Py_ssize_t* im_shape, const Py_ssize_t* 
 }
 
 template<typename C, bool with_overflow_bins>
-void _ranged_hist(const C& range_min, const C& range_max, const Py_ssize_t& bin_count,
-                  const C* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
+void _ranged_hist(const C* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
+                  const C& range_min, const C& range_max, const Py_ssize_t& bin_count,
                   npy_uint32* hist)
 {
     Py_ssize_t shape[2], strides[2];
@@ -130,14 +139,13 @@ void _ranged_hist(const C& range_min, const C& range_max, const Py_ssize_t& bin_
 
     const C range_width = range_max - range_min;
     const Py_ssize_t non_overflow_bin_count = with_overflow_bins ? bin_count - 2 : bin_count;
-    const C bin_width = range_width / non_overflow_bin_count;
+    const float bin_factor = static_cast<float>(non_overflow_bin_count - 1) / range_width;
     npy_uint32*const last_bin = hist + bin_count;
     const npy_uint8* outer = reinterpret_cast<const npy_uint8*>(im);
     const npy_uint8*const outer_end = outer + shape[0] * strides[0];
     const npy_uint8* inner;
     const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
     const npy_uint8* inner_end;
-    const std::ptrdiff_t bin_idx;
     for(; outer != outer_end; outer += strides[0])
     {
         inner = outer;
@@ -157,14 +165,14 @@ void _ranged_hist(const C& range_min, const C& range_max, const Py_ssize_t& bin_
                 }
                 else
                 {
-                    ++hist[1 + static_cast<std::ptrdiff_t>( (v - range_min) / bin_width )];
+                    ++hist[1 + static_cast<std::ptrdiff_t>( bin_factor * (v - range_min) )];
                 }
             }
             else
             {
                 if(v >= range_min && v <= range_max)
                 {
-                    ++hist[static_cast<std::ptrdiff_t>( (v - range_min) / bin_width )];
+                    ++hist[static_cast<std::ptrdiff_t>( bin_factor * (v - range_min) )];
                 }
             }
         }
@@ -172,9 +180,9 @@ void _ranged_hist(const C& range_min, const C& range_max, const Py_ssize_t& bin_
 }
 
 template<typename C, bool with_overflow_bins>
-void _masked_ranged_hist(const C& range_min, const C& range_max, const Py_ssize_t& bin_count,
-                         const C* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
+void _masked_ranged_hist(const C* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
                          const npy_uint8* mask, const Py_ssize_t* mask_shape, const Py_ssize_t* mask_strides,
+                         const C& range_min, const C& range_max, const Py_ssize_t& bin_count,
                          npy_uint32* hist)
 {
     Py_ssize_t shape[2], strides[2], mshape[2], mstrides[2];
@@ -183,11 +191,11 @@ void _masked_ranged_hist(const C& range_min, const C& range_max, const Py_ssize_
     // At this point, it should be true that shape == mshape.  Our caller is expected to have verified 
     // that this is the case.
 
-    min_max[0] = min_max[1] = im[0];
+    memset(hist, 0, bin_count * sizeof(npy_uint32));
 
     const C range_width = range_max - range_min;
     const Py_ssize_t non_overflow_bin_count = with_overflow_bins ? bin_count - 2 : bin_count;
-    const C bin_width = range_width / non_overflow_bin_count;
+    const float bin_factor = static_cast<float>(non_overflow_bin_count - 1) / range_width;
     npy_uint32*const last_bin = hist + bin_count;
     const npy_uint8* outer = reinterpret_cast<const npy_uint8*>(im);
     const npy_uint8* mouter = mask;
@@ -218,14 +226,14 @@ void _masked_ranged_hist(const C& range_min, const C& range_max, const Py_ssize_
                     }
                     else
                     {
-                        ++hist[1 + static_cast<std::ptrdiff_t>( (v - range_min) / bin_width )];
+                        ++hist[1 + static_cast<std::ptrdiff_t>( bin_factor * (v - range_min) )];
                     }
                 }
                 else
                 {
                     if(v >= range_min && v <= range_max)
                     {
-                        ++hist[static_cast<std::ptrdiff_t>( (v - range_min) / bin_width )];
+                        ++hist[static_cast<std::ptrdiff_t>( bin_factor * (v - range_min) )];
                     }
                 }
             }
@@ -333,7 +341,8 @@ void _masked_hist_min_max(const C* im, const Py_ssize_t* im_shape, const Py_ssiz
     // that this is the case.
 
     memset(hist, 0, bin_count<C>() * sizeof(npy_uint32));
-    min_max[0] = min_max[1] = im[0];
+    min_max[0] = min_max[1] = 0;
+    bool seen_unmasked = false;
 
     const npy_uint8* outer = reinterpret_cast<const npy_uint8*>(im);
     const npy_uint8* mouter = mask;
@@ -353,13 +362,21 @@ void _masked_hist_min_max(const C* im, const Py_ssize_t* im_shape, const Py_ssiz
             {
                 const C& v = *reinterpret_cast<const C*>(inner);
                 ++hist[apply_bin_shift<C, is_twelve_bit>(v)];
-                if(v < min_max[0])
+                if(seen_unmasked)
                 {
-                    min_max[0] = v;
+                    if(v < min_max[0])
+                    {
+                        min_max[0] = v;
+                    }
+                    else if(v > min_max[1])
+                    {
+                        min_max[1] = v;
+                    }
                 }
-                else if(v > min_max[1])
+                else
                 {
-                    min_max[1] = v;
+                    seen_unmasked = true;
+                    min_max[1] = min_max[0] = v;
                 }
             }
         }
