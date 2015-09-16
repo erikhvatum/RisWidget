@@ -63,20 +63,20 @@ cdef extern from "_ndimage_statistics_impl.h":
         C* min_max
         )
 
-cpdef _min_max_float32(numpy.float32_t[:, :] im, numpy.float32_t[:] min_max):
+cpdef min_max_float32(numpy.float32_t[:, :] im, numpy.float32_t[:] min_max):
     assert min_max.shape[0] >= 2
     _min_max[numpy.float32_t](
         &im[0][0], &im.shape[0], &im.strides[0],
         &min_max[0])
 
-cpdef _masked_min_max_float32(numpy.float32_t[:, :] im, numpy.uint8_t[:, :] mask, numpy.float32_t[:] min_max):
+cpdef masked_min_max_float32(numpy.float32_t[:, :] im, numpy.uint8_t[:, :] mask, numpy.float32_t[:] min_max):
     assert min_max.shape[0] >= 2
     _masked_min_max[numpy.float32_t](
         &im[0][0], &im.shape[0], &im.strides[0],
         &mask[0][0], &mask.shape[0], &mask.strides[0],
         &min_max[0])
 
-cpdef _ranged_hist_float32(numpy.float32_t[:, :] im, range_min, range_max, bin_count, with_overflow_bins, numpy.uint32_t[:] hist):
+cpdef ranged_hist_float32(numpy.float32_t[:, :] im, range_min, range_max, bin_count, with_overflow_bins, numpy.uint32_t[:] hist):
     assert bin_count >= (4 if with_overflow_bins else 2)
     assert hist.shape[0] == bin_count
     assert range_min < range_max
@@ -91,7 +91,7 @@ cpdef _ranged_hist_float32(numpy.float32_t[:, :] im, range_min, range_max, bin_c
             range_min, range_max, bin_count,
             &hist[0])
 
-cpdef _masked_ranged_hist_float32(numpy.float32_t[:, :] im, numpy.uint8_t[:, :] mask, range_min, range_max, bin_count, with_overflow_bins, numpy.uint32_t[:] hist):
+cpdef masked_ranged_hist_float32(numpy.float32_t[:, :] im, numpy.uint8_t[:, :] mask, range_min, range_max, bin_count, with_overflow_bins, numpy.uint32_t[:] hist):
     assert bin_count >= (4 if with_overflow_bins else 2)
     assert hist.shape[0] == bin_count
     assert range_min < range_max
