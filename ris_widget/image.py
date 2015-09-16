@@ -26,6 +26,7 @@ from .ndimage_statistics.ndimage_statistics import compute_ndimage_statistics, c
 import ctypes
 import numpy
 from PyQt5 import Qt
+import warnings
 
 class Image(Qt.QObject):
     """An instance of the Image class is a wrapper around a Numpy ndarray representing a single image, plus some related attributes and
@@ -120,9 +121,9 @@ class Image(Qt.QObject):
         self.is_twelve_bit = is_twelve_bit
         dt = self._data.dtype.type
         if dt not in (numpy.bool8, numpy.uint8, numpy.uint16, numpy.float32):
-            self._data = self._data.astype(numpy.float32)
-            dt = numpy.float32
-
+            raise ValueError('The "data" argument must produce a numpy ndarray of dtype bool8, uint8, uint16, or float32 when '
+                             'passed through numpy.asarray(data).  So, if data is, itself, an ndarray, then data.dtype must be '
+                             'one of bool8, uint8, uint16, or float32.')
         if self._data.ndim == 2:
             if not shape_is_width_height:
                 self._data = self._data.transpose(1, 0)
@@ -162,12 +163,20 @@ class Image(Qt.QObject):
             if float_range is None:
                 # We end up waiting for our futures, now, in this case.  If displaying float images with unspecified range turns out
                 # to be common enough that this slowdown is unacceptable, future-ify range computation.
+                extremae = self.extremae
                 if self._data.ndim == 2:
-                    self._range = tuple(self.min_max)
+                    self._range = float(extremae[0]), float(extremae[1])
                 else:
-                    self._range = self.min_max[0,...].min(), self.min_max[1,...].max()
+                    self._range = float(extremae[0,...].min()), float(extremae[1,...].max())
+                if self._range[0] == self._range[1]:
+                    # That 
+                    if self._range[0] == 0:
+                        self._range[1] = 1.0
+                    else:
+                        self._range[1] = self._range[0] * 2
             else:
                 self._range = float_range
+                assert self._range[0] != self._range[1]
         else:
             if float_range is not None:
                 raise ValueError('float_range must not be specified for uint8 or uint16 images.')
