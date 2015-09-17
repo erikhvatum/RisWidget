@@ -76,12 +76,13 @@ try:
             elif im.ndim == 3:
                 def fn():
                     histogram = numpy.empty((im.shape[2], bin_count), dtype=numpy.uint32)
+                    hist_range = min_max[:,0].min(), min_max[:,1].max()
                     if mask is None:
                         for c in range(im.shape[2]):
-                            _ndimage_statistics.ranged_hist_float32(im[...,c], min_max[c,0], min_max[c,1], bin_count, with_overflow_bins, histogram[c])
+                            _ndimage_statistics.ranged_hist_float32(im[...,c], hist_range[0], hist_range[1], bin_count, with_overflow_bins, histogram[c])
                     else:
                         for c in range(im.shape[2]):
-                            _ndimage_statistics.masked_ranged_hist_float32(im[...,c], mask, min_max[c,0], min_max[c,1], bin_count, with_overflow_bins, histogram[c])
+                            _ndimage_statistics.masked_ranged_hist_float32(im[...,c], mask, hist_range[0], hist_range[1], bin_count, with_overflow_bins, histogram[c])
                     if make_ndimage_statistics_tuple:
                         return NDImageStatistics(histogram, numpy.hstack(histogram[c].argmax() for c in range(im.shape[2])), min_max)
                     return histogram
@@ -167,7 +168,8 @@ except ImportError:
                     return NDImageStatistics(histogram, histogram.argmax(), min_max)
                 return histogram
             elif im.ndim == 3:
-                histogram = numpy.vstack(numpy.histogram(im[c], bins=bin_count, range=min_max[c], density=False, weights=mask)[0].astype(numpy.uint32) for c in range(im.shape[2]))
+                hist_range = min_max[:,0].min(), min_max[:,1].max()
+                histogram = numpy.vstack(numpy.histogram(im[c], bins=bin_count, range=hist_range, density=False, weights=mask)[0].astype(numpy.uint32) for c in range(im.shape[2]))
                 if make_ndimage_statistics_tuple:
                     return NDImageStatistics(histogram, numpy.hstack(histogram[c].argmax() for c in range(im.shape[2])), min_max)
                 return histogram

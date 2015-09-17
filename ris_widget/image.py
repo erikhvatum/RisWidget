@@ -178,8 +178,8 @@ class Image(Qt.QObject):
                 self._range = float_range
             self.stats_future = ndimage_statistics.compute_ranged_histogram(
                 self._data,
-                numpy.vstack((self._range, self._range, self._range)),
-                255,
+                self._range if self._data.ndim == 2 else numpy.vstack((self._range,) * self.num_channels),
+                256,
                 return_future=True,
                 make_ndimage_statistics_tuple=True)
         else:
