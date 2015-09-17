@@ -127,26 +127,26 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
 
                 # Draw text outline
                 PR.glStencilStrokePathInstancedNV(
-                    l_len, PyGL.GL_UNSIGNED_BYTE, l_p,
+                    l_len, PyGL.GL_UNSIGNED_INT, l_p,
                     self._glyph_base,
                     1, ~0,
                     PR.GL_TRANSLATE_X_NV, k_p)
                 PyGL.glColor3f(0,0,0)
                 PR.glCoverStrokePathInstancedNV(
-                    l_len, PyGL.GL_UNSIGNED_BYTE, l_p,
+                    l_len, PyGL.GL_UNSIGNED_INT, l_p,
                     self._glyph_base,
                     PR.GL_BOUNDING_BOX_OF_BOUNDING_BOXES_NV,
                     PR.GL_TRANSLATE_X_NV, k_p)
 
                 # Draw filled text interiors
                 PR.glStencilFillPathInstancedNV(
-                    l_len, PyGL.GL_UNSIGNED_BYTE, l_p,
+                    l_len, PyGL.GL_UNSIGNED_INT, l_p,
                     self._glyph_base,
                     PR.GL_PATH_FILL_MODE_NV, ~0,
                     PR.GL_TRANSLATE_X_NV, k_p)
                 PyGL.glColor3f(0,1,0)
                 PR.glCoverFillPathInstancedNV(
-                    l_len, PyGL.GL_UNSIGNED_BYTE, l_p,
+                    l_len, PyGL.GL_UNSIGNED_INT, l_p,
                     self._glyph_base,
                     PR.GL_BOUNDING_BOX_OF_BOUNDING_BOXES_NV,
                     PR.GL_TRANSLATE_X_NV, k_p)
@@ -164,17 +164,17 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
             PR.glPathParameterfNV(self._path, PR.GL_PATH_STROKE_WIDTH_NV, 3.0)
             PR.glPathParameteriNV(self._path, PR.GL_PATH_JOIN_STYLE_NV, PR.GL_ROUND_NV)
         if self._glyph_base is None:
-            glyph_base = PR.glGenPathsNV(256)
+            glyph_base = PR.glGenPathsNV(0x110000)
             for fontname in ("Liberation Mono", "Courier", "Terminal"):
                 PR.glPathGlyphRangeNV(
                     glyph_base,
                     PR.GL_SYSTEM_FONT_NAME_NV, fontname, PR.GL_BOLD_BIT_NV,
-                    0, 256,
+                    0, 0x110000,
                     PR.GL_SKIP_MISSING_GLYPH_NV, self._path, 20)
             PR.glPathGlyphRangeNV(
                     glyph_base,
                     PR.GL_SYSTEM_FONT_NAME_NV, fontname, PR.GL_BOLD_BIT_NV,
-                    0, 256,
+                    0, 0x110000,
                     PR.GL_USE_MISSING_GLYPH_NV, self._path, 20)
             # TODO: determine why a) glGetPathMetricRangeNV gives NaN for offsets when called with
             # PR.GL_FONT_Y_MIN_BOUNDS_BIT_NV | PR.GL_FONT_Y_MAX_BOUNDS_BIT_NV b) whether individually computed
@@ -202,7 +202,7 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
                 tko = tk[1:]
                 PR.glGetPathSpacingNV(
                     PR.GL_ACCUM_ADJACENT_PAIRS_NV,
-                    l.shape[0], PyGL.GL_UNSIGNED_BYTE, l.ctypes.data_as(c_uint8_p),
+                    l.shape[0], PyGL.GL_UNSIGNED_INT, l.ctypes.data_as(c_uint8_p),
                     self._glyph_base,
                     1.0, 1.0, PR.GL_TRANSLATE_X_NV,
                     tko.ctypes.data_as(c_float32_p))
@@ -217,10 +217,9 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
     def text(self, v):
         if self._text != v:
             if v:
-                # Only ISO-8859-1 is supported at the moment.
                 # The '&' is appended owing to a peculiarity of the glGetPathSpacingNV call, which wants a junk character
                 # at the end of each line.  The '&' is not actually visible.
-                lines_encoded = [numpy.array(list((l + '&').encode('ISO-8859-1')), dtype=numpy.uint8) for l in v.split('\n')]
+                lines_encoded = [numpy.array([ord(c) for c in l + '&'], dtype=numpy.uint32) for l in v.split('\n')]
                 self.prepareGeometryChange()
                 self._text_lines_encoded = lines_encoded
             else:

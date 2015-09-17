@@ -182,10 +182,18 @@ class HistogramItem(ShaderItem):
             range_ = image.range
             bin_count = histogram.shape[-1]
             bin = int(x * bin_count)
-            bin_width = (range_[1] - range_[0]) / (bin_count - 1)
             if image.dtype == numpy.float32:
-                mst = '[{},{}{} '.format(range_[0] + bin*bin_width, range_[0] + (bin+1)*bin_width, ']' if bin == bin_count - 1 else ')')
+                hbin_count = bin_count - 2
+                hbin = int(x * hbin_count)
+                hbin_width = (range_[1] - range_[0]) / (hbin_count - 1)
+                if bin == 0:
+                    mst = '(-\u221e, {})'.format(range_[0])
+                elif bin == bin_count - 1:
+                    mst = '({}, +\u221e)'.format(range_[1])
+                else:
+                    mst = '[{},{}{} '.format(range_[0] + hbin*hbin_width, range_[0] + (hbin+1)*hbin_width, ']' if hbin == hbin_count - 1 else ')')
             else:
+                bin_width = (range_[1] - range_[0]) / (bin_count - 1)
                 mst = '[{},{}] '.format(math.ceil(bin*bin_width), math.floor((bin+1)*bin_width))
             vt = '(' + ' '.join((c + ':{}' for c in image_type)) + ')'
             if image.num_channels > 1:
