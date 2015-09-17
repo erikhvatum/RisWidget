@@ -211,6 +211,9 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
 
     @property
     def text(self):
+        """Basic western unicode is supported, including all the Cyrillic and Greek letters, and many methematical symbols, but not east-Asian
+        syllabaries such as katakana, hiragana, or hangul, nor any of the ideographic scripts.  Additionally, any character that is not represented
+        by two bytes in UTF-16 is unlikely to work and any character that can not be represented with four bytes in UTF-32 certainly won't."""
         return self._text
 
     @text.setter
