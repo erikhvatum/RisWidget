@@ -45,6 +45,8 @@ void reorder_to_inner_outer(const Py_ssize_t* u_shape,       const Py_ssize_t* u
                             const Py_ssize_t* u_slave_shape, const Py_ssize_t* u_slave_strides,
                                   Py_ssize_t* o_slave_shape,       Py_ssize_t* o_slave_strides)
 {
+    // The u_strides[0] < u_strides[1] comparison controlling slave shape and striding reversal is not a typo: slave
+    // striding and shape are reversed if non-slave striding and shape are reversed. 
     if(u_strides[0] >= u_strides[1])
     {
         o_strides[0] = u_strides[0]; o_strides[1] = u_strides[1];

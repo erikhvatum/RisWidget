@@ -51,6 +51,13 @@ def _atexit():
     import gc
     gc.collect()
 
+if sys.platform == 'darwin':
+    class NonTransientScrollbarsStyle(Qt.QProxyStyle):
+        def styleHint(self, sh, option=None, widget=None, returnData=None):
+            if sh == Qt.QStyle.SH_ScrollBar_Transient:
+                return 0
+            return self.baseStyle().styleHint(sh, option, widget, returnData)
+
 class RisWidget(Qt.QMainWindow):
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0), msaa_sample_count=2,
                  layer_stack = tuple(),
@@ -62,6 +69,12 @@ class RisWidget(Qt.QMainWindow):
         """A None value for GeneralViewContextualInfoItemClass or HistgramViewContextualInfoItemClass represents 
         ContextualInfoItemNV if the GL_NV_path_rendering extension is available and ContextualInfoItem otherwise."""
         super().__init__(parent, window_flags)
+        # TODO: look deeper into opengl buffer swapping order and such to see if we can become compatible with OS X auto-hiding scrollbars
+        # rather than needing to disable them
+        if sys.platform == 'darwin':
+            style = Qt.QApplication.style()
+            if style.styleHint(Qt.QStyle.SH_ScrollBar_Transient) != 0:
+                Qt.QApplication.setStyle(NonTransientScrollbarsStyle(style))
         GL_QSURFACE_FORMAT(msaa_sample_count)
         if window_title is not None:
             self.setWindowTitle(window_title)
@@ -392,56 +405,6 @@ class RisWidget(Qt.QMainWindow):
         if isinstance(page, progress_thread_pool.Task):
             return
         self.layer_stack = page
-
-#   def _on_flipbook_current_page_changed(self, flipbook, idx):
-#       show_as = flipbook.show_as_button_group.checkedId()
-#       page = None if idx < 0 else flipbook.pages[idx]
-#       if isinstance(page, progress_thread_pool.Task):
-#           return
-#       current_layer_idx = self.current_layer_idx
-#       if current_layer_idx is None:
-#           current_layer_idx = 0
-#       layer_stack = self.layer_stack
-#       if show_as == 0:
-#           self.layer_stack = page
-#       elif show_as == 1:
-#           if isinstance(page, om.SignalingList):
-#               if layer_stack:
-#                   for layer_idx, layer in enumerate(page):
-#                       if not isinstance(layer, Layer):
-#                           layer = Layer(layer)
-#                       if layer_idx + current_layer_idx >= len(layer_stack):
-#                           layer_stack.append(layer)
-#                       else:
-#                           layer_stack[layer_idx + current_layer_idx] = layer
-#               else:
-#                   self.layer_stack = page
-#           else:
-#               if layer_stack:
-#                   if not isinstance(page, Layer):
-#                       page = Layer(page)
-#                   self.layer_stack[current_layer_idx] = page
-#               else:
-#                   self.layer_stack = page
-#       else:
-#           if isinstance(page, om.SignalingList):
-#               if layer_stack:
-#                   for image_idx, image in enumerate(page):
-#                       if isinstance(image, Layer):
-#                           image = image.image
-#                       if image_idx + current_layer_idx >= len(layer_stack):
-#                           layer_stack.append(Layer(image))
-#                       else:
-#                           layer_stack[image_idx + current_layer_idx].image = image
-#               else:
-#                   self.layer_stack = page
-#           else:
-#               if layer_stack:
-#                   if isinstance(page, Layer):
-#                       page = page.image
-#                   self.layer_stack[current_layer_idx].image = page
-#               else:
-#                   self.layer_stack = page
 
     def _on_layer_stack_name_changed(self, layer_stack):
         assert layer_stack is self.layer_stack

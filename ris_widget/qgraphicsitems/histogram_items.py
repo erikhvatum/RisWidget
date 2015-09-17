@@ -128,10 +128,10 @@ class HistogramItem(ShaderItem):
                 if image.num_channels == 1:
                     max_bin_val = histogram[image.max_histogram_bin]
                 elif image.num_channels == 2:
-                    histogram = histogram[...,0]
+                    histogram = histogram[0,:]
                     max_bin_val = histogram.max()
                 elif image.num_channels >= 3:
-                    histogram = 0.2126 * histogram[...,0] + 0.7152 * histogram[...,1] + 0.0722 * histogram[...,2]
+                    histogram = 0.2126 * histogram[0,:] + 0.7152 * histogram[1,:] + 0.0722 * histogram[2,:]
                     max_bin_val = histogram.max()
                 if tex.serial != self._layer_data_serial:
                     orig_unpack_alignment = GL.glGetIntegerv(GL.GL_UNPACK_ALIGNMENT)

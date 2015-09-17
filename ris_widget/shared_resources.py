@@ -130,24 +130,24 @@ def NV_PATH_RENDERING_AVAILABLE():
                 glw.show()
                 estack.callback(glw.hide)
                 if glw.context().hasExtension('GL_NV_path_rendering'.encode('utf-8')):
-                    print('Detected GL_NV_path_rendering support...')
+#                   print('Detected GL_NV_path_rendering support...')
                     try:
                         import OpenGL
                         import OpenGL.GL.NV.path_rendering as PR
                         if not PR.glInitPathRenderingNV():
-                            print('Failed to initialize GL_NV_path_rendering extension.    No GL_NV_path_rendering support...')
+#                           print('Failed to initialize GL_NV_path_rendering extension.    No GL_NV_path_rendering support...')
                             _NV_PATH_RENDERING_AVAILABLE = False
                         else:
-                            print('Successfully initialized GL_NV_path_rendering.')
+#                           print('Successfully initialized GL_NV_path_rendering.')
                             _NV_PATH_RENDERING_AVAILABLE = True
                     except:
-                        print('Failed to import PyOpenGL or PyOpenGL NV.path_rendering extension.  No GL_NV_path_rendering support...')
+#                       print('Failed to import PyOpenGL or PyOpenGL NV.path_rendering extension.  No GL_NV_path_rendering support...')
                         _NV_PATH_RENDERING_AVAILABLE = False
                 else:
-                    print('No GL_NV_path_rendering support...')
+#                   print('No GL_NV_path_rendering support...')
                     _NV_PATH_RENDERING_AVAILABLE = False
         except:
-            print('An error occurred while attempting to determine whether the GL_NV_path_rendering extension is supported.', sys.stderr)
+#           print('An error occurred while attempting to determine whether the GL_NV_path_rendering extension is supported.', sys.stderr)
             _NV_PATH_RENDERING_AVAILABLE = False
     return _NV_PATH_RENDERING_AVAILABLE
 

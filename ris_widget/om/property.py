@@ -22,6 +22,7 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+import numpy
 from PyQt5 import Qt
 
 class Property(property):
@@ -94,8 +95,9 @@ class Property(property):
         r = a == b
         if isinstance(r, bool):
             return r
-        else:
-            return all(r)
+        if isinstance(r, numpy.bool_):
+            return bool(r)
+        return all(r)
 
     def instantiate(self, obj):
         setattr(obj, self.default_val_var_name, self.default_value_callback(obj))

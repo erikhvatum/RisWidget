@@ -97,8 +97,9 @@ class ShaderTexture:
         QGL().glBindTexture(self.target, 0)
 
     def destroy(self):
-        try:
-            QGL().glDeleteTextures(1, (self.texture_id,))
-            del self.texture_id
-        except NoGLContextIsCurrentError:
-            pass
+        if hasattr(self, 'texture_id'):
+            try:
+                QGL().glDeleteTextures(1, (self.texture_id,))
+                del self.texture_id
+            except NoGLContextIsCurrentError:
+                pass

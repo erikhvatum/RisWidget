@@ -37,13 +37,209 @@ void reorder_to_inner_outer(const Py_ssize_t* u_shape, const Py_ssize_t* u_strid
 // Copies u_shape to o_shape and u_strides to o_strides, reversing the elements of each if u_strides[0] < u_strides[1]. 
 // Additionally, u_slave_shape is copied to o_slave_shape and u_slave_strides is copied to o_slave_strides, reversing 
 // the elements of each if u_strides[0] < u_strides[1]. 
-// 
-// The u_strides[0] < u_strides[1] comparison controlling slave shape and striding reversal is not a typo: slave
-// striding and shape are reversed if non-slave striding and shape are reversed. 
 void reorder_to_inner_outer(const Py_ssize_t* u_shape,       const Py_ssize_t* u_strides,
                                   Py_ssize_t* o_shape,             Py_ssize_t* o_strides,
                             const Py_ssize_t* u_slave_shape, const Py_ssize_t* u_slave_strides,
                                   Py_ssize_t* o_slave_shape,       Py_ssize_t* o_slave_strides);
+
+template<typename C>
+void _min_max(const C* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
+              C* min_max)
+{
+    Py_ssize_t shape[2], strides[2];
+    reorder_to_inner_outer(im_shape, im_strides, shape, strides);
+
+    min_max[0] = min_max[1] = im[0];
+
+    const npy_uint8* outer = reinterpret_cast<const npy_uint8*>(im);
+    const npy_uint8*const outer_end = outer + shape[0] * strides[0];
+    const npy_uint8* inner;
+    const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
+    const npy_uint8* inner_end;
+    for(; outer != outer_end; outer += strides[0])
+    {
+        inner = outer;
+        inner_end = inner + inner_end_offset;
+        for(; inner != inner_end; inner += strides[1])
+        {
+            const C& v = *reinterpret_cast<const C*>(inner);
+            if(v < min_max[0])
+            {
+                min_max[0] = v;
+            }
+            else if(v > min_max[1])
+            {
+                min_max[1] = v;
+            }
+        }
+    }
+}
+
+template<typename C>
+void _masked_min_max(const C* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
+                     const npy_uint8* mask, const Py_ssize_t* mask_shape, const Py_ssize_t* mask_strides,
+                     C* min_max)
+{
+    Py_ssize_t shape[2], strides[2], mshape[2], mstrides[2];
+    reorder_to_inner_outer(im_shape, im_strides, shape, strides,
+                           mask_shape, mask_strides, mshape, mstrides);
+    // At this point, it should be true that shape == mshape.  Our caller is expected to have verified 
+    // that this is the case.
+
+    min_max[0] = min_max[1] = 0;
+    bool seen_unmasked = false;
+
+    const npy_uint8* outer = reinterpret_cast<const npy_uint8*>(im);
+    const npy_uint8* mouter = mask;
+    const npy_uint8*const outer_end = outer + shape[0] * strides[0];
+    const npy_uint8* inner;
+    const npy_uint8* minner;
+    const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
+    const npy_uint8* inner_end;
+    for(; outer != outer_end; outer += strides[0], mouter += mstrides[0])
+    {
+        inner = outer;
+        inner_end = inner + inner_end_offset;
+        minner = mouter;
+        for(; inner != inner_end; inner += strides[1], minner += mstrides[1])
+        {
+            const C& v = *reinterpret_cast<const C*>(inner);
+            if(*minner != 0)
+            {
+                if(seen_unmasked)
+                {
+                    if(v < min_max[0])
+                    {
+                        min_max[0] = v;
+                    }
+                    else if(v > min_max[1])
+                    {
+                        min_max[1] = v;
+                    }
+                }
+                else
+                {
+                    seen_unmasked = true;
+                    min_max[1] = min_max[0] = v;
+                }
+            }
+        }
+    }
+}
+
+template<typename C, bool with_overflow_bins>
+void _ranged_hist(const C* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
+                  const C& range_min, const C& range_max, const Py_ssize_t& bin_count,
+                  npy_uint32* hist)
+{
+    Py_ssize_t shape[2], strides[2];
+    reorder_to_inner_outer(im_shape, im_strides, shape, strides);
+
+    memset(hist, 0, bin_count * sizeof(npy_uint32));
+
+    const C range_width = range_max - range_min;
+    const Py_ssize_t non_overflow_bin_count = with_overflow_bins ? bin_count - 2 : bin_count;
+    const double bin_factor = static_cast<double>(non_overflow_bin_count - 1) / range_width;
+    npy_uint32*const last_bin = hist + bin_count;
+    const npy_uint8* outer = reinterpret_cast<const npy_uint8*>(im);
+    const npy_uint8*const outer_end = outer + shape[0] * strides[0];
+    const npy_uint8* inner;
+    const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
+    const npy_uint8* inner_end;
+    for(; outer != outer_end; outer += strides[0])
+    {
+        inner = outer;
+        inner_end = inner + inner_end_offset;
+        for(; inner != inner_end; inner += strides[1])
+        {
+            const C& v = *reinterpret_cast<const C*>(inner);
+            if(with_overflow_bins)
+            {
+                if(v < range_min)
+                {
+                    ++*hist;
+                }
+                else if(v > range_max)
+                {
+                    ++*last_bin;
+                }
+                else
+                {
+                    ++hist[1 + static_cast<std::ptrdiff_t>( bin_factor * (v - range_min) )];
+                }
+            }
+            else
+            {
+                if(v >= range_min && v <= range_max)
+                {
+                    ++hist[static_cast<std::ptrdiff_t>( bin_factor * (v - range_min) )];
+                }
+            }
+        }
+    }
+}
+
+template<typename C, bool with_overflow_bins>
+void _masked_ranged_hist(const C* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
+                         const npy_uint8* mask, const Py_ssize_t* mask_shape, const Py_ssize_t* mask_strides,
+                         const C& range_min, const C& range_max, const Py_ssize_t& bin_count,
+                         npy_uint32* hist)
+{
+    Py_ssize_t shape[2], strides[2], mshape[2], mstrides[2];
+    reorder_to_inner_outer(im_shape, im_strides, shape, strides,
+                           mask_shape, mask_strides, mshape, mstrides);
+    // At this point, it should be true that shape == mshape.  Our caller is expected to have verified 
+    // that this is the case.
+
+    memset(hist, 0, bin_count * sizeof(npy_uint32));
+
+    const C range_width = range_max - range_min;
+    const Py_ssize_t non_overflow_bin_count = with_overflow_bins ? bin_count - 2 : bin_count;
+    const float bin_factor = static_cast<float>(non_overflow_bin_count - 1) / range_width;
+    npy_uint32*const last_bin = hist + bin_count;
+    const npy_uint8* outer = reinterpret_cast<const npy_uint8*>(im);
+    const npy_uint8* mouter = mask;
+    const npy_uint8*const outer_end = outer + shape[0] * strides[0];
+    const npy_uint8* inner;
+    const npy_uint8* minner;
+    const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
+    const npy_uint8* inner_end;
+    for(; outer != outer_end; outer += strides[0], mouter += mstrides[0])
+    {
+        inner = outer;
+        inner_end = inner + inner_end_offset;
+        minner = mouter;
+        for(; inner != inner_end; inner += strides[1], minner += mstrides[1])
+        {
+            if(*minner != 0)
+            {
+                const C& v = *reinterpret_cast<const C*>(inner);
+                if(with_overflow_bins)
+                {
+                    if(v < range_min)
+                    {
+                        ++*hist;
+                    }
+                    else if(v > range_max)
+                    {
+                        ++*last_bin;
+                    }
+                    else
+                    {
+                        ++hist[1 + static_cast<std::ptrdiff_t>( bin_factor * (v - range_min) )];
+                    }
+                }
+                else
+                {
+                    if(v >= range_min && v <= range_max)
+                    {
+                        ++hist[static_cast<std::ptrdiff_t>( bin_factor * (v - range_min) )];
+                    }
+                }
+            }
+        }
+    }
+}
 
 #ifdef _WIN32
 // Inside of the Microsoft ghetto, we must do without constexpr, the sun never shines, the year is forever 1998,
@@ -93,13 +289,13 @@ const C apply_bin_shift(const C& v)
     return v >> bin_shift<C, is_twelve_bit>();
 }
 
-
 template<>
 const npy_uint16 apply_bin_shift<npy_uint16, true>(const npy_uint16& v);
 
 template<typename C, bool is_twelve_bit>
 void _hist_min_max(const C* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
-                   npy_uint32* hist, C* min_max)
+                   npy_uint32* hist,
+                   C* min_max)
 {
     Py_ssize_t shape[2], strides[2];
     reorder_to_inner_outer(im_shape, im_strides, shape, strides);
@@ -135,16 +331,18 @@ void _hist_min_max(const C* im, const Py_ssize_t* im_shape, const Py_ssize_t* im
 template<typename C, bool is_twelve_bit>
 void _masked_hist_min_max(const C* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_strides,
                           const npy_uint8* mask, const Py_ssize_t* mask_shape, const Py_ssize_t* mask_strides,
-                          npy_uint32* hist, C* min_max)
+                          npy_uint32* hist,
+                          C* min_max)
 {
     Py_ssize_t shape[2], strides[2], mshape[2], mstrides[2];
     reorder_to_inner_outer(im_shape, im_strides, shape, strides,
                            mask_shape, mask_strides, mshape, mstrides);
     // At this point, it should be true that shape == mshape.  Our caller is expected to have verified 
-    // that this would be the case (ie, the caller of this function  
+    // that this is the case.
 
     memset(hist, 0, bin_count<C>() * sizeof(npy_uint32));
-    min_max[0] = min_max[1] = im[0];
+    min_max[0] = min_max[1] = 0;
+    bool seen_unmasked = false;
 
     const npy_uint8* outer = reinterpret_cast<const npy_uint8*>(im);
     const npy_uint8* mouter = mask;
@@ -160,16 +358,25 @@ void _masked_hist_min_max(const C* im, const Py_ssize_t* im_shape, const Py_ssiz
         minner = mouter;
         for(; inner != inner_end; inner += strides[1], minner += mstrides[1])
         {
-            const C& v = *reinterpret_cast<const C*>(inner);
             if(*minner != 0)
             {
-                if(v < min_max[0])
+                const C& v = *reinterpret_cast<const C*>(inner);
+                ++hist[apply_bin_shift<C, is_twelve_bit>(v)];
+                if(seen_unmasked)
                 {
-                    min_max[0] = v;
+                    if(v < min_max[0])
+                    {
+                        min_max[0] = v;
+                    }
+                    else if(v > min_max[1])
+                    {
+                        min_max[1] = v;
+                    }
                 }
-                else if(v > min_max[1])
+                else
                 {
-                    min_max[1] = v;
+                    seen_unmasked = true;
+                    min_max[1] = min_max[0] = v;
                 }
             }
         }
