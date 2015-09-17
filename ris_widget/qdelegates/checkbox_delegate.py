@@ -49,7 +49,10 @@ class CheckboxDelegate(Qt.QStyledItemDelegate):
                 Qt.Qt.AlignCenter,
                 Qt.QSize(min_constraint, min_constraint),
                 cell_rect)
-            cs_icons = _ENABLED_CHECKBOX_STATE_ICONS if midx.flags() & (Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsEditable) else _DISABLED_CHECKBOX_STATE_ICONS
+            flags = midx.flags()
+            item_is_enabled = flags | Qt.Qt.ItemIsEnabled
+            item_is_checkable = flags | Qt.Qt.ItemIsUserCheckable
+            cs_icons = _ENABLED_CHECKBOX_STATE_ICONS if item_is_enabled and item_is_checkable else _DISABLED_CHECKBOX_STATE_ICONS
             v = midx.data(Qt.Qt.CheckStateRole)
             if isinstance(v, Qt.QVariant):
                 v = v.value()
@@ -57,10 +60,7 @@ class CheckboxDelegate(Qt.QStyledItemDelegate):
                 v = None
             dpi_ratio = Qt.QApplication.instance().desktop().devicePixelRatio()
             painter.drawPixmap(icon_rect, cs_icons[v].pixmap(icon_rect.width() * dpi_ratio, icon_rect.height() * dpi_ratio))
-#           painter.save()
-#           painter.setRenderHints(Qt.QPainter.TextAntialiasing | Qt.QPainter.Antialiasing)
-#           painter.restore()
-            
+
     def sizeHint(self, option, midx):
         if midx.isValid():
             margin = Qt.QApplication.style().pixelMetric(Qt.QStyle.PM_FocusFrameHMargin) + 1

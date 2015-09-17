@@ -26,22 +26,29 @@ from PyQt5 import Qt
 from ..shared_resources import CHOICES_QITEMDATA_ROLE
 
 class DropdownListDelegate(Qt.QStyledItemDelegate):
-    def createEditor(self, parent, option, midx):
-        if midx.isValid():
-            e = Qt.QComboBox(parent)
-            e.addItems(midx.data(CHOICES_QITEMDATA_ROLE))
-            e.setFrame(False)
-            e.setInsertPolicy(Qt.QComboBox.NoInsert)
-            return e
-
-    def setEditorData(self, e, midx):
-        d = midx.data()
-        if isinstance(d, Qt.QVariant):
-            d = d.value()
-        e.setCurrentText(d)
-
-    def setModelData(self, e, model, midx):
-        model.setData(midx, e.currentText())
-
-    def updateEditorGeometry(self, e, option, midx):
-        e.setGeometry(option.rect)
+    def editorEvent(self, event, model, option, midx):
+        if not midx.isValid() or option.widget is None:
+            return False
+        flags = midx.flags()
+        item_is_enabled = flags | Qt.Qt.ItemIsEnabled
+        item_is_editable = flags | Qt.Qt.ItemIsEditable
+        if not item_is_enabled or not item_is_editable:
+            return False
+        menu = Qt.QMenu(option.widget)
+        choices = midx.data(CHOICES_QITEMDATA_ROLE)
+        choice_actions = [menu.addAction(choice) for choice in choices]
+        try:
+            current_choice = midx.data()
+            if isinstance(current_choice, Qt.QVariant):
+                current_choice = current_choice.value()
+            current_choice_idx = choices.index(current_choice)
+        except ValueError:
+            current_choice_idx = 0
+        menu.popup(option.widget.mapToGlobal(option.widget.visualRect(midx).topLeft()), choice_actions[current_choice_idx])
+        menu.setAttribute(Qt.Qt.WA_DeleteOnClose)
+        pmidx = Qt.QPersistentModelIndex(midx)
+        def on_entry_selected(action):
+            if pmidx.isValid():
+                model.setData(model.index(pmidx.row(), pmidx.column()), action.text())
+        menu.triggered.connect(on_entry_selected)
+        return False

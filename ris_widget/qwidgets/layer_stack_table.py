@@ -152,7 +152,7 @@ class LayerStackTableModel(LayerStackTableDragDropBehavior, om.signaling_list.Re
         'auto_min_max_enabled',
         'tint',
         'opacity',
-        'getcolor_expression',
+#        'getcolor_expression',
         'name',
         'image.dtype',
         'image.size',
