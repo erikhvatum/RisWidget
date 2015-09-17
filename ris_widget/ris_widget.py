@@ -406,56 +406,6 @@ class RisWidget(Qt.QMainWindow):
             return
         self.layer_stack = page
 
-#   def _on_flipbook_current_page_changed(self, flipbook, idx):
-#       show_as = flipbook.show_as_button_group.checkedId()
-#       page = None if idx < 0 else flipbook.pages[idx]
-#       if isinstance(page, progress_thread_pool.Task):
-#           return
-#       current_layer_idx = self.current_layer_idx
-#       if current_layer_idx is None:
-#           current_layer_idx = 0
-#       layer_stack = self.layer_stack
-#       if show_as == 0:
-#           self.layer_stack = page
-#       elif show_as == 1:
-#           if isinstance(page, om.SignalingList):
-#               if layer_stack:
-#                   for layer_idx, layer in enumerate(page):
-#                       if not isinstance(layer, Layer):
-#                           layer = Layer(layer)
-#                       if layer_idx + current_layer_idx >= len(layer_stack):
-#                           layer_stack.append(layer)
-#                       else:
-#                           layer_stack[layer_idx + current_layer_idx] = layer
-#               else:
-#                   self.layer_stack = page
-#           else:
-#               if layer_stack:
-#                   if not isinstance(page, Layer):
-#                       page = Layer(page)
-#                   self.layer_stack[current_layer_idx] = page
-#               else:
-#                   self.layer_stack = page
-#       else:
-#           if isinstance(page, om.SignalingList):
-#               if layer_stack:
-#                   for image_idx, image in enumerate(page):
-#                       if isinstance(image, Layer):
-#                           image = image.image
-#                       if image_idx + current_layer_idx >= len(layer_stack):
-#                           layer_stack.append(Layer(image))
-#                       else:
-#                           layer_stack[image_idx + current_layer_idx].image = image
-#               else:
-#                   self.layer_stack = page
-#           else:
-#               if layer_stack:
-#                   if isinstance(page, Layer):
-#                       page = page.image
-#                   self.layer_stack[current_layer_idx].image = page
-#               else:
-#                   self.layer_stack = page
-
     def _on_layer_stack_name_changed(self, layer_stack):
         assert layer_stack is self.layer_stack
         name = layer_stack.name

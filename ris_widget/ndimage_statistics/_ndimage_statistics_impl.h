@@ -139,7 +139,7 @@ void _ranged_hist(const C* im, const Py_ssize_t* im_shape, const Py_ssize_t* im_
 
     const C range_width = range_max - range_min;
     const Py_ssize_t non_overflow_bin_count = with_overflow_bins ? bin_count - 2 : bin_count;
-    const float bin_factor = static_cast<float>(non_overflow_bin_count - 1) / range_width;
+    const double bin_factor = static_cast<double>(non_overflow_bin_count - 1) / range_width;
     npy_uint32*const last_bin = hist + bin_count;
     const npy_uint8* outer = reinterpret_cast<const npy_uint8*>(im);
     const npy_uint8*const outer_end = outer + shape[0] * strides[0];

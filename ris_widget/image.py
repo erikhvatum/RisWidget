@@ -240,6 +240,8 @@ class Image(Qt.QObject):
 
     @property
     def histogram(self):
+        if self._data.dtype is numpy.float32:
+            return self.histogram_future.result()
         return self.stats_future.result().histogram
 
     @property
