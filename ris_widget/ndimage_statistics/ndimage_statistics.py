@@ -34,25 +34,59 @@ try:
     from . import _ndimage_statistics
 
     def find_min_max(im, mask=None):
+        im = numpy.asarray(im)
         if mask is not None:
             mask = numpy.asarray(mask, dtype=numpy.uint8)
             assert im.shape == mask.shape
         if im.dtype == numpy.float32:
-            min_max = numpy.empty((2,), dtype=numpy.float32)
-            _ndimage_statistics.min_max_float32(im, min_max) if mask is None else _ndimage_statistics.masked_min_max_float32(im, mask, min_max)
-            return min_max
+            if im.ndim == 2:
+                min_max = numpy.empty((2,), dtype=numpy.float32)
+                _ndimage_statistics.min_max_float32(im, min_max) if mask is None else _ndimage_statistics.masked_min_max_float32(im, mask, min_max)
+                return min_max
+            if im.ndim == 3:
+                min_max = numpy.empty((im.shape[2], 2), dtype=numpy.float32)
+                if mask is None:
+                    for c in range(im.shape[2]):
+                        _ndimage_statistics.min_max_float32(im[...,c], min_max[c])
+                else:
+                    for c in range(im.shape[2]):
+                        _ndimage_statistics.min_max_float32(im[...,c], mask, min_max[c])
+                return min_max
+            else:
+                raise ValueError('im must be 2D or 3D iterable / ndarray.')
         else:
             raise TypeError('im argument type must be a numpy.ndarray with dtype float32')
 
-    def compute_ranged_histogram(im, min_max, bin_count, with_overflow_bins=False, mask=None, return_future=False):
+    def compute_ranged_histogram(im, min_max, bin_count, with_overflow_bins=False, mask=None, return_future=False, make_ndimage_statistics_tuple=False):
+        im = numpy.asarray(im)
         if mask is not None:
             mask = numpy.asarray(mask, dtype=numpy.uint8)
             assert im.shape == mask.shape
         if im.dtype == numpy.float32:
-            def fn():
-                histogram = numpy.empty((bin_count,), dtype=numpy.float32)
-                _ndimage_statistics.ranged_hist_float32(im, min_max[0], min_max[1], bin_count, with_overflow_bins, histogram)
-                return histogram
+            if im.ndim == 2:
+                def fn():
+                    histogram = numpy.empty((bin_count,), dtype=numpy.uint32)
+                    if mask is None:
+                        _ndimage_statistics.ranged_hist_float32(im, min_max[0], min_max[1], bin_count, with_overflow_bins, histogram)
+                    else:
+                        _ndimage_statistics.masked_ranged_hist_float32(im, mask, min_max[0], min_max[1], bin_count, with_overflow_bins, histogram)
+                    if make_ndimage_statistics_tuple:
+                        return NDImageStatistics(histogram, histogram.argmax(), min_max)
+                    return histogram
+            elif im.ndim == 3:
+                def fn():
+                    histogram = numpy.empty((im.shape[2], bin_count), dtype=numpy.uint32)
+                    if mask is None:
+                        for c in range(im.shape[2]):
+                            _ndimage_statistics.ranged_hist_float32(im[...,c], min_max[c,0], min_max[c,1], bin_count, with_overflow_bins, histogram[c])
+                    else:
+                        for c in range(im.shape[2]):
+                            _ndimage_statistics.masked_ranged_hist_float32(im[...,c], mask, min_max[c,0], min_max[c,1], bin_count, with_overflow_bins, histogram[c])
+                    if make_ndimage_statistics_tuple:
+                        return NDImageStatistics(histogram, numpy.hstack(histogram[c].argmax() for c in range(im.shape[2])), min_max)
+                    return histogram
+            else:
+                raise ValueError('im must be 2D or 3D iterable / ndarray.')
         else:
             raise TypeError('im argument type must be a numpy.ndarray with dtype float32')
         if return_future:
@@ -117,17 +151,35 @@ except ImportError:
         im = numpy.asarray(im)
         if mask is not None:
             raise NotImplementedError()
-        return im.min(), im.max()
+        if im.ndim == 2:
+            return numpy.array((im.min(), im.max()), dtype=im.dtype)
+        elif im.ndim == 3:
+            return numpy.array([(im[...,c].min(), im[...,c].max()) for c in range(im.shape[2])], dtype=im.dtype)
+        else:
+            raise ValueError('im must be 2D or 3D iterable / ndarray.')
 
-    def compute_ranged_histogram(im, min_max, bin_count, with_overflow_bins=False, mask=None, return_future=False):
+    def compute_ranged_histogram(im, min_max, bin_count, with_overflow_bins=False, mask=None, return_future=False, make_ndimage_statistics_tuple=False):
+        im = numpy.asarray(im)
         def fn():
-            return numpy.histogram(im, bins=n_bins, range=min_max, density=False, weights=mask)[0].astype(numpy.uint32)
+            if im.ndim == 2:
+                histogram = numpy.histogram(im, bins=bin_count, range=min_max, density=False, weights=mask)[0].astype(numpy.uint32)
+                if make_ndimage_statistics_tuple:
+                    return NDImageStatistics(histogram, histogram.argmax(), min_max)
+                return histogram
+            elif im.ndim == 3:
+                histogram = numpy.vstack(numpy.histogram(im[c], bins=bin_count, range=min_max[c], density=False, weights=mask)[0].astype(numpy.uint32) for c in range(im.shape[2]))
+                if make_ndimage_statistics_tuple:
+                    return NDImageStatistics(histogram, numpy.hstack(histogram[c].argmax() for c in range(im.shape[2])), min_max)
+                return histogram
+            else:
+                raise ValueError('im must be 2D or 3D iterable / ndarray.')
         if return_future:
             return pool.submit(fn)
         else:
             return fn()
 
     def compute_ndimage_statistics(im, mask=None, twelve_bit=False, n_bins=1024, hist_max=None, hist_min=None, n_threads=None, return_future=False):
+        im = numpy.asarray(im)
         if im.dtype == numpy.uint8:
             n_bins = 256
             histogram_range = (0, 255)

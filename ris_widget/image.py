@@ -22,7 +22,7 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from .ndimage_statistics.ndimage_statistics import compute_ndimage_statistics, compute_multichannel_ndimage_statistics
+from .ndimage_statistics import ndimage_statistics
 import ctypes
 import numpy
 from PyQt5 import Qt
@@ -108,9 +108,9 @@ class Image(Qt.QObject):
     def refresh(self):
         # Assumption: only contents of ._data may have changed, not its size, shape, striding, or dtype.
         if self.is_grayscale:
-            self.stats_future = compute_ndimage_statistics(self._data, self.is_twelve_bit, return_future=True)
+            self.stats_future = ndimage_statistics.compute_ndimage_statistics(self._data, self.is_twelve_bit, return_future=True)
         else:
-            self.stats_future = compute_multichannel_ndimage_statistics(self._data, self.is_twelve_bit, return_future=True)
+            self.stats_future = ndimage_statistics.compute_multichannel_ndimage_statistics(self._data, self.is_twelve_bit, return_future=True)
         self.data_changed.emit(self)
 
     def set_data(self, data, is_twelve_bit=False, float_range=None, shape_is_width_height=True, keep_name=True, name=None):
@@ -134,7 +134,8 @@ class Image(Qt.QObject):
                 d = self._data
                 self._data = numpy.ndarray(d.shape, strides=desired_strides, dtype=d.dtype.type)
                 self._data.flat = d.flat
-            self.stats_future = compute_ndimage_statistics(self._data, twelve_bit=is_twelve_bit, return_future=True)
+            if dt is not numpy.float32:
+                self.stats_future = ndimage_statistics.compute_ndimage_statistics(self._data, twelve_bit=is_twelve_bit, return_future=True)
         elif self._data.ndim == 3:
             if not shape_is_width_height:
                 self._data = self._data.transpose(1, 0, 2)
@@ -149,7 +150,8 @@ class Image(Qt.QObject):
                 d = self._data
                 self._data = numpy.ndarray(d.shape, strides=desired_strides, dtype=d.dtype.type)
                 self._data.flat = d.flat
-            self.stats_future = compute_multichannel_ndimage_statistics(self._data, twelve_bit=self.is_twelve_bit, return_future=True)
+            if dt is not numpy.float32:
+                self.stats_future = ndimage_statistics.compute_multichannel_ndimage_statistics(self._data, twelve_bit=self.is_twelve_bit, return_future=True)
         else:
             raise ValueError('data argument must be a 2D (grayscale) or 3D (grayscale with alpha, rgb, or rgba) iterable.')
 
@@ -161,32 +163,35 @@ class Image(Qt.QObject):
 
         if dt is numpy.float32:
             if float_range is None:
-                # We end up waiting for our futures, now, in this case.  If displaying float images with unspecified range turns out
-                # to be common enough that this slowdown is unacceptable, future-ify range computation.
-                extremae = self.extremae
+                extremae = ndimage_statistics.find_min_max(self._data)
                 if self._data.ndim == 2:
                     self._range = float(extremae[0]), float(extremae[1])
                 else:
                     self._range = float(extremae[0,...].min()), float(extremae[1,...].max())
                 if self._range[0] == self._range[1]:
-                    # That 
                     if self._range[0] == 0:
-                        self._range[1] = 1.0
+                        self._range = 0.0, 1.0
                     else:
-                        self._range[1] = self._range[0] * 2
+                        self._range = self._range[0], self.range[0]*2
             else:
+                assert float_range[1] > float_range[0]
                 self._range = float_range
-                assert self._range[0] != self._range[1]
+            self.stats_future = ndimage_statistics.compute_ranged_histogram(
+                self._data,
+                numpy.vstack((self._range, self._range, self._range)),
+                255,
+                return_future=True,
+                make_ndimage_statistics_tuple=True)
         else:
             if float_range is not None:
                 raise ValueError('float_range must not be specified for uint8 or uint16 images.')
             if dt == numpy.uint8:
-                self._range = (0, 255)
+                self._range = 0, 255
             elif dt == numpy.uint16:
                 if self.is_twelve_bit:
-                    self._range = (0, 4095)
+                    self._range = 0, 4095
                 else:
-                    self._range = (0, 65535)
+                    self._range = 0, 65535
             else:
                 raise NotImplementedError('Support for another numpy dtype was added without implementing self._range calculation for it...')
 
@@ -240,8 +245,6 @@ class Image(Qt.QObject):
 
     @property
     def histogram(self):
-        if self._data.dtype is numpy.float32:
-            return self.histogram_future.result()
         return self.stats_future.result().histogram
 
     @property
@@ -260,5 +263,5 @@ class Image(Qt.QObject):
         """The range of valid values that may be assigned to any channel of any pixel.  For 8-bit-per-channel integer images,
         this is always [0,255], for 12-bit-per-channel integer images, [0,4095], for 16-bit-per-channel integer images, [0,65535].
         For floating point images, this is min/max values for all channels of all pixels, unless specified with the float_range
-        argument to our __init__ function."""
+        argument to our set_data function."""
         return self._range
