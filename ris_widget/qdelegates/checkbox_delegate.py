@@ -39,18 +39,25 @@ _DISABLED_CHECKBOX_STATE_ICONS = {
     None : ICONS()['disabled_wrong_type_checked_box_icon']}
 
 class CheckboxDelegate(Qt.QStyledItemDelegate):
-    """A subtle point regarding CheckboxDelegate: the ItemIsUserCheckable flag* for an item (a "cell", if our model is a table) controls
+    """CheckboxDelegate: A light way of showing item-model-view cells containing boolean or tri-state-check values as a checkbox
+    that is optionally interactive, well centered, and that does not have weird and deceptive appearances when contained within
+    non-focused widgets.
+
+    A subtle point regarding CheckboxDelegate: the ItemIsUserCheckable flag* for an item (a "cell", if our model is a table) controls
     how CheckboxDelegate gets, sets, and interprets that item's data.
 
     If ItemIsUserCheckable is set for an item, then CheckStateRole is specified when retrieving that item's data.  If the return
     value of this query is not Qt.Qt.Unchecked, Qt.Qt.Checked, or Qt.Qt.PartiallyChecked, the "wrong type" icon is displayed. 
-    CheckStateRole is used when setting the item's data, and the value supplied is either Qt.Qt.Unchecked or Qt.Qt.Checked.
+    CheckStateRole is used when setting the item's data, and the value supplied is either Qt.Qt.Unchecked or Qt.Qt.Checked.  This
+    closely matches the default delegate behavior.
 
     If ItemIsUserCheckable is not set for an item, the default role, DisplayRole, is used when retrieving the item's data, and
     True, False, Qt.Qt.Unchecked, Qt.Qt.Checked, and Qt.Qt.PartiallyChecked are all acceptable return values for the midx.data() query.
-    Any other value results in a "wrong type" icon.  EditRole is used when setting the item's data, and the value supplied is either
-    True or False.
+    Any other value results in a "wrong type" icon.  EditRole is used when setting the item's data, and if the item's data query
+    call returned a bool, the value supplied is either True or False, whereas if the data query call returned Qt.Qt.Unchecked,
+    Qt.Qt.Checked, or Qt.Qt.PartiallyChecked, then the value supplied is either Qt.Qt.Unchecked or Qt.Qt.Checked.
 
+    ____________________________________________________
     * The ItemIsUserCheckable flag is said to be set for midx, a Qt.QModelIndex instance, if "midx.flags() & Qt.Qt.ItemIsUserCheckable"
     evaluates to True."""
     def __init__(self, parent=None, margin=10):
