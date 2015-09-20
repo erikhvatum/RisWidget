@@ -195,7 +195,8 @@ class HistogramItem(ShaderItem):
                     mst = '[{},{}{} '.format(range_[0] + hbin*hbin_width, range_[0] + (hbin+1)*hbin_width, ']' if hbin == hbin_count - 1 else ')')
             else:
                 bin_width = (range_[1] - range_[0]) / (bin_count - 1)
-                mst = '[{},{}] '.format(math.ceil(bin*bin_width), math.floor((bin+1)*bin_width))
+                l, r = math.ceil(bin*bin_width), math.floor((bin+1)*bin_width)
+                mst = '{} '.format(l) if r-l==1 else '[{},{}] '.format(l, r)
             vt = '(' + ' '.join((c + ':{}' for c in image_type)) + ')'
             if image.num_channels > 1:
                 vt = vt.format(*histogram[..., bin])

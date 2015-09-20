@@ -53,7 +53,15 @@ class ColorDelegate(Qt.QStyledItemDelegate):
             color = e.currentColor()
             model.setData(midx, (color.redF(), color.greenF(), color.blueF(), color.alphaF()))
 
-    def paint(self, qpainter, option, midx):
+    def paint(self, painter, option, midx):
+        style = None
+        if option.widget is not None:
+            style = option.widget.style()
+        if style is None:
+            style = Qt.QApplication.style()
+        # Fill cell background in the *exact same manner* as the default delegate.  This is the simplest way to get the correct
+        # cell background in all circumstances, including while dragging a row.
+        style.drawPrimitive(Qt.QStyle.PE_PanelItemViewItem, option, painter, option.widget)
         d = midx.data(Qt.Qt.DecorationRole)
         if isinstance(d, Qt.QVariant):
             d = d.value()
@@ -62,10 +70,10 @@ class ColorDelegate(Qt.QStyledItemDelegate):
             Qt.Qt.AlignCenter,
             option.decorationSize,
             option.rect)
-        qpainter.save()
+        painter.save()
         try:
-            qpainter.setPen(Qt.QPen(option.palette.color(Qt.QPalette.Normal, Qt.QPalette.Mid)))
-            qpainter.setBrush(Qt.QBrush(d))
-            qpainter.drawRect(swatch_rect)
+            painter.setPen(Qt.QPen(option.palette.color(Qt.QPalette.Normal, Qt.QPalette.Mid)))
+            painter.setBrush(Qt.QBrush(d))
+            painter.drawRect(swatch_rect)
         finally:
-            qpainter.restore()
+            painter.restore()

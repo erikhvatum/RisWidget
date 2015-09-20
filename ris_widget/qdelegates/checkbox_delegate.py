@@ -66,8 +66,12 @@ class CheckboxDelegate(Qt.QStyledItemDelegate):
 
     def paint(self, painter, option, midx):
         assert isinstance(painter, Qt.QPainter)
-        if option.state & Qt.QStyle.State_Selected:
-            painter.fillRect(option.rect, option.palette.highlight())
+        style = option.widget.style()
+        if style is None:
+            style = Qt.QApplication.style()
+        # Fill cell background in the *exact same manner* as the default delegate.  This is the simplest way to get the correct
+        # cell background in all circumstances, including while dragging a row.
+        style.drawPrimitive(Qt.QStyle.PE_PanelItemViewItem, option, painter, option.widget)
         if midx.isValid():
             flags = midx.flags()
             if flags & Qt.Qt.ItemIsEnabled and flags & (Qt.Qt.ItemIsUserCheckable | Qt.Qt.ItemIsEditable):

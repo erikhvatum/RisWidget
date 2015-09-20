@@ -34,7 +34,15 @@ class SliderDelegate(Qt.QStyledItemDelegate):
     def sizeHint(self, option, midx):
         return Qt.QSize(100,10)
 
-    def paint(self, qpainter, option, midx):
+    def paint(self, painter, option, midx):
+        style = None
+        if option.widget is not None:
+            style = option.widget.style()
+        if style is None:
+            style = Qt.QApplication.style()
+        # Fill cell background in the *exact same manner* as the default delegate.  This is the simplest way to get the correct
+        # cell background in all circumstances, including while dragging a row.
+        style.drawPrimitive(Qt.QStyle.PE_PanelItemViewItem, option, painter, option.widget)
         if not midx.isValid():
             return
         d = midx.data()
@@ -47,8 +55,7 @@ class SliderDelegate(Qt.QStyledItemDelegate):
         pbo.textVisible = True
         pbo.textAlignment = Qt.Qt.AlignCenter
         pbo.rect = option.rect
-        style = option.widget.style() if option.widget is not None else Qt.QApplication.style()
-        style.drawControl(Qt.QStyle.CE_ProgressBar, pbo, qpainter)
+        style.drawControl(Qt.QStyle.CE_ProgressBar, pbo, painter)
 
     def editorEvent(self, event, model, option, midx):
         if not midx.isValid() or not event.type() == Qt.QEvent.MouseButtonPress or event.buttons() != Qt.Qt.LeftButton:

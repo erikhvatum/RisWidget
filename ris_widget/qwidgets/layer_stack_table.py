@@ -159,6 +159,7 @@ class LayerStackTableModel(LayerStackTableDragDropBehavior, om.signaling_list.Re
 #        'getcolor_expression',
         'name',
         'image.dtype',
+        'image.type',
         'image.size',
         'image.name'
 #       'transform_section',
@@ -212,6 +213,7 @@ class LayerStackTableModel(LayerStackTableDragDropBehavior, om.signaling_list.Re
             'visible' : self._getf__always_checkable,
             'auto_min_max_enabled' : self._getf__always_checkable,
             'image.dtype' : self._getf__never_editable,
+            'image.type' : self._getf__never_editable,
             'image.size' : self._getf__never_editable}
         self._special_data_setters = {
             'visible' : self._setd_visible,
