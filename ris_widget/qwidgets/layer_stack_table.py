@@ -64,6 +64,10 @@ class LayerStackTableView(Qt.QTableView):
         self.setDropIndicatorShown(True)
         self.setDefaultDropAction(Qt.Qt.LinkAction)
         self.horizontalHeader().resizeSections(Qt.QHeaderView.ResizeToContents)
+        # The text 'blend_function' is shorter than 'difference (advanced)', particularly with proportional fonts,
+        # so we make it 50% wider to be safe
+        col = layer_stack_table_model.property_columns['blend_function']
+        self.horizontalHeader().resizeSection(col, self.horizontalHeader().sectionSize(col) * 1.5)
         # The text 'image.size' is typically somewhat shorter than '2160x2560', so we widen that column
         # by an arbitrary fudge factor...
         col = layer_stack_table_model.property_columns['image.size']

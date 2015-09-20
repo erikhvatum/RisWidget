@@ -26,6 +26,12 @@ from PyQt5 import Qt
 from ..shared_resources import CHOICES_QITEMDATA_ROLE
 
 class DropdownListDelegate(Qt.QStyledItemDelegate):
+    def createEditor(self, parent, option, midx):
+        # We don't make use of "edit mode".  Returning None here prevents double click, enter keypress, etc, from
+        # engaging the default delegate behavior of dropping us into string edit mode, wherein a blinking text cursor
+        # is displayed in the cell.
+        return None
+
     def editorEvent(self, event, model, option, midx):
         if not midx.isValid() or option.widget is None:
             return False
