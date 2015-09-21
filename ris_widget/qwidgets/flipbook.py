@@ -45,6 +45,7 @@ class Flipbook(Qt.QWidget):
     Signals:
     * current_page_changed(Flipbook instance, page #)"""
     current_page_changed = Qt.pyqtSignal(object, int)
+    _x_thread_add_image_files = Qt.pyqtSignal(list)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -57,18 +58,22 @@ class Flipbook(Qt.QWidget):
         self.pages_view.selectionModel().currentRowChanged.connect(self._on_pages_current_idx_changed)
         l.addWidget(self.pages_view)
         self.progress_thread_pool = None
+        self._x_thread_add_image_files.connect(self._add_image_files, Qt.Qt.QueuedConnection)
+
+    def add_image_files(self, image_fpaths):
+        if Qt.QThread.currentThread() is Qt.QApplication.instance().thread():
+            self._add_image_files(image_fpaths)
+        else:
+            self._x_thread_add_images.emit(list(image_fpaths))
+
+    def _add_image_files(self, image_fpaths):
+        self.pages.extend(self._make_readers(image_fpaths))
 
     def _handle_dropped_files(self, fpaths, dst_row, dst_column, dst_parent):
         freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=None)
         if freeimage is None:
             return False
-        if self.progress_thread_pool is None:
-            self.progress_thread_pool = ProgressThreadPool()
-            self.progress_thread_pool.task_status_changed.connect(self._on_progress_thread_pool_task_status_changed)
-            self.progress_thread_pool.all_tasks_retired.connect(self._on_all_progress_thread_pool_tasks_retired)
-            self.layout().addWidget(self.progress_thread_pool)
-        tasks = [self.progress_thread_pool.submit(freeimage.read, str(fpath)) for fpath in fpaths]
-        self.pages[dst_row:dst_row] = tasks
+        self.pages[dst_row:dst_row] = self._make_readers(fpaths)
         return True
 
     def _on_progress_thread_pool_task_status_changed(self, task, old_status):
@@ -103,6 +108,16 @@ class Flipbook(Qt.QWidget):
         self.progress_thread_pool.deleteLater()
         self.progress_thread_pool = None
 
+    def _make_readers(self, image_fpaths):
+        assert Qt.QThread.currentThread() is Qt.QApplication.instance().thread()
+        freeimage = FREEIMAGE()
+        if self.progress_thread_pool is None:
+            self.progress_thread_pool = ProgressThreadPool()
+            self.progress_thread_pool.task_status_changed.connect(self._on_progress_thread_pool_task_status_changed)
+            self.progress_thread_pool.all_tasks_retired.connect(self._on_all_progress_thread_pool_tasks_retired)
+            self.layout().addWidget(self.progress_thread_pool)
+        return [self.progress_thread_pool.submit(freeimage.read, str(fpath)) for fpath in image_fpaths]
+
     @property
     def pages(self):
         return self.pages_model.signaling_list
@@ -127,7 +142,7 @@ class PagesView(Qt.QTableView):
         self.horizontalHeader().setSectionsClickable(False)
         self.verticalHeader().setHighlightSections(False)
         self.verticalHeader().setSectionsClickable(False)
-        self.setTextElideMode(Qt.Qt.ElideMiddle)
+        self.setTextElideMode(Qt.Qt.ElideLeft)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         self.setDragDropMode(Qt.QAbstractItemView.DragDrop)

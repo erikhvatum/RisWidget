@@ -426,8 +426,12 @@ class RisWidget(Qt.QMainWindow):
             lsi.update()
 
     def _on_inserted_into_layer_stack(self, idx=None, layers=None):
-        if not self.layer_stack_table_selection_model.currentIndex().isValid():
+        smidxs = self.layer_stack_table_selection_model.selectedRows()
+        if not smidxs:
             self.layer_stack_table_selection_model.setCurrentIndex(
+                self.layer_stack_table_model_inverter.index(0, 0),
+                Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
+            self.layer_stack_table_selection_model.select(
                 self.layer_stack_table_model_inverter.index(0, 0),
                 Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
 

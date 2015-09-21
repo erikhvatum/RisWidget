@@ -157,12 +157,12 @@ class LayerStackTableModel(LayerStackTableDragDropBehavior, om.signaling_list.Re
         'tint',
         'opacity',
 #        'getcolor_expression',
+#        'transform_section',
         'name',
         'image.dtype',
         'image.type',
         'image.size',
-        'image.name'
-#       'transform_section',
+        'image.name',
         )
 
     def __init__(
