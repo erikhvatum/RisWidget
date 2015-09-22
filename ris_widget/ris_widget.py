@@ -73,8 +73,7 @@ class RisWidget(Qt.QMainWindow):
         # rather than needing to disable them
         if sys.platform == 'darwin':
             style = Qt.QApplication.style()
-            if style.styleHint(Qt.QStyle.SH_ScrollBar_Transient) != 0:
-                Qt.QApplication.setStyle(NonTransientScrollbarsStyle(style))
+            Qt.QApplication.setStyle(NonTransientScrollbarsStyle(style))
         GL_QSURFACE_FORMAT(msaa_sample_count)
         if window_title is not None:
             self.setWindowTitle(window_title)
