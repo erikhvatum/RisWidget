@@ -49,6 +49,8 @@ void main()
     int i;
     float isa, ida, osa, oda, sada;
 
+    if(tex_coord.x < 0.0f || tex_coord.x > 1.0f || tex_coord.y < 0.0f || tex_coord.y > 1.0f) discard;
+
 $main
     gl_FragColor = vec4(dca / da, da * layer_stack_item_opacity);
 }

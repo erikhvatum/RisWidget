@@ -58,7 +58,7 @@ class Layer(Qt.QObject):
         'Ga'  : 'vec4(s.rrr, s.g)',
         'rgb' : 'vec4(s.rgb, 1.0f)',
         'rgba': 's'}
-    DEFAULT_TRANSFORM_SECTION = 'out_.rgb = pow((in_.rgb - rescale_min) / (rescale_range), gamma); out_.rgba *= tint;'
+    DEFAULT_TRANSFORM_SECTION = 'out_.rgb = pow(clamp((in_.rgb - rescale_min) / (rescale_range), 0.0f, 1.0f), gamma); out_.rgba *= tint;'
     # Blend functions adapted from http://dev.w3.org/SVG/modules/compositing/master/
     BLEND_FUNCTIONS = {
         'src' :      ('dca = sca;',

@@ -520,10 +520,7 @@ class LayerStackItem(ShaderItem):
             if tex is None:
                 tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
                 tex.setFormat(desired_texture_format)
-                tex.setWrapMode(Qt.QOpenGLTexture.ClampToBorder)
-                if 0:#sys.platform != 'darwin':
-                    # TODO: determine why the following call segfaults on OS X and remove the enclosing if statement
-                    tex.setBorderColor(self.TEXTURE_BORDER_COLOR)
+                tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
                 if layer.trilinear_filtering_enabled:
                     tex.setMipLevels(6)
                     tex.setAutoMipMapGenerationEnabled(True)
