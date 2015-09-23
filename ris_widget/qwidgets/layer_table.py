@@ -111,6 +111,9 @@ class LayerTableDragDropBehavior(om.signaling_list.DragDropModelBehavior):
     def dropMimeData(self, mime_data, drop_action, row, column, parent):
         return super().dropMimeData(mime_data, drop_action, self._fix_row_for_inversion(row), column, parent)
 
+    def can_drop_rows(self, src_model, src_rows, dst_row, dst_column, dst_parent):
+        return isinstance(src_model, LayerTableModel)
+
     def handle_dropped_qimage(self, qimage, name, dst_row, dst_column, dst_parent):
         image = Image.from_qimage(qimage=qimage, name=name)
         if image is not None:

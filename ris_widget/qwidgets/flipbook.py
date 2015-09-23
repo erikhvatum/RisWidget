@@ -152,7 +152,11 @@ class PagesView(Qt.QTableView):
         self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
         self.setSelectionMode(Qt.QAbstractItemView.ExtendedSelection)
 
-class PagesModel(om.signaling_list.DragDropModelBehavior, om.signaling_list.PropertyTableModel):
+class PagesModelDragDropBehavior(om.signaling_list.DragDropModelBehavior):
+    def can_drop_rows(self, src_model, src_rows, dst_row, dst_column, dst_parent):
+        return isinstance(src_model, PagesModel)
+
+class PagesModel(PagesModelDragDropBehavior, om.signaling_list.PropertyTableModel):
     PROPERTIES = (
         'name',
         )
