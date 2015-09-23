@@ -159,7 +159,7 @@ class HistogramItem(ShaderItem):
                 prog.enableAttributeArray(vert_coord_loc)
                 prog.setAttributeBuffer(vert_coord_loc, GL.GL_FLOAT, 0, 2, 0)
                 prog.setUniformValue('tex', 0)
-                dpi_ratio = Qt.QApplication.instance().desktop().devicePixelRatio()
+                dpi_ratio = widget.devicePixelRatio()
                 prog.setUniformValue('inv_view_size', 1/(dpi_ratio * widget.size().width()), 1/(dpi_ratio * widget.size().height()))
                 inv_max_transformed_bin_val = max_bin_val**-self.gamma_gamma
                 prog.setUniformValue('inv_max_transformed_bin_val', inv_max_transformed_bin_val)

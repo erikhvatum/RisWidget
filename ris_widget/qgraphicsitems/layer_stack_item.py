@@ -447,7 +447,7 @@ class LayerStackItem(ShaderItem):
             # with the result that they are stretched to fill the LayerStackItem.
             frag_to_tex = Qt.QTransform()
             frame = Qt.QPolygonF(view.mapFromScene(Qt.QPolygonF(self.sceneTransform().mapToPolygon(self.boundingRect().toRect()))))
-            dpi_ratio = Qt.QApplication.instance().desktop().devicePixelRatio()
+            dpi_ratio = widget.devicePixelRatio()
             if dpi_ratio != 1:
                 dpi_transform = Qt.QTransform()
                 dpi_transform.scale(dpi_ratio, dpi_ratio)
