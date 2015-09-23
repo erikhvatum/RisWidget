@@ -168,7 +168,7 @@ class RisWidget(Qt.QMainWindow):
         self.layer_stack_table_model = LayerStackTableModel(
             self.main_scene.layer_stack_item.override_enable_auto_min_max_action,
             self.main_scene.layer_stack_item.examine_layer_mode_action)
-        self.layer_stack_table_model_inverter = InvertingProxyModel(self.layer_stack_table_model)
+        self.layer_stack_table_model_inverter = InvertingProxyModel()
         self.layer_stack_table_model_inverter.setSourceModel(self.layer_stack_table_model)
         self.layer_stack_table_view = LayerStackTableView(self.layer_stack_table_model)
         self.layer_stack_table_view.setModel(self.layer_stack_table_model_inverter)
@@ -322,10 +322,11 @@ class RisWidget(Qt.QMainWindow):
         # is even aware that a row has been inserted.
         v.inserted.connect(self._on_inserted_into_layer_stack, Qt.Qt.QueuedConnection)
         v.replaced.connect(self._on_replaced_in_layer_stack)
+        v.removed.connect(self._on_removed_from_layer_stack, Qt.Qt.QueuedConnection)
         self.main_scene.layer_stack_item.layer_stack = v
         self.layer_stack_table_model.signaling_list = v
         if v:
-            self._on_inserted_into_layer_stack()
+            self.ensure_layer_selected()
             self.histogram_scene.histogram_item.layer = self.current_layer
 
     def _get_primary_image_stack_current_layer_idx(self):
@@ -399,6 +400,19 @@ class RisWidget(Qt.QMainWindow):
     def main_flipbook(self):
         return self._main_flipbook
 
+    def ensure_layer_selected(self):
+        """If no Layer is selected and .layer_stack is not empty:
+           If there is a "current" layer, IE highlighted but not selected, select it.
+           If there is no "current" layer, make .layer_stack[0] current and select it."""
+        if not self.layer_stack_table_selection_model.currentIndex().isValid():
+            self.layer_stack_table_selection_model.setCurrentIndex(
+                    self.layer_stack_table_model_inverter.index(0, 0),
+                    Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
+        if len(self.layer_stack_table_selection_model.selectedRows()) == 0:
+            self.layer_stack_table_selection_model.select(
+                self.layer_stack_table_selection_model.currentIndex(),
+                Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
+
     def _on_flipbook_current_page_changed(self, flipbook, idx):
         page = None if idx < 0 else flipbook.pages[idx]
         if isinstance(page, progress_thread_pool.Task):
@@ -425,17 +439,10 @@ class RisWidget(Qt.QMainWindow):
             lsi.update()
 
     def _on_inserted_into_layer_stack(self, idx=None, layers=None):
-        smidxs = self.layer_stack_table_selection_model.selectedRows()
-        if not smidxs:
-            self.layer_stack_table_selection_model.setCurrentIndex(
-                self.layer_stack_table_model_inverter.index(0, 0),
-                Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
-            self.layer_stack_table_selection_model.select(
-                self.layer_stack_table_model_inverter.index(0, 0),
-                Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
+        self.ensure_layer_selected()
 
     def _on_replaced_in_layer_stack(self, idxs, old_layers, new_layers):
-        self._on_inserted_into_layer_stack()
+        self.ensure_layer_selected()
         current_midx = self.layer_stack_table_selection_model.currentIndex()
         if current_midx.isValid():
             try:
@@ -444,6 +451,9 @@ class RisWidget(Qt.QMainWindow):
                 return
             old_current, new_current = old_layers[change_idx], new_layers[change_idx]
             self.histogram_scene.histogram_item.layer = new_current
+
+    def _on_removed_from_layer_stack(self, idxs, layers):
+        self.ensure_layer_selected()
 
     def _main_view_zoom_changed(self, zoom_preset_idx, custom_zoom):
         assert zoom_preset_idx == -1 and custom_zoom != 0 or zoom_preset_idx != -1 and custom_zoom == 0, \
