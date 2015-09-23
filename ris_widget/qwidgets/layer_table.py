@@ -33,7 +33,7 @@ from ..shared_resources import CHOICES_QITEMDATA_ROLE, FREEIMAGE
 from .. import om
 
 @om.item_view_shortcuts.with_selected_rows_deletion_shortcut
-class LayerStackTableView(Qt.QTableView):
+class LayerTableView(Qt.QTableView):
     model_changed = Qt.pyqtSignal(object)
     selection_model_changed = Qt.pyqtSignal(object)
 
@@ -97,7 +97,7 @@ class InvertingProxyModel(Qt.QSortFilterProxyModel):
         # We want the table upside-down and therefore will be sorting by index (aka row #)
         return lhs.row() < rhs.row()
 
-class LayerStackTableDragDropBehavior(om.signaling_list.DragDropModelBehavior):
+class LayerTableDragDropBehavior(om.signaling_list.DragDropModelBehavior):
     def _fix_row_for_inversion(self, row):
         if row == -1:
             return 0
@@ -131,19 +131,19 @@ class LayerStackTableDragDropBehavior(om.signaling_list.DragDropModelBehavior):
         self.signaling_list[dst_row:dst_row] = layers
         return True
 
-class LayerStackTableModel(LayerStackTableDragDropBehavior, om.signaling_list.RecursivePropertyTableModel):
-    # LayerStackTableModel accesses PROPERTIES strictly via self.PROPERTIES and never via LayerStackTableModel.PROPERTIES,
+class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePropertyTableModel):
+    # LayerTableModel accesses PROPERTIES strictly via self.PROPERTIES and never via LayerTableModel.PROPERTIES,
     # meaning that subclasses may safely add or remove columns by overridding PROPERTIES.  For example, adding a column for
     # a sublcassed Images having an "image_quality" property:
     #
-    # class LayerStackTableModel_ImageQuality(LayerStackTableModel):
+    # class LayerStackTableModel_ImageQuality(LayerTableModel):
     #     PROPERTIES = ImageStackTableModel.PROPERTIES + ('image.image_quality',)
     #
     # And that's it, provided image_quality is always a plain string and should not be editable.  Making it editable
     # would require adding an entry to self._special_flag_getters.  Alternative .flags may be overridden to activate the
     # Qt.Qt.ItemIsEditable flag, as in this example:
     #
-    # class LayerStackTableModel_ImageQuality(LayerStackTableModel):
+    # class LayerStackTableModel_ImageQuality(LayerTableModel):
     #     PROPERTIES = ImageStackTableModel.PROPERTIES + ('image.image_quality',)
     #     def flags(self, midx):
     #         if midx.column() == self.property_columns['image.image_quality']:
