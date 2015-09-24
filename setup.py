@@ -22,31 +22,48 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
-# Authors: Erik Hvatum <ice.rikh@gmail.com>
+# Authors: Erik Hvatum <ice.rikh@gmail.com>, Zach Pincus
 
-from distutils.core import setup
+import distutils.core
 import numpy
-import os
-from pathlib import Path
-import subprocess
+import pathlib
 import sys
 
-cpp_source = 'ris_widget/ndimage_statistics/_ndimage_statistics_impl.cpp'
-cython_source = 'ris_widget/ndimage_statistics/_ndimage_statistics.pyx'
-cythoned_source = 'ris_widget/ndimage_statistics/_ndimage_statistics.cpp'
-cython_source_deps = ['ris_widget/ndimage_statistics/_ndimage_statistics_impl.h']
-
-include_dirs = [numpy.get_include()]
-
 extra_compile_args = []
-extra_link_args = []
-define_macros = []
-
 if sys.platform != 'win32':
     extra_compile_args.append('-std=c++11')
 
-common_setup_args = {
-    'classifiers' : [
+try:
+    from Cython.Build import cythonize
+    ext_processor = cythonize
+except ImportError:
+    def uncythonize(extensions, **_ignore):
+        for extension in extensions:
+            sources = []
+            for src in map(pathlib.Path, extension.sources):
+                if src.suffix == '.pyx':
+                    if extension.language == 'c++':
+                        ext = '.cpp'
+                    else:
+                        ext = '.c'
+                    src = src.with_suffix(ext)
+                sources.append(str(src))
+            extension.sources[:] = sources
+        return extensions
+    ext_processor = uncythonize
+
+_ndimage_statistics = distutils.core.Extension(
+    'ris_widget.ndimage_statistics._ndimage_statistics',
+    language = 'c++',
+    sources = [
+        'ris_widget/ndimage_statistics/_ndimage_statistics.pyx',
+        'ris_widget/ndimage_statistics/_ndimage_statistics_impl.cpp'],
+    depends = ['ris_widget/ndimage_statistics/_ndimage_statistics_impl.h'],
+    extra_compile_args = extra_compile_args,
+    include_dirs = [numpy.get_include()])
+
+distutils.core.setup(
+    classifiers = [
         'Environment :: MacOS X',
         'Environment :: Win32 (MS Windows)',
         'Environment :: X11 Applications :: Qt',
@@ -64,55 +81,23 @@ common_setup_args = {
         'Topic :: Scientific/Engineering :: Medical Science Apps.',
         'Topic :: Scientific/Engineering :: Visualization',
         'Topic :: Software Development :: Widget Sets'],
-    'package_data' : {
+    package_data = {
         'ris_widget' : [
             'shaders/histogram_widget_fragment_shader_g.glsl',
             'shaders/histogram_widget_fragment_shader_rgb.glsl',
             'shaders/histogram_widget_vertex_shader.glsl',
             'shaders/image_widget_fragment_shader_template.glsl',
             'shaders/image_widget_vertex_shader.glsl']},
-    'description' : 'ris_widget (rapid image streaming widget) package',
-    'name' : 'ris_widget',
-    'packages' : ['ris_widget'],
-    'version' : '1.1'
-    }
-
-try:
-    from Cython.Distutils import build_ext
-    from Cython.Distutils.extension import Extension
-
-    class build_ext_forced_rebuild(build_ext):
-        def __init__(self, *va, **ka):
-            super().__init__(*va, **ka)
-            self.force = True
-
-    ext_modules = [Extension('ris_widget.ndimage_statistics._ndimage_statistics',
-                             sources = [cython_source, cpp_source],
-                             include_dirs = include_dirs,
-                             define_macros = define_macros,
-                             language = 'c++',
-                             depends = cython_source_deps,
-                             extra_compile_args = extra_compile_args,
-                             extra_link_args = extra_link_args,
-                             cython_directives={'language_level' : 3}
-                             )]
-
-    setup(cmdclass = {'build_ext' : build_ext_forced_rebuild},
-          ext_modules = ext_modules,
-          **common_setup_args)
-except ImportError:
-    print('Cython does not appear to be installed.  Attempting to use pre-made cpp file...')
-    from distutils.extension import Extension
-
-    ext_modules = [Extension('ris_widget.ndimage_statistics._ndimage_statistics',
-                             sources = [cythoned_source, cpp_source],
-                             include_dirs = include_dirs,
-                             define_macros = define_macros,
-                             language = 'c++',
-                             depends = cython_source_deps,
-                             extra_compile_args = extra_compile_args,
-                             extra_link_args = extra_link_args
-                             )]
-
-    setup(ext_modules = ext_modules,
-          **common_setup_args)
+    ext_modules = ext_processor([_ndimage_statistics]),
+    description = 'ris_widget (rapid image streaming widget) package',
+    name = 'ris_widget',
+    packages = [
+        'ris_widget',
+        'ris_widget.ndimage_statistics',
+        'ris_widget.om',
+        'ris_widget.om.signaling_list',
+        'ris_widget.qdelegates',
+        'ris_widget.qgraphicsitems',
+        'ris_widget.qgraphicsviews',
+        'ris_widget.qwidgets'],
+    version = '1.2')
