@@ -55,7 +55,7 @@ class ListTableModel(Qt.QAbstractTableModel):
         f = Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren
         if midx.isValid():
             row = midx.row()
-            if row <= len(self.signaling_list[row])
+            if row <= len(self.signaling_list[row]):
                 f |= Qt.Qt.ItemIsEnabled
         f |= self.drag_drop_flags(midx)
         return f
