@@ -39,6 +39,7 @@ class HistogramItem(ShaderItem):
         self._layer_data_serial = 0
         self._bounding_rect = Qt.QRectF(0, 0, 1, 1)
         self._tex = None
+        self._gl_widget = None
         self.min_item = MinMaxItem(self, 'min')
         self.max_item = MinMaxItem(self, 'max')
         self.gamma_item = GammaItem(self, self.min_item, self.max_item)
@@ -79,6 +80,11 @@ class HistogramItem(ShaderItem):
 
     def paint(self, qpainter, option, widget):
         assert widget is not None, 'histogram_scene.HistogramItem.paint called with widget=None.  Ensure that view caching is disabled.'
+        if self._gl_widget is None:
+            self._gl_widget = widget
+            widget.context_about_to_change.connect(self._on_gl_widget_context_about_to_change, Qt.Qt.DirectConnection)
+        else:
+            assert self._gl_widget is widget
         layer = self.layer
         if layer is None or layer.image is None:
             if self._tex is not None:
@@ -124,7 +130,6 @@ class HistogramItem(ShaderItem):
                     tex.bind()
                     estack.callback(tex.release)
                 histogram = image.histogram
-                #TODO: fix rgb hist computation in Image
                 if image.num_channels == 1:
                     max_bin_val = histogram[image.max_histogram_bin]
                 elif image.num_channels == 2:
@@ -149,13 +154,22 @@ class HistogramItem(ShaderItem):
                     tex.serial = self._layer_data_serial
                     tex.width = desired_tex_width
                     self._tex = tex
-                view.quad_buffer.bind()
+                if not view.quad_buffer.bind():
+                    Qt.qDebug('view.quad_buffer.bind() failed')
+                    return
                 estack.callback(view.quad_buffer.release)
+                if view.quad_vao is None:
+                    pass
                 view.quad_vao.bind()
                 estack.callback(view.quad_vao.release)
-                prog.bind()
+                if not prog.bind():
+                    Qt.qDebug('prog.bind() failed')
+                    return
                 estack.callback(prog.release)
                 vert_coord_loc = prog.attributeLocation('vert_coord')
+                if vert_coord_loc < 0:
+                    Qt.qDebug('vert_coord_loc < 0')
+                    return
                 prog.enableAttributeArray(vert_coord_loc)
                 prog.setAttributeBuffer(vert_coord_loc, GL.GL_FLOAT, 0, 2, 0)
                 prog.setUniformValue('tex', 0)
@@ -210,6 +224,13 @@ class HistogramItem(ShaderItem):
     def _on_layer_image_changed(self):
         self._layer_data_serial += 1
         self.update()
+
+    def _on_gl_widget_context_about_to_change(self, gl_widget):
+        assert gl_widget is self._gl_widget
+        self.progs = {}
+        if self._tex is not None:
+            self._tex.destroy()
+            self._tex = None
 
 class MinMaxItem(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()

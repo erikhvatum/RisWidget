@@ -274,6 +274,7 @@
             <F N="ris_widget/ris_widget.py"/>
             <F N="ris_widget/shared_resources.py"/>
         </Folder>
+        <F N="launch_riswidget_for_debugging.py"/>
         <F N="README.md"/>
         <F N="setup.py"/>
     </Files>

@@ -22,9 +22,10 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+from contextlib import ExitStack
 import numpy
 from PyQt5 import Qt
-from ..shared_resources import QGL, GL_QSURFACE_FORMAT
+from ..shared_resources import QGL, GL_LOGGER, GL_QSURFACE_FORMAT
 
 class BaseView(Qt.QGraphicsView):
     """Updates to things depending directly on the view's size (eg, in many cases, the view's own transformation), if any,
@@ -44,6 +45,8 @@ class BaseView(Qt.QGraphicsView):
         # reference is evidentally weak or perhaps just a pointer.
         self.gl_widget = gl_widget
         self.setViewport(gl_widget)
+        gl_widget.context_about_to_change.connect(self._on_context_about_to_change, Qt.Qt.DirectConnection)
+        gl_widget.context_changed.connect(self._on_context_changed, Qt.Qt.DirectConnection)
         if GL_QSURFACE_FORMAT().samples() > 0:
             self.setRenderHint(Qt.QPainter.Antialiasing)
         self.scene_region_changed.connect(base_scene.contextual_info_item.return_to_fixed_position)
@@ -51,6 +54,15 @@ class BaseView(Qt.QGraphicsView):
 
     def _on_gl_initializing(self):
         self._make_quad_vao()
+
+    def _on_context_about_to_change(self, gl_widget):
+        self.quad_vao.destroy()
+        self.quad_vao = None
+        self.quad_buffer.destroy()
+        self.quad_buffer = None
+
+    def _on_context_changed(self, gl_widget):
+        self._on_gl_initializing()
 
     def _make_quad_vao(self):
         self.quad_vao = Qt.QOpenGLVertexArrayObject()
@@ -129,6 +141,8 @@ class _ShaderViewGLViewport(Qt.QOpenGLWidget):
     All relevant QEvents are filtered by the QGraphicsView-derived instance.
     _ShaderViewGLViewport has paintGL and resizeGL methods only so that we can
     detect their being called."""
+    context_about_to_change = Qt.pyqtSignal(Qt.QOpenGLWidget)
+    context_changed = Qt.pyqtSignal(Qt.QOpenGLWidget)
 
     def __init__(self, view):
         super().__init__()
@@ -137,6 +151,61 @@ class _ShaderViewGLViewport(Qt.QOpenGLWidget):
 
     def initializeGL(self):
         self.view._on_gl_initializing()
+
+    def _check_current(self, estack):
+        if Qt.QOpenGLContext.currentContext() is not self.context():
+            self.makeCurrent()
+            estack.callback(self.doneCurrent)
+
+    def start_logging(self):
+        if hasattr(self, 'logger'):
+            return
+        with ExitStack() as estack:
+            self._check_current(estack)
+            self.logger = GL_LOGGER()
+
+    def stop_logging(self):
+        if not hasattr(self, 'logger'):
+            return
+        with ExitStack() as estack:
+            self._check_current(estack)
+            self.logger.stopLogging()
+            del self.logger
+
+    def event(self, e):
+        assert isinstance(e, Qt.QEvent)
+        if e.type() == 215:
+            # QEvent::WindowChangeInternal, an enum value equal to 215, is used internally by Qt and is not exposed by
+            # PyQt5 (there is no Qt.QEvent.WindowChangeInternal, but simply comparing against the value it would have
+            # works).  Upon receipt of a WindowChangeInternal event, QOpenGLWidget releases its C++ smart pointer 
+            # reference to its context, causing the smart pointer's atomic reference counter to decrement.  If the count
+            # has reached 0, the context is destroyed, and this is typically the case - but not always, and there is
+            # no way to ensure that it will be in any particular instance (the atomic counter value could be incremented
+            # by another thread in the interval between the query and actual smart pointer reset call).  So, QOpenGLWidget
+            # can't know if it ought to make the context current before releasing the context's smart pointer, although
+            # doing so would enable cleanup of GL resources.  Furthermore, QContext's destructor can not make itself
+            # current - doing so requires a QSurface, and QContext has no knowledge of any QSurface instances.
+            # 
+            # So, to get around all this nonsense, we intercept the WindowChangeInternal event, make our context current,
+            # emit the context_about_to_change signal to cause any cleanup that requires the old context to be current,
+            # make no context current, and then, finally, we allow QOpenGLWidget to respond to the event.
+            self.makeCurrent()
+            had_logger = hasattr(self, 'logger')
+            try:
+                if had_logger:
+                    self.stop_logging()
+                self.context_about_to_change.emit(self)
+            except Exception as e:
+                Qt.qDebug('Exception of type {} in response to context_about_to_change signal: {}'.format(type(e), str(e)))
+            self.doneCurrent()
+            r = super().event(e)
+            self.makeCurrent()
+            if had_logger:
+                self.start_logging()
+            self.context_changed.emit(self)
+            self.doneCurrent()
+            return r
+        return super().event(e)
 
     def paintGL(self):
         raise NotImplementedError(_ShaderViewGLViewport._DONT_CALL_ME_ERROR)

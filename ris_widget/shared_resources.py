@@ -55,7 +55,15 @@ def UNIQUE_QITEMDATA_ROLE():
 CHOICES_QITEMDATA_ROLE = UNIQUE_QITEMDATA_ROLE()
 
 class NoGLContextIsCurrentError(RuntimeError):
-    pass
+    DEFAULT_MESSAGE = (
+        'QOpenGLContext.currentContext() returned None, indicating that no OpenGL '
+        'context is current.  This usually indicates that a routine that makes '
+        'OpenGL calls was invoked in an unanticipated manner (EG, at-exit execution '
+        'of a destructor for an module-level object that wraps an OpenGL primitive).')
+    def __init__(self, message=None):
+        if message is None:
+            message = NoGLContextIsCurrentError.DEFAULT_MESSAGE
+        super().__init__(message)
 
 _GL_CACHE = {}
 
@@ -67,11 +75,7 @@ def QGL():
         return
     context = Qt.QOpenGLContext.currentContext()
     if context is None:
-        raise NoGLContextIsCurrentError(
-            'QOpenGLContext.currentContext() returned None, indicating that no OpenGL '
-            'context is current.  This usually indicates that a routine that makes '
-            'OpenGL calls was invoked in an unanticipated manner (EG, at-exit execution '
-            'of a destructor for an module-level object that wraps an OpenGL primitive).')
+        raise NoGLContextIsCurrentError()
     assert current_thread is context.thread()
     # Attempt to return cache entry, a Qt.QOpenGLVersionFunctions object...
     try:
@@ -109,6 +113,69 @@ def QGL():
 
 def _on_destruction_of_context_with_cached_gl(context):
     del _GL_CACHE[context]
+
+_GL_LOGGERS = {}
+
+def GL_LOGGER():
+    context = Qt.QOpenGLContext.currentContext()
+    if context is None:
+        raise NoGLContextIsCurrentError()
+    assert Qt.QThread.currentThread() is context.thread()
+    try:
+        return _GL_LOGGERS[context]
+    except KeyError:
+        pass
+    gl_logger = Qt.QOpenGLDebugLogger()
+    if not gl_logger.initialize():
+        raise RuntimeError('Failed to initialize QOpenGLDebugLogger.')
+    gl_logger.messageLogged.connect(_on_gl_logger_message)
+    context.destroyed.connect(_on_destroyed_context_with_gl_logger)
+    gl_logger.enableMessages()
+    gl_logger.startLogging(Qt.QOpenGLDebugLogger.SynchronousLogging)
+    _GL_LOGGERS[context] = gl_logger
+    return gl_logger
+
+_GL_LOGGER_MESSAGE_SEVERITIES = {
+    Qt.QOpenGLDebugMessage.InvalidSeverity : 'Invalid',
+    Qt.QOpenGLDebugMessage.HighSeverity : 'High',
+    Qt.QOpenGLDebugMessage.MediumSeverity : 'Medium',
+    Qt.QOpenGLDebugMessage.LowSeverity : 'Low',
+    Qt.QOpenGLDebugMessage.NotificationSeverity : 'Notification',
+    Qt.QOpenGLDebugMessage.AnySeverity : 'Any'}
+
+_GL_LOGGER_MESSAGE_SOURCES = {
+    Qt.QOpenGLDebugMessage.InvalidSource : 'Invalid',
+    Qt.QOpenGLDebugMessage.APISource : 'API',
+    Qt.QOpenGLDebugMessage.WindowSystemSource : 'WindowSystem',
+    Qt.QOpenGLDebugMessage.ShaderCompilerSource : 'ShaderCompiler',
+    Qt.QOpenGLDebugMessage.ThirdPartySource : 'ThirdParty',
+    Qt.QOpenGLDebugMessage.ApplicationSource : 'Application',
+    Qt.QOpenGLDebugMessage.OtherSource : 'Other',
+    Qt.QOpenGLDebugMessage.AnySource : 'Any'}
+
+_GL_LOGGER_MESSAGE_TYPES = {
+    Qt.QOpenGLDebugMessage.InvalidType : 'Invalid',
+    Qt.QOpenGLDebugMessage.ErrorType : 'Error',
+    Qt.QOpenGLDebugMessage.DeprecatedBehaviorType : 'DeprecatedBehavior',
+    Qt.QOpenGLDebugMessage.UndefinedBehaviorType : 'UndefinedBehavior',
+    Qt.QOpenGLDebugMessage.PortabilityType : 'Portability',
+    Qt.QOpenGLDebugMessage.PerformanceType : 'Performance',
+    Qt.QOpenGLDebugMessage.OtherType : 'Other',
+    Qt.QOpenGLDebugMessage.MarkerType : 'Marker',
+    Qt.QOpenGLDebugMessage.GroupPushType : 'GroupPush',
+    Qt.QOpenGLDebugMessage.GroupPopType : 'GroupPop',
+    Qt.QOpenGLDebugMessage.AnyType : 'Any'}
+
+def _on_gl_logger_message(message):
+    Qt.qDebug('GL LOG MESSAGE (severity: {}, source: {}, type: {}, GL ID: {}): "{}"'.format(
+        _GL_LOGGER_MESSAGE_SEVERITIES[message.severity()],
+        _GL_LOGGER_MESSAGE_SOURCES[message.source()],
+        _GL_LOGGER_MESSAGE_TYPES[message.type()],
+        message.id(),
+        message.message()))
+
+def _on_destroyed_context_with_gl_logger(context):
+    del _GL_LOGGERS[context]
 
 _NV_PATH_RENDERING_AVAILABLE = None
 

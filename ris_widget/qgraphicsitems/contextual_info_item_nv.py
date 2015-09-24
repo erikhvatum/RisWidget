@@ -90,7 +90,7 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
             gl_widget.doneCurrent()
 
     def type(self):
-        return ContextualInfoItem.QGRAPHICSITEM_TYPE
+        return ContextualInfoItemNV.QGRAPHICSITEM_TYPE
 
     def boundingRect(self):
         if 0:#self._text:
