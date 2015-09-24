@@ -199,7 +199,7 @@ class RisWidget(Qt.QMainWindow):
 #       return flipbook
 
     def _init_flipbook(self):
-        self._flipbook = fb = self.FlipbookClass(self)
+        self.flipbook = fb = self.FlipbookClass(self)
         fb.current_page_changed.connect(self._on_flipbook_current_page_changed)
         self.flipbook_dock_widget = Qt.QDockWidget('Main Flipbook', self)
         self.flipbook_dock_widget.setWidget(fb)
@@ -395,10 +395,6 @@ class RisWidget(Qt.QMainWindow):
     @image.setter
     def image(self, v):
         self.layer.image = v
-
-    @property
-    def flipbook(self):
-        return self._flipbook
 
     def ensure_layer_selected(self):
         """If no Layer is selected and .layer_stack is not empty:

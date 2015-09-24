@@ -161,7 +161,7 @@ class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePro
         'opacity',
 #        'getcolor_expression',
 #        'transform_section',
-        'name',
+#        'name',
         'image.dtype',
         'image.type',
         'image.size',
