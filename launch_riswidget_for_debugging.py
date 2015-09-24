@@ -24,6 +24,9 @@ app = Qt.QApplication(argv)
 rw = RisWidget()
 rw.show()
 rw.layer_stack = im
-rw.histogram_view.gl_widget.start_logging()
+#rw.histogram_view.gl_widget.start_logging()
 
 app.exec_()
+import gc
+del rw
+gc.collect()
