@@ -93,7 +93,7 @@ class RisWidget(Qt.QMainWindow):
             HistgramViewContextualInfoItemClass)
         self._layer_stack = None
         self.layer_stack = layer_stack
-        self._init_main_flipbook()
+        self._init_flipbook()
         self._init_actions()
         self._init_toolbars()
         self._init_menus()
@@ -198,14 +198,14 @@ class RisWidget(Qt.QMainWindow):
 #       self.addDockWidget(Qt.Qt.RightDockWidgetArea, dock_widget)
 #       return flipbook
 
-    def _init_main_flipbook(self):
-        self._main_flipbook = fb = self.FlipbookClass(self)
+    def _init_flipbook(self):
+        self._flipbook = fb = self.FlipbookClass(self)
         fb.current_page_changed.connect(self._on_flipbook_current_page_changed)
-        self.main_flipbook_dock_widget = Qt.QDockWidget('Main Flipbook', self)
-        self.main_flipbook_dock_widget.setWidget(fb)
-        self.main_flipbook_dock_widget.setAllowedAreas(Qt.Qt.RightDockWidgetArea | Qt.Qt.LeftDockWidgetArea)
-        self.main_flipbook_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
-        self.addDockWidget(Qt.Qt.RightDockWidgetArea, self.main_flipbook_dock_widget)
+        self.flipbook_dock_widget = Qt.QDockWidget('Main Flipbook', self)
+        self.flipbook_dock_widget.setWidget(fb)
+        self.flipbook_dock_widget.setAllowedAreas(Qt.Qt.RightDockWidgetArea | Qt.Qt.LeftDockWidgetArea)
+        self.flipbook_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
+        self.addDockWidget(Qt.Qt.RightDockWidgetArea, self.flipbook_dock_widget)
 
     def _init_toolbars(self):
         self.main_view_toolbar = self.addToolBar('Main View')
@@ -228,7 +228,7 @@ class RisWidget(Qt.QMainWindow):
         self.main_view_toolbar.addAction(self.main_scene.layer_stack_item.examine_layer_mode_action)
         self.dock_widget_visibility_toolbar = self.addToolBar('Dock Widget Visibility')
         self.dock_widget_visibility_toolbar.addAction(self.layer_table_dock_widget.toggleViewAction())
-        self.dock_widget_visibility_toolbar.addAction(self.main_flipbook_dock_widget.toggleViewAction())
+        self.dock_widget_visibility_toolbar.addAction(self.flipbook_dock_widget.toggleViewAction())
         self.dock_widget_visibility_toolbar.addAction(self.histogram_dock_widget.toggleViewAction())
 
     def _init_menus(self):
@@ -259,7 +259,7 @@ class RisWidget(Qt.QMainWindow):
             image = Image.from_qimage(qimage=qimage, name=mime_data.urls()[0].toDisplayString() if mime_data.hasUrls() else None)
             if image is not None:
                 layer = Layer(image=image)
-                self.main_flipbook.pages[:] = [layer]
+                self.flipbook.pages[:] = [layer]
                 event.accept()
         elif mime_data.hasUrls():
             # Note: if the URL is a "file://..." representing a local file, toLocalFile returns a string
@@ -270,7 +270,7 @@ class RisWidget(Qt.QMainWindow):
                 e = 'In order for image file drag & drop to work on OS X >=10.10 (Yosemite), please upgrade to at least Qt 5.4.1.'
                 Qt.QMessageBox.information(self, 'Qt Upgrade Required', e)
                 return
-            if self.main_flipbook.pages_model.handle_dropped_files(fpaths, len(self.main_flipbook.pages), 0, Qt.QModelIndex()):
+            if self.flipbook.pages_model.handle_dropped_files(fpaths, len(self.flipbook.pages), 0, Qt.QModelIndex()):
                 event.accept()
 
     @property
@@ -397,13 +397,15 @@ class RisWidget(Qt.QMainWindow):
         self.layer.image = v
 
     @property
-    def main_flipbook(self):
-        return self._main_flipbook
+    def flipbook(self):
+        return self._flipbook
 
     def ensure_layer_selected(self):
         """If no Layer is selected and .layer_stack is not empty:
            If there is a "current" layer, IE highlighted but not selected, select it.
            If there is no "current" layer, make .layer_stack[0] current and select it."""
+        if not self.layer_stack:
+            return
         if not self.layer_table_selection_model.currentIndex().isValid():
             self.layer_table_selection_model.setCurrentIndex(
                     self.layer_table_model_inverter.index(0, 0),

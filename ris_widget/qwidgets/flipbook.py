@@ -68,12 +68,14 @@ class Flipbook(Qt.QWidget):
 
     def _add_image_files(self, image_fpaths):
         self.pages.extend(self._make_readers(image_fpaths))
+        self.ensure_page_selected()
 
     def _handle_dropped_files(self, fpaths, dst_row, dst_column, dst_parent):
         freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=None)
         if freeimage is None:
             return False
         self.pages[dst_row:dst_row] = self._make_readers(fpaths)
+        self.ensure_page_selected()
         return True
 
     def _on_progress_thread_pool_task_status_changed(self, task, old_status):
@@ -84,16 +86,20 @@ class Flipbook(Qt.QWidget):
             # changed to Completed status before being removed.
             return
         if task.status is TaskStatus.Completed:
-            next_idx = 0
             pages = self.pages
+            name = task.callable_va[0]
+            layer_stack = om.SignalingList([Layer(Image(task.result, name=name), name=name)])
+            layer_stack.name = name
+            task._progress_thread_pool = None
+            next_idx = 0
+            current_midx = self.pages_view.selectionModel().currentIndex()
+            current_idx = current_midx.row() if current_midx.isValid() else None
             for _ in range(element_inst_count):
                 idx = pages.index(task, next_idx)
                 next_idx = idx + 1
-                name = task.callable_va[0]
-                layer_stack = om.SignalingList([Layer(Image(task.result, name=name), name=name)])
-                layer_stack.name = name
                 pages[idx] = layer_stack
-                task._progress_thread_pool = None
+                if idx == current_idx:
+                    self.current_page_changed.emit(self, idx)
         else:
             next_idx = 0
             pages = self.pages
@@ -117,6 +123,22 @@ class Flipbook(Qt.QWidget):
             self.progress_thread_pool.all_tasks_retired.connect(self._on_all_progress_thread_pool_tasks_retired)
             self.layout().addWidget(self.progress_thread_pool)
         return [self.progress_thread_pool.submit(freeimage.read, str(fpath)) for fpath in image_fpaths]
+
+    def ensure_page_selected(self):
+        """If no page is selected and .pages is not empty:
+           If there is a "current" page, IE highlighted but not selected, select it.
+           If there is no "current" page, make .pages[0] current and select it."""
+        if not self.pages:
+            return
+        sm = self.pages_view.selectionModel()
+        if not sm.currentIndex().isValid():
+            sm.setCurrentIndex(
+                    self.pages_model.index(0, 0),
+                    Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
+        if len(sm.selectedRows()) == 0:
+            sm.select(
+                sm.currentIndex(),
+                Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
 
     @property
     def pages(self):
