@@ -200,12 +200,15 @@ class RisWidget(Qt.QMainWindow):
 
     def _init_flipbook(self):
         self.flipbook = fb = self.FlipbookClass(self)
-        fb.current_page_changed.connect(self._on_flipbook_current_page_changed)
         self.flipbook_dock_widget = Qt.QDockWidget('Main Flipbook', self)
         self.flipbook_dock_widget.setWidget(fb)
         self.flipbook_dock_widget.setAllowedAreas(Qt.Qt.RightDockWidgetArea | Qt.Qt.LeftDockWidgetArea)
         self.flipbook_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
         self.addDockWidget(Qt.Qt.RightDockWidgetArea, self.flipbook_dock_widget)
+        fb.current_page_changed.connect(self._on_flipbook_current_page_changed)
+        fb.pages_model.rowsInserted.connect(self._on_flipbook_pages_inserted)
+        fb.pages_model.rowsRemoved.connect(self._on_flipbook_pages_removed)
+        self.flipbook_dock_widget.hide()
 
     def _init_toolbars(self):
         self.main_view_toolbar = self.addToolBar('Main View')
@@ -416,6 +419,17 @@ class RisWidget(Qt.QMainWindow):
         if isinstance(page, progress_thread_pool.Task):
             return
         self.layer_stack = page
+
+    def _on_flipbook_pages_inserted(self, parent, first_idx, last_idx):
+        self._update_flipbook_visibility()
+
+    def _on_flipbook_pages_removed(self, parent, first_idx, last_idx):
+        self._update_flipbook_visibility()
+
+    def _update_flipbook_visibility(self):
+        fb_is_visible = self.flipbook_dock_widget.isVisible()
+        if (len(self.flipbook.pages) > 0) != fb_is_visible:
+            self.flipbook_dock_widget.hide() if fb_is_visible else self.flipbook_dock_widget.show()
 
     def _on_layer_stack_name_changed(self, layer_stack):
         assert layer_stack is self.layer_stack
