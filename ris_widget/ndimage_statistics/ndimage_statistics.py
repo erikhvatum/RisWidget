@@ -25,8 +25,9 @@
 import numpy
 from collections import namedtuple
 import concurrent.futures as futures
+import multiprocessing
 
-pool = futures.ThreadPoolExecutor(max_workers=16)
+pool = futures.ThreadPoolExecutor(max_workers=multiprocessing.cpu_count() + 1)
 
 NDImageStatistics = namedtuple('NDImageStatistics', ('histogram', 'max_bin', 'min_max_intensity'))
 

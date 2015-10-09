@@ -273,8 +273,8 @@ class RisWidget(Qt.QMainWindow):
                 e = 'In order for image file drag & drop to work on OS X >=10.10 (Yosemite), please upgrade to at least Qt 5.4.1.'
                 Qt.QMessageBox.information(self, 'Qt Upgrade Required', e)
                 return
-            if self.flipbook.pages_model.handle_dropped_files(fpaths, len(self.flipbook.pages), 0, Qt.QModelIndex()):
-                event.accept()
+            self.flipbook.add_image_files(fpaths)
+            event.accept()
 
     @property
     def layer_stack(self):
