@@ -53,6 +53,7 @@ class Flipbook(Qt.QWidget):
         self.setLayout(l)
         self.pages_model = PagesModel(om.SignalingList())
         self.pages_model.handle_dropped_files = self._handle_dropped_files
+        self.pages_model.rowsInserted.connect(self._on_model_rows_inserted, Qt.Qt.QueuedConnection)
         self.pages_view = PagesView(self.pages_model)
         self.pages_view.setModel(self.pages_model)
         self.pages_view.selectionModel().currentRowChanged.connect(self._on_pages_current_idx_changed)
@@ -124,6 +125,9 @@ class Flipbook(Qt.QWidget):
             self.layout().addWidget(self.progress_thread_pool)
         return [self.progress_thread_pool.submit(freeimage.read, str(fpath)) for fpath in image_fpaths]
 
+    def _on_model_rows_inserted(self, _, __, ___):
+        self.pages_view.resizeRowsToContents()
+
     def ensure_page_selected(self):
         """If no page is selected and .pages is not empty:
            If there is a "current" page, IE highlighted but not selected, select it.
@@ -173,6 +177,7 @@ class PagesView(Qt.QTableView):
         self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
         self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
         self.setSelectionMode(Qt.QAbstractItemView.ExtendedSelection)
+        self.setWordWrap(False)
 
 class PagesModelDragDropBehavior(om.signaling_list.DragDropModelBehavior):
     def can_drop_rows(self, src_model, src_rows, dst_row, dst_column, dst_parent):

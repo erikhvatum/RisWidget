@@ -179,7 +179,7 @@ class ProgressThreadPool(Qt.QWidget):
         self._updating_pool = False
         if max_workers is None:
             import multiprocessing
-            max_workers = multiprocessing.cpu_count()
+            max_workers = multiprocessing.cpu_count() + 1
         self._max_workers = max_workers
         if thread_pool_executor is None:
             thread_pool_executor = futures.ThreadPoolExecutor(max_workers)
