@@ -255,14 +255,16 @@ def FREEIMAGE(show_messagebox_on_error=False, error_messagebox_owner=None):
             except ImportError:
                 Qt.QMessageBox.information(
                     error_messagebox_owner,
-                    'freeimage.py Not Found',
-                    "Zach's freeimage module is required for loading drag & dropped image files.")
+                    'freeimage-py Module Not Found',
+                    """Zach's <a href=https://github.com/zpincus/freeimage-py>freeimage-py module</a> is required for loading image files with RisWidget.
+                    Even without freeimage-py, RisWidget accepts image data (<i>rw.image = numpy.zeros((400,400),dtype=numpy.uint8)</i>, for example), but
+                    freeimage-py is required if RisWidget is to open image files on your behalf.""")
                 return
             except RuntimeError as e:
                 estr = '\n'.join((
                     "freeimage.py was found, but an error occurred while importing it " + \
                     "(likely because freeimage.so/dylib/dll could not be found):\n",) + e.args)
-                Qt.QMessageBox.information(error_messagebox_owner, 'Error While Importing freeimage Module', estr)
+                Qt.QMessageBox.information(error_messagebox_owner, 'Error While Importing freeimage-py Module', estr)
                 return
         else:
             import freeimage
