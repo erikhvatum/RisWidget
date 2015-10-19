@@ -22,6 +22,7 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+import enum
 from PyQt5 import Qt
 from .. import om
 from ..image import Image
@@ -50,6 +51,7 @@ class ComponentFlipbook(Qt.QWidget):
         self.setLayout(l)
         self.pages_model = PagesModel(om.SignalingList())
         self.pages_model.handle_dropped_files = self._handle_dropped_files
+        self.pages_model.rowsInserted.connect(self._on_model_rows_inserted, Qt.Qt.QueuedConnection)
         self.pages_view = PagesView(self.pages_model)
         self.pages_view.setModel(self.pages_model)
         self.pages_view.selectionModel().currentRowChanged.connect(self._on_pages_current_idx_changed)
@@ -122,6 +124,12 @@ class ComponentFlipbook(Qt.QWidget):
 
         return l
 
+    def _add_image_files(self, image_fpaths):
+        rs = self._make_readers(image_fpaths)
+        if rs is not None:
+            self.pages.extend(self._make_readers(image_fpaths))
+            self.ensure_page_selected()
+
     def _handle_dropped_files(self, fpaths, dst_row, dst_column, dst_parent):
         freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=None)
         if freeimage is None:
@@ -167,13 +175,20 @@ class ComponentFlipbook(Qt.QWidget):
             # changed to Completed status before being removed.
             return
         if task.status is TaskStatus.Completed:
-            next_idx = 0
             pages = self.pages
+            name = task.callable_va[0]
+            layer_stack = om.SignalingList([Layer(Image(task.result, name=name), name=name)])
+            layer_stack.name = name
+            task._progress_thread_pool = None
+            next_idx = 0
+            current_midx = self.pages_view.selectionModel().currentIndex()
+            current_idx = current_midx.row() if current_midx.isValid() else None
             for _ in range(element_inst_count):
                 idx = pages.index(task, next_idx)
                 next_idx = idx + 1
-                pages[idx] = task.result
-                task._progress_thread_pool = None
+                pages[idx] = layer_stack
+                if idx == current_idx:
+                    self.current_page_changed.emit(self, idx)
         else:
             next_idx = 0
             pages = self.pages
@@ -188,15 +203,46 @@ class ComponentFlipbook(Qt.QWidget):
         self.progress_thread_pool.deleteLater()
         self.progress_thread_pool = None
 
+    def _make_readers(self, image_fpaths):
+        assert Qt.QThread.currentThread() is Qt.QApplication.instance().thread()
+        freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
+        if freeimage:
+            if self.progress_thread_pool is None:
+                self.progress_thread_pool = ProgressThreadPool()
+                self.progress_thread_pool.task_status_changed.connect(self._on_progress_thread_pool_task_status_changed)
+                self.progress_thread_pool.all_tasks_retired.connect(self._on_all_progress_thread_pool_tasks_retired)
+                self.layout().addWidget(self.progress_thread_pool)
+            return [self.progress_thread_pool.submit(freeimage.read, str(fpath)) for fpath in image_fpaths]
+
+    def _on_model_rows_inserted(self, _, __, ___):
+        self.pages_view.resizeRowsToContents()
+
+    def ensure_page_selected(self):
+        """If no page is selected and .pages is not empty:
+           If there is a "current" page, IE highlighted but not selected, select it.
+           If there is no "current" page, make .pages[0] current and select it."""
+        if not self.pages:
+            return
+        sm = self.pages_view.selectionModel()
+        if not sm.currentIndex().isValid():
+            sm.setCurrentIndex(
+                    self.pages_model.index(0, 0),
+                    Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
+        if len(sm.selectedRows()) == 0:
+            sm.select(
+                sm.currentIndex(),
+                Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
+
     @property
     def pages(self):
         return self.pages_model.signaling_list
 
     @pages.setter
     def pages(self, pages):
-        assert isinstance(pages, om.SignalingList)
+        if not isinstance(pages, om.SignalingList) and any(not hasattr(pages, signal) for signal in ('inserted', 'removed', 'replaced', 'name_changed')):
+            pages = om.SignalingList(pages)
         self.pages_model.signaling_list = pages
-        self.current_page_changed.emit(self, self.selectionModel().currentIndex().row())
+        self.current_page_changed.emit(self, self.pages_view.selectionModel().currentIndex().row())
 
     def _on_pages_current_idx_changed(self, midx, old_midx):
         self.current_page_changed.emit(self, midx.row())
@@ -211,7 +257,7 @@ class PagesView(Qt.QTableView):
         self.horizontalHeader().setSectionsClickable(False)
         self.verticalHeader().setHighlightSections(False)
         self.verticalHeader().setSectionsClickable(False)
-        self.setTextElideMode(Qt.Qt.ElideMiddle)
+        self.setTextElideMode(Qt.Qt.ElideLeft)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         self.setDragDropMode(Qt.QAbstractItemView.DragDrop)
@@ -220,6 +266,7 @@ class PagesView(Qt.QTableView):
         self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
         self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
         self.setSelectionMode(Qt.QAbstractItemView.ExtendedSelection)
+        self.setWordWrap(False)
 
 class PagesModel(om.signaling_list.DragDropModelBehavior, om.signaling_list.PropertyTableModel):
     PROPERTIES = (
