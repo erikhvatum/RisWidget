@@ -22,6 +22,8 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+import numpy
+from pathlib import Path
 from PyQt5 import Qt
 from .. import om
 from ..image import Image
@@ -30,11 +32,17 @@ from ..shared_resources import FREEIMAGE
 from .progress_thread_pool import ProgressThreadPool, Task, TaskStatus
 
 _X_THREAD_ADD_IMAGE_FILES_EVENT = Qt.QEvent.registerEventType()
+_X_THREAD_ADD_IMAGE_FILE_STACKS = Qt.QEvent.registerEventType()
 
 class _XThreadAddImageFilesEvent(Qt.QEvent):
     def __init__(self, image_fpaths):
         super().__init__(_X_THREAD_ADD_IMAGE_FILES_EVENT)
         self.image_fpaths = image_fpaths
+
+class _XThreadAddImageFileStacksEvent(Qt.QEvent):
+    def __init__(self, image_fpath_stacks):
+        super().__init__(_X_THREAD_ADD_IMAGE_FILES_EVENT)
+        self.image_fpath_stacks = image_fpath_stacks
 
 #TODO: feed entirety of .pages to ProgressThreadPool and make ProgressThreadPool entirely ignore non-Task elements
 #rather than raising exceptions
@@ -72,17 +80,33 @@ class Flipbook(Qt.QWidget):
         else:
             Qt.QApplication.instance().postEvent(self, _XThreadAddImageFilesEvent(image_fpaths))
 
+    def add_image_file_stacks(self, image_fpath_stacks):
+        if Qt.QThread.currentThread() is Qt.QApplication.instance().thread():
+            self._add_image_file_stacks(image_fpath_stacks)
+        else:
+            Qt.QApplication.instance().postEvent(self, _XThreadAddImageFileStacksEvent(image_fpath_stacks))
+
     def event(self, event):
         if event.type() == _X_THREAD_ADD_IMAGE_FILES_EVENT:
             assert isinstance(event, _XThreadAddImageFilesEvent)
             self._add_image_files(event.image_fpaths)
             return True
+        if event.type() == _X_THREAD_ADD_IMAGE_FILE_STACKS:
+            assert isinstance(event, _XThreadAddImageFileStacksEvent)
+            self._add_image_file_stacks(event.image_fpath_stacks)
+            return True
         return super().event(event)
 
     def _add_image_files(self, image_fpaths):
-        rs = self._make_readers(image_fpaths)
-        if rs is not None:
-            self.pages.extend(self._make_readers(image_fpaths))
+        irs = self._make_image_readers(image_fpaths)
+        if irs is not None:
+            self.pages.extend(irs)
+            self.ensure_page_selected()
+
+    def _add_image_file_stacks(self, image_fpath_stacks):
+        isrs = self._make_image_stack_readers(image_fpath_stacks)
+        if isrs is not None:
+            self.pages.extend(isrs)
             self.ensure_page_selected()
 
     def _handle_dropped_files(self, fpaths, dst_row, dst_column, dst_parent):
@@ -102,8 +126,11 @@ class Flipbook(Qt.QWidget):
             return
         if task.status is TaskStatus.Completed:
             pages = self.pages
-            name = task.callable_va[0]
-            layer_stack = om.SignalingList([Layer(Image(task.result, name=name), name=name)])
+            name = task.result_name
+            if isinstance(task.result, numpy.ndarray):
+                layer_stack = om.SignalingList([Layer(Image(task.result, name=name), name=name)])
+            else:
+                layer_stack = om.SignalingList(Layer(Image(image_data, name=image_name), name=image_name) for image_data, image_name in task.result)
             layer_stack.name = name
             task._progress_thread_pool = None
             next_idx = 0
@@ -129,7 +156,7 @@ class Flipbook(Qt.QWidget):
         self.progress_thread_pool.deleteLater()
         self.progress_thread_pool = None
 
-    def _make_readers(self, image_fpaths):
+    def _make_image_readers(self, image_fpaths):
         assert Qt.QThread.currentThread() is Qt.QApplication.instance().thread()
         freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
         if freeimage:
@@ -138,7 +165,30 @@ class Flipbook(Qt.QWidget):
                 self.progress_thread_pool.task_status_changed.connect(self._on_progress_thread_pool_task_status_changed)
                 self.progress_thread_pool.all_tasks_retired.connect(self._on_all_progress_thread_pool_tasks_retired)
                 self.layout().addWidget(self.progress_thread_pool)
-            return [self.progress_thread_pool.submit(freeimage.read, str(fpath)) for fpath in image_fpaths]
+            readers = []
+            for fpath in image_fpaths:
+                reader = self.progress_thread_pool.submit(freeimage.read, str(fpath))
+                reader.result_name = str(fpath)
+                readers.append(reader)
+            return readers
+
+    def _make_image_stack_readers(self, image_fpath_stacks):
+        assert Qt.QThread.currentThread() is Qt.QApplication.instance().thread()
+        freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
+        if freeimage:
+            if self.progress_thread_pool is None:
+                self.progress_thread_pool = ProgressThreadPool()
+                self.progress_thread_pool.task_status_changed.connect(self._on_progress_thread_pool_task_status_changed)
+                self.progress_thread_pool.all_tasks_retired.connect(self._on_all_progress_thread_pool_tasks_retired)
+                self.layout().addWidget(self.progress_thread_pool)
+            stack_readers = []
+            def read_stack(image_fpaths):
+                return [(freeimage.read(str(image_fpath)), str(image_fpath)) for image_fpath in image_fpaths]
+            for image_fpaths in image_fpath_stacks:
+                stack_reader = self.progress_thread_pool.submit(read_stack, image_fpaths)
+                stack_reader.result_name = ', '.join(Path(image_fpath).stem for image_fpath in image_fpaths)
+                stack_readers.append(stack_reader)
+            return stack_readers
 
     def _on_model_rows_inserted(self, _, __, ___):
         self.pages_view.resizeRowsToContents()
@@ -220,7 +270,7 @@ class PagesModel(PagesModelDragDropBehavior, om.signaling_list.PropertyTableMode
                 return Qt.QVariant()
             if isinstance(element, Task):
                 if role == Qt.Qt.DisplayRole:
-                    return Qt.QVariant('({}) {}'.format(element.status.name, element.callable_va[0]))
+                    return Qt.QVariant('{} ({})'.format(element.result_name, element.status.name))
                 if role == Qt.Qt.ForegroundRole:
                     return Qt.QVariant(Qt.QApplication.palette().brush(Qt.QPalette.Disabled, Qt.QPalette.WindowText))
         return super().data(midx, role)

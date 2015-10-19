@@ -137,6 +137,11 @@ class RisWidget(Qt.QMainWindow):
         self.main_scene_snapshot_action.setShortcut(Qt.Qt.Key_S)
         self.main_scene_snapshot_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
         self.main_scene_snapshot_action.setToolTip('Append snapshot of .main_view to .flipbook.pages')
+        self.propagate_selected_layer_props_action = Qt.QAction(self)
+        self.propagate_selected_layer_props_action.setText('Propagate Selected Layer Properties')
+        self.propagate_selected_layer_props_action.setShortcut(Qt.Qt.Key_P)
+        self.propagate_selected_layer_props_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
+        self.propagate_selected_layer_props_action.triggered.connect(self.propagate_selected_layer_props)
 
     @staticmethod
     def _format_zoom(zoom):
@@ -229,6 +234,7 @@ class RisWidget(Qt.QMainWindow):
         self.main_view_toolbar.addAction(self.layer_stack_reset_curr_gamma)
         self.main_view_toolbar.addAction(self.main_scene.layer_stack_item.override_enable_auto_min_max_action)
         self.main_view_toolbar.addAction(self.main_scene.layer_stack_item.examine_layer_mode_action)
+        self.main_view_toolbar.addAction(self.propagate_selected_layer_props_action)
         self.dock_widget_visibility_toolbar = self.addToolBar('Dock Widget Visibility')
         self.dock_widget_visibility_toolbar.addAction(self.layer_table_dock_widget.toggleViewAction())
         self.dock_widget_visibility_toolbar.addAction(self.flipbook_dock_widget.toggleViewAction())
@@ -245,7 +251,9 @@ class RisWidget(Qt.QMainWindow):
         m.addSeparator()
         m.addAction(self.layer_stack_reset_curr_min_max)
         m.addAction(self.layer_stack_reset_curr_gamma)
+        m.addAction(self.main_scene.layer_stack_item.override_enable_auto_min_max_action)
         m.addAction(self.main_scene.layer_stack_item.examine_layer_mode_action)
+        m.addAction(self.propagate_selected_layer_props_action)
         m.addSeparator()
         m.addAction(self.main_scene.layer_stack_item.layer_name_in_contextual_info_action)
         m.addAction(self.main_scene.layer_stack_item.image_name_in_contextual_info_action)
@@ -258,11 +266,15 @@ class RisWidget(Qt.QMainWindow):
 
     def dropEvent(self, event):
         mime_data = event.mimeData()
+        assert isinstance(mime_data, Qt.QMimeData)
         if mime_data.hasImage():
+            qimage = mime_data.imageData()
+            if isinstance(qimage, Qt.QVariant):
+                qimage = qimage.value()
             image = Image.from_qimage(qimage=qimage, name=mime_data.urls()[0].toDisplayString() if mime_data.hasUrls() else None)
             if image is not None:
                 layer = Layer(image=image)
-                self.flipbook.pages[:] = [layer]
+                self.flipbook.pages.append(layer)
                 event.accept()
         elif mime_data.hasUrls():
             # Note: if the URL is a "file://..." representing a local file, toLocalFile returns a string
@@ -507,6 +519,18 @@ class RisWidget(Qt.QMainWindow):
         layer = self.current_layer
         if layer is not None:
             layer.auto_min_max_enabled = not layer.auto_min_max_enabled
+
+    def propagate_selected_layer_props(self):
+        current_layer_idx = self.current_layer_idx
+        current_layer = self.current_layer
+        for page in self.flipbook.pages:
+            if isinstance(page, om.SignalingList) and current_layer_idx < len(page):
+                layer = page[current_layer_idx]
+                if layer is not current_layer and isinstance(layer, Layer):
+                    for property in layer.properties:
+                        if property.name not in ('name', 'image'):
+                            property.copy_instance_value(current_layer, layer)
+
 
 if __name__ == '__main__':
     import sys
