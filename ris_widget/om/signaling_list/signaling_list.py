@@ -31,7 +31,8 @@ class _QtAbcMeta(Qt.pyqtWrapperType, ABCMeta):
     pass
 
 class SignalingList(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
-    """SignalingList: a list-like container representing a collection of objects that
+    """
+    SignalingList: a list-like container representing a collection of objects that
     emits change signals when one or more elements is inserted, removed, or replaced.
 
     Pre-change signals:
@@ -46,13 +47,6 @@ class SignalingList(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
 
     The pre-change signals are handy for things like virtual table views that must know of certain changes
     before they occur in order to maintain a consistent state.
-
-    Additionally, if the SignalingList instance belongs to the same thread as a signal recipient and the
-    signal was not .connect(..)ed to the recipient's method with Qt.Qt.QueuedConnection as the second argument
-    to connect, raising an exception upon receipt of the pre-change signal prevents the indicated change from
-    taking effect.  IE, a pre-change signal handler can act as a validator provided that the connection between
-    the pre-change signal and the handler is direct (such that pre_change_signal.emit(..) blocks while the
-    handler executes).
 
     No signals are emitted for objects with indexes that change as a result of inserting or removing
     a preceeding object."""

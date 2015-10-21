@@ -25,3 +25,4 @@ from .list_model import ListModel
 from .property_table_model import PropertyTableModel
 from .recursive_property_table_model import RecursivePropertyTableModel
 from .signaling_list import SignalingList
+from .uniform_signaling_list import UniformSignalingList

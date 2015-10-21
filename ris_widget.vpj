@@ -222,6 +222,7 @@
                     <F N="ris_widget/om/signaling_list/recursive_property_table_model.py"/>
                     <F N="ris_widget/om/signaling_list/recursive_property_table_model_TESTER.py"/>
                     <F N="ris_widget/om/signaling_list/signaling_list.py"/>
+                    <F N="ris_widget/om/signaling_list/uniform_signaling_list.py"/>
                 </Folder>
                 <F N="ris_widget/om/__init__.py"/>
                 <F N="ris_widget/om/item_view_shortcuts.py"/>
