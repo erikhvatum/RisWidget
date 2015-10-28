@@ -89,6 +89,8 @@ class LayerStack(Qt.QObject):
             v.removed.connect(self._on_removed_from_layers, Qt.Qt.QueuedConnection)
             v.replaced.connect(self._on_replaced_in_layers)
         self.layers_replaced.emit(self, v_o, v)
+        if v:
+            self.ensure_layer_focused()
 
     def get_layers(self):
         if self._layers is None:
