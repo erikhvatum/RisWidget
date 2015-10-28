@@ -27,7 +27,6 @@ from pathlib import Path
 from PyQt5 import Qt
 from .. import om
 from ..image import Image
-from ..layer import Layer
 from ..shared_resources import FREEIMAGE
 from .progress_thread_pool import ProgressThreadPool, Task, TaskStatus
 
@@ -44,7 +43,7 @@ class PageList(om.UniformSignalingList):
         return ImageList(obj)
 
 _X_THREAD_ADD_IMAGE_FILES_EVENT = Qt.QEvent.registerEventType()
-_X_THREAD_ADD_IMAGE_FILE_STACKS = Qt.QEvent.registerEventType()
+_X_THREAD_ADD_IMAGE_FILE_STACKS_EVENT = Qt.QEvent.registerEventType()
 
 class _XThreadAddImageFilesEvent(Qt.QEvent):
     def __init__(self, image_fpaths):
@@ -53,7 +52,7 @@ class _XThreadAddImageFilesEvent(Qt.QEvent):
 
 class _XThreadAddImageFileStacksEvent(Qt.QEvent):
     def __init__(self, image_fpath_stacks):
-        super().__init__(_X_THREAD_ADD_IMAGE_FILES_EVENT)
+        super().__init__(_X_THREAD_ADD_IMAGE_FILE_STACKS_EVENT)
         self.image_fpath_stacks = image_fpath_stacks
 
 #TODO: feed entirety of .pages to ProgressThreadPool and make ProgressThreadPool entirely ignore non-Task elements
@@ -93,7 +92,7 @@ class Flipbook(Qt.QWidget):
             assert isinstance(event, _XThreadAddImageFilesEvent)
             self._add_image_files(event.image_fpaths)
             return True
-        if event.type() == _X_THREAD_ADD_IMAGE_FILE_STACKS:
+        if event.type() == _X_THREAD_ADD_IMAGE_FILE_STACKS_EVENT:
             assert isinstance(event, _XThreadAddImageFileStacksEvent)
             self._add_image_file_stacks(event.image_fpath_stacks)
             return True

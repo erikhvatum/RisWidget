@@ -120,11 +120,11 @@ class DragGrabber(Qt.QWidget):
                 # sendMouseEvent(widgetUnderCursor, &e, widgetUnderCursor, tlw, &qt_button_down, qt_last_mouse_receiver);
                 #
                 # So, even though sendSyntheticEnterLeave may be being called because a widget was shown
-                # in reponse to a mouse click, the first mouse event the newly created widget will receive
+                # in response to a mouse click, the first mouse event the newly created widget will receive
                 # if a number of conditions are met, and they are in this case, is the synthetic move event
                 # with flags set to indicate that it occurred with no mouse buttons depressed.  We consider
                 # dragging to have ended when the left mouse button is released, and so we must ignore this
-                # synethetic event if our DragGrabber is to exist for more than one event loop iteration.
+                # synthetic event if our DragGrabber is to exist for more than one event loop iteration.
                 self._ignore_next_no_button_mouse_move_event = False
             else:
                 self.releaseMouse()
