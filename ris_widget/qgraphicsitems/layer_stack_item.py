@@ -1,4 +1,4 @@
-# The MIT License (MIT)
+﻿# The MIT License (MIT)
 #
 # Copyright (c) 2014-2015 WUSTL ZPLAB
 #
@@ -23,15 +23,12 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from contextlib import ExitStack
-import math
 import numpy
 from PyQt5 import Qt
 from string import Template
-import sys
 import textwrap
 #from ._qt_debug import qtransform_to_numpy
-from ..layer import Layer
-from .. import om
+from ..layers import LayerStack
 from ..shared_resources import QGL, UNIQUE_QGRAPHICSITEM_TYPE
 from .shader_item import ShaderItem
 
@@ -108,14 +105,12 @@ class LayerStackItem(ShaderItem):
 
     bounding_rect_changed = Qt.pyqtSignal()
 
-    def __init__(self, layer_stack=None, get_current_layer_idx=None, parent_item=None):
+    def __init__(self, layer_stack, parent_item=None):
         super().__init__(parent_item)
-        self._get_current_layer_idx = get_current_layer_idx
         self._bounding_rect = Qt.QRectF(self.DEFAULT_BOUNDING_RECT)
-        if layer_stack is None:
-            layer_stack = om.SignalingList(parent=self) # In ascending order, with bottom layer (backmost) as element 0
-        self._layer_stack = None
         self.layer_stack = layer_stack
+        layer_stack.layers_replaced.connect(self._on_layerlist_replaced)
+        layer_stack.layer_focus_changed.connect(self._on_layer_focus_changed)
         self._texs = {}
         self._dead_texs = [] # Textures queued for deletion when an OpenGL context is available
         self._layer_data_serials = {}
@@ -145,8 +140,8 @@ class LayerStackItem(ShaderItem):
             layer is visible in the main view.  Instead, the layer represented by the row currently
             selected in the layer table is treated as if the value of its .visible property were
             True and all others as if theirs were false."""))
-        if self._get_current_layer_idx is None:
-            self.examine_layer_mode_action.setEnabled(False)
+#       if self._get_current_layer_idx is None:
+#           self.examine_layer_mode_action.setEnabled(False)
         self.examine_layer_mode_action.toggled.connect(self.update)
 
     def __del__(self):
@@ -174,34 +169,28 @@ class LayerStackItem(ShaderItem):
     def boundingRect(self):
         return self._bounding_rect
 
-    @property
-    def layer_stack(self):
-        return self._layer_stack
-
-    @layer_stack.setter
-    def layer_stack(self, v):
+    def _on_layerlist_replaced(self, layer_stack, old_layers, layers):
         old_sz = None
-        if self._layer_stack is not None:
-            if self._layer_stack and self._layer_stack[0].image is not None:
-                old_sz = self._layer_stack[0].image.size
-            self._detach_layers(self._layer_stack)
-            self._layer_stack.inserted.disconnect(self._on_layers_inserted)
-            self._layer_stack.removed.disconnect(self._on_layers_removed)
-            self._layer_stack.replaced.disconnect(self._on_layers_replaced)
+        if old_layers is not None:
+            if old_layers and old_layers[0].image is not None:
+                old_sz = old_layers[0].image.size
+            self._detach_layers(old_layers)
+            old_layers.inserted.disconnect(self._on_layers_inserted)
+            old_layers.removed.disconnect(self._on_layers_removed)
+            old_layers.replaced.disconnect(self._on_layers_replaced)
         new_sz = None
-        if v and v[0].image is not None:
-            new_sz = v[0].image.size
+        if layers is not None:
+            if layers and layers[0].image is not None:
+                new_sz = layers[0].image.size
+            layers.inserted.connect(self._on_layers_inserted)
+            layers.removed.connect(self._on_layers_removed)
+            layers.replaced.connect(self._on_layers_replaced)
+            self._attach_layers(layers)
         if new_sz != old_sz:
             self.prepareGeometryChange()
             self._bounding_rect = self.DEFAULT_BOUNDING_RECT if new_sz is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(new_sz))
-        self._layer_stack = v
-        v.inserted.connect(self._on_layers_inserted)
-        v.removed.connect(self._on_layers_removed)
-        v.replaced.connect(self._on_layers_replaced)
-        self._attach_layers(v)
-        self.update()
-        if new_sz != old_sz:
             self.bounding_rect_changed.emit()
+        self.update()
 
     def _attach_layers(self, layers):
         for layer in layers:
@@ -240,13 +229,13 @@ class LayerStackItem(ShaderItem):
         br_change = False
         if idx == 0:
             layer_stack = self.layer_stack
-            nbi = layer_stack[0].image
+            nbi = layer_stack.layers[0].image
             nbi_nN = nbi is not None
-            if len(layer_stack) == len(layers):
+            if len(layer_stack.layers) == len(layers):
                 if nbi_nN:
                     br_change = True
             else:
-                obi = layer_stack[1].image
+                obi = layer_stack.layers[1].image
                 obi_nN = obi is not None
                 if nbi_nN != obi_nN or (nbi_nN and nbi.size != obi.size):
                     br_change = True
@@ -265,17 +254,17 @@ class LayerStackItem(ShaderItem):
             layer_stack = self.layer_stack
             obi = layers[0].image
             obi_nN = obi is not None
-            if not layer_stack:
+            if not layer_stack.layers:
                 if obi_nN:
                     br_changed = True
             else:
-                nbi = layer_stack[0].image
+                nbi = layer_stack.layers[0].image
                 nbi_nN = nbi is not None
                 if nbi_nN != obi_nN or (nbi_nN and nbi.size != obi.size):
                     br_change = True
         if br_change:
             self.prepareGeometryChange()
-            self._bounding_rect = self.DEFAULT_BOUNDING_RECT if not layer_stack or not nbi_nN else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(nbi.size))
+            self._bounding_rect = self.DEFAULT_BOUNDING_RECT if not layer_stack.layers or not nbi_nN else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(nbi.size))
         self._detach_layers(layers)
         if br_change:
             self.bounding_rect_changed.emit()
@@ -305,7 +294,7 @@ class LayerStackItem(ShaderItem):
 
     def _on_layer_image_changed(self, layer):
         self._layer_data_serials[layer] = self._generate_data_serial()
-        idx = self.layer_stack.index(layer)
+        idx = self.layer_stack.layers.index(layer)
         if idx == 0:
             image = layer.image
             current_br = self.boundingRect()
@@ -315,12 +304,20 @@ class LayerStackItem(ShaderItem):
                 self._bounding_rect = new_br
                 self.bounding_rect_changed.emit()
 
+    def _on_layer_focus_changed(self, old_layer, layer):
+        # The appearence of a layer_stack_item may depend on which layer table row is current while
+        # "examine layer mode" is enabled.
+        if self.examine_layer_mode_enabled:
+            self.update()
+
     def hoverMoveEvent(self, event):
-        if self.examine_layer_mode_enabled and self._get_current_layer_idx is not None:
-            idx = self._get_current_layer_idx()
+        if self.examine_layer_mode_enabled:
+            idx = self.layer_stack.focused_layer_idx
             visible_idxs = [] if idx is None else [idx]
+        elif self.layer_stack.layers:
+            visible_idxs = [idx for idx, layer in enumerate(self.layer_stack.layers) if layer.visible]
         else:
-            visible_idxs = [idx for idx, layer in enumerate(self.layer_stack) if layer.visible]
+            visible_idxs = []
         if not visible_idxs:
             self.scene().clear_contextual_info(self)
             return
@@ -334,12 +331,12 @@ class LayerStackItem(ShaderItem):
         fpos = event.pos()
         ipos = Qt.QPoint(event.pos().x(), event.pos().y())
         cis = []
-        it = iter((idx, self.layer_stack[idx]) for idx in visible_idxs)
+        it = iter((idx, self.layer_stack.layers[idx]) for idx in visible_idxs)
         idx, layer = next(it)
         ci = layer.generate_contextual_info_for_pos(
             ipos.x(),
             ipos.y(),
-            idx if len(self.layer_stack) > 1 else None,
+            idx if len(self.layer_stack.layers) > 1 else None,
             self.layer_name_in_contextual_info_enabled,
             self.image_name_in_contextual_info_enabled)
         if ci is not None:
@@ -387,7 +384,7 @@ class LayerStackItem(ShaderItem):
             prog_desc = tuple((layer.getcolor_expression,
                                'src' if tidx==0 else layer.blend_function,
                                layer.transform_section)
-                              for tidx, layer in ((tidx, self.layer_stack[idx]) for tidx, idx in enumerate(visible_idxs)))
+                              for tidx, layer in ((tidx, self.layer_stack.layers[idx]) for tidx, idx in enumerate(visible_idxs)))
             if prog_desc in self.progs:
                 prog = self.progs[prog_desc]
             else:
@@ -405,7 +402,7 @@ class LayerStackItem(ShaderItem):
                                     blend_function=layer.BLEND_FUNCTIONS['src' if tidx==0 else layer.blend_function])
                             ) for idx, tidx, layer in
                                 (
-                                    (idx, tidx, self.layer_stack[idx]) for tidx, idx in enumerate(visible_idxs)
+                                    (idx, tidx, self.layer_stack.layers[idx]) for tidx, idx in enumerate(visible_idxs)
                                 )
                        ) )
                 prog = self.build_shader_prog(
@@ -457,7 +454,7 @@ class LayerStackItem(ShaderItem):
             prog.setUniformValue('frag_to_tex', frag_to_tex)
             min_max = numpy.empty((2,), dtype=float)
             for tidx, idx in enumerate(visible_idxs):
-                layer = self.layer_stack[idx]
+                layer = self.layer_stack.layers[idx]
                 image = layer.image
                 min_max[0], min_max[1] = (layer._auto_min_max_values) if self.override_enable_auto_min_max_action.isChecked() else (layer.min, layer.max)
                 min_max = self._normalize_for_gl(min_max, image)
@@ -499,13 +496,15 @@ class LayerStackItem(ShaderItem):
         for every visible layer with non-None .layer in self.layer_stack, in order that self._texs[layer] represents layer, including texture
         object creation and texture data uploading, and it leaves self._texs[layer] bound to texture unit n, where n is
         the associated visible_idx."""
-        if self.examine_layer_mode_enabled and self._get_current_layer_idx is not None:
-            idx = self._get_current_layer_idx()
+        if self.examine_layer_mode_enabled:
+            idx = self.layer_stack.focused_layer_idx
             visible_idxs = [] if idx is None else [idx]
+        elif self.layer_stack.layers:
+            visible_idxs = [idx for idx, layer in enumerate(self.layer_stack.layers) if layer.visible and layer.image is not None]
         else:
-            visible_idxs = [idx for idx, layer in enumerate(self.layer_stack) if layer.visible and layer.image is not None]
+            visible_idxs = []
         for tex_unit, idx in enumerate(visible_idxs):
-            layer = self.layer_stack[idx]
+            layer = self.layer_stack.layers[idx]
             image = layer.image
             tex = self._texs[layer]
             serial = self._layer_data_serials[layer]

@@ -33,9 +33,11 @@ from ..shared_resources import QGL, UNIQUE_QGRAPHICSITEM_TYPE
 class HistogramItem(ShaderItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
 
-    def __init__(self, graphics_item_parent=None):
+    def __init__(self, layer_stack, graphics_item_parent=None):
         super().__init__(graphics_item_parent)
-        self._layer = None
+        self.layer_stack = layer_stack
+        layer_stack.layer_focus_changed.connect(self._on_layer_focus_changed)
+        self.layer = None
         self._layer_data_serial = 0
         self._bounding_rect = Qt.QRectF(0, 0, 1, 1)
         self._tex = None
@@ -46,31 +48,27 @@ class HistogramItem(ShaderItem):
         self.gamma_gamma = 1.0
         self.hide()
 
-    @property
-    def layer(self):
-        return self._layer
-
-    @layer.setter
-    def layer(self, layer):
-        if layer is not self._layer:
-            if self._layer is not None:
-                self._layer.image_changed.disconnect(self._on_layer_image_changed)
-                self._layer.min_changed.disconnect(self.min_item.arrow_item._on_value_changed)
-                self._layer.max_changed.disconnect(self.max_item.arrow_item._on_value_changed)
-                self._layer.gamma_changed.disconnect(self.gamma_item._on_value_changed)
-            self._layer = layer
-            if layer is None:
-                self.hide()
-            else:
-                layer.image_changed.connect(self._on_layer_image_changed)
-                layer.min_changed.connect(self.min_item.arrow_item._on_value_changed)
-                layer.max_changed.connect(self.max_item.arrow_item._on_value_changed)
-                layer.gamma_changed.connect(self.gamma_item._on_value_changed)
-                self.show()
-                self.min_item.arrow_item._on_value_changed()
-                self.max_item.arrow_item._on_value_changed()
-                self.gamma_item._on_value_changed()
-                self._on_layer_image_changed()
+    def _on_layer_focus_changed(self, layer_stack, old_layer, layer):
+        assert layer_stack is self.layer_stack
+        if old_layer is not None:
+            self.layer.image_changed.disconnect(self._on_layer_image_changed)
+            self.layer.min_changed.disconnect(self.min_item.arrow_item._on_value_changed)
+            self.layer.max_changed.disconnect(self.max_item.arrow_item._on_value_changed)
+            self.layer.gamma_changed.disconnect(self.gamma_item._on_value_changed)
+            self.layer = None
+        if layer is None:
+            self.hide()
+        else:
+            layer.image_changed.connect(self._on_layer_image_changed)
+            layer.min_changed.connect(self.min_item.arrow_item._on_value_changed)
+            layer.max_changed.connect(self.max_item.arrow_item._on_value_changed)
+            layer.gamma_changed.connect(self.gamma_item._on_value_changed)
+            self.layer = layer
+            self.show()
+            self.min_item.arrow_item._on_value_changed()
+            self.max_item.arrow_item._on_value_changed()
+            self.gamma_item._on_value_changed()
+            self._on_layer_image_changed()
 
     def type(self):
         return HistogramItem.QGRAPHICSITEM_TYPE

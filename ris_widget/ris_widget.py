@@ -22,13 +22,12 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-import ctypes
 from PyQt5 import Qt
 import numpy
 import sys
-from . import om
 from .image import Image
 from .layer import Layer
+from .layers import LayerList, LayerStack
 from .qwidgets.flipbook import Flipbook
 from .qwidgets.layer_table import InvertingProxyModel, LayerTableModel, LayerTableView
 from .qwidgets import progress_thread_pool
@@ -39,7 +38,7 @@ from .qgraphicsscenes.general_scene import GeneralScene
 from .qgraphicsviews.general_view import GeneralView
 from .qgraphicsscenes.histogram_scene import HistogramScene
 from .qgraphicsviews.histogram_view import HistogramView
-from .shared_resources import FREEIMAGE, GL_QSURFACE_FORMAT, NV_PATH_RENDERING_AVAILABLE
+from .shared_resources import GL_QSURFACE_FORMAT, NV_PATH_RENDERING_AVAILABLE
 
 def _atexit():
     #TODO: find a better way to do this or a way to avoid the need
@@ -60,12 +59,7 @@ if sys.platform == 'darwin':
 
 class RisWidget(Qt.QMainWindow):
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0), msaa_sample_count=2,
-                 layer_stack = tuple(),
-                 LayerStackItemClass=LayerStackItem, GeneralSceneClass=GeneralScene, GeneralViewClass=GeneralView,
-                 GeneralViewContextualInfoItemClass=None,
-                 HistogramItemClass=HistogramItem, HistogramSceneClass=HistogramScene, HistogramViewClass=HistogramView,
-                 HistgramViewContextualInfoItemClass=None,
-                 FlipbookClass=Flipbook):
+                 layers = tuple(), layer_selection_model=None):
         """A None value for GeneralViewContextualInfoItemClass or HistgramViewContextualInfoItemClass represents 
         ContextualInfoItemNV if the GL_NV_path_rendering extension is available and ContextualInfoItem otherwise."""
         super().__init__(parent, window_flags)
@@ -78,25 +72,19 @@ class RisWidget(Qt.QMainWindow):
         if window_title is not None:
             self.setWindowTitle(window_title)
         self.setAcceptDrops(True)
-        if GeneralViewContextualInfoItemClass is None or HistgramViewContextualInfoItemClass is None:
-            if NV_PATH_RENDERING_AVAILABLE():
-                from .qgraphicsitems.contextual_info_item_nv import ContextualInfoItemNV
-            if GeneralViewContextualInfoItemClass is None:
-                GeneralViewContextualInfoItemClass = ContextualInfoItemNV if NV_PATH_RENDERING_AVAILABLE() else ContextualInfoItem
-            if HistgramViewContextualInfoItemClass is None:
-                HistgramViewContextualInfoItemClass = ContextualInfoItemNV if NV_PATH_RENDERING_AVAILABLE() else ContextualInfoItem
-        self.FlipbookClass = FlipbookClass
-        self._init_scenes_and_views(
-            LayerStackItemClass, GeneralSceneClass, GeneralViewClass,
-            GeneralViewContextualInfoItemClass,
-            HistogramItemClass, HistogramSceneClass, HistogramViewClass,
-            HistgramViewContextualInfoItemClass)
-        self._layer_stack = None
-        self.layer_stack = layer_stack
+        if NV_PATH_RENDERING_AVAILABLE():
+            from .qgraphicsitems.contextual_info_item_nv import ContextualInfoItemNV
+            ContextualInfoItemClass = ContextualInfoItemNV
+        else:
+            ContextualInfoItemClass = ContextualInfoItem
+        self.layer_stack = LayerStack()
+        self._init_scenes_and_views(ContextualInfoItemClass)
         self._init_flipbook()
         self._init_actions()
         self._init_toolbars()
         self._init_menus()
+        if layers:
+            self.layer_stack.layers = layers
         import atexit
         atexit.register(_atexit)
 
@@ -137,11 +125,6 @@ class RisWidget(Qt.QMainWindow):
         self.main_scene_snapshot_action.setShortcut(Qt.Qt.Key_S)
         self.main_scene_snapshot_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
         self.main_scene_snapshot_action.setToolTip('Append snapshot of .main_view to .flipbook.pages')
-        self.propagate_selected_layer_props_action = Qt.QAction(self)
-        self.propagate_selected_layer_props_action.setText('Propagate Selected Layer Properties')
-        self.propagate_selected_layer_props_action.setShortcut(Qt.Qt.Key_P)
-        self.propagate_selected_layer_props_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
-        self.propagate_selected_layer_props_action.triggered.connect(self.propagate_selected_layer_props)
 
     @staticmethod
     def _format_zoom(zoom):
@@ -155,14 +138,13 @@ class RisWidget(Qt.QMainWindow):
                 return txt[:-1]
             return txt
 
-    def _init_scenes_and_views(self, LayerStackItemClass, GeneralSceneClass, GeneralViewClass, GeneralViewContextualInfoItemClass,
-                               HistogramItemClass, HistogramSceneClass, HistogramViewClass, HistgramViewContextualInfoItemClass):
-        self.main_scene = GeneralSceneClass(self, LayerStackItemClass, self._get_primary_image_stack_current_layer_idx, GeneralViewContextualInfoItemClass)
-        self.main_view = GeneralViewClass(self.main_scene, self)
+    def _init_scenes_and_views(self, ContextualInfoItemClass):
+        self.main_scene = GeneralScene(self, self.layer_stack, LayerStackItem, ContextualInfoItemClass)
+        self.main_view = GeneralView(self.main_scene, self)
         self.setCentralWidget(self.main_view)
-        self.histogram_scene = HistogramSceneClass(self, self.main_scene.layer_stack_item, HistogramItemClass, HistgramViewContextualInfoItemClass)
+        self.histogram_scene = HistogramScene(self, self.layer_stack, HistogramItem, ContextualInfoItemClass)
         self.histogram_dock_widget = Qt.QDockWidget('Histogram', self)
-        self.histogram_view, self._histogram_frame = HistogramViewClass.make_histogram_view_and_frame(self.histogram_scene, self.histogram_dock_widget)
+        self.histogram_view, self._histogram_frame = HistogramView.make_histogram_view_and_frame(self.histogram_scene, self.histogram_dock_widget)
         self.histogram_dock_widget.setWidget(self._histogram_frame)
         self.histogram_dock_widget.setAllowedAreas(Qt.Qt.BottomDockWidgetArea | Qt.Qt.TopDockWidgetArea)
         self.histogram_dock_widget.setFeatures(
@@ -171,6 +153,7 @@ class RisWidget(Qt.QMainWindow):
         self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self.histogram_dock_widget)
         self.layer_table_dock_widget = Qt.QDockWidget('Layer Stack', self)
         self.layer_table_model = LayerTableModel(
+            self.layer_stack,
             self.main_scene.layer_stack_item.override_enable_auto_min_max_action,
             self.main_scene.layer_stack_item.examine_layer_mode_action)
         self.layer_table_model_inverter = InvertingProxyModel()
@@ -179,38 +162,19 @@ class RisWidget(Qt.QMainWindow):
         self.layer_table_view.setModel(self.layer_table_model_inverter)
         self.layer_table_model.setParent(self.layer_table_view)
         self.layer_table_selection_model = self.layer_table_view.selectionModel()
-        self.layer_table_selection_model.currentRowChanged.connect(self._on_layer_stack_table_current_idx_changed)
+        self.layer_stack.selection_model = self.layer_table_selection_model
         self.layer_table_dock_widget.setWidget(self.layer_table_view)
         self.layer_table_dock_widget.setAllowedAreas(Qt.Qt.AllDockWidgetAreas)
         self.layer_table_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
         self.addDockWidget(Qt.Qt.TopDockWidgetArea, self.layer_table_dock_widget)
 
-#   def make_flipbook(self, images=None, name='Flipbook'):
-#       """The images argument may be any mixture of ris_widget.image.Image objects and raw data iterables of the sort that
-#       may be assigned to RisWidget.image_data or RisWidget.image_data_T.
-#       If None is supplied for images, an empty flipbook is created."""
-#       if images is not None:
-#           if not isinstance(images, SignalingList):
-#               images = SignalingList([image if isinstance(image, Image) else Image(image, name=str(image_idx)) for image_idx, image in enumerate(images)])
-#       flipbook = (self.layer_stack, self.layer_table_selection_model, images)
-#       flipbook.setAttribute(Qt.Qt.WA_DeleteOnClose)
-#       dock_widget = Qt.QDockWidget(name, self)
-#       dock_widget.setAttribute(Qt.Qt.WA_DeleteOnClose)
-#       dock_widget.setWidget(flipbook)
-#       flipbook.destroyed.connect(dock_widget.deleteLater) # Get rid of containing dock widget when flipbook is programatically destroyed
-#       dock_widget.setAllowedAreas(Qt.Qt.LeftDockWidgetArea | Qt.Qt.RightDockWidgetArea)
-#       dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
-#       self.addDockWidget(Qt.Qt.RightDockWidgetArea, dock_widget)
-#       return flipbook
-
     def _init_flipbook(self):
-        self.flipbook = fb = self.FlipbookClass(self)
+        self.flipbook = fb = Flipbook(self.layer_stack, self)
         self.flipbook_dock_widget = Qt.QDockWidget('Main Flipbook', self)
         self.flipbook_dock_widget.setWidget(fb)
         self.flipbook_dock_widget.setAllowedAreas(Qt.Qt.RightDockWidgetArea | Qt.Qt.LeftDockWidgetArea)
         self.flipbook_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
         self.addDockWidget(Qt.Qt.RightDockWidgetArea, self.flipbook_dock_widget)
-        fb.current_page_changed.connect(self._on_flipbook_current_page_changed)
         fb.pages_model.rowsInserted.connect(self._on_flipbook_pages_inserted)
         fb.pages_model.rowsRemoved.connect(self._on_flipbook_pages_removed)
         self.flipbook_dock_widget.hide()
@@ -234,7 +198,6 @@ class RisWidget(Qt.QMainWindow):
         self.main_view_toolbar.addAction(self.layer_stack_reset_curr_gamma)
         self.main_view_toolbar.addAction(self.main_scene.layer_stack_item.override_enable_auto_min_max_action)
         self.main_view_toolbar.addAction(self.main_scene.layer_stack_item.examine_layer_mode_action)
-        self.main_view_toolbar.addAction(self.propagate_selected_layer_props_action)
         self.dock_widget_visibility_toolbar = self.addToolBar('Dock Widget Visibility')
         self.dock_widget_visibility_toolbar.addAction(self.layer_table_dock_widget.toggleViewAction())
         self.dock_widget_visibility_toolbar.addAction(self.flipbook_dock_widget.toggleViewAction())
@@ -253,7 +216,6 @@ class RisWidget(Qt.QMainWindow):
         m.addAction(self.layer_stack_reset_curr_gamma)
         m.addAction(self.main_scene.layer_stack_item.override_enable_auto_min_max_action)
         m.addAction(self.main_scene.layer_stack_item.examine_layer_mode_action)
-        m.addAction(self.propagate_selected_layer_props_action)
         m.addSeparator()
         m.addAction(self.main_scene.layer_stack_item.layer_name_in_contextual_info_action)
         m.addAction(self.main_scene.layer_stack_item.image_name_in_contextual_info_action)
@@ -289,115 +251,54 @@ class RisWidget(Qt.QMainWindow):
             event.accept()
 
     @property
-    def layer_stack(self):
-        '''If you wish to replace the current .layer_stack, it may be done by assigning to this
-        property.  For example:
+    def layers(self):
+        """If you wish to replace the current .layers, it may be done by assigning to this property.  For example:
         import freeimage
         from ris_widget.layer import Layer
-        rw.layer_stack = [Layer(freeimage.read(str(p))) for p in pathlib.Path('./').glob('*.png')]
+        rw.layers = [Layer(freeimage.read(str(p))) for p in pathlib.Path('./').glob('*.png')]."""
+        return self.layer_stack.layers
 
-        Assigning to rw.main_scene.layer_stack_item.layer_stack directly will not cause
-        assignment to rw.layer_table_model.signling_list (which contains Layers and
-        is therefore a layer stack), leaving the contents of the main view and layer table
-        out of sync.  The same is true for assigning to 
-        rw.layer_table_model.signling_list directly, mutatis mutandis.  rw.layer_stack's
-        setter takes care of setting both.
-
-        Although assigning directly to rw.main_scene.layer_stack_item.layer_stack
-        or rw.layer_table_model.signling_list is not recommended, modifying the SignalingList
-        instance returned by either of these property getters is safe.  EG,
-        rw.main_scene.layer_stack_item.layer_stack.insert(Layer(numpy.zeros((800,800), dtype=numpy.uint8)))
-        will cause the layer table to update, provided that rw.layer_table_model.signling_list
-        and rw.main_scene.layer_stack_item.layer_stack refer to the same SignalingList, as they
-        do by default.'''
-        return self._layer_stack
-
-    @layer_stack.setter
-    def layer_stack(self, v):
-        if self._layer_stack is not None:
-            self._layer_stack.name_changed.disconnect(self._on_layer_stack_name_changed)
-            self._layer_stack.inserted.disconnect(self._on_inserted_into_layer_stack)
-            self._layer_stack.replaced.disconnect(self._on_replaced_in_layer_stack)
-        if v is None:
-            v = om.SignalingList()
-        elif isinstance(v, (Image, numpy.ndarray)):
-            v = om.SignalingList([Layer(v)])
-        elif isinstance(v, Layer):
-            v = om.SignalingList([v])
-        elif not isinstance(v, om.SignalingList) and any(not hasattr(v, signal) for signal in ('inserted', 'removed', 'replaced', 'name_changed'))\
-             or any(not isinstance(ve, Layer) for ve in v):
-            # If v is not a SignalingList and also is missing at least one list modification signal that we need, or if at least one element of v
-            # is not a Layer, convert v to a SignalingList of Layers
-            v = om.SignalingList([ve if isinstance(ve, Layer) else Layer(ve) for ve in v])
-        self._layer_stack = v
-        v.name_changed.connect(self._on_layer_stack_name_changed)
-        # Must be QueuedConnection in order to avoid race condition where self._on_inserted_into_layer_stack is
-        # called before self.layer_table_model._on_inserted, causing self._on_inserted_into_layer_stack to
-        # attempt to make row 0 in self.layer_table_view current before self.layer_table_model
-        # is even aware that a row has been inserted.
-        v.inserted.connect(self._on_inserted_into_layer_stack, Qt.Qt.QueuedConnection)
-        v.replaced.connect(self._on_replaced_in_layer_stack)
-        v.removed.connect(self._on_removed_from_layer_stack, Qt.Qt.QueuedConnection)
-        self.main_scene.layer_stack_item.layer_stack = v
-        self.layer_table_model.signaling_list = v
-        if v:
-            self.ensure_layer_selected()
-            self.histogram_scene.histogram_item.layer = self.current_layer
-
-    def _get_primary_image_stack_current_layer_idx(self):
-        # Selection model is with reference to table view's model, which is the inverting proxy model
-        pmidx = self.layer_table_selection_model.currentIndex()
-        if pmidx.isValid():
-            midx = self.layer_table_model_inverter.mapToSource(pmidx)
-            if midx.isValid():
-                return midx.row()
-
-    current_layer_idx = property(_get_primary_image_stack_current_layer_idx)
+    @layers.setter
+    def layers(self, v):
+        self.layer_stack.layers = v
 
     @property
-    def current_layer(self):
-        """rw.current_layer: A convenience property equivalent to rw.layer_stack[rw.current_layer_idx], with a minor
-        difference: in addition to instances of Layer, Image instances and even raw image data may be assigned to rw.layer.
-        Image instances and raw image data assigned to rw.layer are wrapped in a Layer, or in an Image wrapped in a layer,
-        as required."""
-        idx = self.current_layer_idx
-        if idx is not None:
-            return self.layer_stack[idx]
+    def focused_layer(self):
+        """rw.focused_layer: A convenience property equivalent to rw.layer_stack.focused_layer."""
+        return self.layer_stack.focused_layer
 
-    @current_layer.setter
-    def current_layer(self, v):
-        idx = self.current_layer_idx
-        if idx is None:
-            raise IndexError('No row in .layer_table_view is current/focused.')
-        else:
-            if not isinstance(v, Layer):
-                v = Layer(v)
-            self.layer_stack[idx] = v
+    @focused_layer.setter
+    def focused_layer(self, v):
+        self.layer_stack.focused_layer = v
 
     @property
     def layer(self):
-        """rw.layer: A convenience property equivalent to rw.layer_stack[0], with minor differences:
-        * If len(rw.layer_stack) == 0, querying rw.layer causes a new Layer to be inserted at rw.layer_stack[0] and
-        returned, and assigning to rw.layer causes the assigned thing to be inserted at rw.layer_stack[0].
-        * In addition to instances of Layer, Image instances and even raw image data may be assigned to rw.layer.
-        Image instances and raw image data assigned to rw.layer are wrapped in a Layer, or in an Image wrapped
-        in a layer, as required."""
-        layer_stack = self.layer_stack
-        if not layer_stack:
+        """rw.layer: A convenience property equivalent to rw.layers[0] and rw.layer_stack.layers[0], with minor differences:
+        * If rw.layers is None: Querying rw.layer causes rw.layers to be set to a LayerList containing a single empty Layer which is returned,
+        while assigning to rw.layer causes rw.layers to be set to a LayerList containing the thing assigned (wrapped in a Layer as needed).
+        * If len(rw.layers) == 0: Querying rw.layer causes a new Layer to be inserted at rw.layers[0] and returned, while assigning to
+        rw.layer causes the assigned thing to be inserted at rw.layers[0] (wrapped in a Layer as needed)."""
+        layers = self.layers
+        if layers:
+            layer = layers[0]
+        else:
             layer = Layer()
-            layer_stack.insert(0, layer)
-            return layer
-        return layer_stack[0]
+            if layers is None:
+                self.layers = [layer]
+            else:
+                layers.append(layer)
+        return layer
 
     @layer.setter
     def layer(self, v):
-        if not isinstance(v, Layer):
-            v = Layer(v)
-        layer_stack = self.layer_stack
-        if layer_stack:
-            layer_stack[0] = v
+        layers = self.layers
+        if layers:
+            layers[0] = v
         else:
-            layer_stack.insert(0, layer)
+            if layers is None:
+                self.layers = v
+            else:
+                layers.append(v)
 
     @property
     def image(self):
@@ -411,27 +312,6 @@ class RisWidget(Qt.QMainWindow):
     def image(self, v):
         self.layer.image = v
 
-    def ensure_layer_selected(self):
-        """If no Layer is selected and .layer_stack is not empty:
-           If there is a "current" layer, IE highlighted but not selected, select it.
-           If there is no "current" layer, make .layer_stack[0] current and select it."""
-        if not self.layer_stack:
-            return
-        if not self.layer_table_selection_model.currentIndex().isValid():
-            self.layer_table_selection_model.setCurrentIndex(
-                    self.layer_table_model_inverter.index(0, 0),
-                    Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
-        if len(self.layer_table_selection_model.selectedRows()) == 0:
-            self.layer_table_selection_model.select(
-                self.layer_table_selection_model.currentIndex(),
-                Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
-
-    def _on_flipbook_current_page_changed(self, flipbook, idx):
-        page = None if idx < 0 else flipbook.pages[idx]
-        if isinstance(page, progress_thread_pool.Task):
-            return
-        self.layer_stack = page
-
     def _on_flipbook_pages_inserted(self, parent, first_idx, last_idx):
         self._update_flipbook_visibility()
 
@@ -443,41 +323,24 @@ class RisWidget(Qt.QMainWindow):
         if (len(self.flipbook.pages) > 0) != fb_is_visible:
             self.flipbook_dock_widget.hide() if fb_is_visible else self.flipbook_dock_widget.show()
 
-    def _on_layer_stack_name_changed(self, layer_stack):
-        assert layer_stack is self.layer_stack
-        name = layer_stack.name
-        dw_title = 'Layer Stack'
-        if len(name) > 0:
-            dw_title += ' "{}"'.format(name)
-        self.layer_table_dock_widget.setWindowTitle(dw_title)
+    # def _on_layer_stack_name_changed(self, layer_stack):
+    #     assert layer_stack is self.layer_stack
+    #     name = layer_stack.name
+    #     dw_title = 'Layer Stack'
+    #     if len(name) > 0:
+    #         dw_title += ' "{}"'.format(name)
+    #     self.layer_table_dock_widget.setWindowTitle(dw_title)
 
-    def _on_layer_stack_table_current_idx_changed(self, midx, prev_midx):
-        row = self.current_layer_idx
-        layer = None if row is None else self.layer_stack[row]
-        self.layer_table_model.on_view_current_row_changed(row)
-        self.histogram_scene.histogram_item.layer = layer
-        lsi = self.main_scene.layer_stack_item
-        if lsi.examine_layer_mode_enabled:
-            # The appearence of a layer_stack_item may depend on which layer table row is current when
-            # "examine layer mode" is enabled.
-            lsi.update()
-
-    def _on_inserted_into_layer_stack(self, idx=None, layers=None):
-        self.ensure_layer_selected()
-
-    def _on_replaced_in_layer_stack(self, idxs, old_layers, new_layers):
-        self.ensure_layer_selected()
-        current_midx = self.layer_table_selection_model.currentIndex()
-        if current_midx.isValid():
-            try:
-                change_idx = idxs.index(current_midx.row())
-            except ValueError:
-                return
-            old_current, new_current = old_layers[change_idx], new_layers[change_idx]
-            self.histogram_scene.histogram_item.layer = new_current
-
-    def _on_removed_from_layer_stack(self, idxs, layers):
-        self.ensure_layer_selected()
+    # def _on_layer_stack_table_current_idx_changed(self, midx, prev_midx):
+    #     row = self.current_layer_idx
+    #     layer = None if row is None else self.layer_stack[row]
+    #     self.layer_table_model.on_view_current_row_changed(row)
+    #     self.histogram_scene.histogram_item.layer = layer
+    #     lsi = self.main_scene.layer_stack_item
+    #     if lsi.examine_layer_mode_enabled:
+    #         # The appearence of a layer_stack_item may depend on which layer table row is current when
+    #         # "examine layer mode" is enabled.
+    #         lsi.update()
 
     def _main_view_zoom_changed(self, zoom_preset_idx, custom_zoom):
         assert zoom_preset_idx == -1 and custom_zoom != 0 or zoom_preset_idx != -1 and custom_zoom == 0, \
@@ -505,31 +368,20 @@ class RisWidget(Qt.QMainWindow):
             self.main_view_zoom_combo.lineEdit().selectAll()
 
     def _on_reset_min_max(self):
-        layer = self.current_layer
+        layer = self.focused_layer
         if layer is not None:
             del layer.min
             del layer.max
 
     def _on_reset_gamma(self):
-        layer = self.current_layer
+        layer = self.focused_layer
         if layer is not None:
             del layer.gamma
 
     def _on_toggle_auto_min_max(self):
-        layer = self.current_layer
+        layer = self.focused_layer
         if layer is not None:
             layer.auto_min_max_enabled = not layer.auto_min_max_enabled
-
-    def propagate_selected_layer_props(self):
-        current_layer_idx = self.current_layer_idx
-        current_layer = self.current_layer
-        for page in self.flipbook.pages:
-            if isinstance(page, om.SignalingList) and current_layer_idx < len(page):
-                layer = page[current_layer_idx]
-                if layer is not current_layer and isinstance(layer, Layer):
-                    for property in layer.properties:
-                        if property.name not in ('name', 'image'):
-                            property.copy_instance_value(current_layer, layer)
 
 
 if __name__ == '__main__':

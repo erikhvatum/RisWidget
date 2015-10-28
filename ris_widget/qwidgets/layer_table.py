@@ -29,15 +29,16 @@ from ..qdelegates.dropdown_list_delegate import DropdownListDelegate
 from ..qdelegates.slider_delegate import SliderDelegate
 from ..qdelegates.color_delegate import ColorDelegate
 from ..qdelegates.checkbox_delegate import CheckboxDelegate
-from ..shared_resources import CHOICES_QITEMDATA_ROLE, FREEIMAGE
+from ..qdelegates.special_selection_highlight_delegate import SpecialSelectionHighlightDelegate
+from ..shared_resources import CHOICES_QITEMDATA_ROLE, SPECIAL_SELECTION_HIGHLIGHT_QITEMDATA_ROLE, FREEIMAGE
 from .. import om
 
 @om.item_view_shortcuts.with_selected_rows_deletion_shortcut
 class LayerTableView(Qt.QTableView):
-    model_changed = Qt.pyqtSignal(object)
-    selection_model_changed = Qt.pyqtSignal(object)
+    # model_changed = Qt.pyqtSignal(object)
+    # selection_model_changed = Qt.pyqtSignal(object)
 
-    def __init__(self, layer_stack_table_model, parent=None):
+    def __init__(self, layer_table_model, parent=None):
         super().__init__(parent)
         self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.Interactive)
         self.horizontalHeader().setHighlightSections(False)
@@ -47,17 +48,20 @@ class LayerTableView(Qt.QTableView):
         self.verticalHeader().setSectionsClickable(False)
         self.setTextElideMode(Qt.Qt.ElideMiddle)
         self.checkbox_delegate = CheckboxDelegate(parent=self)
-        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['visible'], self.checkbox_delegate)
-        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['auto_min_max_enabled'], self.checkbox_delegate)
+        self.setItemDelegateForColumn(layer_table_model.property_columns['visible'], self.checkbox_delegate)
+        self.setItemDelegateForColumn(layer_table_model.property_columns['auto_min_max_enabled'], self.checkbox_delegate)
         self.blend_function_delegate = DropdownListDelegate(self)
-        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['blend_function'], self.blend_function_delegate)
+        self.setItemDelegateForColumn(layer_table_model.property_columns['blend_function'], self.blend_function_delegate)
         self.tint_delegate = ColorDelegate(self)
-        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['tint'], self.tint_delegate)
+        self.setItemDelegateForColumn(layer_table_model.property_columns['tint'], self.tint_delegate)
         self.opacity_delegate = SliderDelegate(0.0, 1.0, self)
-        self.setItemDelegateForColumn(layer_stack_table_model.property_columns['opacity'], self.opacity_delegate)
+        self.setItemDelegateForColumn(layer_table_model.property_columns['opacity'], self.opacity_delegate)
+        self.dead_cell_special_selection_highlight_delegate = SpecialSelectionHighlightDelegate(self)
+        for pn in ('image.dtype', 'image.type', 'image.size', 'image.name'):
+            self.setItemDelegateForColumn(layer_table_model.property_columns[pn], self.dead_cell_special_selection_highlight_delegate)
         self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
         self.setSelectionMode(Qt.QAbstractItemView.ExtendedSelection)
-        self.setModel(layer_stack_table_model)
+        self.setModel(layer_table_model)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         self.setDragDropMode(Qt.QAbstractItemView.DragDrop)
@@ -66,24 +70,24 @@ class LayerTableView(Qt.QTableView):
         self.horizontalHeader().resizeSections(Qt.QHeaderView.ResizeToContents)
         # The text 'blend_function' is shorter than 'difference (advanced)', particularly with proportional fonts,
         # so we make it 50% wider to be safe
-        col = layer_stack_table_model.property_columns['blend_function']
+        col = layer_table_model.property_columns['blend_function']
         self.horizontalHeader().resizeSection(col, self.horizontalHeader().sectionSize(col) * 1.5)
         # The text 'image.size' is typically somewhat shorter than '2160x2560', so we widen that column
         # by an arbitrary fudge factor...
-        col = layer_stack_table_model.property_columns['image.size']
+        col = layer_table_model.property_columns['image.size']
         self.horizontalHeader().resizeSection(col, self.horizontalHeader().sectionSize(col) + 6)
         # Making the opacity column exactly 100 pixels wide gives 1:1 mapping between horizontal
         # position within the column and opacity slider integer % values
-        col = layer_stack_table_model.property_columns['opacity']
+        col = layer_table_model.property_columns['opacity']
         self.horizontalHeader().resizeSection(col, 100)
 
-    def setModel(self, model):
-        super().setModel(model)
-        self.model_changed.emit(self)
+    # def setModel(self, model):
+    #     super().setModel(model)
+    #     self.model_changed.emit(self)
 
-    def setSelectionModel(self, selection_model):
-        super().setSelectionModel(selection_model)
-        self.selection_model_changed.emit(self)
+    # def setSelectionModel(self, selection_model):
+    #     super().setSelectionModel(selection_model)
+    #     self.selection_model_changed.emit(self)
 
 class InvertingProxyModel(Qt.QSortFilterProxyModel):
     # Making a full proxy model that reverses/inverts indexes from Qt.QAbstractProxyModel or Qt.QIdentityProxyModel turns
@@ -117,8 +121,8 @@ class LayerTableDragDropBehavior(om.signaling_list.DragDropModelBehavior):
     def handle_dropped_qimage(self, qimage, name, dst_row, dst_column, dst_parent):
         image = Image.from_qimage(qimage=qimage, name=name)
         if image is not None:
-            layer = self.LayerClass(image=image)
-            self.signaling_list[dst_row:dst_row] = [layer]
+            layer = Layer(image=image)
+            self.layer_stack.get_layers()[dst_row:dst_row] = [layer]
             return True
         return False
 
@@ -129,9 +133,8 @@ class LayerTableDragDropBehavior(om.signaling_list.DragDropModelBehavior):
         freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=None)
         if freeimage is None:
             return False
-        # TODO: read images in background thread and display modal progress bar dialog with cancel button
         layers = [Layer(Image(freeimage.read(fpath_str), name=fpath_str)) for fpath_str in (str(fpath) for fpath in fpaths)]
-        self.signaling_list[dst_row:dst_row] = layers
+        self.layer_stack.get_layers()[dst_row:dst_row] = layers
         return True
 
 class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePropertyTableModel):
@@ -170,18 +173,23 @@ class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePro
 
     def __init__(
             self,
+            layer_stack,
             override_enable_auto_min_max_action,
             examine_layer_mode_action,
-            signaling_list=None,
             blend_function_choice_to_value_mapping_pairs=None,
             parent=None
         ):
-        super().__init__(self.PROPERTIES, signaling_list, parent)
+        super().__init__(
+            property_names=self.PROPERTIES,
+            signaling_list=None if layer_stack is None else layer_stack.layers,
+            parent=parent)
+        self.layer_stack = layer_stack
+        layer_stack.layers_replaced.connect(self._on_layers_replaced)
         self.override_enable_auto_min_max_action = override_enable_auto_min_max_action
         self.override_enable_auto_min_max_action.toggled.connect(self._on_override_enable_auto_min_max_toggled)
         self.examine_layer_mode_action = examine_layer_mode_action
         self.examine_layer_mode_action.toggled.connect(self._on_examine_layer_mode_toggled)
-        self._current_row = -1
+        self._focused_row = -1
         if blend_function_choice_to_value_mapping_pairs is None:
             blend_function_choice_to_value_mapping_pairs = [
                 ('screen', 'screen'),
@@ -242,6 +250,9 @@ class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePro
 
     # data #
 
+    def _getd_default(self, midx, role):
+        return super().data(midx, role)
+
     def _getd__checkable(self, midx, role):
         if role == Qt.Qt.CheckStateRole:
             return Qt.QVariant(Qt.Qt.Checked if self.get_cell(midx.row(), midx.column()) else Qt.Qt.Unchecked)
@@ -250,7 +261,7 @@ class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePro
         if role == Qt.Qt.CheckStateRole:
             is_checked = self.get_cell(midx.row(), midx.column())
             if self.examine_layer_mode_action.isChecked():
-                if self._current_row == midx.row():
+                if self._focused_row == midx.row():
                     if is_checked:
                         r = Qt.Qt.Checked
                     else:
@@ -296,19 +307,24 @@ class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePro
             sz = self.get_cell(midx.row(), midx.column())
             if sz is not None:
                 return Qt.QVariant('{}x{}'.format(sz.width(), sz.height()))
+        else:
+            return self._getd_default(midx, role)
 
     def _getd_image_dtype(self, midx, role):
         if role == Qt.Qt.DisplayRole:
             image = self.signaling_list[midx.row()].image
             if image is not None:
                 return Qt.QVariant(str(image.data.dtype))
+        else:
+            return self._getd_default(midx, role)
 
     def data(self, midx, role=Qt.Qt.DisplayRole):
         if midx.isValid():
-            d = self._special_data_getters.get(self.property_names[midx.column()], super().data)(midx, role)
+            d = self._special_data_getters.get(self.property_names[midx.column()], self._getd_default)(midx, role)
             if isinstance(d, Qt.QVariant):
                 return d
-        return Qt.QVariant()
+        else:
+            return self._getd_default(midx, role)
 
     # setData #
 
@@ -323,7 +339,7 @@ class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePro
         if role == Qt.Qt.CheckStateRole:
             if isinstance(value, Qt.QVariant):
                 value = value.value()
-            if value == Qt.Qt.Checked and self.examine_layer_mode_action.isChecked() and self._current_row != midx.row():
+            if value == Qt.Qt.Checked and self.examine_layer_mode_action.isChecked() and self._focused_row != midx.row():
                 # checkbox_delegate is telling us that, as a result of being hit, we should to check a visibility checkbox
                 # that is shown as partially checked.  However, it is shown as partially checked because it is actually checked,
                 # but the effect of its checkedness is being supressed because we are in "examine layer" mode and the layer
@@ -353,6 +369,9 @@ class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePro
             return self._special_data_setters.get(self.property_names[midx.column()], super().setData)(midx, value, role)
         return False
 
+    def _on_layers_replaced(self, layer_stack, old_layers, layers):
+        self.signaling_list = layers
+
     def _refresh_column(self, column):
         self.dataChanged.emit(self.createIndex(0, column), self.createIndex(len(self.signaling_list)-1, column))
 
@@ -362,6 +381,9 @@ class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePro
     def _on_examine_layer_mode_toggled(self):
         self._refresh_column(self.property_columns['visible'])
 
-    def on_view_current_row_changed(self, row):
-        self._current_row = row
+    def _on_layer_focus_changed(self, layer_stack, old_layer, layer):
+        self._handle_layer_focus_change()
+
+    def _handle_layer_focus_change(self):
+        self._focused_row = self.layer_stack.focused_layer_idx
         self._on_examine_layer_mode_toggled()

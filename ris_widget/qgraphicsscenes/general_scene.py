@@ -26,9 +26,9 @@ from PyQt5 import Qt
 from .base_scene import BaseScene
 
 class GeneralScene(BaseScene):
-    def __init__(self, parent, LayerStackItemClass, get_current_layer_idx, ContextualInfoItemClass):
+    def __init__(self, parent, layer_stack, LayerStackItemClass, ContextualInfoItemClass):
         super().__init__(parent, ContextualInfoItemClass)
-        self.layer_stack_item = LayerStackItemClass(get_current_layer_idx=get_current_layer_idx)
+        self.layer_stack_item = LayerStackItemClass(layer_stack=layer_stack)
         self.layer_stack_item.bounding_rect_changed.connect(self._on_layer_stack_item_bounding_rect_changed)
         self.addItem(self.layer_stack_item)
 

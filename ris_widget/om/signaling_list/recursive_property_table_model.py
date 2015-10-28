@@ -22,8 +22,8 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-import ctypes
 from PyQt5 import Qt
+from ...shared_resources import SPECIAL_SELECTION_HIGHLIGHT_QITEMDATA_ROLE
 
 class RecursivePropertyTableModel(Qt.QAbstractTableModel):
     """RecursivePropertyTableModel: Glue for making a Qt.TableView (or similar) in which the elements
@@ -107,6 +107,8 @@ class RecursivePropertyTableModel(Qt.QAbstractTableModel):
             try:
                 if self._property_inst_tree_root.children[self.signaling_list[midx.row()]].path_exists(self.property_paths[midx.column()]):
                     f |= Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsEditable
+                else:
+                    f |= Qt.Qt.ItemIsEnabled
             except KeyError:
                 pass
         f |= self.drag_drop_flags(midx)
@@ -119,10 +121,17 @@ class RecursivePropertyTableModel(Qt.QAbstractTableModel):
         return self._property_inst_tree_root.children[self.signaling_list[row]].rec_get(self.property_paths[column])
 
     def data(self, midx, role=Qt.Qt.DisplayRole):
-        if midx.isValid() and role in (Qt.Qt.DisplayRole, Qt.Qt.EditRole):
-            # NB: Qt.QVariant(None) is equivalent to Qt.QVariant(), so the case where eitn.rec_get returns None does not require
-            # special handling
-            return Qt.QVariant(self.get_cell(midx.row(), midx.column()))
+        if midx.isValid():
+            if role in (Qt.Qt.DisplayRole, Qt.Qt.EditRole):
+                # NB: Qt.QVariant(None) is equivalent to Qt.QVariant(), so the case where eitn.rec_get returns None does not require
+                # special handling
+                return Qt.QVariant(self.get_cell(midx.row(), midx.column()))
+            elif role == Qt.Qt.BackgroundRole:
+                if not self._property_inst_tree_root.children[self.signaling_list[midx.row()]].path_exists(self.property_paths[midx.column()]):
+                    return Qt.QVariant(Qt.QApplication.instance().palette().brush(Qt.QPalette.Disabled, Qt.QPalette.Dark))
+            elif role == SPECIAL_SELECTION_HIGHLIGHT_QITEMDATA_ROLE:
+                if not self._property_inst_tree_root.children[self.signaling_list[midx.row()]].path_exists(self.property_paths[midx.column()]):
+                    return Qt.QVariant(Qt.QApplication.instance().palette().brush(Qt.QPalette.Disabled, Qt.QPalette.Mid))
         return Qt.QVariant()
 
     def set_cell(self, row, column, value):

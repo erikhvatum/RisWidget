@@ -1,4 +1,4 @@
-# The MIT License (MIT)
+﻿# The MIT License (MIT)
 #
 # Copyright (c) 2014-2015 WUSTL ZPLAB
 #
@@ -31,6 +31,18 @@ from ..layer import Layer
 from ..shared_resources import FREEIMAGE
 from .progress_thread_pool import ProgressThreadPool, Task, TaskStatus
 
+class ImageList(om.UniformSignalingList):
+    def take_input_element(self, obj):
+        return obj if isinstance(obj, Image) else Image(obj)
+
+class PageList(om.UniformSignalingList):
+    def take_input_element(self, obj):
+        if isinstance(obj, (ImageList, Task)):
+            return obj
+        if isinstance(obj, (numpy.ndarray, Image)):
+            obj = [obj]
+        return ImageList(obj)
+
 _X_THREAD_ADD_IMAGE_FILES_EVENT = Qt.QEvent.registerEventType()
 _X_THREAD_ADD_IMAGE_FILE_STACKS = Qt.QEvent.registerEventType()
 
@@ -47,30 +59,20 @@ class _XThreadAddImageFileStacksEvent(Qt.QEvent):
 #TODO: feed entirety of .pages to ProgressThreadPool and make ProgressThreadPool entirely ignore non-Task elements
 #rather than raising exceptions
 class Flipbook(Qt.QWidget):
-    """Flipbook: a widget containing a list box showing the name property values of the elements of its pages property.
-    Changing which row is selected in the list box causes the current_page_changed signal to be emitted with the newly
-    selected page's index and the page itself as parameters.
+    # TODO: update the following docstring
+    """"""
 
-    The pages property of Flipbook is an SignalingList, a container with a list interface, containing a sequence 
-    of elements.  The pages property should be manipulated via the standard list interface, which it implements
-    completely.  So, for example, if you have a Flipbook of Images and wish to add an Image to the end of that Flipbook:
-    
-    image_flipbook.pages.append(Image(numpy.zeros((400,400,3), dtype=numpy.uint8)))
-
-    Signals:
-    * current_page_changed(Flipbook instance, page #)"""
-    current_page_changed = Qt.pyqtSignal(object, int)
-
-    def __init__(self, parent=None):
+    def __init__(self, layer_stack, parent=None):
         super().__init__(parent)
+        self.layer_stack = layer_stack
         l = Qt.QVBoxLayout()
         self.setLayout(l)
-        self.pages_model = PagesModel(om.SignalingList())
+        self.pages_model = PagesModel(PageList())
         self.pages_model.handle_dropped_files = self._handle_dropped_files
         self.pages_model.rowsInserted.connect(self._on_model_rows_inserted, Qt.Qt.QueuedConnection)
         self.pages_view = PagesView(self.pages_model)
         self.pages_view.setModel(self.pages_model)
-        self.pages_view.selectionModel().currentRowChanged.connect(self._on_pages_current_idx_changed)
+        self.pages_view.selectionModel().currentRowChanged.connect(self._on_page_focus_changed)
         l.addWidget(self.pages_view)
         self.progress_thread_pool = None
 
@@ -97,6 +99,66 @@ class Flipbook(Qt.QWidget):
             return True
         return super().event(event)
 
+    @property
+    def pages(self):
+        return self.pages_model.signaling_list
+
+    @pages.setter
+    def pages(self, pages):
+        if not isinstance(pages, PageList):
+            pages = PageList(pages)
+        self.pages_model.signaling_list = pages
+        self._on_page_focus_changed()
+
+    @property
+    def focused_page_idx(self):
+        midx = self.pages_view.selectionModel().currentIndex()
+        if midx.isValid():
+            return midx.row()
+
+    @property
+    def focused_page(self):
+        focused_page_idx = self.focused_page_idx
+        if focused_page_idx is not None:
+            return self.pages[focused_page_idx]
+
+    def ensure_page_selected(self):
+        """If no page is selected and .pages is not empty:
+           If there is a "current" page, IE highlighted but not selected, select it.
+           If there is no "current" page, make .pages[0] current and select it."""
+        if not self.pages:
+            return
+        sm = self.pages_view.selectionModel()
+        if not sm.currentIndex().isValid():
+            sm.setCurrentIndex(
+                    self.pages_model.index(0, 0),
+                    Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
+        if len(sm.selectedRows()) == 0:
+            sm.select(
+                sm.currentIndex(),
+                Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
+
+    def _on_model_rows_inserted(self, _, __, ___):
+        self.pages_view.resizeRowsToContents()
+
+    def _on_page_focus_changed(self, midx=None, old_midx=None):
+        focused_page = self.focused_page
+        if not isinstance(focused_page, ImageList):
+            return
+        layer_stack = self.layer_stack
+        if layer_stack.layers is None:
+            layer_stack.layers = []
+        layers = layer_stack.layers
+        lfp = len(focused_page)
+        lls = len(layers)
+        for idx in range(max(lfp, lls)):
+            if idx >= lfp:
+                layers[idx].image = None
+            elif idx >= lls:
+                layers.append(focused_page[idx])
+            else:
+                layers[idx].image = focused_page[idx]
+
     def _add_image_files(self, image_fpaths):
         irs = self._make_image_readers(image_fpaths)
         if irs is not None:
@@ -113,7 +175,7 @@ class Flipbook(Qt.QWidget):
         freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=None)
         if freeimage is None:
             return False
-        self.pages[dst_row:dst_row] = self._make_readers(fpaths)
+        self.pages[dst_row:dst_row] = self._make_image_readers(fpaths)
         self.ensure_page_selected()
         return True
 
@@ -128,10 +190,10 @@ class Flipbook(Qt.QWidget):
             pages = self.pages
             name = task.result_name
             if isinstance(task.result, numpy.ndarray):
-                layer_stack = om.SignalingList([Layer(Image(task.result, name=name), name=name)])
+                image_stack = ImageList([Image(task.result, name=name)])
             else:
-                layer_stack = om.SignalingList(Layer(Image(image_data, name=image_name), name=image_name) for image_data, image_name in task.result)
-            layer_stack.name = name
+                image_stack = ImageList(Image(image_data, name=image_name) for image_data, image_name in task.result)
+            image_stack.name = name
             task._progress_thread_pool = None
             next_idx = 0
             current_midx = self.pages_view.selectionModel().currentIndex()
@@ -139,9 +201,9 @@ class Flipbook(Qt.QWidget):
             for _ in range(element_inst_count):
                 idx = pages.index(task, next_idx)
                 next_idx = idx + 1
-                pages[idx] = layer_stack
+                pages[idx] = image_stack
                 if idx == current_idx:
-                    self.current_page_changed.emit(self, idx)
+                    self._on_page_focus_changed()
         else:
             next_idx = 0
             pages = self.pages
@@ -190,39 +252,6 @@ class Flipbook(Qt.QWidget):
                 stack_readers.append(stack_reader)
             return stack_readers
 
-    def _on_model_rows_inserted(self, _, __, ___):
-        self.pages_view.resizeRowsToContents()
-
-    def ensure_page_selected(self):
-        """If no page is selected and .pages is not empty:
-           If there is a "current" page, IE highlighted but not selected, select it.
-           If there is no "current" page, make .pages[0] current and select it."""
-        if not self.pages:
-            return
-        sm = self.pages_view.selectionModel()
-        if not sm.currentIndex().isValid():
-            sm.setCurrentIndex(
-                    self.pages_model.index(0, 0),
-                    Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
-        if len(sm.selectedRows()) == 0:
-            sm.select(
-                sm.currentIndex(),
-                Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
-
-    @property
-    def pages(self):
-        return self.pages_model.signaling_list
-
-    @pages.setter
-    def pages(self, pages):
-        if not isinstance(pages, om.SignalingList) and any(not hasattr(pages, signal) for signal in ('inserted', 'removed', 'replaced', 'name_changed')):
-            pages = om.SignalingList(pages)
-        self.pages_model.signaling_list = pages
-        self.current_page_changed.emit(self, self.pages_view.selectionModel().currentIndex().row())
-
-    def _on_pages_current_idx_changed(self, midx, old_midx):
-        self.current_page_changed.emit(self, midx.row())
-
 @om.item_view_shortcuts.with_selected_rows_deletion_shortcut
 class PagesView(Qt.QTableView):
     def __init__(self, pages_model, parent=None):
@@ -266,6 +295,8 @@ class PagesModel(PagesModelDragDropBehavior, om.signaling_list.PropertyTableMode
     def data(self, midx, role=Qt.Qt.DisplayRole):
         if midx.isValid() and midx.column() == self.PROPERTIES.index('name'):
             element = self.signaling_list[midx.row()]
+            if isinstance(element, map):
+                pass
             if element is None:
                 return Qt.QVariant()
             if isinstance(element, Task):

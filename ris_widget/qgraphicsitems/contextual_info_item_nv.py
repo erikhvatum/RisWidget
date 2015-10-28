@@ -69,7 +69,10 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
         self.hide()
 
     def __del__(self):
-        scene = self.scene()
+        try:
+            scene = self.scene()
+        except RuntimeError:
+            return
         if scene is None:
             return
         views = scene.views()

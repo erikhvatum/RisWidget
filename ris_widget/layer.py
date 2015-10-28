@@ -22,12 +22,9 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-import datetime
 import numpy
 from PyQt5 import Qt
-from string import Template
 import textwrap
-import time
 from .image import Image
 from . import om
 
@@ -399,7 +396,3 @@ class Layer(Qt.QObject):
         doc='Property proxy for QObject::objectName Qt property, which is directly accessible via the objectName getter and '
             'setObjectName setter, with change notification signal objectNameChanged.  The proxied change signal, which conforms '
             'to the requirements of ris_widget.om.signaling_list.PropertyTableModel, is name_changed.')
-
-
-
-

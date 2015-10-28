@@ -19,9 +19,18 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+#
+# Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from . import item_view_shortcuts
-from .property import Property
-from . import signaling_list
-from .signaling_list.signaling_list import SignalingList
-from .signaling_list.uniform_signaling_list import UniformSignalingList
+from PyQt5 import Qt
+from ..shared_resources import SPECIAL_SELECTION_HIGHLIGHT_QITEMDATA_ROLE
+
+class SpecialSelectionHighlightDelegate(Qt.QStyledItemDelegate):
+    def paint(self, painter, option, midx):
+        if option.state & Qt.QStyle.State_Selected:
+            d = midx.data(SPECIAL_SELECTION_HIGHLIGHT_QITEMDATA_ROLE)
+            if isinstance(d, Qt.QVariant):
+                d = d.value()
+            if isinstance(d, Qt.QBrush):
+                option.palette.setBrush(Qt.QPalette.Highlight, d)
+        super().paint(painter, option, midx)

@@ -234,6 +234,7 @@
                 <F N="ris_widget/qdelegates/color_delegate.py"/>
                 <F N="ris_widget/qdelegates/dropdown_list_delegate.py"/>
                 <F N="ris_widget/qdelegates/slider_delegate.py"/>
+                <F N="ris_widget/qdelegates/special_selection_highlight_delegate.py"/>
             </Folder>
             <Folder Name="qgraphicsitems">
                 <F N="ris_widget/qgraphicsitems/__init__.py"/>
@@ -272,6 +273,7 @@
             <F N="ris_widget/_qt_debug.py"/>
             <F N="ris_widget/image.py"/>
             <F N="ris_widget/layer.py"/>
+            <F N="ris_widget/layers.py"/>
             <F N="ris_widget/ris_widget.py"/>
             <F N="ris_widget/shared_resources.py"/>
         </Folder>
