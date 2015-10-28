@@ -57,6 +57,9 @@ class SliderDelegate(Qt.QStyledItemDelegate):
         pbo.rect = option.rect
         style.drawControl(Qt.QStyle.CE_ProgressBar, pbo, painter)
 
+    def createEditor(self, parent, option, index):
+        return None
+
     def editorEvent(self, event, model, option, midx):
         if not midx.isValid() or not event.type() == Qt.QEvent.MouseButtonPress or event.buttons() != Qt.Qt.LeftButton:
             return False
