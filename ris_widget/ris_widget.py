@@ -23,14 +23,13 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from PyQt5 import Qt
-import numpy
 import sys
 from .image import Image
 from .layer import Layer
-from .layers import LayerList, LayerStack
+from .layers import LayerStack
 from .qwidgets.flipbook import Flipbook
+from .qwidgets.layer_stack_flipbook import LayerStackFlipbook
 from .qwidgets.layer_table import InvertingProxyModel, LayerTableModel, LayerTableView
-from .qwidgets import progress_thread_pool
 from .qgraphicsitems.contextual_info_item import ContextualInfoItem
 from .qgraphicsitems.histogram_items import HistogramItem
 from .qgraphicsitems.layer_stack_item import LayerStackItem
@@ -80,6 +79,7 @@ class RisWidget(Qt.QMainWindow):
         self.layer_stack = LayerStack()
         self._init_scenes_and_views(ContextualInfoItemClass)
         self._init_flipbook()
+        self._init_layer_stack_flipbook()
         self._init_actions()
         self._init_toolbars()
         self._init_menus()
@@ -179,6 +179,15 @@ class RisWidget(Qt.QMainWindow):
         fb.pages_model.rowsRemoved.connect(self._on_flipbook_pages_removed)
         self.flipbook_dock_widget.hide()
 
+    def _init_layer_stack_flipbook(self):
+        self.layer_stack_flipbook = LayerStackFlipbook(self.layer_stack, self)
+        self.layer_stack_flipbook_dock_widget = Qt.QDockWidget('Main Layer Stack Flipbook', self)
+        self.layer_stack_flipbook_dock_widget.setWidget(self.layer_stack_flipbook)
+        self.layer_stack_flipbook_dock_widget.setAllowedAreas(Qt.Qt.RightDockWidgetArea | Qt.Qt.LeftDockWidgetArea)
+        self.layer_stack_flipbook_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
+        self.addDockWidget(Qt.Qt.RightDockWidgetArea, self.layer_stack_flipbook_dock_widget)
+        self.layer_stack_flipbook_dock_widget.hide()
+
     def _init_toolbars(self):
         self.main_view_toolbar = self.addToolBar('Main View')
         self.main_view_zoom_combo = Qt.QComboBox(self)
@@ -200,8 +209,9 @@ class RisWidget(Qt.QMainWindow):
         self.main_view_toolbar.addAction(self.main_scene.layer_stack_item.examine_layer_mode_action)
         self.dock_widget_visibility_toolbar = self.addToolBar('Dock Widget Visibility')
         self.dock_widget_visibility_toolbar.addAction(self.layer_table_dock_widget.toggleViewAction())
-        self.dock_widget_visibility_toolbar.addAction(self.flipbook_dock_widget.toggleViewAction())
         self.dock_widget_visibility_toolbar.addAction(self.histogram_dock_widget.toggleViewAction())
+        self.dock_widget_visibility_toolbar.addAction(self.flipbook_dock_widget.toggleViewAction())
+        self.dock_widget_visibility_toolbar.addAction(self.layer_stack_flipbook_dock_widget.toggleViewAction())
 
     def _init_menus(self):
         mb = self.menuBar()
