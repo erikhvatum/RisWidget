@@ -158,3 +158,6 @@ class Property(property):
         except AttributeError:
             # Property was already using default value
             pass
+
+    def is_default(self, obj):
+        return not hasattr(obj, self.var_name) or not self.eq(getattr(obj, self.var_name), getattr(obj, self.default_val_var_name))

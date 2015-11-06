@@ -155,7 +155,7 @@ class DragDropModelBehavior:
                 return RowsDrag(src_model, rows)
 
     def mimeTypes(self):
-        return 'application/x-qabstractitemmodeldatalist', 'application/x-qt-image', ROWS_DRAG_MIME_TYPE
+        return ['application/x-qabstractitemmodeldatalist', 'application/x-qt-image', ROWS_DRAG_MIME_TYPE]
 
     def mimeData(self, midxs):
         mime_data = super().mimeData(midxs)

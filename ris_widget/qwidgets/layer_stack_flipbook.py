@@ -22,6 +22,7 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+import json
 import numpy
 from pathlib import Path
 from PyQt5 import Qt
@@ -62,11 +63,11 @@ class LayerStackFlipbook(Qt.QWidget):
         l.addWidget(self.pages_view)
         self.progress_thread_pool = None
 
-    def add_image_files(self, image_fpaths):
+    def add_json_and_image_files(self, fpaths):
         if Qt.QThread.currentThread() is Qt.QApplication.instance().thread():
-            self._add_image_files(image_fpaths)
+            self._add_json_and_image_files(fpaths)
         else:
-            Qt.QApplication.instance().postEvent(self, _XThreadAddImageFilesEvent(image_fpaths))
+            Qt.QApplication.instance().postEvent(self, _XThreadAddImageFilesEvent(fpaths))
 
     def add_image_file_stacks(self, image_fpath_stacks):
         if Qt.QThread.currentThread() is Qt.QApplication.instance().thread():
@@ -133,24 +134,26 @@ class LayerStackFlipbook(Qt.QWidget):
             return
         self.layer_stack.layers = focused_page
 
-    def _add_image_files(self, image_fpaths):
-        irs = self._make_image_readers(image_fpaths)
+    def _add_json_and_image_files(self, fpaths, dst_row=None):
+        irs = self._load_json_and_make_image_readers(fpaths)
         if irs is not None:
-            self.pages.extend(irs)
+            if dst_row is None:
+                self.pages.extend(irs)
+            else:
+                self.pages[dst_row:dst_row] = irs
             self.ensure_page_selected()
 
-    def _add_image_file_stacks(self, image_fpath_stacks):
+    def _add_image_file_stacks(self, image_fpath_stacks, dst_row=None):
         isrs = self._make_image_stack_readers(image_fpath_stacks)
         if isrs is not None:
-            self.pages.extend(isrs)
+            if dst_row is None:
+                self.pages.extend(isrs)
+            else:
+                self.pages[dst_row:dst_row] = isrs
             self.ensure_page_selected()
 
     def _handle_dropped_files(self, fpaths, dst_row, dst_column, dst_parent):
-        freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=None)
-        if freeimage is None:
-            return False
-        self.pages[dst_row:dst_row] = self._make_image_readers(fpaths)
-        self.ensure_page_selected()
+        self._add_json_and_image_files(fpaths, dst_row)
         return True
 
     def _on_progress_thread_pool_task_status_changed(self, task, old_status):
@@ -192,21 +195,45 @@ class LayerStackFlipbook(Qt.QWidget):
         self.progress_thread_pool.deleteLater()
         self.progress_thread_pool = None
 
-    def _make_image_readers(self, image_fpaths):
+    def _load_json_and_make_image_readers(self, fpaths):
         assert Qt.QThread.currentThread() is Qt.QApplication.instance().thread()
-        freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
-        if freeimage:
-            if self.progress_thread_pool is None:
-                self.progress_thread_pool = ProgressThreadPool()
-                self.progress_thread_pool.task_status_changed.connect(self._on_progress_thread_pool_task_status_changed)
-                self.progress_thread_pool.all_tasks_retired.connect(self._on_all_progress_thread_pool_tasks_retired)
-                self.layout().addWidget(self.progress_thread_pool)
-            readers = []
-            for fpath in image_fpaths:
+        freeimage_load_failed = False
+        freeimage = None
+        pages = LayerStackPageList()
+        for fpath in fpaths:
+            fpath = Path(fpath)
+            if fpath.suffix in ('.txt', '.json'):
+                try:
+                    with open(str(fpath), 'r') as f:
+                        prop_stackds = json.load(f)['layer property stacks']
+                        for prop_stackd in prop_stackds:
+                            layers = LayerList()
+                            layers.name = prop_stackd['name']
+                            for props in prop_stackd['layers']:
+                                layer = Layer()
+                                for pname, pval, in props.items():
+                                    setattr(layer, pname, pval)
+                                layers.append(layer)
+                            pages.append(layers)
+                except (FileNotFoundError, ValueError) as e:
+                    Qt.QMessageBox.information(None, 'JSON Error', '{} : {}'.format(type(e).__name__, e))
+            else:
+                if freeimage_load_failed:
+                    continue
+                if freeimage is None:
+                    freeimage = FREEIMAGE(show_messagebox_on_error=True)
+                    if freeimage is None:
+                        freeimage_load_failed = True
+                        continue
+                if self.progress_thread_pool is None:
+                    self.progress_thread_pool = ProgressThreadPool()
+                    self.progress_thread_pool.task_status_changed.connect(self._on_progress_thread_pool_task_status_changed)
+                    self.progress_thread_pool.all_tasks_retired.connect(self._on_all_progress_thread_pool_tasks_retired)
+                    self.layout().addWidget(self.progress_thread_pool)
                 reader = self.progress_thread_pool.submit(freeimage.read, str(fpath))
                 reader.result_name = str(fpath)
-                readers.append(reader)
-            return readers
+                pages.append(reader)
+        return pages
 
     def _make_image_stack_readers(self, image_fpath_stacks):
         assert Qt.QThread.currentThread() is Qt.QApplication.instance().thread()
@@ -250,6 +277,57 @@ class LayerStackPagesView(Qt.QTableView):
 class LayerStackPagesModelDragDropBehavior(om.signaling_list.DragDropModelBehavior):
     def can_drop_rows(self, src_model, src_rows, dst_row, dst_column, dst_parent):
         return isinstance(src_model, LayerStackPagesModel)
+
+    def mimeTypes(self):
+        ret = super().mimeTypes()
+        ret.append('text/plain')
+        return ret
+
+    def mimeData(self, midxs):
+        mime_data = super().mimeData(midxs)
+        pages = self.signaling_list
+        lpsss = \
+        [
+            {
+                'name' : page.name,
+                'layers' :
+                [
+                    layer.get_savable_properties_dict() for layer in page
+                ]
+            }
+            for page in 
+            (
+                pages[midx.row()] for midx in midxs if midx.isValid()
+            ) if isinstance(page, LayerList)
+        ]
+        mime_data.setText(json.dumps({'layer property stacks' : lpsss}, ensure_ascii=False, indent=1))
+        return mime_data
+
+    # def canDropMimeData(self, mime_data, drop_action, row, column, parent):
+    #     if not mime_data.hasUrls() and mime_data.hasText():
+    #         return self._from_json(mime_data.text()) is not None
+    #     return super().canDropMimeData(mime_data, drop_action, row, column, parent)
+
+    # def dropMimeData(self, mime_data, drop_action, row, column, parent):
+    #     if mime_data.hasUrls:
+    #         print(mime_data.urls())
+
+    def _from_json(self, json_str):
+        try:
+            lpsss = json.loads(json_str)['layer property stacks']
+            pages = LayerStackPageList()
+            for lpss in lpsss:
+                layers = LayerList()
+                layers.name = lpss['name']
+                for lps in lpss:
+                    layer = Layer()
+                    for lpn, lpv in lpss['layers'].items():
+                        setattr(layer, lpn, lpv)
+                    layers.append(layer)
+                pages.append(layers)
+        except:
+            return
+        return pages
 
 class LayerStackPagesModel(LayerStackPagesModelDragDropBehavior, om.signaling_list.PropertyTableModel):
     PROPERTIES = (

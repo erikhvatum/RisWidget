@@ -22,7 +22,6 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-import numpy
 from PyQt5 import Qt
 import textwrap
 from .image import Image
@@ -130,6 +129,11 @@ class Layer(Qt.QObject):
             'with name "{}"'.format(name) if name else 'unnamed',
             ', visible=False' if not self.visible else '',
             'None' if image is None else image.__repr__())
+
+    def get_savable_properties_dict(self):
+        ret = {prop.name : prop.__get__(self) for prop in self.properties if not prop.is_default(self)}
+        ret['name'] = self.name
+        return ret
 
     @property
     def image(self):
