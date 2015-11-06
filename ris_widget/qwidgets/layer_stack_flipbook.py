@@ -63,6 +63,9 @@ class LayerStackFlipbook(Qt.QWidget):
         l.addWidget(self.pages_view)
         self.progress_thread_pool = None
 
+    def add_image_files(self, fpaths):
+        self.add_json_and_image_files(fpaths)
+
     def add_json_and_image_files(self, fpaths):
         if Qt.QThread.currentThread() is Qt.QApplication.instance().thread():
             self._add_json_and_image_files(fpaths)
