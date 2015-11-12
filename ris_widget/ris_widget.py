@@ -57,11 +57,14 @@ if sys.platform == 'darwin':
             return self.baseStyle().styleHint(sh, option, widget, returnData)
 
 class RisWidget(Qt.QMainWindow):
+    APP_PREFS_NAME = "RisWidget"
+    APP_PREFS_VERSION = 1
     def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0), msaa_sample_count=2,
                  layers = tuple(), layer_selection_model=None):
         """A None value for GeneralViewContextualInfoItemClass or HistgramViewContextualInfoItemClass represents 
         ContextualInfoItemNV if the GL_NV_path_rendering extension is available and ContextualInfoItem otherwise."""
         super().__init__(parent, window_flags)
+        self._shown = False
         # TODO: look deeper into opengl buffer swapping order and such to see if we can become compatible with OS X auto-hiding scrollbars
         # rather than needing to disable them
         if sys.platform == 'darwin':
@@ -229,6 +232,23 @@ class RisWidget(Qt.QMainWindow):
         m.addSeparator()
         m.addAction(self.main_scene.layer_stack_item.layer_name_in_contextual_info_action)
         m.addAction(self.main_scene.layer_stack_item.image_name_in_contextual_info_action)
+
+    def showEvent(self, event):
+        if not self._shown:
+            self._shown = True
+            settings = Qt.QSettings("zplab", self.APP_PREFS_NAME)
+            geometry = settings.value('main_window_geometry')
+            #state = settings.value('main_window_state')
+            if None not in (geometry,):# state):
+                self.restoreGeometry(geometry)
+                #self.restoreState(state, self.APP_PREFS_VERSION)
+        super().showEvent(event)
+
+    def closeEvent(self, event):
+        settings = Qt.QSettings('zplab', self.APP_PREFS_NAME)
+        settings.setValue('main_window_geometry', self.saveGeometry())
+        #settings.setValue('main_window_state', self.saveState(self.APP_PREFS_VERSION))
+        super().closeEvent(event)
 
     def dragEnterEvent(self, event):
         event.acceptProposedAction()
