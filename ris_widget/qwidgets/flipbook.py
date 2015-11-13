@@ -115,13 +115,25 @@ class Flipbook(Qt.QWidget):
         if midx.isValid():
             return midx.row()
 
+    @focused_page_idx.setter
+    def focused_page_idx(self, idx):
+        if idx is None:
+            self.pages_view.selectionModel().clear()
+        else:
+            if not 0 <= idx < len(self.pages):
+                raise IndexError('The value assigned to focused_pages_idx must either be None or a value >= 0 and < page count.')
+            sm = self.pages_view.selectionModel()
+            midx = self.pages_model.index(idx, 0)
+            # sm.select(midx, sm.ClearAndSelect)
+            sm.setCurrentIndex(midx, sm.ClearAndSelect)
+
     @property
     def focused_page(self):
         focused_page_idx = self.focused_page_idx
         if focused_page_idx is not None:
             return self.pages[focused_page_idx]
 
-    def ensure_page_selected(self):
+    def ensure_page_focused(self):
         """If no page is selected and .pages is not empty:
            If there is a "current" page, IE highlighted but not selected, select it.
            If there is no "current" page, make .pages[0] current and select it."""
@@ -162,20 +174,20 @@ class Flipbook(Qt.QWidget):
         irs = self._make_image_readers(image_fpaths)
         if irs is not None:
             self.pages.extend(irs)
-            self.ensure_page_selected()
+            self.ensure_page_focused()
 
     def _add_image_file_stacks(self, image_fpath_stacks):
         isrs = self._make_image_stack_readers(image_fpath_stacks)
         if isrs is not None:
             self.pages.extend(isrs)
-            self.ensure_page_selected()
+            self.ensure_page_focused()
 
     def _handle_dropped_files(self, fpaths, dst_row, dst_column, dst_parent):
         freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=None)
         if freeimage is None:
             return False
         self.pages[dst_row:dst_row] = self._make_image_readers(fpaths)
-        self.ensure_page_selected()
+        self.ensure_page_focused()
         return True
 
     def _on_progress_thread_pool_task_status_changed(self, task, old_status):
