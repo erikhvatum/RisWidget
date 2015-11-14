@@ -74,6 +74,7 @@ class Flipbook(Qt.QWidget):
         self.pages_view.selectionModel().currentRowChanged.connect(self._on_page_focus_changed)
         l.addWidget(self.pages_view)
         self.progress_thread_pool = None
+        self._attached_page = None
 
     def add_image_files(self, image_fpaths):
         if Qt.QThread.currentThread() is Qt.QApplication.instance().thread():
@@ -124,7 +125,6 @@ class Flipbook(Qt.QWidget):
                 raise IndexError('The value assigned to focused_pages_idx must either be None or a value >= 0 and < page count.')
             sm = self.pages_view.selectionModel()
             midx = self.pages_model.index(idx, 0)
-            # sm.select(midx, sm.ClearAndSelect)
             sm.setCurrentIndex(midx, sm.ClearAndSelect)
 
     @property

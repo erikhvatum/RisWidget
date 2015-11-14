@@ -26,6 +26,7 @@ from contextlib import ExitStack
 import numpy
 from PyQt5 import Qt
 from ..shared_resources import QGL, GL_LOGGER, GL_QSURFACE_FORMAT
+from ..image import Image
 
 class BaseView(Qt.QGraphicsView):
     """Updates to things depending directly on the view's size (eg, in many cases, the view's own transformation), if any,
@@ -118,6 +119,29 @@ class BaseView(Qt.QGraphicsView):
         GL.glClearDepth(1)
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         p.endNativePainting()
+
+    # def paintEvent(self, event):
+    #     print('paintEvent')
+    #     pass
+
+    # def snapshot(self):
+    #     if not self.isVisible():
+    #         raise RuntimeError('A view must be visible in order to take a snapshot of it.')
+    #     composed = False
+    #     def on_compose():
+    #         nonlocal composed
+    #         self.gl_widget.makeCurrent()
+    #         fb_id = self.gl_widget.defaultFramebufferObject()
+    #         print(fb_id, Qt.QOpenGLContext.currentContext(), self.gl_widget.context())
+    #         self.gl_widget.doneCurrent()
+    #         composed = True
+    #     with ExitStack() as estack:
+    #         self.gl_widget.aboutToCompose.connect(on_compose)
+    #         self.repaint()
+    #         if not composed:
+    #             raise RuntimeError('Repaint call issued in order to capture a snapshot during composition failed to provoke composition.')
+    #         estack.callback(self.gl_widget.aboutToCompose.disconnect, on_compose)
+    #     return Image(numpy.zeros((100,100), dtype=numpy.float32, order='F'), name='snapshot', float_range=(0,1))
 
 class _ShaderViewGLViewport(Qt.QOpenGLWidget):
     """In order to obtain a QGraphicsView instance that renders into an OpenGL 2.1

@@ -123,11 +123,12 @@ class RisWidget(Qt.QMainWindow):
         self.main_view.zoom_one_to_one_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
         self.main_scene.layer_stack_item.examine_layer_mode_action.setShortcut(Qt.Qt.Key_Space)
         self.main_scene.layer_stack_item.examine_layer_mode_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
-        self.main_scene_snapshot_action = Qt.QAction(self)
-        self.main_scene_snapshot_action.setText('Main View Snapshot')
-        self.main_scene_snapshot_action.setShortcut(Qt.Qt.Key_S)
-        self.main_scene_snapshot_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
-        self.main_scene_snapshot_action.setToolTip('Append snapshot of .main_view to .flipbook.pages')
+        self.main_view_snapshot_action = Qt.QAction(self)
+        self.main_view_snapshot_action.setText('Main View Snapshot')
+        self.main_view_snapshot_action.setShortcut(Qt.Qt.Key_S)
+        self.main_view_snapshot_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
+        self.main_view_snapshot_action.setToolTip('Append snapshot of .main_view to .flipbook.pages')
+        self.main_view_snapshot_action.triggered.connect(self._on_main_view_snapshot_action)
 
     @staticmethod
     def _format_zoom(zoom):
@@ -210,6 +211,7 @@ class RisWidget(Qt.QMainWindow):
         self.main_view_toolbar.addAction(self.layer_stack_reset_curr_gamma)
         self.main_view_toolbar.addAction(self.main_scene.layer_stack_item.override_enable_auto_min_max_action)
         self.main_view_toolbar.addAction(self.main_scene.layer_stack_item.examine_layer_mode_action)
+        self.main_view_toolbar.addAction(self.main_view_snapshot_action)
         self.dock_widget_visibility_toolbar = self.addToolBar('Dock Widget Visibility')
         self.dock_widget_visibility_toolbar.addAction(self.layer_table_dock_widget.toggleViewAction())
         self.dock_widget_visibility_toolbar.addAction(self.histogram_dock_widget.toggleViewAction())
@@ -393,7 +395,7 @@ class RisWidget(Qt.QMainWindow):
             e = 'Please enter a number between {} and {}.'.format(
                 self._format_zoom(GeneralView._ZOOM_MIN_MAX[0] * 100),
                 self._format_zoom(GeneralView._ZOOM_MIN_MAX[1] * 100))
-            Qt.QMessageBox.information(self, 'self.windowTitle() Input Error', e)
+            Qt.QMessageBox.information(self, self.windowTitle() + ' Input Error', e)
             self.main_view_zoom_combo.setFocus()
             self.main_view_zoom_combo.lineEdit().selectAll()
 
@@ -413,6 +415,13 @@ class RisWidget(Qt.QMainWindow):
         if layer is not None:
             layer.auto_min_max_enabled = not layer.auto_min_max_enabled
 
+    def _on_main_view_snapshot_action(self):
+        try:
+            snapshot = self.main_view.snapshot()
+        except RuntimeError as e:
+            Qt.QMessageBox.information(self, self.windowTitle() + ' Snapshot Error', e)
+        else:
+            self.flipbook.pages.append(snapshot)
 
 if __name__ == '__main__':
     import sys
