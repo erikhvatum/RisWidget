@@ -124,7 +124,7 @@ class BaseView(Qt.QGraphicsView):
     #     print('paintEvent')
     #     pass
 
-    def snapshot(self, scene_rect=None, size=None, msaa_sample_count=2):
+    def snapshot(self, scene_rect=None, size=None, msaa_sample_count=16):
         scene = self.scene()
         gl_widget = self.gl_widget
         if None in (gl_widget, scene):
@@ -146,6 +146,9 @@ class BaseView(Qt.QGraphicsView):
             fbo = Qt.QOpenGLFramebufferObject(size, fbo_format)
             fbo.bind()
             estack.callback(fbo.release)
+            GL.glClearColor(0,0,0,1)
+            GL.glClearDepth(1)
+            GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
             glpd = Qt.QOpenGLPaintDevice(size)
             p = Qt.QPainter()
             p.begin(glpd)
