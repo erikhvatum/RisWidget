@@ -56,14 +56,20 @@ if sys.platform == 'darwin':
                 return 0
             return self.baseStyle().styleHint(sh, option, widget, returnData)
 
-class RisWidget(Qt.QMainWindow):
-    APP_PREFS_NAME = "RisWidget"
-    APP_PREFS_VERSION = 1
-    def __init__(self, window_title='RisWidget', parent=None, window_flags=Qt.Qt.WindowFlags(0), msaa_sample_count=2,
-                 layers = tuple(), layer_selection_model=None):
-        """A None value for GeneralViewContextualInfoItemClass or HistgramViewContextualInfoItemClass represents 
-        ContextualInfoItemNV if the GL_NV_path_rendering extension is available and ContextualInfoItem otherwise."""
+class RisWidgetQtObject(Qt.QMainWindow):
+    def __init__(
+            self,
+            app_prefs_name,
+            app_prefs_version,
+            window_title='RisWidget',
+            parent=None,
+            window_flags=Qt.Qt.WindowFlags(0),
+            msaa_sample_count=2,
+            layers = tuple(),
+            layer_selection_model=None):
         super().__init__(parent, window_flags)
+        self.app_prefs_name = app_prefs_name
+        self.app_prefs_version = app_prefs_version
         self._shown = False
         # TODO: look deeper into opengl buffer swapping order and such to see if we can become compatible with OS X auto-hiding scrollbars
         # rather than needing to disable them
@@ -236,7 +242,7 @@ class RisWidget(Qt.QMainWindow):
     def showEvent(self, event):
         if not self._shown:
             self._shown = True
-            settings = Qt.QSettings("zplab", self.APP_PREFS_NAME)
+            settings = Qt.QSettings("zplab", self.app_prefs_name)
             geometry = settings.value('main_window_geometry')
             #state = settings.value('main_window_state')
             if None not in (geometry,):# state):
@@ -245,7 +251,7 @@ class RisWidget(Qt.QMainWindow):
         super().showEvent(event)
 
     def closeEvent(self, event):
-        settings = Qt.QSettings('zplab', self.APP_PREFS_NAME)
+        settings = Qt.QSettings('zplab', self.app_prefs_name)
         settings.setValue('main_window_geometry', self.saveGeometry())
         #settings.setValue('main_window_state', self.saveState(self.APP_PREFS_VERSION))
         super().closeEvent(event)
@@ -413,6 +419,54 @@ class RisWidget(Qt.QMainWindow):
         if layer is not None:
             layer.auto_min_max_enabled = not layer.auto_min_max_enabled
 
+class ProxyProperty(property):
+    def __init__(self, name, owner_name, owner_type):
+        self.owner_name = owner_name
+        self.proxied_property = getattr(owner_type, name)
+        self.__doc__ = getattr(owner_type, '__doc__')
+
+    def __get__(self, obj, _=None):
+        if obj is None:
+            return self.proxied_property
+        return self.proxied_property.fget(getattr(obj, self.owner_name))
+
+    def __set__(self, obj, v):
+        self.proxied_property.fset(getattr(obj, self.owner_name), v)
+
+    def __delete__(self, obj):
+        self.proxied_property.fdel(getattr(obj, self.owner_name))
+
+class RisWidget:
+    APP_PREFS_NAME = "RisWidget"
+    APP_PREFS_VERSION = 1
+    COPY_REFS = [
+        'layer_table_view',
+        'flipbook',
+        'layer_stack_flipbook',
+        'main_scene',
+        'main_view',
+        'histogram_scene',
+        'histogram_view',
+        'show',
+        'hide',
+        'close'
+    ]
+    def __init__(
+            self,
+            window_title='RisWidget',
+            parent=None,
+            window_flags=Qt.Qt.WindowFlags(0),
+            msaa_sample_count=2,
+            layers = tuple(),
+            layer_selection_model=None,
+            RisWidgetQtObjectClass=RisWidgetQtObject):
+        self.qt_object = RisWidgetQtObjectClass(self.APP_PREFS_NAME, self.APP_PREFS_VERSION, window_title, parent, window_flags, msaa_sample_count, layers, layer_selection_model)
+        for refname in self.COPY_REFS:
+            setattr(self, refname, getattr(self.qt_object, refname))
+    image = ProxyProperty('image', 'qt_object', RisWidgetQtObject)
+    layer = ProxyProperty('layer', 'qt_object', RisWidgetQtObject)
+    focused_layer = ProxyProperty('focused_layer', 'qt_object', RisWidgetQtObject)
+    layers = ProxyProperty('layers', 'qt_object', RisWidgetQtObject)
 
 if __name__ == '__main__':
     import sys
