@@ -124,7 +124,7 @@ class BaseView(Qt.QGraphicsView):
     #     print('paintEvent')
     #     pass
 
-    def snapshot(self, scene_rect=None, size=None, msaa_sample_count=4):
+    def snapshot(self, scene_rect=None, size=None, msaa_sample_count=2):
         scene = self.scene()
         gl_widget = self.gl_widget
         if None in (gl_widget, scene):
@@ -143,7 +143,7 @@ class BaseView(Qt.QGraphicsView):
             fbo_format.setInternalTextureFormat(GL.GL_RGBA8)
             fbo_format.setSamples(msaa_sample_count)
             fbo_format.setAttachment(Qt.QOpenGLFramebufferObject.CombinedDepthStencil)
-            fbo = Qt.QOpenGLFramebufferObject(size)#, fbo_format)
+            fbo = Qt.QOpenGLFramebufferObject(size, fbo_format)
             fbo.bind()
             estack.callback(fbo.release)
             glpd = Qt.QOpenGLPaintDevice(size)
@@ -151,8 +151,9 @@ class BaseView(Qt.QGraphicsView):
             p.begin(glpd)
             estack.callback(p.end)
             p.setRenderHints(Qt.QPainter.Antialiasing | Qt.QPainter.HighQualityAntialiasing)
-            scene.render(p)#, Qt.QRectF(0,0,size.width(),size.height()), scene_rect)
-        qimage = fbo.toImage()
+            scene.render(p, Qt.QRectF(0,0,size.width(),size.height()), scene_rect)
+            GL.glFinish()
+            qimage = fbo.toImage()
         image = Image.from_qimage(qimage, name='snapshot')
         return image
 
