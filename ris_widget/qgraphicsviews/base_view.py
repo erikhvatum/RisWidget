@@ -124,7 +124,7 @@ class BaseView(Qt.QGraphicsView):
     #     print('paintEvent')
     #     pass
 
-    def snapshot(self, scene_rect=None, size=None, msaa_sample_count=4):
+    def snapshot(self, scene_rect=None, size=None, msaa_sample_count=16):
         scene = self.scene()
         gl_widget = self.gl_widget
         if None in (gl_widget, scene):
@@ -147,18 +147,20 @@ class BaseView(Qt.QGraphicsView):
             fbo_format.setInternalTextureFormat(GL.GL_RGBA8)
             fbo_format.setSamples(msaa_sample_count)
             fbo_format.setAttachment(Qt.QOpenGLFramebufferObject.CombinedDepthStencil)
-            fbo = Qt.QOpenGLFramebufferObject(size)#, fbo_format)
+            fbo = Qt.QOpenGLFramebufferObject(size, fbo_format)
             fbo.bind()
             estack.callback(fbo.release)
+            GL.glClearColor(0,0,0,1)
+            GL.glClearDepth(1)
+            GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
             glpd = Qt.QOpenGLPaintDevice(size)
             p = Qt.QPainter()
             p.begin(glpd)
             estack.callback(p.end)
             p.setRenderHints(Qt.QPainter.Antialiasing | Qt.QPainter.HighQualityAntialiasing)
-            scene.render(p)#, Qt.QRectF(0,0,size.width(),size.height()), scene_rect)
+            scene.render(p, Qt.QRectF(0,0,size.width(),size.height()), scene_rect)
             qimage = fbo.toImage()
-            image = Image.from_qimage(qimage, name='snapshot')
-        return image
+        return Image.from_qimage(qimage, name='snapshot')
 
 class _ShaderViewGLViewport(Qt.QOpenGLWidget):
     """In order to obtain a QGraphicsView instance that renders into an OpenGL 2.1
