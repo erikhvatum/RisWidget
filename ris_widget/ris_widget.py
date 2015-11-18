@@ -135,6 +135,8 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.main_view_snapshot_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
         self.main_view_snapshot_action.setToolTip('Append snapshot of .main_view to .flipbook.pages')
         self.main_view_snapshot_action.triggered.connect(self._on_main_view_snapshot_action)
+        self.main_view_snapshot_action.setShortcut(Qt.Qt.Key_S)
+        self.main_view_snapshot_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
 
     @staticmethod
     def _format_zoom(zoom):

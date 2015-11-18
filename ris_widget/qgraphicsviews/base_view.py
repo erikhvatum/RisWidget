@@ -124,24 +124,37 @@ class BaseView(Qt.QGraphicsView):
     #     print('paintEvent')
     #     pass
 
-    # def snapshot(self):
-    #     if not self.isVisible():
-    #         raise RuntimeError('A view must be visible in order to take a snapshot of it.')
-    #     composed = False
-    #     def on_compose():
-    #         nonlocal composed
-    #         self.gl_widget.makeCurrent()
-    #         fb_id = self.gl_widget.defaultFramebufferObject()
-    #         print(fb_id, Qt.QOpenGLContext.currentContext(), self.gl_widget.context())
-    #         self.gl_widget.doneCurrent()
-    #         composed = True
-    #     with ExitStack() as estack:
-    #         self.gl_widget.aboutToCompose.connect(on_compose)
-    #         self.repaint()
-    #         if not composed:
-    #             raise RuntimeError('Repaint call issued in order to capture a snapshot during composition failed to provoke composition.')
-    #         estack.callback(self.gl_widget.aboutToCompose.disconnect, on_compose)
-    #     return Image(numpy.zeros((100,100), dtype=numpy.float32, order='F'), name='snapshot', float_range=(0,1))
+    def snapshot(self, scene_rect=None, size=None, msaa_sample_count=4):
+        scene = self.scene()
+        gl_widget = self.gl_widget
+        if None in (gl_widget, scene):
+            return
+        if scene_rect is None:
+            scene_rect = self.sceneRect()
+        if size is None:
+            size = self.gl_widget.size()
+        if scene_rect.isEmpty() or not scene_rect.isValid() or size.width() <= 0 or size.height() <= 0:
+            return
+        with ExitStack() as estack:
+            gl_widget.makeCurrent()
+            estack.callback(gl_widget.doneCurrent)
+            GL = QGL()
+            fbo_format = Qt.QOpenGLFramebufferObjectFormat()
+            fbo_format.setInternalTextureFormat(GL.GL_RGBA8)
+            fbo_format.setSamples(msaa_sample_count)
+            fbo_format.setAttachment(Qt.QOpenGLFramebufferObject.CombinedDepthStencil)
+            fbo = Qt.QOpenGLFramebufferObject(size)#, fbo_format)
+            fbo.bind()
+            estack.callback(fbo.release)
+            glpd = Qt.QOpenGLPaintDevice(size)
+            p = Qt.QPainter()
+            p.begin(glpd)
+            estack.callback(p.end)
+            p.setRenderHints(Qt.QPainter.Antialiasing | Qt.QPainter.HighQualityAntialiasing)
+            scene.render(p)#, Qt.QRectF(0,0,size.width(),size.height()), scene_rect)
+        qimage = fbo.toImage()
+        image = Image.from_qimage(qimage, name='snapshot')
+        return image
 
 class _ShaderViewGLViewport(Qt.QOpenGLWidget):
     """In order to obtain a QGraphicsView instance that renders into an OpenGL 2.1

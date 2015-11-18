@@ -372,7 +372,7 @@ class LayerStackItem(ShaderItem):
         self.scene().clear_contextual_info(self)
 
     def paint(self, qpainter, option, widget):
-        assert widget is not None, 'LayerStackItem.paint called with widget=None.  Ensure that view caching is disabled.'
+        #assert widget is not None, 'LayerStackItem.paint called with widget=None.  Ensure that view caching is disabled.'
         qpainter.beginNativePainting()
         with ExitStack() as estack:
             estack.callback(qpainter.endNativePainting)
@@ -414,6 +414,9 @@ class LayerStackItem(ShaderItem):
                     main='\n'.join(main))
             prog.bind()
             estack.callback(prog.release)
+            if widget is None:
+                # We are being called as a result of a BaseView.snapshot(..) invocation
+                widget = self.scene().views()[0].gl_widget
             view = widget.view
             view.quad_buffer.bind()
             estack.callback(view.quad_buffer.release)
