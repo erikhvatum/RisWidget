@@ -131,10 +131,14 @@ class BaseView(Qt.QGraphicsView):
             return
         if scene_rect is None:
             scene_rect = self.sceneRect()
+        dpi_ratio = gl_widget.devicePixelRatio()
         if size is None:
             size = self.gl_widget.size()
         if scene_rect.isEmpty() or not scene_rect.isValid() or size.width() <= 0 or size.height() <= 0:
             return
+        if dpi_ratio != 1:
+            # This is an idiotic workaround, but work it does
+            size = Qt.QSize(size.width() * dpi_ratio, size.height() * dpi_ratio)
         with ExitStack() as estack:
             gl_widget.makeCurrent()
             estack.callback(gl_widget.doneCurrent)
@@ -152,8 +156,8 @@ class BaseView(Qt.QGraphicsView):
             estack.callback(p.end)
             p.setRenderHints(Qt.QPainter.Antialiasing | Qt.QPainter.HighQualityAntialiasing)
             scene.render(p)#, Qt.QRectF(0,0,size.width(),size.height()), scene_rect)
-        qimage = fbo.toImage()
-        image = Image.from_qimage(qimage, name='snapshot')
+            qimage = fbo.toImage()
+            image = Image.from_qimage(qimage, name='snapshot')
         return image
 
 class _ShaderViewGLViewport(Qt.QOpenGLWidget):
