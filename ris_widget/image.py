@@ -179,8 +179,8 @@ class Image(Qt.QObject):
             self.stats_future = ndimage_statistics.compute_ranged_histogram(
                 self._data,
                 self._range if self._data.ndim == 2 else numpy.vstack((self._range,) * self.num_channels),
-                258,
-                with_overflow_bins=True,
+                256,
+                with_overflow_bins=False,
                 return_future=True,
                 make_ndimage_statistics_tuple=True)
         else:
@@ -204,6 +204,7 @@ class Image(Qt.QObject):
 
     def generate_contextual_info_for_pos(self, x, y, include_image_name=True):
         sz = self.size
+        component_format_str = '{}' if self.dtype is numpy.float32 else '{}'
         if 0 <= x < sz.width() and 0 <= y < sz.height():
             type_ = self.type
             num_channels = self.num_channels
@@ -213,7 +214,7 @@ class Image(Qt.QObject):
                 if name:
                     mst += '"' + name + '" '
             mst+= 'x:{} y:{} '.format(x, y)
-            vt = '(' + ' '.join((c + ':{}' for c in self.type)) + ')'
+            vt = '(' + ' '.join((c + ':' + component_format_str for c in self.type)) + ')'
             if num_channels == 1:
                 vt = vt.format(self.data[x, y])
             else:
