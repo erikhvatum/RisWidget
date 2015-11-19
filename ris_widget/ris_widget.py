@@ -471,8 +471,18 @@ class RisWidget:
             msaa_sample_count=2,
             layers = tuple(),
             layer_selection_model=None,
-            RisWidgetQtObjectClass=RisWidgetQtObject):
-        self.qt_object = RisWidgetQtObjectClass(self.APP_PREFS_NAME, self.APP_PREFS_VERSION, window_title, parent, window_flags, msaa_sample_count, layers, layer_selection_model)
+            RisWidgetQtObjectClass=RisWidgetQtObject,
+            **kw):
+        self.qt_object = RisWidgetQtObjectClass(
+            self.APP_PREFS_NAME,
+            self.APP_PREFS_VERSION,
+            window_title,
+            parent,
+            window_flags,
+            msaa_sample_count,
+            layers,
+            layer_selection_model,
+            **kw)
         for refname in self.COPY_REFS:
             setattr(self, refname, getattr(self.qt_object, refname))
     image = ProxyProperty('image', 'qt_object', RisWidgetQtObject)
