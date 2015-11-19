@@ -373,7 +373,8 @@ class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePro
         self.signaling_list = layers
 
     def _refresh_column(self, column):
-        self.dataChanged.emit(self.createIndex(0, column), self.createIndex(len(self.signaling_list)-1, column))
+        if self.signaling_list is not None:
+            self.dataChanged.emit(self.createIndex(0, column), self.createIndex(len(self.signaling_list)-1, column))
 
     def _on_override_enable_auto_min_max_toggled(self):
         self._refresh_column(self.property_columns['auto_min_max_enabled'])

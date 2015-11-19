@@ -26,8 +26,8 @@ rw = RisWidget()
 rw.show()
 #rw.image = im
 
-#image_fpath_stacks = [(str(bf_fpath), str(gfp_fpath)) for bf_fpath, gfp_fpath in [(Path(gfp_fpath.parent / (gfp_fpath.stem[:15] + ' bf.png')), gfp_fpath) for gfp_fpath in sorted(Path('/mnt/bulkdata/2015.10.08_ZPL8Prelim/00').glob('2015* gfp.png'))] if bf_fpath.exists()]
-#rw.flipbook.add_image_file_stacks(image_fpath_stacks[:5])
+image_fpath_stacks = [(str(bf_fpath), str(gfp_fpath)) for bf_fpath, gfp_fpath in [(Path(gfp_fpath.parent / (gfp_fpath.stem[:15] + ' bf.png')), gfp_fpath) for gfp_fpath in sorted(Path('/mnt/scopearray/Sinha_Drew/2015.11.13_ZPL8Prelim3/03').glob('2015* gfp.png'))] if bf_fpath.exists()]
+rw.flipbook.add_image_file_stacks(image_fpath_stacks)
 
 #rw.histogram_view.gl_widget.start_logging()
 
