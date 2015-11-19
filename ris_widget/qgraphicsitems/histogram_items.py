@@ -65,8 +65,6 @@ class HistogramItem(ShaderItem):
             layer.gamma_changed.connect(self.gamma_item._on_value_changed)
             self.layer = layer
             self.show()
-            self.min_item.arrow_item._on_value_changed()
-            self.max_item.arrow_item._on_value_changed()
             self.gamma_item._on_value_changed()
             self._on_layer_image_changed()
 
@@ -215,6 +213,8 @@ class HistogramItem(ShaderItem):
 
     def _on_layer_image_changed(self):
         self._layer_data_serial += 1
+        self.min_item.arrow_item._on_value_changed()
+        self.max_item.arrow_item._on_value_changed()
         self.update()
 
     def _on_gl_widget_context_about_to_change(self, gl_widget):
