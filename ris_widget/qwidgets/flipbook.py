@@ -263,7 +263,6 @@ class Flipbook(Qt.QWidget):
                 stack_readers.append(stack_reader)
             return stack_readers
 
-@om.item_view_shortcuts.with_selected_rows_deletion_shortcut
 class PagesView(Qt.QTableView):
     def __init__(self, pages_model, parent=None):
         super().__init__(parent)
@@ -283,6 +282,60 @@ class PagesView(Qt.QTableView):
         self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
         self.setSelectionMode(Qt.QAbstractItemView.ExtendedSelection)
         self.setWordWrap(False)
+        self.delete_selected_action = Qt.QAction(self)
+        self.delete_selected_action.setText('Delete pages')
+        self.delete_selected_action.setToolTip('Delete currently selected main flipbook pages')
+        self.delete_selected_action.setShortcut(Qt.Qt.Key_Delete)
+        self.delete_selected_action.setShortcutContext(Qt.Qt.WidgetShortcut)
+        self.addAction(self.delete_selected_action)
+        self.consolidate_selected_action = Qt.QAction(self)
+        self.consolidate_selected_action.setText('Consolidate pages')
+        self.consolidate_selected_action.setToolTip('Consolidate selected main flipbook pages (combine them into one page)')
+        self.consolidate_selected_action.setShortcut(Qt.Qt.Key_Enter)
+        self.consolidate_selected_action.setShortcutContext(Qt.Qt.WidgetShortcut)
+        self.addAction(self.consolidate_selected_action)
+        self.selectionModel().selectionChanged.connect(self._on_selection_changed)
+        self._on_selection_changed()
+
+    def delete_selected(self):
+        sm = self.selectionModel()
+        m = self.model()
+        if None in (m, sm):
+            return
+        midxs = sorted(sm.selectedRows(), key=lambda midx: midx.row())
+        # "run" as in consecutive indexes specified as range rather than individually
+        runs = []
+        run_start_idx = None
+        run_end_idx = None
+        for midx in midxs:
+            if midx.isValid():
+                idx = midx.row()
+                if run_start_idx is None:
+                    run_end_idx = run_start_idx = idx
+                elif idx - run_end_idx == 1:
+                    run_end_idx = idx
+                else:
+                    runs.append((run_start_idx, run_end_idx))
+                    run_end_idx = run_start_idx = idx
+        if run_start_idx is not None:
+            runs.append((run_start_idx, run_end_idx))
+        for run_start_idx, run_end_idx in reversed(runs):
+            m.removeRows(run_start_idx, run_end_idx - run_start_idx + 1)
+
+    def consolidate_selected(self):
+        # TODO: FINISH
+        consolidated = ImageList()
+
+    def _on_selection_changed(self, newly_selected_midxs=None, newly_deselected_midxs=None):
+        midxs = self.selectionModel().selectedRows()
+        self.delete_selected_action.setEnabled(len(midxs) >= 1)
+        self.consolidate_selected_action.setEnabled(len(midxs) >= 2)
+
+    def contextMenuEvent(self, event):
+        menu = Qt.QMenu(self)
+        menu.addAction(self.consolidate_selected_action)
+        menu.addAction(self.delete_selected_action)
+        menu.exec(event.globalPos())
 
 class PagesModelDragDropBehavior(om.signaling_list.DragDropModelBehavior):
     def can_drop_rows(self, src_model, src_rows, dst_row, dst_column, dst_parent):
