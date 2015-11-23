@@ -151,7 +151,9 @@ class Flipbook(Qt.QWidget):
     def consolidate_selected(self):
         """The contents of the currently selected pages (by ascending index order in .pages
         and excluding the target page) are appended to the target page.  The target page is
-        the focused page; if no page is focused, the page with the lowest index is used."""
+        the focused page; if no page is focused, the selected page with the lowest index is
+        targeted.  After their contents are appended to target, the non-target selected
+        pages are removed from .pages."""
         sm = self.pages_view.selectionModel()
         m = self.pages_model
         if None in (m, sm):
