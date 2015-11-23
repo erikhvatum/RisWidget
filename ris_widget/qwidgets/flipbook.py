@@ -170,7 +170,8 @@ class Flipbook(Qt.QWidget):
                 if row > target_row:
                     break
                 if row == target_row:
-                    del midxs[row]
+                    del midxs[i]
+                    break
         pages = self.pages
         target_page = pages[target_midx.row()]
         extension = []
@@ -180,6 +181,11 @@ class Flipbook(Qt.QWidget):
         for midx in midxs:
             if midx.isValid():
                 idx = midx.row()
+                if not isinstance(self.pages[idx], ImageList):
+                    if run_start_idx is not None:
+                        runs.append((run_start_idx, run_end_idx))
+                        run_end_idx = run_start_idx = None
+                    continue
                 if run_start_idx is None:
                     run_end_idx = run_start_idx = idx
                 elif idx - run_end_idx == 1:
