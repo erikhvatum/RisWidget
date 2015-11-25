@@ -39,7 +39,9 @@ class PageList(om.UniformSignalingList):
         if isinstance(obj, (ImageList, Task)):
             return obj
         if isinstance(obj, (numpy.ndarray, Image)):
-            obj = [obj]
+            ret = ImageList((obj,))
+            ret.name = obj.name
+            return ret
         return ImageList(obj)
 
 _X_THREAD_ADD_IMAGE_FILES_EVENT = Qt.QEvent.registerEventType()
@@ -159,13 +161,17 @@ class Flipbook(Qt.QWidget):
         if None in (m, sm):
             return
         midxs = sm.selectedRows()
-        if len(midxs) < 2:
+        if len(midxs) < 1:
             return
         midxs = sorted(midxs, key=lambda _midx: _midx.row())
         target_midx = sm.currentIndex()
-        if target_midx is None:
+        if not target_midx.isValid():
+            if len(midxs) < 2:
+                return
             target_midx = midxs.pop(0)
         else:
+            if sm.isSelected(target_midx) and len(midxs) < 2:
+                return
             target_row = target_midx.row()
             for i in range(len(midxs)):
                 row = midxs[i].row()
@@ -195,7 +201,6 @@ class Flipbook(Qt.QWidget):
                 else:
                     runs.append((run_start_idx, run_end_idx))
                     run_end_idx = run_start_idx = idx
-                    continue
                 extension.extend(pages[idx])
         if run_start_idx is not None:
             runs.append((run_start_idx, run_end_idx))
