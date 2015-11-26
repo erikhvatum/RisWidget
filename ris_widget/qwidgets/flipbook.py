@@ -266,6 +266,7 @@ class Flipbook(Qt.QWidget):
 
     def _on_model_rows_inserted(self, _, __, ___):
         self.pages_view.resizeRowsToContents()
+        self.ensure_page_focused()
 
     def _on_page_focus_changed(self, midx=None, old_midx=None):
         focused_page = self.focused_page
