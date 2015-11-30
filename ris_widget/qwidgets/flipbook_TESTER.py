@@ -157,7 +157,6 @@ class TestWidget(Qt.QWidget):
             expected_target_page.extend(self._expected_pages[idx])
         for idx in reversed(idxs):
             del self._expected_pages[idx]
-        # assert(self.check_state())
 
     def check_state(self, info=None):
         class E(Exception):

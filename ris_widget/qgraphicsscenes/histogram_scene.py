@@ -24,10 +24,11 @@
 
 from PyQt5 import Qt
 from .base_scene import BaseScene
+from ..qgraphicsitems.histogram_items import HistogramItem
 
 class HistogramScene(BaseScene):
-    def __init__(self, parent, layer_stack, HistogramItemClass, ContextualInfoItemClass):
-        super().__init__(parent, ContextualInfoItemClass)
+    def __init__(self, parent, layer_stack):
+        super().__init__(parent)
         self.setSceneRect(0, 0, 1, 1)
-        self.histogram_item = HistogramItemClass(layer_stack=layer_stack)
+        self.histogram_item = HistogramItem(layer_stack=layer_stack)
         self.addItem(self.histogram_item)

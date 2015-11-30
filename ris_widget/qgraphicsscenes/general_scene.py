@@ -24,11 +24,12 @@
 
 from PyQt5 import Qt
 from .base_scene import BaseScene
+from ..qgraphicsitems.layer_stack_item import LayerStackItem
 
 class GeneralScene(BaseScene):
-    def __init__(self, parent, layer_stack, LayerStackItemClass, ContextualInfoItemClass):
-        super().__init__(parent, ContextualInfoItemClass)
-        self.layer_stack_item = LayerStackItemClass(layer_stack=layer_stack)
+    def __init__(self, parent, layer_stack):
+        super().__init__(parent)
+        self.layer_stack_item = LayerStackItem(layer_stack=layer_stack)
         self.layer_stack_item.bounding_rect_changed.connect(self._on_layer_stack_item_bounding_rect_changed)
         self.addItem(self.layer_stack_item)
 

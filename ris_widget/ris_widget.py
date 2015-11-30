@@ -37,7 +37,7 @@ from .qgraphicsscenes.general_scene import GeneralScene
 from .qgraphicsviews.general_view import GeneralView
 from .qgraphicsscenes.histogram_scene import HistogramScene
 from .qgraphicsviews.histogram_view import HistogramView
-from .shared_resources import GL_QSURFACE_FORMAT, NV_PATH_RENDERING_AVAILABLE
+from .shared_resources import GL_QSURFACE_FORMAT
 
 def _atexit():
     #TODO: find a better way to do this or a way to avoid the need
@@ -80,13 +80,8 @@ class RisWidgetQtObject(Qt.QMainWindow):
         if window_title is not None:
             self.setWindowTitle(window_title)
         self.setAcceptDrops(True)
-        if NV_PATH_RENDERING_AVAILABLE():
-            from .qgraphicsitems.contextual_info_item_nv import ContextualInfoItemNV
-            ContextualInfoItemClass = ContextualInfoItemNV
-        else:
-            ContextualInfoItemClass = ContextualInfoItem
         self.layer_stack = LayerStack()
-        self._init_scenes_and_views(ContextualInfoItemClass)
+        self._init_scenes_and_views()
         self._init_flipbook()
         self._init_layer_stack_flipbook()
         self._init_actions()
@@ -150,11 +145,11 @@ class RisWidgetQtObject(Qt.QMainWindow):
                 return txt[:-1]
             return txt
 
-    def _init_scenes_and_views(self, ContextualInfoItemClass):
-        self.main_scene = GeneralScene(self, self.layer_stack, LayerStackItem, ContextualInfoItemClass)
+    def _init_scenes_and_views(self):
+        self.main_scene = GeneralScene(self, self.layer_stack)
         self.main_view = GeneralView(self.main_scene, self)
         self.setCentralWidget(self.main_view)
-        self.histogram_scene = HistogramScene(self, self.layer_stack, HistogramItem, ContextualInfoItemClass)
+        self.histogram_scene = HistogramScene(self, self.layer_stack)
         self.histogram_dock_widget = Qt.QDockWidget('Histogram', self)
         self.histogram_view, self._histogram_frame = HistogramView.make_histogram_view_and_frame(self.histogram_scene, self.histogram_dock_widget)
         self.histogram_dock_widget.setWidget(self._histogram_frame)

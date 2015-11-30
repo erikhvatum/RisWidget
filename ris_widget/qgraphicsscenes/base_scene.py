@@ -23,6 +23,7 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from PyQt5 import Qt
+from ..qgraphicsitems.contextual_info_item import ContextualInfoItem
 
 class BaseScene(Qt.QGraphicsScene):
     """BaseScene provides for creating and maintaining a ContextualInfoItem (or compatible).
@@ -69,10 +70,10 @@ class BaseScene(Qt.QGraphicsScene):
     s.clear_contextual_info(planetarium_widget) is called.  planetarium_widget requested
     the current text, and so, the contextual info text is cleared."""
 
-    def __init__(self, parent, ContextualInfoItemClass):
+    def __init__(self, parent):
         super().__init__(parent)
         self._requester_of_current_nonempty_mouseover_info = None
-        self.contextual_info_item = ContextualInfoItemClass()
+        self.contextual_info_item = ContextualInfoItem()
         self.addItem(self.contextual_info_item)
 
     def clear_contextual_info(self, requester):
