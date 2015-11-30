@@ -57,7 +57,7 @@ class DropdownListDelegate(Qt.QStyledItemDelegate):
         pmidx = Qt.QPersistentModelIndex(midx)
         def on_entry_selected(action):
             if pmidx.isValid():
-                model.setData(model.index(pmidx.row(), pmidx.column()), action.text())
+                model.setData(model.index(pmidx.row(), pmidx.column()), action.text().replace('&',''))
         menu.triggered.connect(on_entry_selected)
         menu.popup(menu_pos, current_choice_action)
         return False
