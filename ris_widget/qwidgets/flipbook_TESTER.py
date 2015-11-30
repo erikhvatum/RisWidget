@@ -144,25 +144,20 @@ class TestWidget(Qt.QWidget):
     def randomly_consolidate_pages(self):
         if len(self._expected_pages) < 2:
             return
-        select_target = bool(R(0,2))
         idxs = sorted(numpy.random.choice([i for i in range(len(self._expected_pages))], min(R(2,6), len(self._expected_pages)), False))
-        target_idx = numpy.random.choice(idxs)
-        if not select_target:
-            del idxs[idxs.index(target_idx)]
         sm = self.flipbook.pages_view.selectionModel()
         m = self.flipbook.pages_view.model()
         sm.clearSelection()
         for idx in idxs:
             sm.select(m.index(idx, 0), Qt.QItemSelectionModel.Select)
-        sm.setCurrentIndex(m.index(target_idx, 0), Qt.QItemSelectionModel.Current)
         self.flipbook.consolidate_selected()
-        if select_target:
-            del idxs[idxs.index(target_idx)]
+        target_idx = idxs.pop(0)
         expected_target_page = self._expected_pages[target_idx]
         for idx in idxs:
             expected_target_page.extend(self._expected_pages[idx])
         for idx in reversed(idxs):
             del self._expected_pages[idx]
+        # assert(self.check_state())
 
     def check_state(self, info=None):
         class E(Exception):
