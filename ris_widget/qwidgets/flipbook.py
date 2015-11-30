@@ -70,7 +70,6 @@ class Flipbook(Qt.QWidget):
         l = Qt.QVBoxLayout()
         self.setLayout(l)
         self.pages_model = PagesModel(PageList())
-        self.pages_model.handle_dropped_files = self._handle_dropped_files
         self.pages_model.rowsInserted.connect(self._on_model_rows_inserted, Qt.Qt.QueuedConnection)
         self.pages_view = PagesView(self.pages_model)
         self.pages_view.setModel(self.pages_model)
@@ -282,14 +281,6 @@ class Flipbook(Qt.QWidget):
             self.pages.extend(isrs)
             self.ensure_page_focused()
 
-    def _handle_dropped_files(self, fpaths, dst_row, dst_column, dst_parent):
-        freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=None)
-        if freeimage is None:
-            return False
-        self.pages[dst_row:dst_row] = self._make_image_readers(fpaths)
-        self.ensure_page_focused()
-        return True
-
     def _on_progress_thread_pool_task_status_changed(self, task, old_status):
         try:
             element_inst_count = self.pages_model._instance_counts[task]
@@ -384,8 +375,19 @@ class PagesView(Qt.QTableView):
         self.setWordWrap(False)
 
 class PagesModelDragDropBehavior(om.signaling_list.DragDropModelBehavior):
+    def handle_dropped_files(self, fpaths, dst_row, dst_column, dst_parent):
+        freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=None)
+        if freeimage is None:
+            return False
+        self.pages[dst_row:dst_row] = self._make_image_readers(fpaths)
+        self.ensure_page_focused()
+        return True
+
     def can_drop_rows(self, src_model, src_rows, dst_row, dst_column, dst_parent):
         return isinstance(src_model, PagesModel)
+
+    # def dropMimeData(self, mime_data, drop_action, row, column, parent):
+    #     print(super().dropMimeData(mime_data, drop_action, row, column, parent))
 
 class PagesModel(PagesModelDragDropBehavior, om.signaling_list.PropertyTableModel):
     PROPERTIES = (
