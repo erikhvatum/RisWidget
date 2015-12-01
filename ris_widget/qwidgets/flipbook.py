@@ -147,7 +147,10 @@ class Flipbook(Qt.QWidget):
         freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
         if freeimage is None:
             return False
+        select_idx = len(self.pages)
         self.add_image_files(fpaths)
+        if select_idx != len(self.pages):
+            self.focused_page_idx = select_idx
         return True
 
     def event(self, event):

@@ -182,6 +182,13 @@ class RisWidgetQtObject(Qt.QMainWindow):
         fb.pages_model.rowsInserted.connect(self._on_flipbook_pages_inserted)
         fb.pages_model.rowsRemoved.connect(self._on_flipbook_pages_removed)
         self.flipbook_dock_widget.hide()
+        # The remaining LoC in this method are either:
+        # * a cheap trick
+        # * a pragmatic expedience
+        # * a cheap, pragmatic, expedient trick
+        self.dragEnterEvent = self.flipbook.pages_view.dragEnterEvent
+        self.dragMoveEvent = self.flipbook.pages_view.dragMoveEvent
+        self.dropEvent = self.flipbook.pages_view.dropEvent
 
     def _init_layer_stack_flipbook(self):
         self.layer_stack_flipbook = LayerStackFlipbook(self.layer_stack, self)
@@ -253,36 +260,6 @@ class RisWidgetQtObject(Qt.QMainWindow):
         settings.setValue('main_window_geometry', self.saveGeometry())
         #settings.setValue('main_window_state', self.saveState(self.APP_PREFS_VERSION))
         super().closeEvent(event)
-
-    def dragEnterEvent(self, event):
-        event.acceptProposedAction()
-
-    def dragMoveEvent(self, event):
-        event.acceptProposedAction()
-
-    def dropEvent(self, event):
-        mime_data = event.mimeData()
-        assert isinstance(mime_data, Qt.QMimeData)
-        if mime_data.hasImage():
-            qimage = mime_data.imageData()
-            if isinstance(qimage, Qt.QVariant):
-                qimage = qimage.value()
-            image = Image.from_qimage(qimage=qimage, name=mime_data.urls()[0].toDisplayString() if mime_data.hasUrls() else None)
-            if image is not None:
-                layer = Layer(image=image)
-                self.flipbook.pages.append(layer)
-                event.accept()
-        elif mime_data.hasUrls():
-            # Note: if the URL is a "file://..." representing a local file, toLocalFile returns a string
-            # appropriate for feeding to Python's open() function.  If the URL does not refer to a local file,
-            # toLocalFile returns None.
-            fpaths = list(map(lambda url: url.toLocalFile(), mime_data.urls()))
-            if len(fpaths) > 0 and fpaths[0].startswith('file:///.file/id=') and sys.platform == 'darwin':
-                e = 'In order for image file drag & drop to work on OS X >=10.10 (Yosemite), please upgrade to at least Qt 5.4.1.'
-                Qt.QMessageBox.information(self, 'Qt Upgrade Required', e)
-                return
-            self.flipbook.add_image_files(fpaths)
-            event.accept()
 
     @property
     def layers(self):
