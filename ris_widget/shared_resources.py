@@ -243,7 +243,7 @@ def GL_QSURFACE_FORMAT(msaa_sample_count=None):
 
 _freeimage = None
 
-def FREEIMAGE(show_messagebox_on_error=False, error_messagebox_owner=None):
+def FREEIMAGE(show_messagebox_on_error=False, error_messagebox_owner=None, is_read=True):
     """If show_messagebox_on_error is true and importing freeimage fails with an exception, a modal QMessageBox is displayed
     describing the error and None is returned.  If show_messagebox_on_error is false and importing freeimage fails with
     and exception, the exception is allowed to propagate."""
@@ -257,9 +257,9 @@ def FREEIMAGE(show_messagebox_on_error=False, error_messagebox_owner=None):
                 Qt.QMessageBox.information(
                     error_messagebox_owner,
                     'freeimage-py Module Not Found',
-                    """Zach's <a href=https://github.com/zpincus/freeimage-py>freeimage-py module</a> is required for loading image files with RisWidget.
+                    """Zach's <a href=https://github.com/zpincus/freeimage-py>freeimage-py module</a> is required for {} image files with RisWidget.
                     Even without freeimage-py, RisWidget accepts image data (<i>rw.image = numpy.zeros((400,400),dtype=numpy.uint8)</i>, for example), but
-                    freeimage-py is required if RisWidget is to open image files on your behalf.""")
+                    freeimage-py is required if RisWidget is to {} image files on your behalf.""".format(*(('loading', 'load') if is_read else ('saving', 'save'))))
                 return
             except RuntimeError as e:
                 estr = '\n'.join((

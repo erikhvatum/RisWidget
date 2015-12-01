@@ -23,7 +23,6 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from PyQt5 import Qt
-from ..qgraphicsitems.contextual_info_item import ContextualInfoItem
 
 class BaseScene(Qt.QGraphicsScene):
     """BaseScene provides for creating and maintaining a ContextualInfoItem (or compatible).
@@ -73,6 +72,7 @@ class BaseScene(Qt.QGraphicsScene):
     def __init__(self, parent):
         super().__init__(parent)
         self._requester_of_current_nonempty_mouseover_info = None
+        from ..qgraphicsitems.contextual_info_item import ContextualInfoItem
         self.contextual_info_item = ContextualInfoItem()
         self.addItem(self.contextual_info_item)
 

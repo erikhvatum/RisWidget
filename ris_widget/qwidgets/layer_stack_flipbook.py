@@ -27,8 +27,7 @@ import numpy
 from pathlib import Path
 from PyQt5 import Qt
 from ..image import Image
-from .flipbook import ImageList, _X_THREAD_ADD_IMAGE_FILES_EVENT, _X_THREAD_ADD_IMAGE_FILE_STACKS_EVENT
-from .flipbook import _XThreadAddImageFilesEvent, _XThreadAddImageFileStacksEvent
+from .flipbook import ImageList
 from ..layer import Layer
 from ..layers import LayerList
 from .. import om
@@ -42,6 +41,19 @@ class LayerStackPageList(om.UniformSignalingList):
         if isinstance(obj, (numpy.ndarray, Image, Layer)):
             obj = [obj]
         return LayerList(obj)
+
+_X_THREAD_ADD_IMAGE_FILES_EVENT = Qt.QEvent.registerEventType()
+_X_THREAD_ADD_IMAGE_FILE_STACKS_EVENT = Qt.QEvent.registerEventType()
+
+class _XThreadAddImageFilesEvent(Qt.QEvent):
+    def __init__(self, image_fpaths):
+        super().__init__(_X_THREAD_ADD_IMAGE_FILES_EVENT)
+        self.image_fpaths = image_fpaths
+
+class _XThreadAddImageFileStacksEvent(Qt.QEvent):
+    def __init__(self, image_fpath_stacks):
+        super().__init__(_X_THREAD_ADD_IMAGE_FILE_STACKS_EVENT)
+        self.image_fpath_stacks = image_fpath_stacks
 
 #TODO: feed entirety of .pages to ProgressThreadPool and make ProgressThreadPool entirely ignore non-Task elements
 #rather than raising exceptions

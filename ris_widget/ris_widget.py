@@ -30,14 +30,11 @@ from .layers import LayerStack
 from .qwidgets.flipbook import Flipbook
 from .qwidgets.layer_stack_flipbook import LayerStackFlipbook
 from .qwidgets.layer_table import InvertingProxyModel, LayerTableModel, LayerTableView
-from .qgraphicsitems.contextual_info_item import ContextualInfoItem
-from .qgraphicsitems.histogram_items import HistogramItem
-from .qgraphicsitems.layer_stack_item import LayerStackItem
 from .qgraphicsscenes.general_scene import GeneralScene
 from .qgraphicsviews.general_view import GeneralView
 from .qgraphicsscenes.histogram_scene import HistogramScene
 from .qgraphicsviews.histogram_view import HistogramView
-from .shared_resources import GL_QSURFACE_FORMAT
+from .shared_resources import GL_QSURFACE_FORMAT, FREEIMAGE
 
 def _atexit():
     #TODO: find a better way to do this or a way to avoid the need
@@ -360,25 +357,6 @@ class RisWidgetQtObject(Qt.QMainWindow):
         if (len(self.flipbook.pages) > 0) != fb_is_visible:
             self.flipbook_dock_widget.hide() if fb_is_visible else self.flipbook_dock_widget.show()
 
-    # def _on_layer_stack_name_changed(self, layer_stack):
-    #     assert layer_stack is self.layer_stack
-    #     name = layer_stack.name
-    #     dw_title = 'Layer Stack'
-    #     if len(name) > 0:
-    #         dw_title += ' "{}"'.format(name)
-    #     self.layer_table_dock_widget.setWindowTitle(dw_title)
-
-    # def _on_layer_stack_table_current_idx_changed(self, midx, prev_midx):
-    #     row = self.current_layer_idx
-    #     layer = None if row is None else self.layer_stack[row]
-    #     self.layer_table_model.on_view_current_row_changed(row)
-    #     self.histogram_scene.histogram_item.layer = layer
-    #     lsi = self.main_scene.layer_stack_item
-    #     if lsi.examine_layer_mode_enabled:
-    #         # The appearence of a layer_stack_item may depend on which layer table row is current when
-    #         # "examine layer mode" is enabled.
-    #         lsi.update()
-
     def _main_view_zoom_changed(self, zoom_preset_idx, custom_zoom):
         assert zoom_preset_idx == -1 and custom_zoom != 0 or zoom_preset_idx != -1 and custom_zoom == 0, \
                'zoom_preset_idx XOR custom_zoom must be set.'
@@ -421,12 +399,22 @@ class RisWidgetQtObject(Qt.QMainWindow):
             layer.auto_min_max_enabled = not layer.auto_min_max_enabled
 
     def _on_main_view_snapshot_action(self):
-        try:
-            snapshot = self.main_view.snapshot()
-        except RuntimeError as e:
-            Qt.QMessageBox.information(self, self.windowTitle() + ' Snapshot Error', e)
-        else:
-            self.flipbook.pages.append(snapshot)
+        freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self, is_read=False)
+        if freeimage:
+            try:
+                snapshot = self.main_view.snapshot()
+            except RuntimeError as e:
+                Qt.QMessageBox.information(self, self.windowTitle() + ' Snapshot Error', e)
+            else:
+                fn, _ = Qt.QFileDialog.getSaveFileName(
+                    self,
+                    'Save Snapshot',
+                    filter='Images (*.png *.jpg *.tiff *.tif)')
+                if fn:
+                    try:
+                        freeimage.write(snapshot.data, fn)
+                    except Exception as e:
+                        Qt.QMessageBox.information(self, self.windowTitle() + ' Freeimage Error', type(e).__name__ + ': ' + str(e))
 
 class ProxyProperty(property):
     def __init__(self, name, owner_name, owner_type):
@@ -449,13 +437,9 @@ class RisWidget:
     APP_PREFS_NAME = "RisWidget"
     APP_PREFS_VERSION = 1
     COPY_REFS = [
-        'layer_table_view',
         'flipbook',
-        'layer_stack_flipbook',
         'main_scene',
         'main_view',
-        'histogram_scene',
-        'histogram_view',
         'show',
         'hide',
         'close'
@@ -482,6 +466,7 @@ class RisWidget:
             **kw)
         for refname in self.COPY_REFS:
             setattr(self, refname, getattr(self.qt_object, refname))
+        self.snapshot = self.qt_object.main_view.snapshot
     image = ProxyProperty('image', 'qt_object', RisWidgetQtObject)
     layer = ProxyProperty('layer', 'qt_object', RisWidgetQtObject)
     focused_layer = ProxyProperty('focused_layer', 'qt_object', RisWidgetQtObject)

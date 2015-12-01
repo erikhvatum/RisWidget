@@ -59,7 +59,7 @@ class TestWidget(Qt.QWidget):
             (self.randomly_delete_images, 'randomly_delete_images'),
             (self.randomly_insert_images, 'randomly_insert_images'),
             (self.randomly_insert_pages, 'randomly_insert_pages'),
-            (self.randomly_consolidate_pages, 'randomly_consolidate_pages')
+            (self.randomly_merge_pages, 'randomly_merge_pages')
         ]
         self.check_state('initialization')
 
@@ -141,7 +141,7 @@ class TestWidget(Qt.QWidget):
             self.flipbook.pages.insert(page_idx, images)
             self._expected_pages.insert(page_idx, images)
 
-    def randomly_consolidate_pages(self):
+    def randomly_merge_pages(self):
         if len(self._expected_pages) < 2:
             return
         idxs = sorted(numpy.random.choice([i for i in range(len(self._expected_pages))], min(R(2,6), len(self._expected_pages)), False))
@@ -150,7 +150,7 @@ class TestWidget(Qt.QWidget):
         sm.clearSelection()
         for idx in idxs:
             sm.select(m.index(idx, 0), Qt.QItemSelectionModel.Select)
-        self.flipbook.consolidate_selected()
+        self.flipbook.merge_selected()
         target_idx = idxs.pop(0)
         expected_target_page = self._expected_pages[target_idx]
         for idx in idxs:
