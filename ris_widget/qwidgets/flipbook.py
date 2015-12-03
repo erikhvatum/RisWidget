@@ -92,10 +92,11 @@ class Flipbook(Qt.QWidget):
         self._on_page_focus_changed()
 
     def add_image_files(self, image_fpaths):
-        """image_fpaths: An iterable of filenames and/or iterables of filenames, with a filename being
-        either a pathlib.Path object or a string.  For example, the following would append 7 pages
-        to the flipbook, with 1 image in the first appended page, 4 in the second, 1 in the third, 4
-        in the fourth, 4 in the fifth, and 1 in the sixth and seventh pages:
+        """image_fpaths: An iterable of filenames and/or iterables of filenames, with
+        a filename being either a pathlib.Path object or a string.  For example, the
+        following would append 7 pages to the flipbook, with 1 image in the first
+        appended page, 4 in the second, 1 in the third, 4 in the fourth, 4 in the
+        fifth, and 1 in the sixth and seventh pages:
 
         rw.flipbook.add_image_files(
         [
