@@ -329,14 +329,14 @@ class Flipbook(Qt.QWidget):
                 for p in image_fpaths:
                     if isinstance(p, (str, Path)):
                         reader = self.progress_thread_pool.submit(freeimage.read, str(p))
-                        reader.result_name = str(p)
+                        reader.name = str(p)
                         pages.append(reader)
                     else:
                         if len(p) == 0:
                             pages.append(p)
                         else:
                             stack_reader = self.progress_thread_pool.submit(self._read_stack, freeimage, p)
-                            stack_reader.result_name = ', '.join(Path(image_fpath).stem for image_fpath in p)
+                            stack_reader.name = ', '.join(Path(image_fpath).stem for image_fpath in p)
                             pages.append(stack_reader)
         else:
             pages = image_fpaths
@@ -352,7 +352,7 @@ class Flipbook(Qt.QWidget):
             return
         if task.status is TaskStatus.Completed:
             pages = self.pages
-            name = task.result_name
+            name = task.name
             if isinstance(task.result, numpy.ndarray):
                 image_stack = ImageList([Image(task.result, name=name)])
             else:
@@ -433,7 +433,7 @@ class PagesModel(PagesModelDragDropBehavior, om.signaling_list.PropertyTableMode
                 return Qt.QVariant()
             if isinstance(element, Task):
                 if role == Qt.Qt.DisplayRole:
-                    return Qt.QVariant('{} ({})'.format(element.result_name, element.status.name))
+                    return Qt.QVariant('{} ({})'.format(element.name, element.status.name))
                 if role == Qt.Qt.ForegroundRole:
                     return Qt.QVariant(Qt.QApplication.palette().brush(Qt.QPalette.Disabled, Qt.QPalette.WindowText))
         return super().data(midx, role)
