@@ -22,6 +22,9 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+import sip
+sip.setdestroyonexit(True)
+
 from PyQt5 import Qt
 import sys
 from .image import Image
