@@ -11,7 +11,7 @@
         DebugCallbackName="gdb"
         Version="1"
         OutputFile="%bdris_widget"
-        CompilerConfigName="Latest Version"
+        CompilerConfigName="GCC-5.3.0-x86_64-unknown-linux-gnu"
         Defines="">
         <Menu>
             <Target
@@ -109,7 +109,7 @@
         DebugCallbackName="gdb"
         Version="1"
         OutputFile="%bdris_widget"
-        CompilerConfigName="Latest Version"
+        CompilerConfigName="GCC-5.3.0-x86_64-unknown-linux-gnu"
         Defines="">
         <Menu>
             <Target
