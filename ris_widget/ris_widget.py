@@ -455,11 +455,13 @@ class RisWidget:
             **kw)
         for refname in self.COPY_REFS:
             setattr(self, refname, getattr(self.qt_object, refname))
+        self.add_image_files_to_flipbook = self.flipbook.add_image_files
         self.snapshot = self.qt_object.main_view.snapshot
     image = ProxyProperty('image', 'qt_object', RisWidgetQtObject)
     layer = ProxyProperty('layer', 'qt_object', RisWidgetQtObject)
     focused_layer = ProxyProperty('focused_layer', 'qt_object', RisWidgetQtObject)
     layers = ProxyProperty('layers', 'qt_object', RisWidgetQtObject)
+    flipbook_pages = ProxyProperty('pages', 'flipbook', Flipbook)
 
 if __name__ == '__main__':
     import sys
