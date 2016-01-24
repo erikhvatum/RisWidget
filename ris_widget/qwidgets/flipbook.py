@@ -24,7 +24,10 @@
 
 import numpy
 from pathlib import Path
+import collections
+
 from PyQt5 import Qt
+
 from .. import om
 from ..image import Image
 from ..shared_resources import FREEIMAGE
@@ -48,10 +51,9 @@ class PageList(om.UniformSignalingList):
 _X_THREAD_ADD_IMAGE_FILES_EVENT = Qt.QEvent.registerEventType()
 
 class _XThreadAddImageFilesEvent(Qt.QEvent):
-    def __init__(self, image_fpaths, need_threadpool):
+    def __init__(self, image_fpaths):
         super().__init__(_X_THREAD_ADD_IMAGE_FILES_EVENT)
         self.image_fpaths = image_fpaths
-        self.need_threadpool = need_threadpool
 
 #TODO: feed entirety of .pages to ProgressThreadPool and make ProgressThreadPool entirely ignore non-Task elements
 #rather than raising exceptions
@@ -125,24 +127,58 @@ class Flipbook(Qt.QWidget):
         ])
 
         Flipbook.add_image_files(..) is safe to call from any thread."""
-        
-        image_fpaths_l = []
-        need_threadpool = False
+
+        # make sure image_fpaths contains either str/Path entities, or iterables of the same...
         for p in image_fpaths:
-            if isinstance(p, (str, Path)):
-                image_fpaths_l.append(p)
-                need_threadpool = True
-            else:
-                i_s = []
+            if not isinstance(p, (str, Path)):
                 for i in p:
                     assert(isinstance(i, (str, Path)))
-                    i_s.append(i)
-                    need_threadpool = True
-                image_fpaths_l.append(i_s)
         if Qt.QThread.currentThread() is Qt.QApplication.instance().thread():
-            self._add_image_files(image_fpaths_l, need_threadpool)
+            self._add_image_files(image_fpaths)
         else:
-            Qt.QApplication.instance().postEvent(self, _XThreadAddImageFilesEvent(image_fpaths_l, need_threadpool))
+            Qt.QApplication.instance().postEvent(self, _XThreadAddImageFilesEvent(image_fpaths))
+
+    def add_image_stacks(self, file_paths, get_stack_name, get_image_name, image_name_order):
+        """Given a list of file names, parse them out into stacks of related images
+        (e.g. multiple color channels for each image position), and add the stacks
+        to the flipbook.
+
+        Parameters:
+            file_paths: iterable of file-names of image files
+            get_stack_name: a function that, given a file-name stem (the name of
+                the file only, without parent directories or the extension),
+                will return the name of the stack to which the image belongs.
+                (e.g. the name of the image position).
+            get_image_name: a function that, given a file-name stem, will return
+                the name of the image class (e.g. which color channel).
+            image_name_order: order of the image-class names in the final stacks
+                (hint: brightfield images should go first to be at the bottom.)
+
+        Example:
+        file_paths = ['well1-GFP.tif', 'well1-BF.tif', 'well1-mCherry.tif',
+            'well2-GFP.tif', 'well2-BF.tif', 'well2-mCherry.tif']
+        def well_name(stem):
+            return stem.split('-')[0] # return the 'wellN' portion of the name
+        def fluor_name(stem):
+            return stem.split('-')[1]
+        rw.add_image_stacks(file_paths, well_name, fluor_name, ['BF', 'GFP',
+            'mCherry'])
+        """
+        file_paths = map(Path, file_paths)
+        stacks = collections.defaultdict(dict)
+        for f in file_paths:
+            if f.name.startswith('.'):
+                # ignore any OS X dot-files
+                continue
+            stack_name = get_stack_name(f.stem)
+            image_name = get_image_name(f.stem)
+            image_dict = stacks[stack_name]
+            image_dict[image_name] = f
+        stack_list = []
+        for stack_name, image_dict in sorted(stacks.items()):
+            image_list = om.SignalingList((image_dict[name] for name in image_name_order), name=stack_name)
+            stack_list.append(image_list)
+        self.add_image_files(stack_list)
 
     def _handle_dropped_files(self, fpaths, dst_row, dst_column, dst_parent):
         freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
@@ -312,35 +348,41 @@ class Flipbook(Qt.QWidget):
             else:
                 layers[idx].image = focused_page[idx]
 
-    def _read_stack(self, freeimage, image_fpaths):
+    @staticmethod
+    def _read_stack(freeimage, image_fpaths):
         return [(freeimage.read(str(image_fpath)), str(image_fpath)) for image_fpath in image_fpaths]
 
-    def _add_image_files(self, image_fpaths, need_threadpool):
+    def _add_image_files(self, image_fpaths):
         assert Qt.QThread.currentThread() is Qt.QApplication.instance().thread()
-        if need_threadpool:
-            pages = []
-            freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
-            if freeimage:
-                if self.progress_thread_pool is None:
-                    self.progress_thread_pool = ProgressThreadPool()
-                    self.progress_thread_pool.task_status_changed.connect(self._on_progress_thread_pool_task_status_changed)
-                    self.progress_thread_pool.all_tasks_retired.connect(self._on_all_progress_thread_pool_tasks_retired)
-                    self.layout().addWidget(self.progress_thread_pool)
-                for p in image_fpaths:
-                    if isinstance(p, (str, Path)):
-                        reader = self.progress_thread_pool.submit(freeimage.read, str(p))
-                        reader.name = str(p)
-                        pages.append(reader)
+        freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
+        if freeimage:
+            if self.progress_thread_pool is None:
+                self.progress_thread_pool = ProgressThreadPool()
+                self.progress_thread_pool.task_status_changed.connect(self._on_progress_thread_pool_task_status_changed)
+                self.progress_thread_pool.all_tasks_retired.connect(self._on_all_progress_thread_pool_tasks_retired)
+                self.layout().addWidget(self.progress_thread_pool)
+            for p in image_fpaths:
+                if isinstance(p, (str, Path)):
+                    reader = self.progress_thread_pool.submit(freeimage.read, str(p))
+                    # TODO: is the below a race condition? E.g. is there a possibility that
+                    # _on_progress_thread_pool_task_status_changed() will get called in a
+                    # different thread before reader.name gets set? If so, that's
+                    # a problem as _on_progress_thread_pool_task_status_changed()
+                    # requires the .name attribute. However, I assume that that
+                    # function will only ever get called by the main event loop in
+                    # this thread?
+                    reader.name = str(p)
+                    self.pages.append(reader)
+                else:
+                    if len(p) == 0:
+                        pages.append(p)
                     else:
-                        if len(p) == 0:
-                            pages.append(p)
+                        stack_reader = self.progress_thread_pool.submit(self._read_stack, freeimage, p)
+                        if hasattr(p, 'name'):
+                            stack_reader.name = p.name
                         else:
-                            stack_reader = self.progress_thread_pool.submit(self._read_stack, freeimage, p)
                             stack_reader.name = ', '.join(Path(image_fpath).stem for image_fpath in p)
-                            pages.append(stack_reader)
-        else:
-            pages = image_fpaths
-        self.pages.extend(pages)
+                        self.pages.append(stack_reader)
         self.ensure_page_focused()
 
     def _on_progress_thread_pool_task_status_changed(self, task, old_status):
