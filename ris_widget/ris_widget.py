@@ -461,6 +461,8 @@ class RisWidget:
     layer = ProxyProperty('layer', 'qt_object', RisWidgetQtObject)
     focused_layer = ProxyProperty('focused_layer', 'qt_object', RisWidgetQtObject)
     layers = ProxyProperty('layers', 'qt_object', RisWidgetQtObject)
+    # It is not easy to spot the pages property of a flipbook amongst the many possibilities visibile in dir(Flipbook).  So,
+    # although flipbook_pages saves no characters compared to flipbook.pages, flipbook_pages is nice to have.
     flipbook_pages = ProxyProperty('pages', 'flipbook', Flipbook)
 
 if __name__ == '__main__':
