@@ -48,10 +48,10 @@ class PageList(om.UniformSignalingList):
 _X_THREAD_ADD_IMAGE_FILES_EVENT = Qt.QEvent.registerEventType()
 
 class _XThreadAddImageFilesEvent(Qt.QEvent):
-    def __init__(self, image_fpaths, need_threadpool):
+    def __init__(self, image_fpaths, completion_callback):
         super().__init__(_X_THREAD_ADD_IMAGE_FILES_EVENT)
         self.image_fpaths = image_fpaths
-        self.need_threadpool = need_threadpool
+        self.completion_callback = completion_callback
 
 #TODO: feed entirety of .pages to ProgressThreadPool and make ProgressThreadPool entirely ignore non-Task elements
 #rather than raising exceptions
@@ -72,6 +72,7 @@ class Flipbook(Qt.QWidget):
         self.pages_view.selectionModel().currentRowChanged.connect(self._on_page_focus_changed)
         l.addWidget(self.pages_view)
         self.progress_thread_pool = None
+        self.progress_thread_pool_completion_callbacks = []
         self._attached_page = None
         self.delete_selected_action = Qt.QAction(self)
         self.delete_selected_action.setText('Delete pages')
@@ -91,7 +92,7 @@ class Flipbook(Qt.QWidget):
         self._on_selection_changed()
         self._on_page_focus_changed()
 
-    def add_image_files(self, image_fpaths):
+    def add_image_files(self, image_fpaths, completion_callback=None):
         """image_fpaths: An iterable of filenames and/or iterables of filenames, with
         a filename being either a pathlib.Path object or a string.  For example, the
         following would append 7 pages to the flipbook, with 1 image in the first
@@ -124,25 +125,33 @@ class Flipbook(Qt.QWidget):
             '/home/me/allfish_nocontrol.png'
         ])
 
-        Flipbook.add_image_files(..) is safe to call from any thread."""
+        Flipbook.add_image_files(..) is safe to call from any thread.
+
+        In the case where at least one element of image_fpaths or its constituent lists
+
+        A callable supplied for completion_callback is executed when bulk image loading
+        completes.  If you call .add_image_files(..) before the bulk image loading
+        initiated by earlier .add_image_files(..) calls completes, callback execution
+        is postponed until the additional images have been loaded.  When loading of
+        all images has ended, regardless of whether all images loaded successfully or
+        not, all callbacks installed by .add_image_files calls during that period of
+        continuous bulk image loading are executed."""
         
         image_fpaths_l = []
-        need_threadpool = False
         for p in image_fpaths:
             if isinstance(p, (str, Path)):
                 image_fpaths_l.append(p)
-                need_threadpool = True
             else:
                 i_s = []
                 for i in p:
                     assert(isinstance(i, (str, Path)))
                     i_s.append(i)
-                    need_threadpool = True
                 image_fpaths_l.append(i_s)
-        if Qt.QThread.currentThread() is Qt.QApplication.instance().thread():
-            self._add_image_files(image_fpaths_l, need_threadpool)
-        else:
-            Qt.QApplication.instance().postEvent(self, _XThreadAddImageFilesEvent(image_fpaths_l, need_threadpool))
+        if image_fpaths_l:
+            if Qt.QThread.currentThread() is Qt.QApplication.instance().thread():
+                self._add_image_files(image_fpaths_l, completion_callback)
+            else:
+                Qt.QApplication.instance().postEvent(self, _XThreadAddImageFilesEvent(image_fpaths_l, completion_callback))
 
     def _handle_dropped_files(self, fpaths, dst_row, dst_column, dst_parent):
         freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
@@ -157,7 +166,7 @@ class Flipbook(Qt.QWidget):
     def event(self, event):
         if event.type() == _X_THREAD_ADD_IMAGE_FILES_EVENT:
             assert isinstance(event, _XThreadAddImageFilesEvent)
-            self._add_image_files(event.image_fpaths, event.need_threadpool)
+            self._add_image_files(event.image_fpaths, event.completion_callback)
             return True
         return super().event(event)
 
@@ -315,33 +324,35 @@ class Flipbook(Qt.QWidget):
     def _read_stack(self, freeimage, image_fpaths):
         return [(freeimage.read(str(image_fpath)), str(image_fpath)) for image_fpath in image_fpaths]
 
-    def _add_image_files(self, image_fpaths, need_threadpool):
+    def _add_image_files(self, image_fpaths, completion_callback):
         assert Qt.QThread.currentThread() is Qt.QApplication.instance().thread()
-        if need_threadpool:
-            pages = []
-            freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
-            if freeimage:
-                if self.progress_thread_pool is None:
-                    self.progress_thread_pool = ProgressThreadPool()
-                    self.progress_thread_pool.task_status_changed.connect(self._on_progress_thread_pool_task_status_changed)
-                    self.progress_thread_pool.all_tasks_retired.connect(self._on_all_progress_thread_pool_tasks_retired)
-                    self.layout().addWidget(self.progress_thread_pool)
-                for p in image_fpaths:
-                    if isinstance(p, (str, Path)):
-                        reader = self.progress_thread_pool.submit(freeimage.read, str(p))
-                        reader.name = str(p)
-                        pages.append(reader)
+        pages = []
+        freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
+        if freeimage:
+            if self.progress_thread_pool is None:
+                self.progress_thread_pool = ProgressThreadPool()
+                self.progress_thread_pool.task_status_changed.connect(self._on_progress_thread_pool_task_status_changed)
+                self.progress_thread_pool.all_tasks_retired.connect(self._on_all_progress_thread_pool_tasks_retired)
+                self.layout().addWidget(self.progress_thread_pool)
+            if completion_callback is not None:
+                self.progress_thread_pool_completion_callbacks.append(completion_callback)
+            for p in image_fpaths:
+                if isinstance(p, (str, Path)):
+                    reader = self.progress_thread_pool.submit(freeimage.read, str(p))
+                    reader.name = str(p)
+                    pages.append(reader)
+                else:
+                    if len(p) == 0:
+                        pages.append(p)
                     else:
-                        if len(p) == 0:
-                            pages.append(p)
-                        else:
-                            stack_reader = self.progress_thread_pool.submit(self._read_stack, freeimage, p)
-                            stack_reader.name = ', '.join(Path(image_fpath).stem for image_fpath in p)
-                            pages.append(stack_reader)
+                        stack_reader = self.progress_thread_pool.submit(self._read_stack, freeimage, p)
+                        stack_reader.name = ', '.join(Path(image_fpath).stem for image_fpath in p)
+                        pages.append(stack_reader)
+            self.pages.extend(pages)
+            self.ensure_page_focused()
         else:
-            pages = image_fpaths
-        self.pages.extend(pages)
-        self.ensure_page_focused()
+            if completion_callback is not None:
+                completion_callback()
 
     def _on_progress_thread_pool_task_status_changed(self, task, old_status):
         try:
@@ -381,6 +392,8 @@ class Flipbook(Qt.QWidget):
         self.layout().removeWidget(self.progress_thread_pool)
         self.progress_thread_pool.deleteLater()
         self.progress_thread_pool = None
+        while self.progress_thread_pool_completion_callbacks:
+            self.progress_thread_pool_completion_callbacks.pop()()
 
 class PagesView(Qt.QTableView):
     def __init__(self, pages_model, parent=None):
