@@ -59,14 +59,13 @@ class SignalingList(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
     removed = Qt.pyqtSignal(list, list)
     replaced = Qt.pyqtSignal(list, list, list)
 
-    def __init__(self, iterable=None, parent=None, name=''):
+    def __init__(self, iterable=None, parent=None):
         Qt.QObject.__init__(self, parent)
         self.objectNameChanged.connect(self._on_objectNameChanged)
         if iterable is None:
             self._list = list()
         else:
             self._list = list(iterable)
-        self.name = name
 
     name_changed = Qt.pyqtSignal(object)
     def _on_objectNameChanged(self):

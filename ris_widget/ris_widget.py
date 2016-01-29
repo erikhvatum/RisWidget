@@ -325,7 +325,7 @@ class RisWidgetQtObject(Qt.QMainWindow):
 
     @property
     def image(self):
-        """rw.image: A Convenience property exactly equivalent to rw.layer.image, and equivalent to
+        """rw.image: A Convenience property exactly equivalent to rw.layer.image, and equivalent to 
         rw.layer_stack[0].image with a minor difference: if len(rw.layer_stack) == 0, a query of rw.image
         returns None rather than raising an exception, and an assignment to it in this scenario is
         equivalent to rw.layer_stack.insert(0, Layer(v))."""
@@ -433,7 +433,6 @@ class RisWidget:
         'hide',
         'close'
     ]
-
     def __init__(
             self,
             window_title='RisWidget',
@@ -457,9 +456,7 @@ class RisWidget:
         for refname in self.COPY_REFS:
             setattr(self, refname, getattr(self.qt_object, refname))
         self.add_image_files_to_flipbook = self.flipbook.add_image_files
-        self.add_image_stacks_to_flipbook = self.flipbook.add_image_stacks
         self.snapshot = self.qt_object.main_view.snapshot
-
     image = ProxyProperty('image', 'qt_object', RisWidgetQtObject)
     layer = ProxyProperty('layer', 'qt_object', RisWidgetQtObject)
     focused_layer = ProxyProperty('focused_layer', 'qt_object', RisWidgetQtObject)
