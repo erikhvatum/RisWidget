@@ -127,8 +127,6 @@ class Flipbook(Qt.QWidget):
 
         Flipbook.add_image_files(..) is safe to call from any thread.
 
-        In the case where at least one element of image_fpaths or its constituent lists
-
         A callable supplied for completion_callback is executed when bulk image loading
         completes.  If you call .add_image_files(..) before the bulk image loading
         initiated by earlier .add_image_files(..) calls completes, callback execution

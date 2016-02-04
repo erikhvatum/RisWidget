@@ -118,6 +118,17 @@ class LayerStackFlipbook(Qt.QWidget):
         if midx.isValid():
             return midx.row()
 
+    @focused_page_idx.setter
+    def focused_page_idx(self, idx):
+        if idx is None:
+            self.pages_view.selectionModel().clear()
+        else:
+            if not 0 <= idx < len(self.pages):
+                raise IndexError('The value assigned to focused_pages_idx must either be None or a value >= 0 and < page count.')
+            sm = self.pages_view.selectionModel()
+            midx = self.pages_model.index(idx, 0)
+            sm.setCurrentIndex(midx, sm.ClearAndSelect)
+
     @property
     def focused_page(self):
         focused_page_idx = self.focused_page_idx
