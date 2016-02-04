@@ -53,6 +53,13 @@ class _XThreadAddImageFilesEvent(Qt.QEvent):
         self.image_fpaths = image_fpaths
         self.completion_callback = completion_callback
 
+_DELAYED_CALLBACKS_EVENT = Qt.QEvent.registerEventType()
+
+class _DelayedCallbacksEvent(Qt.QEvent):
+    def __init__(self, callbacks):
+        super().__init__(_DELAYED_CALLBACKS_EVENT)
+        self.callbacks = callbacks
+
 #TODO: feed entirety of .pages to ProgressThreadPool and make ProgressThreadPool entirely ignore non-Task elements
 #rather than raising exceptions
 class Flipbook(Qt.QWidget):
@@ -165,6 +172,10 @@ class Flipbook(Qt.QWidget):
         if event.type() == _X_THREAD_ADD_IMAGE_FILES_EVENT:
             assert isinstance(event, _XThreadAddImageFilesEvent)
             self._add_image_files(event.image_fpaths, event.completion_callback)
+            return True
+        elif event.type() == _DELAYED_CALLBACKS_EVENT:
+            for callback in event.callbacks:
+                callback()
             return True
         return super().event(event)
 
@@ -390,8 +401,8 @@ class Flipbook(Qt.QWidget):
         self.layout().removeWidget(self.progress_thread_pool)
         self.progress_thread_pool.deleteLater()
         self.progress_thread_pool = None
-        while self.progress_thread_pool_completion_callbacks:
-            self.progress_thread_pool_completion_callbacks.pop()()
+        Qt.QApplication.instance().postEvent(self, _DelayedCallbacksEvent(self.progress_thread_pool_completion_callbacks))
+        self.progress_thread_pool_completion_callbacks = []
 
 class PagesView(Qt.QTableView):
     def __init__(self, pages_model, parent=None):
