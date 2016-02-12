@@ -1,6 +1,6 @@
 ﻿# The MIT License (MIT)
 #
-# Copyright (c) 2014-2015 WUSTL ZPLAB
+# Copyright (c) 2014-2016 WUSTL ZPLAB
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +25,7 @@
 import numpy
 from pathlib import Path
 from PyQt5 import Qt
+from textwrap import dedent
 from .. import om
 from ..image import Image
 from ..shared_resources import FREEIMAGE
@@ -60,11 +61,62 @@ class _DelayedCallbacksEvent(Qt.QEvent):
         super().__init__(_DELAYED_CALLBACKS_EVENT)
         self.callbacks = callbacks
 
-#TODO: feed entirety of .pages to ProgressThreadPool and make ProgressThreadPool entirely ignore non-Task elements
-#rather than raising exceptions
+__FLIPBOOK_PAGES_DOCSTRING = dedent("""
+    The list of pages represented by a Flipbook instance's list view is available via a that
+    Flipbook instance's .pages property.
+
+    An individual page is itself a list of Images, but single Image pages need not be inserted
+    as single element lists.  Single Image or array-like object insertions into the list of
+    pages (.pages) are wrapped in an automatically created single element list if needed.
+    Likewise, although a Flipbook instance's .pages property always and exclusively contains
+    lists of pages, and pages, in turn, always and exclusively contain Image instances, 2D
+    and 3D array-like objects (typically numpy.ndarray instances) inserted are always wrapped
+    or copied into a new Image (an ndarray with appropriate striding and dtype is wrapped rather
+    than copied).
+
+    Ex:
+
+    import numpy
+    from ris_widget.ris_widget import RisWidget
+    rw = RisWidget()
+    rw.show()
+
+    print(rw.flipbook.pages)
+    # <ris_widget.qwidgets.flipbook.PageList object at 0x7fa93e38f678>
+
+    rw.flipbook.pages.append(numpy.zeros((600,800), dtype=numpy.uint8).T)
+    print(rw.flipbook.pages)
+    # <ris_widget.qwidgets.flipbook.PageList object at 0x7fa93e38f678
+    # [
+    #         <ris_widget.qwidgets.flipbook.ImageList object at 0x7fa93e399b88
+    #     [
+    #         <ris_widget.image.Image object at 0x7fa93e399d38; unnamed, 800x600, 1 channel (G)>
+    #     ]>
+    # ]>
+
+    print(rw.flipbook.pages)
+    # <ris_widget.qwidgets.flipbook.PageList object at 0x7fa93e38f678
+    # [
+    #         <ris_widget.qwidgets.flipbook.ImageList object at 0x7fa93e399b88
+    #     [
+    #         <ris_widget.image.Image object at 0x7fa93e399d38; unnamed, 800x600, 1 channel (G)>
+    #     ]>,
+    #         <ris_widget.qwidgets.flipbook.ImageList object at 0x7fa945dd6048
+    #     [
+    #         <ris_widget.image.Image object at 0x7fa945dd60d8; unnamed, 640x480, 1 channel (G)>,
+    #         <ris_widget.image.Image object at 0x7fa945dd6168; unnamed, 320x200, 1 channel (G)>
+    #     ]>
+    # ]>
+
+    """)
+
 class Flipbook(Qt.QWidget):
-    # TODO: update the following docstring
-    """"""
+    """Flipbook: A Qt widget with a list view containing pages.  Calling a Flipbook instance's
+    .add_image_files method is the easiest way in which to load a number of image files as pages
+    into a Flipbook - see help(ris_widget.qwidgets.flipbook.Flipbook) for more information
+    regarding this method.
+
+    """
 
     def __init__(self, layer_stack, parent=None):
         super().__init__(parent)
@@ -214,15 +266,19 @@ class Flipbook(Qt.QWidget):
         """The contents of the currently selected pages (by ascending index order in .pages
         and excluding the target page) are appended to the target page.  The target page is
         the selected page with the lowest index.  After their contents are appended to target,
-        the non-target selected pages are removed from .pages."""
+        the non-target selected pages are removed from .pages.  Any page still loading (e.g.
+        added by .add_image_files() and not yet complete) is ignored.  If the target page
+        is still loading, .merge_selected() is a no-op."""
         sm = self.pages_view.selectionModel()
         m = self.pages_model
         if None in (m, sm):
             return
         midxs = sm.selectedRows()
+        midxs = sorted(
+            (midx for midx in midxs if midx.isValid() and not isinstance(midx.data(), Task)),
+            key=lambda _midx: _midx.row())
         if len(midxs) < 2:
             return
-        midxs = sorted(midxs, key=lambda _midx: _midx.row())
         target_midx = midxs.pop(0)
         pages = self.pages
         target_page = pages[target_midx.row()]
@@ -403,6 +459,9 @@ class Flipbook(Qt.QWidget):
         self.progress_thread_pool = None
         Qt.QApplication.instance().postEvent(self, _DelayedCallbacksEvent(self.progress_thread_pool_completion_callbacks))
         self.progress_thread_pool_completion_callbacks = []
+
+Flipbook.__doc__ += __FLIPBOOK_PAGES_DOCSTRING
+Flipbook.pages.__doc__ = __FLIPBOOK_PAGES_DOCSTRING
 
 class PagesView(Qt.QTableView):
     def __init__(self, pages_model, parent=None):

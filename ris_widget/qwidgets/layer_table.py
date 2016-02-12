@@ -30,7 +30,7 @@ from ..qdelegates.slider_delegate import SliderDelegate
 from ..qdelegates.color_delegate import ColorDelegate
 from ..qdelegates.checkbox_delegate import CheckboxDelegate
 from ..qdelegates.special_selection_highlight_delegate import SpecialSelectionHighlightDelegate
-from ..shared_resources import CHOICES_QITEMDATA_ROLE, SPECIAL_SELECTION_HIGHLIGHT_QITEMDATA_ROLE, FREEIMAGE
+from ..shared_resources import CHOICES_QITEMDATA_ROLE, FREEIMAGE
 from .. import om
 
 @om.item_view_shortcuts.with_selected_rows_deletion_shortcut
@@ -162,9 +162,9 @@ class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePro
         'auto_min_max_enabled',
         'tint',
         'opacity',
-#        'getcolor_expression',
-#        'transform_section',
-#        'name',
+        'getcolor_expression',
+        'transform_section',
+        'name',
         'image.dtype',
         'image.type',
         'image.size',
