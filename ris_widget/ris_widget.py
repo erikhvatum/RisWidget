@@ -144,7 +144,7 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.gc_action = Qt.QAction(self)
         self.gc_action.setText('GC')
         self.gc_action.setToolTip('Initiate garbage collection (to free memory after opening and closing a large number of images).')
-        self.gc_action.triggered.connect(lambda: print('{} objected freed.').format(gc.collect()))
+        self.gc_action.triggered.connect(lambda: print('{} objects freed.'.format(gc.collect())))
 
     @staticmethod
     def _format_zoom(zoom):
