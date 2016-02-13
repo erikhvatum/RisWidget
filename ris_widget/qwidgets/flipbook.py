@@ -323,7 +323,6 @@ class Flipbook(Qt.QWidget):
 
     @pages.setter
     def pages(self, pages):
-        ''
         if not isinstance(pages, PageList):
             pages = PageList(pages)
         self.pages_model.signaling_list = pages
