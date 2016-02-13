@@ -61,7 +61,7 @@ class _DelayedCallbacksEvent(Qt.QEvent):
         super().__init__(_DELAYED_CALLBACKS_EVENT)
         self.callbacks = callbacks
 
-__FLIPBOOK_PAGES_DOCSTRING = dedent("""
+_FLIPBOOK_PAGES_DOCSTRING = ("""
     The list of pages represented by a Flipbook instance's list view is available via a that
     Flipbook instance's .pages property.
 
@@ -111,12 +111,15 @@ __FLIPBOOK_PAGES_DOCSTRING = dedent("""
     """)
 
 class Flipbook(Qt.QWidget):
-    """Flipbook: A Qt widget with a list view containing pages.  Calling a Flipbook instance's
+    """
+    Flipbook: A Qt widget with a list view containing pages.  Calling a Flipbook instance's
     .add_image_files method is the easiest way in which to load a number of image files as pages
     into a Flipbook - see help(ris_widget.qwidgets.flipbook.Flipbook) for more information
     regarding this method.
 
     """
+
+    __doc__ += _FLIPBOOK_PAGES_DOCSTRING
 
     def __init__(self, layer_stack, parent=None):
         super().__init__(parent)
@@ -320,10 +323,13 @@ class Flipbook(Qt.QWidget):
 
     @pages.setter
     def pages(self, pages):
+        ''
         if not isinstance(pages, PageList):
             pages = PageList(pages)
         self.pages_model.signaling_list = pages
         self._on_page_focus_changed()
+
+    pages.__doc__ = _FLIPBOOK_PAGES_DOCSTRING
 
     @property
     def focused_page_idx(self):
@@ -459,9 +465,6 @@ class Flipbook(Qt.QWidget):
         self.progress_thread_pool = None
         Qt.QApplication.instance().postEvent(self, _DelayedCallbacksEvent(self.progress_thread_pool_completion_callbacks))
         self.progress_thread_pool_completion_callbacks = []
-
-Flipbook.__doc__ += __FLIPBOOK_PAGES_DOCSTRING
-Flipbook.pages.__doc__ = __FLIPBOOK_PAGES_DOCSTRING
 
 class PagesView(Qt.QTableView):
     def __init__(self, pages_model, parent=None):
