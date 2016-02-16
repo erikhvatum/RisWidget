@@ -25,6 +25,7 @@
 import sip
 sip.setdestroyonexit(True)
 
+import numpy
 from PyQt5 import Qt
 import gc
 import sys
@@ -57,6 +58,8 @@ if sys.platform == 'darwin':
             return self.baseStyle().styleHint(sh, option, widget, returnData)
 
 class RisWidgetQtObject(Qt.QMainWindow):
+    main_view_change_signal = Qt.pyqtSignal(Qt.QTransform, Qt.QRectF)
+
     def __init__(
             self,
             app_prefs_name,
@@ -161,6 +164,7 @@ class RisWidgetQtObject(Qt.QMainWindow):
     def _init_scenes_and_views(self):
         self.main_scene = GeneralScene(self, self.layer_stack)
         self.main_view = GeneralView(self.main_scene, self)
+        self.main_view.scene_region_changed.connect(self._main_view_scene_region_changed)
         self.setCentralWidget(self.main_view)
         self.histogram_scene = HistogramScene(self, self.layer_stack)
         self.histogram_dock_widget = Qt.QDockWidget('Histogram', self)
@@ -376,6 +380,13 @@ class RisWidgetQtObject(Qt.QMainWindow):
             self.main_view_zoom_combo.setFocus()
             self.main_view_zoom_combo.lineEdit().selectAll()
 
+    def _main_view_scene_region_changed(self, view):
+        p = view.mapToScene(view.rect())
+        tl = min(pc.x() for pc in p), min(pc.y() for pc in p)
+        br = max(pc.x() for pc in p), max(pc.y() for pc in p)
+        s = abs(br[0]-tl[0]), abs(br[1]-tl[1])
+        self.main_view_change_signal.emit(view.transform(), Qt.QRectF(tl[0], tl[1], s[0], s[1]))
+
     def _on_reset_min_max(self):
         layer = self.focused_layer
         if layer is not None:
@@ -428,6 +439,65 @@ class ProxyProperty(property):
         self.proxied_property.fdel(getattr(obj, self.owner_name))
 
 class RisWidget:
+    """RisWidget: A window for viewing images and image stacks from files and live data sources, containing
+    an interactive histogram, list view of loaded images and image stacks, and an extensible graphics view.
+    The RisWidget class itself presents a handful of properties and attributes, signals, and methods that tend
+    to be the most used for day-to-day tasks.  These are proxies back to the their implementations in
+    RisWidgetQtObject and its constituent components.  The wrapped RisWidgetQtObject is available as
+    .qt_object (eg, rw.qt_object, where rw is a RisWidget instance).
+
+    Signals:
+    * main_view_change_signal(viewport_transformation_matrix, viewport_scene_rect)
+
+    main_view_change_signal is emitted whenever the matrix that transforms to main view coordinates from
+    the coordinate system of the scene displayed by the main view (ie, rw.main_scene).  By default, 
+    rw.main_scene's coordinate system is the same as that of rw.image, with origin at top left.  So, in 
+    terms of (x, y), (100, 200) in scene  coordinates represents the top left of the pixel 
+    rw.image[100, 200] (note that RisWidget follows the convention that x is specified first, meaning that
+    the width of rw.image, rw.image.size.width(), is equal to rw.image.data.shape[0], while
+    rw.image.size.height() == rw.image.data.shape[1]).
+
+    The transformation matrix delivered as the first parameter of main_view_change_signal is an instance of
+    Qt.QTransform, representing an augmented matrix for transforming 2D coordinates, and has the same value
+    as that obtained by calling rw.main_scene.transform().  In order to examine the matrix represented by an
+    instance of Qt.QTransform, it is convenient to convert it into a numpy array, which may be done using
+    the static method RisWidget.qtransform_to_ndarray.  For example:
+
+    from ris_widget.ris_widget import RisWidget
+    t = Qt.QTransform()
+    print(t)
+    # <PyQt5.QtGui.QTransform object at 0x1168e5e48>
+    print(RisWidget.qtransform_to_ndarray(t))
+    # [[ 1.  0.  0.]
+    #  [ 0.  1.  0.]
+    #  [ 0.  0.  1.]]
+    t = t.translate(10, 1)
+    a = RisWidget.qtransform_to_ndarray(t)
+    print(a)
+    # [[  1.   0.  10.]
+    #  [  0.   1.   1.]
+    #  [  0.   0.   1.]]
+    print(t.map(0.0, 0.0))
+    # (10.0, 1.0)
+    print(RisWidget.qtransform_to_ndarray(t) @ [[0],[0],[1]])
+    # [[ 10.]
+    #  [  1.]
+    #  [  1.]]
+
+    main_view_change_signal's second parameter, viewport_scene_rect, is a Qt.QRectF representing the region
+    of the scene contained in the viewport, in scene coordinates.  This is particularly useful for maintaining
+    the position of a scene element (aka "graphics item") with respect viewport edge.
+
+    Note that enabling a graphics item's ItemIgnoresTransformations flag fixes that item in place with respect
+    to its parent, or the scene if it has no parent, and fixes its scale, shearing, and rotation with respect
+    to the viewport.
+
+    To fix graphics item A in place, scale, and rotation with respect to item B, simply parent item A to item B:
+    A.setParentItem(B).  To fix graphics item A in place with respect to item B and the viewport otherwise,
+    parent item A to B and enable item A's ItemIgnoresTransformations flag:
+
+    A.setParentItem(B)
+    A.setFlag(A.ItemIgnoresTransformations)"""
     APP_PREFS_NAME = "RisWidget"
     APP_PREFS_VERSION = 1
     COPY_REFS = [
@@ -458,6 +528,7 @@ class RisWidget:
             layers,
             layer_selection_model,
             **kw)
+        self.main_view_change_signal = self.qt_object.main_view_change_signal
         for refname in self.COPY_REFS:
             setattr(self, refname, getattr(self.qt_object, refname))
         self.add_image_files_to_flipbook = self.flipbook.add_image_files
@@ -469,6 +540,21 @@ class RisWidget:
     # It is not easy to spot the pages property of a flipbook amongst the many possibilities visibile in dir(Flipbook).  So,
     # although flipbook_pages saves no characters compared to flipbook.pages, flipbook_pages is nice to have.
     flipbook_pages = ProxyProperty('pages', 'flipbook', Flipbook)
+
+    @staticmethod
+    def qtransform_to_ndarray(t):
+        return numpy.array([
+            [t.m11(), t.m21(), t.m31()],
+            [t.m12(), t.m22(), t.m32()],
+            [t.m13(), t.m23(), t.m33()]])
+
+    @staticmethod
+    def ndarray_to_qtransform(a):
+        assert a.ndim == 2 and a.shape[0] == 3 and a.shape[1] == 3
+        return Qt.QTransform(
+            a[0,0], a[1,0], a[2,0],
+            a[0,1], a[1,1], a[2,1],
+            a[0,2], a[1,2], a[2,2])
 
 if __name__ == '__main__':
     import sys
