@@ -140,6 +140,9 @@ class BaseView(Qt.QGraphicsView):
             # This is an idiotic workaround, but work it does
             size = Qt.QSize(size.width() * dpi_ratio, size.height() * dpi_ratio)
         with ExitStack() as estack:
+            if hasattr(self.scene(), 'contextual_info_item') and self.scene().contextual_info_item.isVisible():
+                self.scene().contextual_info_item.hide()
+                estack.callback(self.scene().contextual_info_item.show)
             gl_widget.makeCurrent()
             estack.callback(gl_widget.doneCurrent)
             GL = QGL()
