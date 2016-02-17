@@ -411,13 +411,25 @@ class RisWidgetQtObject(Qt.QMainWindow):
             except RuntimeError as e:
                 Qt.QMessageBox.information(self, self.windowTitle() + ' Snapshot Error', e)
             else:
-                fn, _ = Qt.QFileDialog.getSaveFileName(
-                    self,
-                    'Save Snapshot',
-                    filter='Images (*.png *.jpg *.tiff *.tif)')
+                if sys.platform == 'darwin':
+                    # With the current version of PyQt (5.5.2) and below, if IPython's Qt event loop intergration is
+                    # active, the OS X native modal file save dialog ends up being dismissed just as it appears.  This
+                    # can be avoided by using Qt's own reasonably good save dialog.  This will probably eventually be
+                    # fixed by the IPython developers, at which point this if clause may be deleted with the contents
+                    # of the associated else clause unindented and left as the only remaining code path.
+                    fn, _ = Qt.QFileDialog.getSaveFileName(
+                        self,
+                        'Save Snapshot',
+                        filter='Images (*.png *.jpg *.tiff *.tif)',
+                        options=Qt.QFileDialog.DontUseNativeDialog)
+                else:
+                    fn, _ = Qt.QFileDialog.getSaveFileName(
+                        self,
+                        'Save Snapshot',
+                        filter='Images (*.png *.jpg *.tiff *.tif)')
                 if fn:
                     try:
-                        freeimage.write(snapshot.data, fn)
+                        freeimage.write(snapshot, fn)
                     except Exception as e:
                         Qt.QMessageBox.information(self, self.windowTitle() + ' Freeimage Error', type(e).__name__ + ': ' + str(e))
 

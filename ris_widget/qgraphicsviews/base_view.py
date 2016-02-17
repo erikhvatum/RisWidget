@@ -160,7 +160,7 @@ class BaseView(Qt.QGraphicsView):
             p.setRenderHints(Qt.QPainter.Antialiasing | Qt.QPainter.HighQualityAntialiasing)
             scene.render(p, Qt.QRectF(0,0,size.width(),size.height()), scene_rect)
             qimage = fbo.toImage()
-        return Image.from_qimage(qimage, name='snapshot')
+        return Image.from_qimage(qimage).data
 
 class _ShaderViewGLViewport(Qt.QOpenGLWidget):
     """In order to obtain a QGraphicsView instance that renders into an OpenGL 2.1

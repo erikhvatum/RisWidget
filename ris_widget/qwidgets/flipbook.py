@@ -25,7 +25,6 @@
 import numpy
 from pathlib import Path
 from PyQt5 import Qt
-from textwrap import dedent
 from .. import om
 from ..image import Image
 from ..shared_resources import FREEIMAGE
