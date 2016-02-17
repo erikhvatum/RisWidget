@@ -450,6 +450,8 @@ class ProxyProperty(property):
     def __delete__(self, obj):
         self.proxied_property.fdel(getattr(obj, self.owner_name))
 
+AUTO_CREATED_QAPPLICATION = None
+
 class RisWidget:
     """RisWidget: A window for viewing images and image stacks from files and live data sources, containing
     an interactive histogram, list view of loaded images and image stacks, and an extensible graphics view.
@@ -462,7 +464,7 @@ class RisWidget:
     * main_view_change_signal(viewport_transformation_matrix, viewport_scene_rect)
 
     main_view_change_signal is emitted whenever the matrix that transforms to main view coordinates from
-    the coordinate system of the scene displayed by the main view (ie, rw.main_scene).  By default, 
+    the coordinate system of the scene displayed by the main view (ie, rw.main_scene) changes.  By default,
     rw.main_scene's coordinate system is the same as that of rw.image, with origin at top left.  So, in 
     terms of (x, y), (100, 200) in scene  coordinates represents the top left of the pixel 
     rw.image[100, 200] (note that RisWidget follows the convention that x is specified first, meaning that
@@ -500,13 +502,13 @@ class RisWidget:
     of the scene contained in the viewport, in scene coordinates.  This is particularly useful for maintaining
     the position of a scene element (aka "graphics item") with respect viewport edge.
 
-    Note that enabling a graphics item's ItemIgnoresTransformations flag fixes that item in place with respect
-    to its parent, or the scene if it has no parent, and fixes its scale, shearing, and rotation with respect
-    to the viewport.
+    Note that enabling a graphics item's ItemIgnoresTransformations flag fixes that item's position in place with respect
+    to its parent, or the scene if it has no parent, and fixes all other aspects of its transformation (scale, shearing,
+    and rotation) with respect to the viewport.
 
     To fix graphics item A in place, scale, and rotation with respect to item B, simply parent item A to item B:
-    A.setParentItem(B).  To fix graphics item A in place with respect to item B and the viewport otherwise,
-    parent item A to B and enable item A's ItemIgnoresTransformations flag:
+    A.setParentItem(B).  To fix graphics item A in place relative to item B while fixing item A's scale, shearing, and
+    rotation relative to the viewport, parent item A to B and enable item A's ItemIgnoresTransformations flag:
 
     A.setParentItem(B)
     A.setFlag(A.ItemIgnoresTransformations)"""
@@ -526,10 +528,22 @@ class RisWidget:
             parent=None,
             window_flags=Qt.Qt.WindowFlags(0),
             msaa_sample_count=2,
+            show=True,
             layers = tuple(),
             layer_selection_model=None,
             RisWidgetQtObjectClass=RisWidgetQtObject,
             **kw):
+        if Qt.QApplication.instance() is None:
+            print(
+                "Warning: RisWidget's graphical user interface is composed of Qt widgets, and A QApplication instance "
+                "must exist before any Qt widgets may be created.  Automatically creating a QApplication...",
+                file=sys.stderr)
+            global AUTO_CREATED_QAPPLICATION
+            AUTO_CREATED_QAPPLICATION = Qt.QApplication(sys.argv)
+            print(
+                "QApplication created.  It is accessible as ris_widget.AUTO_CREATED_QAPPLICATION or "
+                "Qt.QApplication.instance().",
+                file=sys.stderr)
         self.qt_object = RisWidgetQtObjectClass(
             self.APP_PREFS_NAME,
             self.APP_PREFS_VERSION,
@@ -545,6 +559,8 @@ class RisWidget:
             setattr(self, refname, getattr(self.qt_object, refname))
         self.add_image_files_to_flipbook = self.flipbook.add_image_files
         self.snapshot = self.qt_object.main_view.snapshot
+        if show:
+            self.show()
     image = ProxyProperty('image', 'qt_object', RisWidgetQtObject)
     layer = ProxyProperty('layer', 'qt_object', RisWidgetQtObject)
     focused_layer = ProxyProperty('focused_layer', 'qt_object', RisWidgetQtObject)
