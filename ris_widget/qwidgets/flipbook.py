@@ -327,7 +327,10 @@ class Flipbook(Qt.QWidget):
         self.pages_model.signaling_list = pages
         self._on_page_focus_changed()
 
-    pages.__doc__ = _FLIPBOOK_PAGES_DOCSTRING
+    try:
+        pages.__doc__ = _FLIPBOOK_PAGES_DOCSTRING
+    except AttributeError:
+        pass
 
     @property
     def focused_page_idx(self):
