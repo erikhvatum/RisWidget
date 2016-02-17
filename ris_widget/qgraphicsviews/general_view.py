@@ -27,6 +27,10 @@ import numpy
 from PyQt5 import Qt
 
 class GeneralView(BaseView):
+    """Signals:
+    * right_click_signal(view_coordinate, scene_coordinate)"""
+    right_click_signal = Qt.pyqtSignal(Qt.QPoint, Qt.QPointF)
+
     def _make_zoom_presets(self=None):
         def f(x, step_zoomout=0.125, step_zoomin=0.2):
             if x == 0:
@@ -140,12 +144,16 @@ class GeneralView(BaseView):
         if not event.isAccepted():
             # If the mouse click landed on an interactive scene item, super().mousePressEvent(event) would have set
             # event to accepted.  So, neither the view nor the scene wanted this mouse click, and we check if it is perhaps
-            # a click-drag pan initiation...
+            # a click-drag pan initiation - or even a right click, in which case we emit a signal for use by the user
+            # (for example, in order to create a new item at a right-clicked location for a point picker).
             if event.button() == Qt.Qt.LeftButton:
                 # It is, and we're handling this event
                 self._panning = True
                 self._panning_prev_mouse_pos = event.pos()
                 event.setAccepted(True)
+            elif self.scene() is not None:
+                if event.button() == Qt.Qt.RightButton:
+                    self.right_click_signal.emit(event.pos(), self.mapToScene(event.pos()))
 
     def mouseReleaseEvent(self, event):
         event.setAccepted(False)
