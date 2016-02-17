@@ -24,4 +24,3 @@ from . import item_view_shortcuts
 from .property import Property
 from . import signaling_list
 from .signaling_list.signaling_list import SignalingList
-from .signaling_list.uniform_signaling_list import UniformSignalingList
