@@ -142,16 +142,18 @@ class Layer(Qt.QObject):
     @image.setter
     def image(self, v):
         if v is not self._image:
-            if self._image is not None:
-                self._image.data_changed.disconnect(self._on_image_data_changed)
             if v is not None:
                 if not isinstance(v, Image):
                     v = Image(v)
                 try:
                     v.data_changed.connect(self._on_image_data_changed)
                 except Exception as e:
+                    if self._image is not None:
+                        self._image.data_changed.disconnect(self._on_image_data_changed)
                     self._image = None
                     raise e
+            if self._image is not None:
+                self._image.data_changed.disconnect(self._on_image_data_changed)
             self._image = v
             self._on_image_data_changed(v)
 

@@ -24,7 +24,22 @@ argv = sys.argv
 app = Qt.QApplication(argv)
 rw = RisWidget()
 rw.show()
-#rw.image = im
+im = freeimage.read('/Users/ehvatum/Desktop/Opteron_6300_die_shot_16_core_mod.jpg')
+rw.image = im
+try:
+    rw.image = im.astype(numpy.float64)
+except Exception as e:
+    print(e)
+
+rw.image = im
+
+# def on_timer():
+#     rw.image = im
+#
+# timer = Qt.QTimer()
+# timer.setSingleShot(True)
+# timer.timeout.connect(on_timer)
+# timer.start(1000)
 
 # from ris_widget.qwidgets.flipbook_TESTER import TestWidget;tw = TestWidget(rw.flipbook);tw.show()
 
