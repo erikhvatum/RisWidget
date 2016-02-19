@@ -204,6 +204,12 @@
     <CustomFolders></CustomFolders>
     <Files AutoFolders="DirectoryView">
         <Folder Name="ris_widget">
+            <Folder Name="examples">
+                <F N="ris_widget/examples/__init__.py"/>
+                <F N="ris_widget/examples/poly_line_point_picker.py"/>
+                <F N="ris_widget/examples/quadratic_compound_bezier_picker.py"/>
+                <F N="ris_widget/examples/simple_painter.py"/>
+            </Folder>
             <Folder Name="ndimage_statistics">
                 <F N="ris_widget/ndimage_statistics/__init__.py"/>
                 <F N="ris_widget/ndimage_statistics/_ndimage_statistics.cpp"/>
@@ -276,6 +282,7 @@
             <F N="ris_widget/image.py"/>
             <F N="ris_widget/layer.py"/>
             <F N="ris_widget/layers.py"/>
+            <F N="ris_widget/point_list_picker.py"/>
             <F N="ris_widget/ris_widget.py"/>
             <F N="ris_widget/shared_resources.py"/>
         </Folder>

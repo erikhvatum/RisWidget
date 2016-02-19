@@ -4,6 +4,7 @@ import numpy
 from pathlib import Path
 from PyQt5 import Qt
 from ris_widget.ris_widget import RisWidget
+from ris_widget.point_list_picker import PointListPicker
 from ris_widget.image import Image
 from ris_widget.layer import Layer
 import freeimage
@@ -25,13 +26,22 @@ app = Qt.QApplication(argv)
 rw = RisWidget()
 rw.show()
 im = freeimage.read('/Users/ehvatum/Desktop/Opteron_6300_die_shot_16_core_mod.jpg')
-rw.image = im
-try:
-    rw.image = im.astype(numpy.float64)
-except Exception as e:
-    print(e)
+# rw.image = im
+# try:
+#     rw.image = im.astype(numpy.float64)
+# except Exception as e:
+#     print(e)
 
 rw.image = im
+
+point_list_picker, point_list_table_view = rw.make_poly_line_picker_and_table_view()
+
+def on_print_points():
+    print(point_list_picker.points)
+
+btn = Qt.QPushButton('print points')
+btn.clicked.connect(on_print_points)
+btn.show()
 
 # def on_timer():
 #     rw.image = im
@@ -49,6 +59,3 @@ rw.image = im
 #rw.histogram_view.gl_widget.start_logging()
 
 app.exec_()
-import gc
-del rw
-gc.collect()

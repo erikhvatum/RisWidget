@@ -29,8 +29,10 @@ import numpy
 from PyQt5 import Qt
 import gc
 import sys
+from . import om
 from .layer import Layer
 from .layers import LayerStack
+from .point_list_picker import PointListPicker
 from .qwidgets.flipbook import Flipbook
 from .qwidgets.layer_stack_flipbook import LayerStackFlipbook
 from .qwidgets.layer_table import InvertingProxyModel, LayerTableModel, LayerTableView
@@ -462,6 +464,8 @@ class RisWidget:
 
     Signals:
     * main_view_change_signal(viewport_transformation_matrix, viewport_scene_rect)
+    * main_view_mouse_movement_signal(view_coordinate, scene_coordinate)
+    * main_view_right_click_signal(view_coordinate, scene_coordinate)
 
     main_view_change_signal is emitted whenever the matrix that transforms to main view coordinates from
     the coordinate system of the scene displayed by the main view (ie, rw.main_scene) changes.  By default,
@@ -502,16 +506,12 @@ class RisWidget:
     of the scene contained in the viewport, in scene coordinates.  This is particularly useful for maintaining
     the position of a scene element (aka "graphics item") with respect viewport edge.
 
-    Note that enabling a graphics item's ItemIgnoresTransformations flag fixes that item's position in place with respect
-    to its parent, or the scene if it has no parent, and fixes all other aspects of its transformation (scale, shearing,
-    and rotation) with respect to the viewport.
+    Note that enabling a graphics item's ItemIgnoresTransformations flag fixes that item's position in place
+    with respect to its parent, or the scene if it has no parent, and fixes all other aspects of its
+    transformation (scale, shearing, and rotation) with respect to the viewport.
 
-    To fix graphics item A in place, scale, and rotation with respect to item B, simply parent item A to item B:
-    A.setParentItem(B).  To fix graphics item A in place relative to item B while fixing item A's scale, shearing, and
-    rotation relative to the viewport, parent item A to B and enable item A's ItemIgnoresTransformations flag:
-
-    A.setParentItem(B)
-    A.setFlag(A.ItemIgnoresTransformations)"""
+    To fix graphics item A in place, scale, and rotation with respect to item B, simply parent item A to
+    item B, as in A.setParentItem(B)."""
     APP_PREFS_NAME = "RisWidget"
     APP_PREFS_VERSION = 1
     COPY_REFS = [
@@ -522,6 +522,7 @@ class RisWidget:
         'hide',
         'close'
     ]
+
     def __init__(
             self,
             window_title='RisWidget',
@@ -555,12 +556,15 @@ class RisWidget:
             layer_selection_model,
             **kw)
         self.main_view_change_signal = self.qt_object.main_view_change_signal
+        self.main_view_mouse_movement_signal = self.qt_object.main_view.mouse_movement_signal
+        self.main_view_right_click_signal = self.qt_object.main_view.right_click_signal
         for refname in self.COPY_REFS:
             setattr(self, refname, getattr(self.qt_object, refname))
         self.add_image_files_to_flipbook = self.flipbook.add_image_files
         self.snapshot = self.qt_object.main_view.snapshot
         if show:
             self.show()
+
     image = ProxyProperty('image', 'qt_object', RisWidgetQtObject)
     layer = ProxyProperty('layer', 'qt_object', RisWidgetQtObject)
     focused_layer = ProxyProperty('focused_layer', 'qt_object', RisWidgetQtObject)
@@ -583,6 +587,80 @@ class RisWidget:
             a[0,0], a[1,0], a[2,0],
             a[0,1], a[1,1], a[2,1],
             a[0,2], a[1,2], a[2,2])
+
+    def make_point_list_picker(self):
+        return PointListPicker(self.main_view, self.main_scene.layer_stack_item)
+
+    def make_point_list_picker_and_table_view(self):
+        point_list_picker = self.make_point_list_picker()
+        class PointListPickerTableModel(om.signaling_list.DragDropModelBehavior, om.signaling_list.PropertyTableModel):
+            pass
+        class PointListPickerTableView(Qt.QTableView):
+            def __init__(self, parent=None):
+                super().__init__(parent)
+                self.setAttribute(Qt.Qt.WA_DeleteOnClose, True)
+                self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
+                self.setDragDropOverwriteMode(False)
+                self.setDragEnabled(True)
+                self.setAcceptDrops(True)
+                self.setDragDropMode(Qt.QAbstractItemView.InternalMove)
+                self.setDropIndicatorShown(True)
+                self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
+                self.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
+                self.delete_current_row_action = Qt.QAction(self)
+                self.delete_current_row_action.setText('Delete current row')
+                self.delete_current_row_action.triggered.connect(self._on_delete_current_row_action_triggered)
+                self.delete_current_row_action.setShortcut(Qt.Qt.Key_Delete)
+                self.delete_current_row_action.setShortcutContext(Qt.Qt.WidgetShortcut)
+                self.addAction(self.delete_current_row_action)
+                self.setModel(PointListPickerTableModel(('x', 'y'), point_list_picker.points, self))
+            def _on_delete_current_row_action_triggered(self):
+                sm = self.selectionModel()
+                m = self.model()
+                if None in (m, sm):
+                    return
+                midx = sm.currentIndex()
+                if midx.isValid():
+                    m.removeRow(midx.row())
+        point_list_table_view = PointListPickerTableView()
+        point_list_table_view.show()
+        return point_list_picker, point_list_table_view
+
+    def make_poly_line_picker_and_table_view(self):
+        from .examples.poly_line_point_picker import PolyLinePointPicker
+        point_list_picker = PolyLinePointPicker(self.main_view, self.main_scene.layer_stack_item)
+        class PointListPickerTableModel(om.signaling_list.DragDropModelBehavior, om.signaling_list.PropertyTableModel):
+            pass
+        class PointListPickerTableView(Qt.QTableView):
+            def __init__(self, parent=None):
+                super().__init__(parent)
+                self.setAttribute(Qt.Qt.WA_DeleteOnClose, True)
+                self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
+                self.setDragDropOverwriteMode(False)
+                self.setDragEnabled(True)
+                self.setAcceptDrops(True)
+                self.setDragDropMode(Qt.QAbstractItemView.InternalMove)
+                self.setDropIndicatorShown(True)
+                self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
+                self.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
+                self.delete_current_row_action = Qt.QAction(self)
+                self.delete_current_row_action.setText('Delete current row')
+                self.delete_current_row_action.triggered.connect(self._on_delete_current_row_action_triggered)
+                self.delete_current_row_action.setShortcut(Qt.Qt.Key_Delete)
+                self.delete_current_row_action.setShortcutContext(Qt.Qt.WidgetShortcut)
+                self.addAction(self.delete_current_row_action)
+                self.setModel(PointListPickerTableModel(('x', 'y'), point_list_picker.points, self))
+            def _on_delete_current_row_action_triggered(self):
+                sm = self.selectionModel()
+                m = self.model()
+                if None in (m, sm):
+                    return
+                midx = sm.currentIndex()
+                if midx.isValid():
+                    m.removeRow(midx.row())
+        point_list_table_view = PointListPickerTableView()
+        point_list_table_view.show()
+        return point_list_picker, point_list_table_view
 
 if __name__ == '__main__':
     import sys

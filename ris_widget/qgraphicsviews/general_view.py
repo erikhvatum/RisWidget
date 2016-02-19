@@ -28,8 +28,10 @@ from PyQt5 import Qt
 
 class GeneralView(BaseView):
     """Signals:
-    * right_click_signal(view_coordinate, scene_coordinate)"""
-    right_click_signal = Qt.pyqtSignal(Qt.QPoint, Qt.QPointF)
+    * mouse_movement_signal(view_coordinate, scene_coordinate): Emitted upon any mouse movement within
+    the view.
+    * right_click_signal(view_coordinate, scene_coordinate)
+    * zoom_changed(zoom_level, custom_zoom_ratio)"""
 
     def _make_zoom_presets(self=None):
         def f(x, step_zoomout=0.125, step_zoomin=0.2):
@@ -46,6 +48,8 @@ class GeneralView(BaseView):
     _ZOOM_ONE_TO_ONE_PRESET_IDX = 15
     _ZOOM_INCREMENT_BEYOND_PRESETS_FACTORS = (.8, 1.25)
 
+    mouse_movement_signal = Qt.pyqtSignal(Qt.QPoint, Qt.QPointF)
+    right_click_signal = Qt.pyqtSignal(Qt.QPoint, Qt.QPointF)
     zoom_changed = Qt.pyqtSignal(int, float)
 
     def __init__(self, base_scene, parent):
@@ -68,6 +72,14 @@ class GeneralView(BaseView):
         self.setDragMode(Qt.QGraphicsView.NoDrag)
         self._panning = False
         self.setAcceptDrops(True)
+        # Mouse tracking generally seems to be enabled for QGraphicsViews, but the documentation does
+        # not state that this is always the case, and in fact, does state that mouse tracking defaults
+        # to disabled for QWidgets - and QGraphicsView has QWidget as a base class.  With mouse tracking
+        # disabled, we would receive mouse movement events only while a mouse button is held down.  This
+        # is not desirable: the user may depend on mouse_movement_signal for in order to implement a hover
+        # behavior, and this signal is emitted upon reception of a mouse movement event.  So, to be safe,
+        # we explicitly enable mouse tracking.
+        self.setMouseTracking(True)
 
     def _on_layer_stack_item_bounding_rect_changed(self):
         if self.zoom_to_fit:
@@ -134,7 +146,7 @@ class GeneralView(BaseView):
             self.zoom_changed.emit(self._zoom_preset_idx, self._custom_zoom)
 
     def mousePressEvent(self, event):
-        # For our convenience, Qt sets event accpted to true before calling us, so that we don't have to in the common case
+        # For our convenience, Qt sets event accepted to true before calling us, so that we don't have to in the common case
         # where a handler handles the event and the event should be considered handled.  (Some unhandled events propagate
         # to parent widgets, so this can be important)
         event.setAccepted(False)
@@ -176,6 +188,7 @@ class GeneralView(BaseView):
                 hbar.setValue(hbar.value() + (delta.x() if self.isRightToLeft() else -delta.x()))
                 vbar.setValue(vbar.value() - delta.y())
                 self._panning_prev_mouse_pos = pos
+        self.mouse_movement_signal.emit(event.pos(), self.mapToScene(event.pos()))
 
     def dragEnterEvent(self, event):
         event.setAccepted(False)
