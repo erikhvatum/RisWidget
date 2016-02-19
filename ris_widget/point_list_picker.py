@@ -36,8 +36,6 @@ class Point(Qt.QObject):
         super().__init__(parent)
         self._x = x
         self._y = y
-        self._container_ref_count = 0
-        self._container_id = None
 
     def __repr__(self):
         return '[{}, {}]'.format(self._x, self._y)
@@ -69,6 +67,8 @@ class Point(Qt.QObject):
 class PointList(om.UniformSignalingList):
     def take_input_element(self, obj):
         if isinstance(obj, Point):
+            if obj in self:
+                return Point(obj.x, obj.y)
             return obj
         elif isinstance(obj, (Qt.QPointF, Qt.QPoint)):
             return Point(obj.x(), obj.y())
@@ -194,50 +194,38 @@ class PointListPicker(Qt.QObject):
         self.point_list_replaced.emit(self)
 
     def _attach_point(self, point, idx):
-        if point._container_ref_count > 0:
-            assert point in self.point_items
-            if point._container_id != id(self):
-                raise ValueError('A Point instance may not be a member of two different PointLists.')
-        else:
-            assert point not in self.point_items
-            point._container_ref_count = 1
-            point._container_id = id(self)
-            point.changed.connect(self._on_point_changed)
-            point_item = self.instantiate_point_item(point, idx)
-            self.point_items[point] = point_item
-            point_item.setScale(1 / self.view.transform().m22())
-            point_item.center_pos = Qt.QPointF(point.x, point.y)
-            flags = point_item.flags()
-            point_item.setFlags(
-                flags |
-                Qt.QGraphicsItem.ItemIsSelectable |
-                Qt.QGraphicsItem.ItemIsFocusable |
-                Qt.QGraphicsItem.ItemIsMovable |
-                Qt.QGraphicsItem.ItemSendsGeometryChanges
-            )
+        assert point not in self.point_items
+        point.changed.connect(self._on_point_changed)
+        point_item = self.instantiate_point_item(point, idx)
+        self.point_items[point] = point_item
+        point_item.setScale(1 / self.view.transform().m22())
+        point_item.center_pos = Qt.QPointF(point.x, point.y)
+        flags = point_item.flags()
+        point_item.setFlags(
+            flags |
+            Qt.QGraphicsItem.ItemIsSelectable |
+            Qt.QGraphicsItem.ItemIsFocusable |
+            Qt.QGraphicsItem.ItemIsMovable |
+            Qt.QGraphicsItem.ItemSendsGeometryChanges
+        )
 
     def _detach_point(self, point):
-        assert point._container_id == id(self)
-        assert point._container_ref_count > 0
-        point._container_ref_count -= 1
-        if point._container_ref_count == 0:
-            self._ignore_point_and_item_removed = True
+        self._ignore_point_and_item_removed = True
+        try:
             try:
-                point._container_id = None
-                try:
-                    point.changed.disconnect(self._on_point_changed)
-                except TypeError:
-                    pass
-                try:
-                    point_item = self.point_items.pop(point)
-                    point_item.point_wr = weakref.ref(_Empty())
-                    scene = point_item.scene()
-                    if scene is not None:
-                        scene.removeItem(point_item)
-                except KeyError:
-                    pass
-            finally:
-                self._ignore_point_and_item_removed = False
+                point.changed.disconnect(self._on_point_changed)
+            except TypeError:
+                pass
+            try:
+                point_item = self.point_items.pop(point)
+                point_item.point_wr = weakref.ref(_Empty())
+                scene = point_item.scene()
+                if scene is not None:
+                    scene.removeItem(point_item)
+            except KeyError:
+                pass
+        finally:
+            self._ignore_point_and_item_removed = False
 
     def _attach_point_list(self):
         self._points.inserted.connect(self._on_points_inserted)
@@ -267,11 +255,7 @@ class PointListPicker(Qt.QObject):
     def _on_points_inserted(self, idx_, points):
         for idx, point in enumerate(points, idx_):
             self._attach_point(point, idx)
-        # pacs = []
-        # if idx_ > 0:
-        #     if len(points)
-        # if pacs:
-        #     self.point_adjacency_changes.emit(pacs)
+        self.point_list_contents_changed.emit()
 
     def _on_points_removed(self, idxs, points):
         if self._ignore_point_and_item_removed:
@@ -295,16 +279,16 @@ class PointListPicker(Qt.QObject):
             point_item = self.point_items[point]
             point_item.center_pos = Qt.QPointF(point.x, point.y)
         finally:
+            self.point_list_contents_changed.emit()
             self._ignore_point_and_item_moved = False
 
     def _on_point_item_removed(self, point):
         if self._ignore_point_and_item_removed:
             return
-        assert point._container_id == id(self)
         self._ignore_point_and_item_removed = True
         try:
-            while point._container_ref_count > 0:
-                self._detach_point(point)
+            self._detach_point(point)
+            del self._points[self._points.index(point)]
         finally:
             self.point_list_contents_changed.emit()
             self._ignore_point_and_item_removed = False
@@ -317,6 +301,7 @@ class PointListPicker(Qt.QObject):
             pos = self.point_items[point].center_pos
             point.x, point.y = pos.x(), pos.y()
         finally:
+            self.point_list_contents_changed.emit()
             self._ignore_point_and_item_moved = False
 
     def _on_scene_region_changed(self, view):

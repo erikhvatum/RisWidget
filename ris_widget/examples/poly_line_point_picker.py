@@ -26,10 +26,18 @@ from PyQt5 import Qt
 from ..point_list_picker import PointList, PointListPicker
 
 class PolyLinePointPicker(PointListPicker):
-    def __init__(self, general_view, point_item_parent, points=None, PointListType=PointList, parent=None):
-        super().__init__(general_view, point_item_parent, points, PointListType, parent)
-        # seen_a = set()
-        # seen_b = set()
-        # for a, b in zip(self._points, self._point[1:])
+    def __init__(self, general_view, parent_item, points=None, PointListType=PointList, parent=None):
+        super().__init__(general_view, parent_item, points, PointListType, parent)
+        self.path_item = Qt.QGraphicsPathItem(parent_item)
+        pen = Qt.QPen(Qt.Qt.green)
+        pen.setWidth(5)
+        self.path_item.setPen(pen)
+        self.point_list_contents_changed.connect(self.on_point_list_contents_changed)
 
-
+    def on_point_list_contents_changed(self):
+        path = Qt.QPainterPath()
+        if len(self.points) >= 2:
+            path.moveTo(self.points[0].x, self.points[0].y)
+            for point in self.points[1:]:
+                path.lineTo(point.x, point.y)
+        self.path_item.setPath(path)
