@@ -24,5 +24,31 @@
 
 from PyQt5 import Qt
 
-# TODO: absolutely dead simple right mouse drag -> QGraphicsPathItem creation. Simple as in 10 LOC that just extends
-# the path (to each new right mouse down movement position) if one exists or makes a new one if one does not.
+class SimplePainter:
+    def __init__(self, view, item):
+        self.view = view
+        self.item = item
+        self.path_item = Qt.QGraphicsPathItem(item)
+        pen = Qt.QPen(Qt.Qt.green)
+        pen.setWidth(5)
+        self.path_item.setPen(pen)
+        self.path = Qt.QPainterPath()
+        self.view.mouse_event_signal.connect(self.on_mouse_event_in_view)
+        self.points = []
+
+    def on_mouse_event_in_view(self, event_type, event, scene_pos):
+        # print(event.buttons())
+        if event_type == 'press' and event.buttons() == Qt.Qt.RightButton:
+            pos = self.item.mapFromScene(scene_pos)
+            if not self.points:
+                self.path.moveTo(pos)
+            else:
+                self.path.lineTo(pos)
+            self.points.append((pos.x(), pos.y()))
+            self.path_item.setPath(self.path)
+            event.accept()
+
+    def clear(self):
+        self.path = Qt.QPainterPath()
+        self.path_item.setPath(self.path)
+        self.points = []

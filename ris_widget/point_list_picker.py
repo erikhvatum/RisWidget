@@ -165,7 +165,7 @@ class PointListPicker(Qt.QObject):
         self.point_items = dict()
         self._points = None
         self.points = self.PointListType() if points is None else points
-        self.view.right_click_signal.connect(self._on_right_click_in_view)
+        self.view.mouse_event_signal.connect(self._on_mouse_event_in_view)
 
     def instantiate_point_item(self, point, idx):
         item = PointListRectItem(point, self, self.point_item_parent)
@@ -175,8 +175,10 @@ class PointListPicker(Qt.QObject):
         item.setBrush(Qt.QBrush(Qt.Qt.yellow))
         return item
 
-    def _on_right_click_in_view(self, view_pos, scene_pos):
-        self._points.append(self.point_item_parent.mapFromScene(scene_pos))
+    def _on_mouse_event_in_view(self, event_type, event, scene_pos):
+        if event_type == 'press' and event.buttons() == Qt.Qt.RightButton:
+            self._points.append(self.point_item_parent.mapFromScene(scene_pos))
+            event.accept()
 
     @property
     def points(self):

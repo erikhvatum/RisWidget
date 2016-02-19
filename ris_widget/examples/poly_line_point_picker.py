@@ -28,7 +28,6 @@ from ..point_list_picker import PointList, PointListPicker
 class PolyLinePointPicker(PointListPicker):
     def __init__(self, general_view, point_item_parent, points=None, PointListType=PointList, parent=None):
         super().__init__(general_view, point_item_parent, points, PointListType, parent)
-        self.forward_adjacencies = {(a, b) for a, b in zip(self._points, self._points[1:])}
         # seen_a = set()
         # seen_b = set()
         # for a, b in zip(self._points, self._point[1:])

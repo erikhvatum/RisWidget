@@ -504,14 +504,7 @@ class RisWidget:
 
     main_view_change_signal's second parameter, viewport_scene_rect, is a Qt.QRectF representing the region
     of the scene contained in the viewport, in scene coordinates.  This is particularly useful for maintaining
-    the position of a scene element (aka "graphics item") with respect viewport edge.
-
-    Note that enabling a graphics item's ItemIgnoresTransformations flag fixes that item's position in place
-    with respect to its parent, or the scene if it has no parent, and fixes all other aspects of its
-    transformation (scale, shearing, and rotation) with respect to the viewport.
-
-    To fix graphics item A in place, scale, and rotation with respect to item B, simply parent item A to
-    item B, as in A.setParentItem(B)."""
+    the position of a scene element (aka "graphics item") with respect to viewport edge."""
     APP_PREFS_NAME = "RisWidget"
     APP_PREFS_VERSION = 1
     COPY_REFS = [
@@ -556,8 +549,7 @@ class RisWidget:
             layer_selection_model,
             **kw)
         self.main_view_change_signal = self.qt_object.main_view_change_signal
-        self.main_view_mouse_movement_signal = self.qt_object.main_view.mouse_movement_signal
-        self.main_view_right_click_signal = self.qt_object.main_view.right_click_signal
+        self.main_view_mouse_event_signal = self.qt_object.main_view.mouse_event_signal
         for refname in self.COPY_REFS:
             setattr(self, refname, getattr(self.qt_object, refname))
         self.add_image_files_to_flipbook = self.flipbook.add_image_files

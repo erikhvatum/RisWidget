@@ -28,9 +28,12 @@ from PyQt5 import Qt
 
 class GeneralView(BaseView):
     """Signals:
-    * mouse_movement_signal(view_coordinate, scene_coordinate): Emitted upon any mouse movement within
-    the view.
-    * right_click_signal(view_coordinate, scene_coordinate)
+    * mouse_event_signal(mouse_event_type, mouse_event, scene_pos):  Emitted upon mouse activity in the viewport.  A handler
+      function, when directly connected - with v.mouse_event_signal.connect(handler_function) and not
+      v.mouse_event_signal.connect(handler_function, Qt.Qt.QueuedConnection) - may indicate that it has consumed the
+      event by calling mouse_event.accept().  Other handlers connected to mouse_event_signal are still called, but the
+      view takes no further action in response to the event.  So, if you connect a function or method to
+      mouse_event_signal, that function is called when a mouse event occurs
     * zoom_changed(zoom_level, custom_zoom_ratio)"""
 
     def _make_zoom_presets(self=None):
@@ -48,8 +51,7 @@ class GeneralView(BaseView):
     _ZOOM_ONE_TO_ONE_PRESET_IDX = 15
     _ZOOM_INCREMENT_BEYOND_PRESETS_FACTORS = (.8, 1.25)
 
-    mouse_movement_signal = Qt.pyqtSignal(Qt.QPoint, Qt.QPointF)
-    right_click_signal = Qt.pyqtSignal(Qt.QPoint, Qt.QPointF)
+    mouse_event_signal = Qt.pyqtSignal(str, Qt.QMouseEvent, Qt.QPointF)
     zoom_changed = Qt.pyqtSignal(int, float)
 
     def __init__(self, base_scene, parent):
@@ -153,23 +155,29 @@ class GeneralView(BaseView):
         # However, Qt's handlers are generally good citizens and will, often redundantly, set accepted to true
         # if they recognize and respond to an event.  QGraphicsView.mousePressEvent(..) is such a handler.
         super().mousePressEvent(event)
-        if not event.isAccepted():
-            # If the mouse click landed on an interactive scene item, super().mousePressEvent(event) would have set
-            # event to accepted.  So, neither the view nor the scene wanted this mouse click, and we check if it is perhaps
-            # a click-drag pan initiation - or even a right click, in which case we emit a signal for use by the user
-            # (for example, in order to create a new item at a right-clicked location for a point picker).
-            if event.button() == Qt.Qt.LeftButton:
-                # It is, and we're handling this event
-                self._panning = True
-                self._panning_prev_mouse_pos = event.pos()
-                event.setAccepted(True)
-            elif self.scene() is not None:
-                if event.button() == Qt.Qt.RightButton:
-                    self.right_click_signal.emit(event.pos(), self.mapToScene(event.pos()))
+        if event.isAccepted():
+            return
+        # Next, we inform everyone connected to our mouse event slot.  Anyone directly connected can set event.accepted(),
+        # preventing the following conditional block from executing
+        self.mouse_event_signal.emit('press', event, self.mapToScene(event.pos()))
+        if event.isAccepted():
+            return
+        # If the mouse click landed on an interactive scene item, super().mousePressEvent(event) would have set
+        # event to accepted.  So, neither the view nor the scene wanted this mouse click, and we check if it is perhaps
+        # a click-drag pan initiation - or even a right click, in which case we emit a signal for use by the user
+        # (for example, in order to create a new item at a right-clicked location for a point picker).
+        if event.button() == Qt.Qt.LeftButton:
+            # It is, and we're handling this event
+            self._panning = True
+            self._panning_prev_mouse_pos = event.pos()
+            event.setAccepted(True)
 
     def mouseReleaseEvent(self, event):
         event.setAccepted(False)
         super().mouseReleaseEvent(event)
+        if event.isAccepted():
+            return
+        self.mouse_event_signal.emit('release', event, self.mapToScene(event.pos()))
         if not event.isAccepted() and event.button() == Qt.Qt.LeftButton and self._panning:
             self._panning = False
             del self._panning_prev_mouse_pos
@@ -178,6 +186,9 @@ class GeneralView(BaseView):
     def mouseMoveEvent(self, event):
         event.setAccepted(False)
         super().mouseMoveEvent(event)
+        if event.isAccepted():
+            return
+        self.mouse_event_signal.emit('move', event, self.mapToScene(event.pos()))
         if not event.isAccepted():
             if self._panning:
                 # This block more or less borrowed from QGraphicsView::mouseMoveEvent(QMouseEvent *event), found in
@@ -188,7 +199,6 @@ class GeneralView(BaseView):
                 hbar.setValue(hbar.value() + (delta.x() if self.isRightToLeft() else -delta.x()))
                 vbar.setValue(vbar.value() - delta.y())
                 self._panning_prev_mouse_pos = pos
-        self.mouse_movement_signal.emit(event.pos(), self.mapToScene(event.pos()))
 
     def dragEnterEvent(self, event):
         event.setAccepted(False)
