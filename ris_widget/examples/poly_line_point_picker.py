@@ -31,6 +31,7 @@ class PolyLinePointPicker(PointListPicker):
         self.path_item = Qt.QGraphicsPathItem(parent_item)
         pen = Qt.QPen(Qt.Qt.green)
         pen.setWidth(5)
+        pen.setCosmetic(True)
         self.path_item.setPen(pen)
         self.point_list_contents_changed.connect(self.on_point_list_contents_changed)
 

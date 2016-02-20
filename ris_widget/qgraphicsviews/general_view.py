@@ -32,8 +32,8 @@ class GeneralView(BaseView):
       function, when directly connected - with v.mouse_event_signal.connect(handler_function) and not
       v.mouse_event_signal.connect(handler_function, Qt.Qt.QueuedConnection) - may indicate that it has consumed the
       event by calling mouse_event.accept().  Other handlers connected to mouse_event_signal are still called, but the
-      view takes no further action in response to the event.  So, if you connect a function or method to
-      mouse_event_signal, that function is called when a mouse event occurs
+      view takes no further action in response to the event.
+    * key_event_signal(key_event_type, key_event): Like mouse_event_signal.
     * zoom_changed(zoom_level, custom_zoom_ratio)"""
 
     def _make_zoom_presets(self=None):
@@ -52,6 +52,7 @@ class GeneralView(BaseView):
     _ZOOM_INCREMENT_BEYOND_PRESETS_FACTORS = (.8, 1.25)
 
     mouse_event_signal = Qt.pyqtSignal(str, Qt.QMouseEvent, Qt.QPointF)
+    key_event_signal = Qt.pyqtSignal(str, Qt.QKeyEvent)
     zoom_changed = Qt.pyqtSignal(int, float)
 
     def __init__(self, base_scene, parent):
@@ -199,6 +200,20 @@ class GeneralView(BaseView):
                 hbar.setValue(hbar.value() + (delta.x() if self.isRightToLeft() else -delta.x()))
                 vbar.setValue(vbar.value() - delta.y())
                 self._panning_prev_mouse_pos = pos
+
+    def keyPressEvent(self, event):
+        event.setAccepted(False)
+        super().keyPressEvent(event)
+        if event.isAccepted():
+            return
+        self.key_event_signal.emit('press', event)
+
+    def keyReleaseEvent(self, event):
+        event.setAccepted(False)
+        super().keyReleaseEvent(event)
+        if event.isAccepted():
+            return
+        self.key_event_signal.emit('release', event)
 
     def dragEnterEvent(self, event):
         event.setAccepted(False)

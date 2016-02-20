@@ -24,13 +24,14 @@
 
 from PyQt5 import Qt
 
-class SimplePainter:
+class SimplePolyLinePicker:
     def __init__(self, view, item):
         self.view = view
         self.item = item
         self.path_item = Qt.QGraphicsPathItem(item)
         pen = Qt.QPen(Qt.Qt.green)
         pen.setWidth(5)
+        pen.setCosmetic(True)
         self.path_item.setPen(pen)
         self.path = Qt.QPainterPath()
         self.view.mouse_event_signal.connect(self.on_mouse_event_in_view)

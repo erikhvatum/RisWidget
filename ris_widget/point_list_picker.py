@@ -91,20 +91,6 @@ class PointItemMixin:
             return super().itemChange(change, value)
         return self.item_change_handlers.get(change, super().itemChange)(change, value)
 
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Qt.Key_Delete:
-            self.scene().removeItem(self)
-        else:
-            event.ignore()
-
-    @property
-    def center_pos(self):
-        return self.boundingRect().center() + self.pos()
-
-    @center_pos.setter
-    def center_pos(self, pos):
-        self.setPos(pos - self.boundingRect().center())
-
     def _on_item_scene_has_changed(self, change, value):
         self.point_list_picker_wr()._on_point_item_removed(self.point_wr())
 
@@ -119,7 +105,7 @@ class PointListRectItem(PointItemMixin, Qt.QGraphicsRectItem):
     def __init__(self, point, point_list_picker, parent_item=None):
         Qt.QGraphicsRectItem.__init__(self, parent_item)
         PointItemMixin.__init__(self, point, point_list_picker)
-        self.setRect(0,0,15,15)
+        self.setRect(-7,-7,15,15)
 
 class _Empty:
     pass
@@ -160,24 +146,36 @@ class PointListPicker(Qt.QObject):
         self.view.scene_region_changed.connect(self._on_scene_region_changed)
         self.point_item_parent = point_item_parent
         self.PointListType = PointListType
+        self.pen = Qt.QPen(Qt.Qt.red)
+        self.pen.setWidth(2)
+        color = Qt.QColor(Qt.Qt.yellow)
+        color.setAlphaF(0.5)
+        self.brush = Qt.QBrush(color)
         self._ignore_point_and_item_moved = False
         self._ignore_point_and_item_removed = False
         self.point_items = dict()
         self._points = None
         self.points = self.PointListType() if points is None else points
         self.view.mouse_event_signal.connect(self._on_mouse_event_in_view)
+        self.view.key_event_signal.connect(self._on_key_event_in_view)
 
     def instantiate_point_item(self, point, idx):
         item = PointListRectItem(point, self, self.point_item_parent)
-        pen = Qt.QPen(Qt.Qt.red)
-        pen.setWidth(2)
-        item.setPen(pen)
-        item.setBrush(Qt.QBrush(Qt.Qt.yellow))
+        item.setPen(self.pen)
+        item.setBrush(self.brush)
         return item
 
     def _on_mouse_event_in_view(self, event_type, event, scene_pos):
         if event_type == 'press' and event.buttons() == Qt.Qt.RightButton:
             self._points.append(self.point_item_parent.mapFromScene(scene_pos))
+            event.accept()
+
+    def _on_key_event_in_view(self, event_type, event):
+        if event_type == 'press' and event.key() == Qt.Qt.Key_Delete and event.modifiers() == Qt.Qt.NoModifier:
+            point_items = list(self.point_items.values())
+            for point_item in point_items:
+                if point_item.isSelected():
+                    self.view.scene().removeItem(point_item)
             event.accept()
 
     @property
@@ -199,12 +197,11 @@ class PointListPicker(Qt.QObject):
         point_item = self.instantiate_point_item(point, idx)
         self.point_items[point] = point_item
         point_item.setScale(1 / self.view.transform().m22())
-        point_item.center_pos = Qt.QPointF(point.x, point.y)
+        point_item.setPos(point.x, point.y)
         flags = point_item.flags()
         point_item.setFlags(
             flags |
             Qt.QGraphicsItem.ItemIsSelectable |
-            Qt.QGraphicsItem.ItemIsFocusable |
             Qt.QGraphicsItem.ItemIsMovable |
             Qt.QGraphicsItem.ItemSendsGeometryChanges
         )
@@ -277,7 +274,7 @@ class PointListPicker(Qt.QObject):
         self._ignore_point_and_item_moved = True
         try:
             point_item = self.point_items[point]
-            point_item.center_pos = Qt.QPointF(point.x, point.y)
+            point_item.setPos(point.x, point.y)
         finally:
             self.point_list_contents_changed.emit()
             self._ignore_point_and_item_moved = False
@@ -298,7 +295,7 @@ class PointListPicker(Qt.QObject):
             return
         self._ignore_point_and_item_moved = True
         try:
-            pos = self.point_items[point].center_pos
+            pos = self.point_items[point].pos()
             point.x, point.y = pos.x(), pos.y()
         finally:
             self.point_list_contents_changed.emit()

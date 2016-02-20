@@ -5,6 +5,7 @@ from pathlib import Path
 from PyQt5 import Qt
 from ris_widget.ris_widget import RisWidget
 from ris_widget.point_list_picker import PointListPicker
+from ris_widget.examples.simple_point_picker import SimplePointPicker
 from ris_widget.image import Image
 from ris_widget.layer import Layer
 import freeimage
@@ -36,21 +37,22 @@ im = freeimage.read('/Users/ehvatum/Desktop/Opteron_6300_die_shot_16_core_mod.jp
 
 rw.image = im
 
-# point_list_picker, point_list_table_view = rw.make_poly_line_picker_and_table_view()
+#simple_point_picker = SimplePointPicker(rw.main_view, rw.main_scene.layer_stack_item)
+point_list_picker, point_list_table_view = rw.make_poly_line_picker_and_table_view()
 
-def on_debug_gc():
-    rw.image = None
-    rw.flipbook_pages = None
-    gc.set_debug(gc.DEBUG_LEAK)
-    gc.collect()
-    print(gc.garbage)
-    gc.set_debug(0)
-    # objgraph.show_backrefs(objgraph.by_type('Task'))
-    # objgraph.show_refs(objgraph.by_type('Task'))
-
-btn = Qt.QPushButton('debug gc')
-btn.clicked.connect(on_debug_gc)
-btn.show()
+# def on_debug_gc():
+#     rw.image = None
+#     rw.flipbook_pages = None
+#     gc.set_debug(gc.DEBUG_LEAK)
+#     gc.collect()
+#     print(gc.garbage)
+#     gc.set_debug(0)
+#     # objgraph.show_backrefs(objgraph.by_type('Task'))
+#     # objgraph.show_refs(objgraph.by_type('Task'))
+#
+# btn = Qt.QPushButton('debug gc')
+# btn.clicked.connect(on_debug_gc)
+# btn.show()
 
 # def on_timer():
 #     rw.image = im
