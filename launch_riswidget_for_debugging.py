@@ -45,7 +45,8 @@ def on_debug_gc():
     gc.collect()
     print(gc.garbage)
     gc.set_debug(0)
-    objgraph.show_backrefs(objgraph.by_type('Image'))
+    # objgraph.show_backrefs(objgraph.by_type('Task'))
+    # objgraph.show_refs(objgraph.by_type('Task'))
 
 btn = Qt.QPushButton('debug gc')
 btn.clicked.connect(on_debug_gc)

@@ -25,6 +25,7 @@
 import concurrent.futures as futures
 from enum import Enum
 from PyQt5 import Qt
+import weakref
 from .. import om
 
 class TaskStatus(Enum):
@@ -60,7 +61,7 @@ class Task:
             self._status = TaskStatus.Failed
             self._send_task_status_change_event(old_status)
             raise e
-        self._future.add_done_callback(self._done_callback)
+        self._future.add_done_callback(lambda future, m=weakref.WeakMethod(self._done_callback): m()(future) if m() else None)
 
     def _cancel(self):
         if self._status in (TaskStatus.New, TaskStatus.Queued):

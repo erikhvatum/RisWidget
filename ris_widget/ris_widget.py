@@ -27,7 +27,6 @@ sip.setdestroyonexit(True)
 
 import numpy
 from PyQt5 import Qt
-import gc
 import sys
 from . import om
 from .layer import Layer
@@ -146,10 +145,6 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.main_view_snapshot_action.triggered.connect(self._on_main_view_snapshot_action)
         self.main_view_snapshot_action.setShortcut(Qt.Qt.Key_S)
         self.main_view_snapshot_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
-        self.gc_action = Qt.QAction(self)
-        self.gc_action.setText('GC')
-        self.gc_action.setToolTip('Initiate garbage collection (to free memory after opening and closing a large number of images).')
-        self.gc_action.triggered.connect(lambda: print('{} objects freed.'.format(gc.collect())))
 
     @staticmethod
     def _format_zoom(zoom):
@@ -236,7 +231,6 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.main_view_zoom_combo.lineEdit().returnPressed.connect(self._main_view_zoom_combo_custom_value_entered)
         self.main_view.zoom_changed.connect(self._main_view_zoom_changed)
         self.main_view_toolbar.addAction(self.main_view.zoom_to_fit_action)
-        self.main_view_toolbar.addAction(self.gc_action)
         self.main_view_toolbar.addAction(self.layer_stack_reset_curr_min_max)
         self.main_view_toolbar.addAction(self.layer_stack_reset_curr_gamma)
         self.main_view_toolbar.addAction(self.main_scene.layer_stack_item.override_enable_auto_min_max_action)
