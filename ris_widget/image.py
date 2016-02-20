@@ -26,7 +26,6 @@ from .ndimage_statistics import ndimage_statistics
 import ctypes
 import numpy
 from PyQt5 import Qt
-import warnings
 
 class Image(Qt.QObject):
     """An instance of the Image class is a wrapper around a Numpy ndarray representing a single image, plus some related attributes and
@@ -60,9 +59,12 @@ class Image(Qt.QObject):
         rather than mirrored over the X/Y axis."""
         super().__init__(parent)
         self.data_changed.connect(self.changed)
-        self.objectNameChanged.connect(lambda: self.name_changed.emit(self))
+        self.objectNameChanged.connect(self._onObjectNameChanged)
         self.name_changed.connect(self.changed)
         self.set_data(data, is_twelve_bit, float_range, shape_is_width_height, False, name)
+
+    def _onObjectNameChanged(self):
+        self.name_changed.emit(self)
 
     @classmethod
     def from_qimage(cls, qimage, parent=None, is_twelve_bit=False, name=None):

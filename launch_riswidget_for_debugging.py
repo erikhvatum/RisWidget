@@ -9,6 +9,8 @@ from ris_widget.image import Image
 from ris_widget.layer import Layer
 import freeimage
 import sys
+import gc
+import objgraph
 
 #if sys.platform == 'darwin':
 #    im = freeimage.read('/Volumes/scopearray/pharyngeal_pumping_max_fps/pharyngeal_pumping_max_fps_010_0.274411275.png')
@@ -34,13 +36,19 @@ im = freeimage.read('/Users/ehvatum/Desktop/Opteron_6300_die_shot_16_core_mod.jp
 
 rw.image = im
 
-point_list_picker, point_list_table_view = rw.make_poly_line_picker_and_table_view()
+# point_list_picker, point_list_table_view = rw.make_poly_line_picker_and_table_view()
 
-def on_print_points():
-    print(point_list_picker.points)
+def on_debug_gc():
+    rw.image = None
+    rw.flipbook_pages = None
+    gc.set_debug(gc.DEBUG_LEAK)
+    gc.collect()
+    print(gc.garbage)
+    gc.set_debug(0)
+    objgraph.show_backrefs(objgraph.by_type('Image'))
 
-btn = Qt.QPushButton('print points')
-btn.clicked.connect(on_print_points)
+btn = Qt.QPushButton('debug gc')
+btn.clicked.connect(on_debug_gc)
 btn.show()
 
 # def on_timer():

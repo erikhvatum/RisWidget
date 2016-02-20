@@ -37,7 +37,6 @@ class SimplePainter:
         self.points = []
 
     def on_mouse_event_in_view(self, event_type, event, scene_pos):
-        # print(event.buttons())
         if event_type == 'press' and event.buttons() == Qt.Qt.RightButton:
             pos = self.item.mapFromScene(scene_pos)
             if not self.points:

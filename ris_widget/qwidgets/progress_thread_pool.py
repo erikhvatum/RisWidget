@@ -44,7 +44,6 @@ class Task:
         self._status = TaskStatus.New
         self._progress_thread_pool = self._future = None
         self._instance_count = 0
-        self._qnodes = set()
 
     def _submit(self):
         assert self._progress_thread_pool is not None
@@ -118,12 +117,6 @@ class _TaskStatusChangeEvent(Qt.QEvent):
         self.task = task
         self.new_status = new_status
         self.old_status = old_status
-
-class _TaskQNode:
-    __slots__ = ('prev_queued', 'task', 'next_queued')
-    def __init__(self, task):
-        self.task = task
-        self.prev_queued = self.next_queued = None
 
 class ProgressThreadPool(Qt.QWidget):
     '''ProgressThreadPool: A Qt widget for running an ordered collection of tasks in a thread pool, with a cancel
@@ -275,20 +268,6 @@ class ProgressThreadPool(Qt.QWidget):
 
     def _on_task_status_changed_ev(self, task, new_status, old_status):
 #       print('_on_task_status_changed_ev:', new_status, old_status)
-        n = None
-        if old_status is TaskStatus.Queued:
-            for n in task._qnodes:
-                assert n.task is task
-                if n.prev_queued is None:
-#                   print('changing task_qhead from', self._task_qhead, 'to', n.next_queued)
-#                   if n.next_queued is None:
-#                       print('is none!')
-                    self._task_qhead = n.next_queued
-                else:
-                    n.prev_queued.next_queued = n.next_queued
-                if n.next_queued is not None:
-                    n.next_queued.prev_queued = n.prev_queued
-                n.next_queued = n.prev_queued = None
         if old_status is not TaskStatus.New:
             self._task_status_sets[old_status].remove(task)
         self._task_status_sets[new_status].add(task)
@@ -314,68 +293,12 @@ class ProgressThreadPool(Qt.QWidget):
     def _on_tasks_inserted(self, insertion_idx, tasks):
         # Note: It is expected that _on_tasks_inserting has run without raising an exception if we are here
         new_tasks = []
-        new_qnodes = []
         for tidx, t in enumerate(tasks, insertion_idx):
-            n = _TaskQNode(t)
-            if t._status is TaskStatus.New or task._status is TaskStatus.Queued:
+            if t._status is TaskStatus.New or t._status is TaskStatus.Queued:
                 new_tasks.append(t)
-                new_qnodes.append(n)
-            self._task_qnodes.insert(tidx, n)
-            t._qnodes.add(n)
         if not new_tasks:
             self._update_progressbar()
             return
-        if self._queued_tasks:
-            # Scan ._task_qnodes backward and forward simultaneously from inserted region until a Queued Task is found or it becomes
-            # impossible to advance both directions (which would indicate that we are in an inconsistent state)
-            bidx, fidx = insertion_idx - 1, insertion_idx + len(new_tasks)
-            bE, fE = bidx < 0, fidx >= len(self._tasks)
-            while not bE or not fE:
-                if not bE:
-                    n = self._task_qnodes[bidx]
-                    if n is not None:
-                        nn = n.next_queued
-                        n0 = new_qnodes[0]
-                        n1 = new_qnodes[-1]
-                        n0.prev_queued = n
-                        n.next_queued = n0
-                        n1.next_queued = nn
-                        if nn is not None:
-                            nn.prev_queued = n1
-                        break
-                    bidx -= 1
-                    bE = bidx < 0
-                if not Fe:
-                    n = self._task_qnodes[fidx]
-                    if n is not None:
-                        np = n.prev_queued
-                        n0 = new_qnodes[0]
-                        n1 = new_qnodes[-1]
-                        n1.next_queued = n
-                        n.prev_queued = n1
-                        n0.prev_queued = np
-                        if np is None:
-                            # We scanned forward and the first Queued Task we found has no preceeding Queued Tasks.  The inserted Tasks
-                            # preceed found task, which itself was previously the Queued Task linked-list head, making the first inserted, 
-                            # Queued Task the new Queued Task linked-list head.
-                            if n is not self._task_qhead:
-                                raise RuntimeError('Inconsistent state: scanning forward found a Queued Task that had no preceeding '
-                                                   'Queued Task and yet somehow is not the Queued Task linked-list head.')
-                            self._task_qhead = n0
-                        else:
-                            np.next_queued = n0
-                        break
-                    fidx += 1
-                    fE = fidx >= len(self._tasks)
-            else: # NB: loop else clause is executed if loop exits due to loop conditional evaluating to False
-                raise RuntimeError(
-                    'Inconsistent state: self._queued_tasks is not empty, but self._tasks contains no Queued Tasks '
-                    'other than those just inserted.')
-        else:
-            self._task_qhead = new_qnodes[0]
-        for nl, nr in zip(new_qnodes, new_qnodes[1:]):
-            nl.next_queued = nr
-            nr.prev_queued = nl
         for t in tasks:
             t._instance_count += 1
             if t._instance_count == 1 and t._status is TaskStatus.New:
@@ -383,6 +306,7 @@ class ProgressThreadPool(Qt.QWidget):
                 t._progress_thread_pool = self
                 self._queued_tasks.add(t)
                 t._status = TaskStatus.Queued
+                self.task_status_changed.emit(t, TaskStatus.New)
         self._update_progressbar()
         self._update_pool()
 
@@ -408,13 +332,12 @@ class ProgressThreadPool(Qt.QWidget):
                 self._max_workers - (len(self._pooled_tasks) + len(self._started_tasks)),
                 len(self._queued_tasks))
 #           print('len(self._queued_tasks)', len(self._queued_tasks), 'add_task_count_to_pool', add_task_count_to_pool)
-            if add_task_count_to_pool <= 0:
-                return
-            for _ in range(add_task_count_to_pool):
-                n = self._task_qhead
-                assert n is not None
-                assert n.prev_queued is None
-                n.task._submit()
+            tit = iter(self._tasks)
+            while add_task_count_to_pool > 0:
+                t = next(tit)
+                if t._status is TaskStatus.Queued:
+                    t._submit()
+                    add_task_count_to_pool -= 1
         finally:
             self._updating_pool = False
 
