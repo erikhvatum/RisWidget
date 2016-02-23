@@ -23,30 +23,43 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from PyQt5 import Qt
+from ..shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
 
-class SimplePolyLinePicker:
-    def __init__(self, view, item):
-        self.view = view
-        self.item = item
-        self.path_item = Qt.QGraphicsPathItem(item)
+class VerySimplePolyLinePicker(Qt.QGraphicsObject):
+    QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
+
+    def __init__(self, general_view, parent_item):
+        super().__init__(parent_item)
+        self.view = general_view
+        self.path_item = Qt.QGraphicsPathItem(parent_item)
         pen = Qt.QPen(Qt.Qt.green)
         pen.setWidth(5)
         pen.setCosmetic(True)
         self.path_item.setPen(pen)
         self.path = Qt.QPainterPath()
-        self.view.mouse_event_signal.connect(self.on_mouse_event_in_view)
         self.points = []
+        parent_item.installSceneEventFilter(self)
 
-    def on_mouse_event_in_view(self, event_type, event, scene_pos):
-        if event_type == 'press' and event.buttons() == Qt.Qt.RightButton:
-            pos = self.item.mapFromScene(scene_pos)
+    def type(self):
+        return self.QGRAPHICSITEM_TYPE
+
+    def boundingRect(self):
+        return Qt.QRectF()
+
+    def paint(self, QPainter, QStyleOptionGraphicsItem, QWidget_widget=None):
+        pass
+
+    def sceneEventFilter(self, watched, event):
+        if watched is self.parentItem() and event.type() == Qt.QEvent.GraphicsSceneMousePress and event.button() == Qt.Qt.RightButton:
+            pos = event.pos()
             if not self.points:
                 self.path.moveTo(pos)
             else:
                 self.path.lineTo(pos)
             self.points.append((pos.x(), pos.y()))
             self.path_item.setPath(self.path)
-            event.accept()
+            return True
+        return False
 
     def clear(self):
         self.path = Qt.QPainterPath()
