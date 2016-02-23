@@ -35,6 +35,7 @@ from .point_list_picker import PointListPicker
 from .qwidgets.flipbook import Flipbook
 from .qwidgets.layer_stack_flipbook import LayerStackFlipbook
 from .qwidgets.layer_table import InvertingProxyModel, LayerTableModel, LayerTableView
+from .qwidgets.point_list_picker_table import PointListPickerTable
 from .qgraphicsscenes.general_scene import GeneralScene
 from .qgraphicsviews.general_view import GeneralView
 from .qgraphicsscenes.histogram_scene import HistogramScene
@@ -543,7 +544,6 @@ class RisWidget:
             layer_selection_model,
             **kw)
         self.main_view_change_signal = self.qt_object.main_view_change_signal
-        self.main_view_mouse_event_signal = self.qt_object.main_view.mouse_event_signal
         for refname in self.COPY_REFS:
             setattr(self, refname, getattr(self.qt_object, refname))
         self.add_image_files_to_flipbook = self.flipbook.add_image_files
@@ -577,76 +577,18 @@ class RisWidget:
     def make_point_list_picker(self):
         return PointListPicker(self.main_view, self.main_scene.layer_stack_item)
 
-    def make_point_list_picker_and_table_view(self):
-        point_list_picker = self.make_point_list_picker()
-        class PointListPickerTableModel(om.signaling_list.DragDropModelBehavior, om.signaling_list.PropertyTableModel):
-            pass
-        class PointListPickerTableView(Qt.QTableView):
-            def __init__(self, parent=None):
-                super().__init__(parent)
-                self.setAttribute(Qt.Qt.WA_DeleteOnClose, True)
-                self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
-                self.setDragDropOverwriteMode(False)
-                self.setDragEnabled(True)
-                self.setAcceptDrops(True)
-                self.setDragDropMode(Qt.QAbstractItemView.InternalMove)
-                self.setDropIndicatorShown(True)
-                self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
-                self.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
-                self.delete_current_row_action = Qt.QAction(self)
-                self.delete_current_row_action.setText('Delete current row')
-                self.delete_current_row_action.triggered.connect(self._on_delete_current_row_action_triggered)
-                self.delete_current_row_action.setShortcut(Qt.Qt.Key_Delete)
-                self.delete_current_row_action.setShortcutContext(Qt.Qt.WidgetShortcut)
-                self.addAction(self.delete_current_row_action)
-                self.setModel(PointListPickerTableModel(('x', 'y'), point_list_picker.points, self))
-            def _on_delete_current_row_action_triggered(self):
-                sm = self.selectionModel()
-                m = self.model()
-                if None in (m, sm):
-                    return
-                midx = sm.currentIndex()
-                if midx.isValid():
-                    m.removeRow(midx.row())
-        point_list_table_view = PointListPickerTableView()
-        point_list_table_view.show()
-        return point_list_picker, point_list_table_view
+    def make_point_list_picker_and_table(self):
+        point_list_picker = PointListPicker(self.main_view, self.main_scene.layer_stack_item)
+        point_list_picker_table = PointListPickerTable(point_list_picker)
+        point_list_picker_table.show()
+        return point_list_picker, point_list_picker_table
 
-    def make_poly_line_picker_and_table_view(self):
+    def make_poly_line_picker_and_table(self):
         from .examples.poly_line_point_picker import PolyLinePointPicker
         point_list_picker = PolyLinePointPicker(self.main_view, self.main_scene.layer_stack_item)
-        class PointListPickerTableModel(om.signaling_list.DragDropModelBehavior, om.signaling_list.PropertyTableModel):
-            pass
-        class PointListPickerTableView(Qt.QTableView):
-            def __init__(self, parent=None):
-                super().__init__(parent)
-                self.setAttribute(Qt.Qt.WA_DeleteOnClose, True)
-                self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
-                self.setDragDropOverwriteMode(False)
-                self.setDragEnabled(True)
-                self.setAcceptDrops(True)
-                self.setDragDropMode(Qt.QAbstractItemView.InternalMove)
-                self.setDropIndicatorShown(True)
-                self.setSelectionBehavior(Qt.QAbstractItemView.SelectRows)
-                self.setSelectionMode(Qt.QAbstractItemView.SingleSelection)
-                self.delete_current_row_action = Qt.QAction(self)
-                self.delete_current_row_action.setText('Delete current row')
-                self.delete_current_row_action.triggered.connect(self._on_delete_current_row_action_triggered)
-                self.delete_current_row_action.setShortcut(Qt.Qt.Key_Delete)
-                self.delete_current_row_action.setShortcutContext(Qt.Qt.WidgetShortcut)
-                self.addAction(self.delete_current_row_action)
-                self.setModel(PointListPickerTableModel(('x', 'y'), point_list_picker.points, self))
-            def _on_delete_current_row_action_triggered(self):
-                sm = self.selectionModel()
-                m = self.model()
-                if None in (m, sm):
-                    return
-                midx = sm.currentIndex()
-                if midx.isValid():
-                    m.removeRow(midx.row())
-        point_list_table_view = PointListPickerTableView()
-        point_list_table_view.show()
-        return point_list_picker, point_list_table_view
+        point_list_picker_table = PointListPickerTable(point_list_picker)
+        point_list_picker_table.show()
+        return point_list_picker, point_list_picker_table
 
 if __name__ == '__main__':
     import sys

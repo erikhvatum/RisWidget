@@ -4,14 +4,13 @@ import numpy
 from pathlib import Path
 from PyQt5 import Qt
 from ris_widget.ris_widget import RisWidget
-from ris_widget.point_list_picker import PointListPicker
-from ris_widget.examples.simple_point_picker import SimplePointPicker
+# from ris_widget.point_list_picker import PointListPicker
+# from ris_widget.examples.simple_point_picker import SimplePointPicker
 from ris_widget.image import Image
 from ris_widget.layer import Layer
 import freeimage
 import sys
 import gc
-import objgraph
 
 #if sys.platform == 'darwin':
 #    im = freeimage.read('/Volumes/scopearray/pharyngeal_pumping_max_fps/pharyngeal_pumping_max_fps_010_0.274411275.png')
@@ -28,7 +27,7 @@ argv = sys.argv
 app = Qt.QApplication(argv)
 rw = RisWidget()
 rw.show()
-im = freeimage.read('/Users/ehvatum/Desktop/Opteron_6300_die_shot_16_core_mod.jpg')
+im = freeimage.read('/home/ehvatum/m1_hubble.jpg')
 # rw.image = im
 # try:
 #     rw.image = im.astype(numpy.float64)
@@ -38,7 +37,7 @@ im = freeimage.read('/Users/ehvatum/Desktop/Opteron_6300_die_shot_16_core_mod.jp
 rw.image = im
 
 #simple_point_picker = SimplePointPicker(rw.main_view, rw.main_scene.layer_stack_item)
-point_list_picker, point_list_table_view = rw.make_poly_line_picker_and_table_view()
+point_list_picker, point_list_table_view = rw.make_poly_line_picker_and_table()
 
 # def on_debug_gc():
 #     rw.image = None

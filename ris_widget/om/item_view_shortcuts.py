@@ -34,7 +34,7 @@ def with_selected_rows_deletion_shortcut(
         handler_method_name='delete_selection',
         connect_action_triggered_to_handler_method=True):
     # Function prototype is included in docstring so that the enum names "Qt.Qt.Key_Delete" and "Qt.Qt.WidgetShortcut" may be
-    # seen, rather than their integer values, which they are boiled down to in the function signature known to CPython
+    # seen, rather than their integer values, which they are boiled down to int the function signature known to CPython
     '''with_selected_rows_deletion_shortcut(
         cls,
         desc='Delete selection',

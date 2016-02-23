@@ -83,13 +83,24 @@ class PointItemMixin:
         self.item_change_handlers = {
             Qt.QGraphicsItem.ItemSceneHasChanged : self._on_item_scene_has_changed,
             Qt.QGraphicsItem.ItemParentHasChanged : self._on_item_parent_has_changed,
-            Qt.QGraphicsItem.ItemPositionHasChanged : self._on_item_position_has_changed
+            Qt.QGraphicsItem.ItemPositionHasChanged : self._on_item_position_has_changed,
+            Qt.QGraphicsItem.ItemSelectedHasChanged : self._on_item_selected_has_changed
         }
 
     def itemChange(self, change, value):
         if self.point_wr() is None or self.point_list_picker_wr() is None:
             return super().itemChange(change, value)
         return self.item_change_handlers.get(change, super().itemChange)(change, value)
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Qt.Key_Delete and event.modifiers() == Qt.Qt.NoModifier:
+            point_list_picker = self.point_list_picker_wr()
+            if point_list_picker is not None:
+                point_list_picker.deleteSelected()
+
+    def focusInEvent(self, event):
+        super().focusInEvent(event)
+        self.point_list_picker_wr()._on_point_item_focused(self.point_wr())
 
     def _on_item_scene_has_changed(self, change, value):
         self.point_list_picker_wr()._on_point_item_removed(self.point_wr())
@@ -99,6 +110,9 @@ class PointItemMixin:
 
     def _on_item_position_has_changed(self, change, value):
         self.point_list_picker_wr()._on_point_item_moved(self.point_wr())
+
+    def _on_item_selected_has_changed(self, change, value):
+        self.point_list_picker_wr()._on_point_selected_has_changed(self.point_wr(), self.isSelected())
 
 class PointListRectItem(PointItemMixin, Qt.QGraphicsRectItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
@@ -110,7 +124,7 @@ class PointListRectItem(PointItemMixin, Qt.QGraphicsRectItem):
 class _Empty:
     pass
 
-class PointListPicker(Qt.QObject):
+class PointListPicker(Qt.QGraphicsObject):
     """PointListPicker is a utility class intended to be used directly or extended via inheritance.  A plain, unextended
     PointListPicker is instantiated with a view and an item to be annotated in that view as constructor parameters.
 
@@ -139,44 +153,69 @@ class PointListPicker(Qt.QObject):
     ambitious."""
     point_list_replaced = Qt.pyqtSignal(object)
     point_list_contents_changed = Qt.pyqtSignal()
+    point_is_selected_changed = Qt.pyqtSignal(object, bool)
+    point_focused = Qt.pyqtSignal(object)
 
-    def __init__(self, general_view, point_item_parent, points=None, PointListType=PointList, parent=None):
-        super().__init__(parent)
+    QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
+
+    def __init__(self, general_view, parent_item, points=None, PointListType=PointList):
+        super().__init__(parent_item)
         self.view = general_view
         self.view.scene_region_changed.connect(self._on_scene_region_changed)
-        self.point_item_parent = point_item_parent
         self.PointListType = PointListType
         self.pen = Qt.QPen(Qt.Qt.red)
         self.pen.setWidth(2)
         color = Qt.QColor(Qt.Qt.yellow)
         color.setAlphaF(0.5)
         self.brush = Qt.QBrush(color)
+        self.brush_selected = Qt.QBrush(Qt.QColor(255, 0, 255, 127))
         self._ignore_point_and_item_moved = False
         self._ignore_point_and_item_removed = False
         self.point_items = dict()
         self._points = None
         self.points = self.PointListType() if points is None else points
-        self.view.mouse_event_signal.connect(self._on_mouse_event_in_view)
-        self.view.key_event_signal.connect(self._on_key_event_in_view)
+        self.parentItem().installSceneEventFilter(self)
 
     def instantiate_point_item(self, point, idx):
-        item = PointListRectItem(point, self, self.point_item_parent)
+        item = PointListRectItem(point, self, self.parentItem())
         item.setPen(self.pen)
         item.setBrush(self.brush)
         return item
 
-    def _on_mouse_event_in_view(self, event_type, event, scene_pos):
-        if event_type == 'press' and event.buttons() == Qt.Qt.RightButton:
-            self._points.append(self.point_item_parent.mapFromScene(scene_pos))
-            event.accept()
+    def sceneEventFilter(self, watched, event):
+        if watched is self.parentItem() and event.type() == Qt.QEvent.GraphicsSceneMousePress and event.button() == Qt.Qt.RightButton:
+            self._points.append(event.pos())
+            return True
+        return False
 
-    def _on_key_event_in_view(self, event_type, event):
-        if event_type == 'press' and event.key() == Qt.Qt.Key_Delete and event.modifiers() == Qt.Qt.NoModifier:
-            point_items = list(self.point_items.values())
-            for point_item in point_items:
-                if point_item.isSelected():
-                    self.view.scene().removeItem(point_item)
-            event.accept()
+    def deleteSelected(self):
+        # "run" as in consecutive indexes specified as range rather than individually
+        runs = []
+        run_start_idx = None
+        run_end_idx = None
+        for idx, point in enumerate(self._points):
+            item = self.point_items[point]
+            if item.isSelected():
+                if run_start_idx is None:
+                    run_end_idx = run_start_idx = idx
+                elif idx - run_end_idx == 1:
+                    run_end_idx = idx
+                else:
+                    runs.append((run_start_idx, run_end_idx))
+                    run_end_idx = run_start_idx = idx
+        if run_start_idx is not None:
+            runs.append((run_start_idx, run_end_idx))
+        for run_start_idx, run_end_idx in reversed(runs):
+            del self._points[run_start_idx:run_end_idx+1]
+
+    def boundingRect(self):
+        return Qt.QRectF()
+
+    def paint(self, QPainter, QStyleOptionGraphicsItem, QWidget_widget=None):
+        pass
+
+    def type(self):
+        return self.QGRAPHICSITEM_TYPE
 
     @property
     def points(self):
@@ -201,6 +240,7 @@ class PointListPicker(Qt.QObject):
         flags = point_item.flags()
         point_item.setFlags(
             flags |
+            Qt.QGraphicsItem.ItemIsFocusable | # Necessary in order for item to receive keyboard events
             Qt.QGraphicsItem.ItemIsSelectable |
             Qt.QGraphicsItem.ItemIsMovable |
             Qt.QGraphicsItem.ItemSendsGeometryChanges
@@ -268,6 +308,9 @@ class PointListPicker(Qt.QObject):
             self._attach_point(point)
         self.point_list_contents_changed.emit()
 
+    def _on_point_focused(self, point):
+        self.point_focused.emit(point)
+
     def _on_point_changed(self, point):
         if self._ignore_point_and_item_moved:
             return
@@ -300,6 +343,13 @@ class PointListPicker(Qt.QObject):
         finally:
             self.point_list_contents_changed.emit()
             self._ignore_point_and_item_moved = False
+
+    def _on_point_selected_has_changed(self, point, isSelected):
+        self.point_items[point].setBrush(self.brush_selected if isSelected else self.brush)
+        self.point_is_selected_changed.emit(point, isSelected)
+
+    def _on_point_item_focused(self, point):
+        self.point_focused.emit(point)
 
     def _on_scene_region_changed(self, view):
         assert view is self.view
