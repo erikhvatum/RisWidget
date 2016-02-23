@@ -24,6 +24,8 @@
 
 from PyQt5 import Qt
 
+class PointItem
+
 class SimplePointPicker:
     """ex:
     from ris_widget.ris_widget import RisWidget

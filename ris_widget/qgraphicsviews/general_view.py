@@ -28,12 +28,6 @@ from PyQt5 import Qt
 
 class GeneralView(BaseView):
     """Signals:
-    * mouse_event_signal(mouse_event_type, mouse_event, scene_pos):  Emitted upon mouse activity in the viewport.  A handler
-      function, when directly connected - with v.mouse_event_signal.connect(handler_function) and not
-      v.mouse_event_signal.connect(handler_function, Qt.Qt.QueuedConnection) - may indicate that it has consumed the
-      event by calling mouse_event.accept().  Other handlers connected to mouse_event_signal are still called, but the
-      view takes no further action in response to the event.
-    * key_event_signal(key_event_type, key_event): Like mouse_event_signal.
     * zoom_changed(zoom_level, custom_zoom_ratio)"""
 
     def _make_zoom_presets(self=None):
@@ -51,8 +45,6 @@ class GeneralView(BaseView):
     _ZOOM_ONE_TO_ONE_PRESET_IDX = 15
     _ZOOM_INCREMENT_BEYOND_PRESETS_FACTORS = (.8, 1.25)
 
-    mouse_event_signal = Qt.pyqtSignal(str, Qt.QMouseEvent, Qt.QPointF)
-    key_event_signal = Qt.pyqtSignal(str, Qt.QKeyEvent)
     zoom_changed = Qt.pyqtSignal(int, float)
 
     def __init__(self, base_scene, parent):
@@ -158,11 +150,6 @@ class GeneralView(BaseView):
         super().mousePressEvent(event)
         if event.isAccepted():
             return
-        # Next, we inform everyone connected to our mouse event slot.  Anyone directly connected can set event.accepted(),
-        # preventing the following conditional block from executing
-        self.mouse_event_signal.emit('press', event, self.mapToScene(event.pos()))
-        if event.isAccepted():
-            return
         # If the mouse click landed on an interactive scene item, super().mousePressEvent(event) would have set
         # event to accepted.  So, neither the view nor the scene wanted this mouse click, and we check if it is perhaps
         # a click-drag pan initiation - or even a right click, in which case we emit a signal for use by the user
@@ -175,45 +162,27 @@ class GeneralView(BaseView):
 
     def mouseReleaseEvent(self, event):
         event.setAccepted(False)
-        super().mouseReleaseEvent(event)
-        if event.isAccepted():
-            return
-        self.mouse_event_signal.emit('release', event, self.mapToScene(event.pos()))
-        if not event.isAccepted() and event.button() == Qt.Qt.LeftButton and self._panning:
+        if event.button() == Qt.Qt.LeftButton and self._panning:
             self._panning = False
             del self._panning_prev_mouse_pos
             event.setAccepted(True)
+            return
+        super().mouseReleaseEvent(event)
 
     def mouseMoveEvent(self, event):
         event.setAccepted(False)
         super().mouseMoveEvent(event)
         if event.isAccepted():
             return
-        self.mouse_event_signal.emit('move', event, self.mapToScene(event.pos()))
-        if not event.isAccepted():
-            if self._panning:
-                # This block more or less borrowed from QGraphicsView::mouseMoveEvent(QMouseEvent *event), found in
-                # qtbase/src/widgets/graphicsview/qgraphicsview.cpp
-                hbar, vbar = self.horizontalScrollBar(), self.verticalScrollBar()
-                pos = event.pos()
-                delta = pos - self._panning_prev_mouse_pos
-                hbar.setValue(hbar.value() + (delta.x() if self.isRightToLeft() else -delta.x()))
-                vbar.setValue(vbar.value() - delta.y())
-                self._panning_prev_mouse_pos = pos
-
-    def keyPressEvent(self, event):
-        event.setAccepted(False)
-        super().keyPressEvent(event)
-        if event.isAccepted():
-            return
-        self.key_event_signal.emit('press', event)
-
-    def keyReleaseEvent(self, event):
-        event.setAccepted(False)
-        super().keyReleaseEvent(event)
-        if event.isAccepted():
-            return
-        self.key_event_signal.emit('release', event)
+        if self._panning:
+            # This block more or less borrowed from QGraphicsView::mouseMoveEvent(QMouseEvent *event), found in
+            # qtbase/src/widgets/graphicsview/qgraphicsview.cpp
+            hbar, vbar = self.horizontalScrollBar(), self.verticalScrollBar()
+            pos = event.pos()
+            delta = pos - self._panning_prev_mouse_pos
+            hbar.setValue(hbar.value() + (delta.x() if self.isRightToLeft() else -delta.x()))
+            vbar.setValue(vbar.value() - delta.y())
+            self._panning_prev_mouse_pos = pos
 
     def dragEnterEvent(self, event):
         event.setAccepted(False)
