@@ -63,6 +63,8 @@ class SimplePolyLinePointPicker(SimplePointPicker):
         if is_line_click:
             for point_item in self.point_items:
                 point_item.setSelected(True)
+            # Focus a point item so that the delete key shortcut works
+            self.point_items[0].setFocus()
             return True
         return super().sceneEventFilter(watched, event)
 

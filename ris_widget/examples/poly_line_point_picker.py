@@ -42,6 +42,8 @@ class PolyLinePointPicker(PointListPicker):
             if event.button() == Qt.Qt.LeftButton:
                 for point_item in self.point_items.values():
                     point_item.setSelected(True)
+                # Focus a point item so that the delete key shortcut works
+                self.point_items[self._points[0]].setFocus()
                 return True
             if event.button() == Qt.Qt.RightButton:
                 # Find the point this line extends from

@@ -23,7 +23,6 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from PyQt5 import Qt
-import weakref
 from ..shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
 
 class PointItem(Qt.QGraphicsRectItem):
