@@ -23,26 +23,31 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from .. import om
-from .default_table_view import DefaultTableView
+from .default_table import DefaultTable
 from PyQt5 import Qt
 
 class PointListPickerTableModel(om.signaling_list.DragDropModelBehavior, om.signaling_list.PropertyTableModel):
     pass
 
-class PointListPickerTable(DefaultTableView):
+class PointListPickerTable(DefaultTable):
     def __init__(self, point_list_picker, model=None, parent=None):
         super().__init__(model, parent)
+        self.setWindowTitle('Point Picker')
         self.point_list_picker = point_list_picker
         if model is None:
             self.setModel(PointListPickerTableModel(('x', 'y'), self.point_list_picker.points))
+        self.point_list_picker.point_list_replaced.connect(self._on_point_list_replaced)
         self.ignore_selection_change = False
         self.ignore_became_focused = False
-        self.point_list_picker.point_is_selected_changed.connect(self._onPointSelectionChanged)
-        self.selectionModel().selectionChanged.connect(self._onTableSelectionChanged)
-        self.point_list_picker.point_focused.connect(self._onPointBecameFocused)
-        self.selectionModel().currentChanged.connect(self._onTableFocusChanged)
+        self.point_list_picker.point_is_selected_changed.connect(self._on_point_selection_changed)
+        self.selectionModel().selectionChanged.connect(self._on_table_selection_changed)
+        self.point_list_picker.point_focused.connect(self._on_point_became_focused)
+        self.selectionModel().currentChanged.connect(self._on_table_focus_changed)
 
-    def _onTableSelectionChanged(self, selected, deselected):
+    def _on_point_list_replaced(self):
+        self.model().signaling_list = self.point_list_picker.points
+
+    def _on_table_selection_changed(self, selected, deselected):
         if not self.ignore_selection_change:
             self.ignore_selection_change = True
             try:
@@ -55,7 +60,7 @@ class PointListPickerTable(DefaultTableView):
             finally:
                 self.ignore_selection_change = False
 
-    def _onPointSelectionChanged(self, point, isSelected):
+    def _on_point_selection_changed(self, point, isSelected):
         if not self.ignore_selection_change:
             self.ignore_selection_change = True
             try:
@@ -67,7 +72,7 @@ class PointListPickerTable(DefaultTableView):
             finally:
                 self.ignore_selection_change = False
 
-    def _onTableFocusChanged(self, focused_midx, unfocused_midx):
+    def _on_table_focus_changed(self, focused_midx, unfocused_midx):
         if focused_midx.isValid():
             if not self.ignore_became_focused:
                 self.ignore_became_focused = True
@@ -76,7 +81,7 @@ class PointListPickerTable(DefaultTableView):
                 finally:
                     self.ignore_became_focused = False
 
-    def _onPointBecameFocused(self, point):
+    def _on_point_became_focused(self, point):
         if not self.ignore_became_focused:
             self.ignore_became_focused = True
             try:

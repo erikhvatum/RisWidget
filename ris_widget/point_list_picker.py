@@ -96,7 +96,7 @@ class PointItemMixin:
         if event.key() == Qt.Qt.Key_Delete and event.modifiers() == Qt.Qt.NoModifier:
             point_list_picker = self.point_list_picker_wr()
             if point_list_picker is not None:
-                point_list_picker.deleteSelected()
+                point_list_picker.delete_selected()
 
     def focusInEvent(self, event):
         super().focusInEvent(event)
@@ -188,7 +188,7 @@ class PointListPicker(Qt.QGraphicsObject):
             return True
         return False
 
-    def deleteSelected(self):
+    def delete_selected(self):
         # "run" as in consecutive indexes specified as range rather than individually
         runs = []
         run_start_idx = None
@@ -229,6 +229,7 @@ class PointListPicker(Qt.QGraphicsObject):
         self._points = points
         self._attach_point_list()
         self.point_list_replaced.emit(self)
+        self.point_list_contents_changed.emit()
 
     def _attach_point(self, point, idx):
         assert point not in self.point_items
