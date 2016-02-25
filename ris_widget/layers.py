@@ -36,19 +36,22 @@ class LayerList(om.UniformSignalingList):
             prop_stackd = json.loads(json_str)['layer property stack']
             layers = cls()
             for props in prop_stackd:
-                layer = Layer()
-                for pname, pval, in props.items():
-                    setattr(layer, pname, pval)
-                layers.append(layer)
+                layers.append(Layer.from_savable_properties_dict(props))
             return layers
         except (FileNotFoundError, ValueError, TypeError) as e:
             if show_error_messagebox:
                 Qt.QMessageBox.information(None, 'JSON Error', '{} : {}'.format(type(e).__name__, e))
 
     def to_json(self):
-        return json.dumps({'layer property stack' : [
-            layer.get_savable_properties_dict() for layer in self
-        ]}, ensure_ascii=False, indent=1)
+        return json.dumps(
+            {
+                'layer property stack' :
+                [
+                    layer.get_savable_properties_dict() for layer in self
+                ]
+            },
+            ensure_ascii=False, indent=1
+        )
 
     def take_input_element(self, obj):
         if isinstance(obj, (numpy.ndarray, Image)):

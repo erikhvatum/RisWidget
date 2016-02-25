@@ -130,6 +130,13 @@ class Layer(Qt.QObject):
             ', visible=False' if not self.visible else '',
             'None' if image is None else image.__repr__())
 
+    @classmethod
+    def from_savable_properties_dict(cls, prop_dict):
+        ret = cls()
+        for pname, pval, in prop_dict.items():
+            setattr(ret, pname, pval)
+        return ret
+
     def get_savable_properties_dict(self):
         ret = {prop.name : prop.__get__(self) for prop in self.properties if not prop.is_default(self)}
         ret['name'] = self.name
@@ -233,15 +240,15 @@ class Layer(Qt.QObject):
             such as the histogram view and image stack table widget.
 
             In more detail:
-            If an Image's visible property is False, that Image does not contribute to mixed output.  For example,
-            any single pixel in an LayerStackItem rendering may represent the result of blending a number of Images,
-            whereas only one Image at a time may be associated with a HistogramItem; no HistogramItem pixel in the
-            rendering of a HistogramItem is a function of more than one Image.  Therefore, a non-visible Image that is part
+            If an Layer's visible property is False, that Layer does not contribute to mixed output.  For example,
+            any single pixel in an LayerStackItem rendering may represent the result of blending a number of Layers,
+            whereas only one Layer at a time may be associated with a HistogramItem; no HistogramItem pixel in the
+            rendering of a HistogramItem is a function of more than one Layer.  Therefore, a non-visible Layer that is part
             of a SignalingList that is associated with an LayerStackItem will not be visible in the output of that
-            LayerStackItem's render function, although the histogram of the Image will still be visible in the output
-            of the render function of a HistogramItem associated with the Image."""),
-        default_value_callback = lambda image: True,
-        take_arg_callback = lambda image, v: bool(v))
+            LayerStackItem's render function, although the histogram of the Layer will still be visible in the output
+            of the render function of a HistogramItem associated with the Layer."""),
+        default_value_callback = lambda layer: True,
+        take_arg_callback = lambda layer, v: bool(v))
 
     def _auto_min_max_enabled_post_set(self, v):
         if v and self.image is not None:

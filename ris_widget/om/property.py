@@ -160,4 +160,9 @@ class Property(property):
             pass
 
     def is_default(self, obj):
-        return not hasattr(obj, self.var_name) or not self.eq(getattr(obj, self.var_name), getattr(obj, self.default_val_var_name))
+        if not hasattr(obj, self.var_name):
+            return True
+        val = getattr(obj, self.var_name)
+        def_val = getattr(obj, self.default_val_var_name)
+        eq = self.eq(val, def_val)
+        return eq
