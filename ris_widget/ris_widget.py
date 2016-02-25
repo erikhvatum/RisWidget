@@ -33,7 +33,6 @@ from .layer import Layer
 from .layers import LayerStack
 from .point_list_picker import PointListPicker
 from .qwidgets.flipbook import Flipbook
-from .qwidgets.layer_stack_flipbook import LayerStackFlipbook
 from .qwidgets.layer_table import InvertingProxyModel, LayerTableModel, LayerTableView
 from .qwidgets.point_list_picker_table import PointListPickerTable
 from .qgraphicsscenes.general_scene import GeneralScene
@@ -89,7 +88,6 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self._init_scenes_and_views()
         self._apply_deep_color_fix()
         self._init_flipbook()
-        self._init_layer_stack_flipbook()
         self._init_actions()
         self._init_toolbars()
         self._init_menus()
@@ -208,15 +206,6 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.dragMoveEvent = self.flipbook.pages_view.dragMoveEvent
         self.dropEvent = self.flipbook.pages_view.dropEvent
 
-    def _init_layer_stack_flipbook(self):
-        self.layer_stack_flipbook = LayerStackFlipbook(self.layer_stack, self)
-        self.layer_stack_flipbook_dock_widget = Qt.QDockWidget('Main Layer Stack Flipbook', self)
-        self.layer_stack_flipbook_dock_widget.setWidget(self.layer_stack_flipbook)
-        self.layer_stack_flipbook_dock_widget.setAllowedAreas(Qt.Qt.RightDockWidgetArea | Qt.Qt.LeftDockWidgetArea)
-        self.layer_stack_flipbook_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
-        self.addDockWidget(Qt.Qt.RightDockWidgetArea, self.layer_stack_flipbook_dock_widget)
-        self.layer_stack_flipbook_dock_widget.hide()
-
     def _init_toolbars(self):
         self.main_view_toolbar = self.addToolBar('Main View')
         self.main_view_zoom_combo = Qt.QComboBox(self)
@@ -243,7 +232,6 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.dock_widget_visibility_toolbar.addAction(self.layer_table_dock_widget.toggleViewAction())
         self.dock_widget_visibility_toolbar.addAction(self.histogram_dock_widget.toggleViewAction())
         self.dock_widget_visibility_toolbar.addAction(self.flipbook_dock_widget.toggleViewAction())
-        self.dock_widget_visibility_toolbar.addAction(self.layer_stack_flipbook_dock_widget.toggleViewAction())
 
     def _init_menus(self):
         mb = self.menuBar()
