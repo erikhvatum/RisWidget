@@ -28,9 +28,8 @@ sip.setdestroyonexit(True)
 import numpy
 from PyQt5 import Qt
 import sys
-from . import om
 from .layer import Layer
-from .layers import LayerStack
+from .layers import LayerList, LayerStack
 from .point_list_picker import PointListPicker
 from .qwidgets.flipbook import Flipbook
 from .qwidgets.layer_table import InvertingProxyModel, LayerTableModel, LayerTableView
@@ -121,6 +120,13 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.layer_stack_reset_curr_gamma.setShortcut(Qt.Qt.Key_G)
         self.layer_stack_reset_curr_gamma.setShortcutContext(Qt.Qt.ApplicationShortcut)
         self.layer_stack_reset_curr_gamma.triggered.connect(self._on_reset_gamma)
+        self.layer_property_stack_save = Qt.QAction(self)
+        self.layer_property_stack_save.setText('Save layer property stack as...')
+        self.layer_property_stack_save.triggered.connect(self._on_save_layer_property_stack)
+        self.layer_property_stack_load = Qt.QAction(self)
+        self.layer_property_stack_load.setText('Load layer property stack from file...')
+        self.layer_property_stack_load.triggered.connect(self._on_load_layer_property_stack)
+
         if sys.platform == 'darwin':
             self.exit_fullscreen_action = Qt.QAction(self)
             # If self.exit_fullscreen_action's text were "Exit Full Screen Mode" as we desire,
@@ -235,6 +241,9 @@ class RisWidgetQtObject(Qt.QMainWindow):
 
     def _init_menus(self):
         mb = self.menuBar()
+        m = mb.addMenu('File')
+        m.addAction(self.layer_property_stack_save)
+        m.addAction(self.layer_property_stack_load)
         m = mb.addMenu('View')
         if sys.platform == 'darwin':
             m.addAction(self.exit_fullscreen_action)
@@ -417,6 +426,64 @@ class RisWidgetQtObject(Qt.QMainWindow):
                         freeimage.write(snapshot, fn)
                     except Exception as e:
                         Qt.QMessageBox.information(self, self.windowTitle() + ' Freeimage Error', type(e).__name__ + ': ' + str(e))
+
+    def _on_save_layer_property_stack(self):
+        if sys.platform == 'darwin':
+            # With the current version of PyQt (5.5.2) and below, if IPython's Qt event loop intergration is
+            # active, the OS X native modal file save dialog ends up being dismissed just as it appears.  This
+            # can be avoided by using Qt's own reasonably good save dialog.  This will probably eventually be
+            # fixed by the IPython developers, at which point this if clause may be deleted with the contents
+            # of the associated else clause unindented and left as the only remaining code path.
+            fn, _ = Qt.QFileDialog.getSaveFileName(
+                self,
+                'Save Layer Property Stack',
+                filter='JSON (*.json *.jsn)',
+                options=Qt.QFileDialog.DontUseNativeDialog)
+        else:
+            fn, _ = Qt.QFileDialog.getSaveFileName(
+                self,
+                'Save Layer Property Stack',
+                filter='JSON (*.json *.jsn)')
+        if fn:
+            try:
+                f = open(fn, 'w')
+            except PermissionError as e:
+                Qt.QMessageBox.information(
+                    self, self.windowTitle() + ' File Error', type(e).__name__ + ': ' + str(e))
+                return
+            try:
+                f.write(self.layers.to_json())
+            finally:
+                f.close()
+
+    def _on_load_layer_property_stack(self):
+        if sys.platform == 'darwin':
+            # With the current version of PyQt (5.5.2) and below, if IPython's Qt event loop intergration is
+            # active, the OS X native modal file save dialog ends up being dismissed just as it appears.  This
+            # can be avoided by using Qt's own reasonably good save dialog.  This will probably eventually be
+            # fixed by the IPython developers, at which point this if clause may be deleted with the contents
+            # of the associated else clause unindented and left as the only remaining code path.
+            fn, _ = Qt.QFileDialog.getOpenFileName(
+                self,
+                'Load Layer Property Stack',
+                filter='JSON (*.json *.jsn)',
+                options=Qt.QFileDialog.DontUseNativeDialog)
+        else:
+            fn, _ = Qt.QFileDialog.getOpenFileName(
+                self,
+                'Load Layer Property Stack',
+                filter='JSON (*.json *.jsn)')
+        if fn:
+            try:
+                f = open(fn, 'r')
+            except PermissionError as e:
+                Qt.QMessageBox.information(
+                    self, self.windowTitle() + ' File Error', type(e).__name__ + ': ' + str(e))
+                return
+            try:
+                self.layers = LayerList.from_json(f.read())
+            finally:
+                f.close()
 
 class ProxyProperty(property):
     def __init__(self, name, owner_name, owner_type):

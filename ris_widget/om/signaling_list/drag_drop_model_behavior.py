@@ -23,6 +23,7 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 import ctypes
+from pathlib import Path
 from PyQt5 import Qt
 import sys
 
@@ -71,6 +72,8 @@ class DragDropModelBehavior:
                 Qt.QMessageBox.information(None, 'Qt Upgrade Required', e)
                 return False
             return self.can_drop_files(fpaths, row, column, parent)
+        if mime_data.hasText():
+            return self.can_drop_text(mime_data.text(), row, column, parent)
         return False
 
     def dropMimeData(self, mime_data, drop_action, row, column, parent):
@@ -85,12 +88,14 @@ class DragDropModelBehavior:
             # Note: if the URL is a "file://..." representing a local file, toLocalFile returns a string
             # appropriate for feeding to Python's open() function.  If the URL does not refer to a local file,
             # toLocalFile returns None.
-            fpaths = [url.toLocalFile() for url in mime_data.urls()]
-            if sys.platform == 'darwin' and len(fpaths) > 0 and fpaths[0].startswith('file:///.file/id='):
+            fpath_strs = [url.toLocalFile() for url in mime_data.urls()]
+            if sys.platform == 'darwin' and any(fpath_str.startswith('file:///.file/id=') for fpath_str in fpath_strs):
                 e = 'In order for image file drag & drop to work on OS X >=10.10 (Yosemite), please upgrade to at least Qt 5.4.1.'
                 Qt.QMessageBox.information(None, 'Qt Upgrade Required', e)
                 return False
-            return self.handle_dropped_files(fpaths, row, column, parent)
+            return self.handle_dropped_files([Path(fpath_str) for fpath_str in fpath_strs], row, column, parent)
+        if mime_data.hasText():
+            return self.handle_dropped_text(mime_data.text(), row, column, parent)
         return False
 
     def drag_drop_flags(self, midx):
@@ -111,6 +116,9 @@ class DragDropModelBehavior:
         return True
 
     def can_drop_rows(self, src_model, src_rows, dst_row, dst_column, dst_parent):
+        return True
+
+    def can_drop_text(self, text, dst_row, dst_column, dst_parent):
         return True
 
     def handle_dropped_qimage(self, qimage, name, dst_row, dst_column, dst_parent):
@@ -153,6 +161,9 @@ class DragDropModelBehavior:
                 rows.append(ds.readInt64())
             if rows:
                 return RowsDrag(src_model, rows)
+
+    def handle_dropped_text(self, text, dst_row, dst_column, dst_parent):
+        return False
 
     def mimeTypes(self):
         return ['application/x-qabstractitemmodeldatalist', 'application/x-qt-image', ROWS_DRAG_MIME_TYPE]

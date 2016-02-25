@@ -28,43 +28,43 @@ argv = sys.argv
 app = Qt.QApplication(argv)
 rw = RisWidget()
 rw.show()
-im = freeimage.read('/home/ehvatum/m1_hubble.jpg')
+#im = freeimage.read('/home/ehvatum/m1_hubble.jpg')
 # rw.image = im
 # try:
 #     rw.image = im.astype(numpy.float64)
 # except Exception as e:
 #     print(e)
 
-rw.image = im
+# rw.image = im
 
 # simple_point_picker = SimplePolyLinePointPicker(rw.main_view, rw.main_scene.layer_stack_item)
 
-point_list_picker, point_list_table_view = rw.make_poly_line_picker_and_table()
-
-points = [
-    [1256.0, 675.0],
-    [1541.0, 738.0],
-    [1786.0, 995.0],
-    [1289.0, 1360.0],
-    [1001.0, 1112.0],
-    [1018.0, 899.0],
-    [815.0, 685.0],
-    [858.0, 959.0],
-    [824.0, 1315.0],
-    [1027.0, 1456.0],
-    [961.0, 1728.0],
-    [1288.0, 1823.0],
-    [1294.0, 1703.0],
-    [1703.0, 1889.0],
-    [1634.0, 1593.0],
-    [1745.0, 1668.0],
-    [1761.0, 1425.0],
-    [1948.0, 1594.0],
-    [1910.0, 1323.0],
-    [2066.0, 1375.0],
-    [2006.0, 1120.0]
-]
-point_list_picker.points = points
+# point_list_picker, point_list_table_view = rw.make_poly_line_picker_and_table()
+#
+# points = [
+#     [1256.0, 675.0],
+#     [1541.0, 738.0],
+#     [1786.0, 995.0],
+#     [1289.0, 1360.0],
+#     [1001.0, 1112.0],
+#     [1018.0, 899.0],
+#     [815.0, 685.0],
+#     [858.0, 959.0],
+#     [824.0, 1315.0],
+#     [1027.0, 1456.0],
+#     [961.0, 1728.0],
+#     [1288.0, 1823.0],
+#     [1294.0, 1703.0],
+#     [1703.0, 1889.0],
+#     [1634.0, 1593.0],
+#     [1745.0, 1668.0],
+#     [1761.0, 1425.0],
+#     [1948.0, 1594.0],
+#     [1910.0, 1323.0],
+#     [2066.0, 1375.0],
+#     [2006.0, 1120.0]
+# ]
+# point_list_picker.points = points
 
 # def on_debug_gc():
 #     rw.image = None

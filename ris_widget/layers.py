@@ -22,6 +22,7 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+import json
 from PyQt5 import Qt
 import numpy
 from . import om
@@ -29,6 +30,26 @@ from .image import Image
 from .layer import Layer
 
 class LayerList(om.UniformSignalingList):
+    @classmethod
+    def from_json(cls, json_str, show_error_messagebox=False):
+        try:
+            prop_stackd = json.loads(json_str)['layer property stack']
+            layers = cls()
+            for props in prop_stackd:
+                layer = Layer()
+                for pname, pval, in props.items():
+                    setattr(layer, pname, pval)
+                layers.append(layer)
+            return layers
+        except (FileNotFoundError, ValueError, TypeError) as e:
+            if show_error_messagebox:
+                Qt.QMessageBox.information(None, 'JSON Error', '{} : {}'.format(type(e).__name__, e))
+
+    def to_json(self):
+        return json.dumps({'layer property stack' : [
+            layer.get_savable_properties_dict() for layer in self
+        ]}, ensure_ascii=False, indent=1)
+
     def take_input_element(self, obj):
         if isinstance(obj, (numpy.ndarray, Image)):
             obj = Layer(obj)

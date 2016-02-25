@@ -25,6 +25,7 @@
 from PyQt5 import Qt
 from ..image import Image
 from ..layer import Layer
+from ..layers import LayerList
 from ..qdelegates.dropdown_list_delegate import DropdownListDelegate
 from ..qdelegates.slider_delegate import SliderDelegate
 from ..qdelegates.color_delegate import ColorDelegate
@@ -118,6 +119,9 @@ class LayerTableDragDropBehavior(om.signaling_list.DragDropModelBehavior):
     def can_drop_rows(self, src_model, src_rows, dst_row, dst_column, dst_parent):
         return isinstance(src_model, LayerTableModel)
 
+    def can_drop_text(self, txt, dst_row, dst_column, dst_parent):
+        return bool(LayerList.from_json(txt))
+
     def handle_dropped_qimage(self, qimage, name, dst_row, dst_column, dst_parent):
         image = Image.from_qimage(qimage=qimage, name=name)
         if image is not None:
@@ -127,15 +131,31 @@ class LayerTableDragDropBehavior(om.signaling_list.DragDropModelBehavior):
         return False
 
     def handle_dropped_files(self, fpaths, dst_row, dst_column, dst_parent):
-        # Note: if the URL is a "file://..." representing a local file, toLocalFile returns a string
-        # appropriate for feeding to Python's open() function.  If the URL does not refer to a local file,
-        # toLocalFile returns None.
         freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=None)
         if freeimage is None:
             return False
-        layers = [Layer(Image(freeimage.read(fpath_str), name=fpath_str)) for fpath_str in (str(fpath) for fpath in fpaths)]
+        layers = LayerList()
+        for fpath in fpaths:
+            if fpath.suffix in ('.json', '.jsn'):
+                with fpath.open('r') as f:
+                    in_layers = LayerList.from_json(f.read())
+                    if in_layers:
+                        layers.extend(in_layers)
+            else:
+                fpath_str = str(fpath)
+                layers.append(Layer(Image(freeimage.read(fpath_str), name=fpath_str)))
         self.layer_stack.get_layers()[dst_row:dst_row] = layers
         return True
+
+    def handle_dropped_text(self, txt, dst_row, dst_column, dst_parent):
+        dropped_layers = LayerList.from_json(txt)
+        if dropped_layers:
+            self.layer_stack.get_layers()[dst_row:dst_row] = dropped_layers
+
+    def mimeData(self, midxs):
+        mime_data = super().mimeData(midxs)
+        mime_data.setText(self.layer_stack.get_layers().to_json())
+        return mime_data
 
 class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePropertyTableModel):
     # LayerTableModel accesses PROPERTIES strictly via self.PROPERTIES and never via LayerTableModel.PROPERTIES,
