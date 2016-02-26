@@ -71,6 +71,8 @@ cpdef min_max_float32(numpy.float32_t[:, :] im, numpy.float32_t[:] min_max):
 
 cpdef masked_min_max_float32(numpy.float32_t[:, :] im, numpy.uint8_t[:, :] mask, numpy.float32_t[:] min_max):
     assert min_max.shape[0] >= 2
+    assert mask.shape[0] >= im.shape[0]
+    assert mask.shape[1] >= im.shape[1]
     _masked_min_max[numpy.float32_t](
         &im[0][0], &im.shape[0], &im.strides[0],
         &mask[0][0], &mask.shape[0], &mask.strides[0],
@@ -156,48 +158,3 @@ cpdef masked_hist_min_max_uint16(numpy.uint16_t[:, :] im, numpy.uint8_t[:, :] ma
         &im[0][0], &im.shape[0], &im.strides[0],
         &mask[0][0], &mask.shape[0], &mask.strides[0],
         &hist[0], &min_max[0])
-
-@cython.boundscheck(False)
-@cython.wraparound(False)
-@cython.cdivision(True)
-cpdef hist_min_max_float32(numpy.float32_t[:, :] im, numpy.uint32_t[:] hist, numpy.float32_t[:] min_max, numpy.float32_t hist_min, numpy.float32_t hist_max):
-    cdef numpy.float32_t v
-    cdef numpy.uint32_t n_bins = hist.shape[0]
-    cdef Py_ssize_t i, j, bin
-    cdef numpy.float32_t bin_factor = (n_bins - 1) / (hist_max - hist_min)
-    with nogil:
-        hist[:] = 0
-        min_max[0] = im[0,0]
-        min_max[1] = im[0,0]
-        for i in range(im.shape[0]):
-            for j in range(im.shape[1]):
-                v = im[i, j]
-                bin = <Py_ssize_t> (bin_factor * (v - hist_min))
-                hist[bin] += 1
-                if v < min_max[0]:
-                    min_max[0] = v
-                elif v > min_max[1]:
-                    min_max[1] = v
-
-@cython.boundscheck(False)
-@cython.wraparound(False)
-@cython.cdivision(True)
-cpdef masked_hist_min_max_float32(numpy.float32_t[:, :] im, numpy.uint8_t[:, :] mask, numpy.uint32_t[:] hist, numpy.float32_t[:] min_max, numpy.float32_t hist_min, numpy.float32_t hist_max):
-    cdef numpy.float32_t v
-    cdef numpy.uint32_t n_bins = hist.shape[0]
-    cdef Py_ssize_t i, j, bin
-    cdef numpy.float32_t bin_factor = (n_bins - 1) / (hist_max - hist_min)
-    with nogil:
-        hist[:] = 0
-        min_max[0] = im[0,0]
-        min_max[1] = im[0,0]
-        for i in range(im.shape[0]):
-            for j in range(im.shape[1]):
-                if mask[i, j]:
-                    v = im[i, j]
-                    bin = <Py_ssize_t> (bin_factor * (v - hist_min))
-                    hist[bin] += 1
-                    if v < min_max[0]:
-                        min_max[0] = v
-                    elif v > min_max[1]:
-                        min_max[1] = v

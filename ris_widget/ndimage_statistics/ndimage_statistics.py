@@ -20,9 +20,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
-# Authors: Zach Pincus, Erik Hvatum <ice.rikh@gmail.com>
+# Authors: Erik Hvatum <ice.rikh@gmail.com>, Zach Pincus
 
 import numpy
+import numpy.ma
 from collections import namedtuple
 import concurrent.futures as futures
 import multiprocessing
@@ -34,194 +35,179 @@ NDImageStatistics = namedtuple('NDImageStatistics', ('histogram', 'max_bin', 'mi
 try:
     from . import _ndimage_statistics
 
-    def find_min_max(im, mask=None):
-        im = numpy.asarray(im)
-        if mask is not None:
-            mask = numpy.asarray(mask, dtype=numpy.uint8)
-            assert im.shape == mask.shape
-        if im.dtype == numpy.float32:
-            if im.ndim == 2:
-                min_max = numpy.empty((2,), dtype=numpy.float32)
-                _ndimage_statistics.min_max_float32(im, min_max) if mask is None else _ndimage_statistics.masked_min_max_float32(im, mask, min_max)
-                return min_max
-            if im.ndim == 3:
-                min_max = numpy.empty((im.shape[2], 2), dtype=numpy.float32)
-                if mask is None:
-                    for c in range(im.shape[2]):
-                        _ndimage_statistics.min_max_float32(im[...,c], min_max[c])
-                else:
-                    for c in range(im.shape[2]):
-                        _ndimage_statistics.min_max_float32(im[...,c], mask, min_max[c])
-                return min_max
-            else:
-                raise ValueError('im must be 2D or 3D iterable / ndarray.')
-        else:
-            raise TypeError('im argument type must be a numpy.ndarray with dtype float32')
-
-    def compute_ranged_histogram(im, min_max, bin_count, with_overflow_bins=False, mask=None, return_future=False, make_ndimage_statistics_tuple=False):
-        im = numpy.asarray(im)
-        if mask is not None:
-            mask = numpy.asarray(mask, dtype=numpy.uint8)
-            assert im.shape == mask.shape
-        if im.dtype == numpy.float32:
-            if im.ndim == 2:
-                def fn():
-                    histogram = numpy.empty((bin_count,), dtype=numpy.uint32)
-                    if mask is None:
-                        _ndimage_statistics.ranged_hist_float32(im, min_max[0], min_max[1], bin_count, with_overflow_bins, histogram)
-                    else:
-                        _ndimage_statistics.masked_ranged_hist_float32(im, mask, min_max[0], min_max[1], bin_count, with_overflow_bins, histogram)
-                    if make_ndimage_statistics_tuple:
-                        return NDImageStatistics(histogram, histogram.argmax(), min_max)
-                    return histogram
-            elif im.ndim == 3:
-                def fn():
-                    histogram = numpy.empty((im.shape[2], bin_count), dtype=numpy.uint32)
-                    hist_range = min_max[:,0].min(), min_max[:,1].max()
-                    if mask is None:
-                        for c in range(im.shape[2]):
-                            _ndimage_statistics.ranged_hist_float32(im[...,c], hist_range[0], hist_range[1], bin_count, with_overflow_bins, histogram[c])
-                    else:
-                        for c in range(im.shape[2]):
-                            _ndimage_statistics.masked_ranged_hist_float32(im[...,c], mask, hist_range[0], hist_range[1], bin_count, with_overflow_bins, histogram[c])
-                    if make_ndimage_statistics_tuple:
-                        return NDImageStatistics(histogram, numpy.hstack(histogram[c].argmax() for c in range(im.shape[2])), min_max)
-                    return histogram
-            else:
-                raise ValueError('im must be 2D or 3D iterable / ndarray.')
-        else:
-            raise TypeError('im argument type must be a numpy.ndarray with dtype float32')
-        if return_future:
-            return pool.submit(fn)
-        else:
-            return fn()
-    
-    def compute_ndimage_statistics(im, mask=None, twelve_bit=False, n_bins=1024, hist_max=None, hist_min=None, n_threads=1, return_future=False):
-        im = numpy.asarray(im)
-        extra_args = ()
-        if mask is not None:
-            mask = numpy.asarray(mask, dtype=numpy.uint8)
-            assert im.shape == mask.shape
-        if im.dtype == numpy.uint8:
-            hist_min_max = _ndimage_statistics.hist_min_max_uint8 if mask is None else _ndimage_statistics.masked_hist_min_max_uint8
-            n_bins = 256
-        elif im.dtype == numpy.uint16:
-            n_bins = 1024
-            if twelve_bit:
-                hist_min_max = _ndimage_statistics.hist_min_max_uint12 if mask is None else _ndimage_statistics.masked_hist_min_max_uint12
-            else:
-                hist_min_max = _ndimage_statistics.hist_min_max_uint16 if mask is None else _ndimage_statistics.masked_hist_min_max_uint16
-        elif im.dtype == numpy.float32:
-            hist_min_max = _ndimage_statistics.hist_min_max_float32 if mask is None else _ndimage_statistics.masked_hist_min_max_float32
-            if hist_max is None:
-                hist_max = im.max()
-            if hist_min is None:
-                hist_min = im.min()
-            extra_args = (hist_min, hist_max)
-        else:
-            raise TypeError('im argument type must be uint8, uint16, or float32')
-
-        slices = [im[i::n_threads] for i in range(n_threads)]
-        histograms = numpy.empty((n_threads, n_bins), dtype=numpy.uint32)
-        min_maxs = numpy.empty((n_threads, 2), dtype=im.dtype)
+    def _min_max(im, mask=None):
+        min_max = numpy.zeros((2,), dtype=numpy.float32)
         if mask is None:
-            futures = [pool.submit(hist_min_max, arr_slice, hist_slice, min_max, *extra_args) for
-                       arr_slice, hist_slice, min_max in zip(slices, histograms, min_maxs)]
+            _ndimage_statistics.min_max_float32(im, min_max)
         else:
-            mslices = [mask[i::n_threads] for i in range(n_threads)]
-            futures = [pool.submit(hist_min_max, mslice, arr_slice, hist_slice, min_max, *extra_args) for
-                       arr_slice, mslice, hist_slice, min_max in zip(slices, mslices, histograms, min_maxs)]
+            _ndimage_statistics.masked_min_max_float32(im, mask, min_max)
+        return min_max
 
-        def get_result():
-            for future in futures:
-                future.result()
-
-            histogram = histograms.sum(axis=0, dtype=numpy.uint32)
-            max_bin = histogram.argmax()
-
-            return NDImageStatistics(histogram, max_bin, (min_maxs[:,0].min(), min_maxs[:,1].max()))
-
-        if return_future:
-            return pool.submit(get_result)
+    def _histogram(im, bin_count, range_, mask=None, with_overflow_bins=False):
+        hist = numpy.zeros((bin_count,), dtype=numpy.uint32)
+        if mask is None:
+            _ndimage_statistics.ranged_hist_float32(im, range_[0], range_[1], bin_count, with_overflow_bins, hist)
         else:
-            return get_result()
+            _ndimage_statistics.masked_ranged_hist_float32(im, mask, range_[0], range_[1], bin_count, with_overflow_bins, hist)
+        return hist
+
+    def _statistics(im, twelve_bit, mask=None):
+        if im.dtype.type is numpy.uint8:
+            hist = numpy.zeros((256,), dtype=numpy.uint32)
+            min_max = numpy.zeros((2,), dtype=numpy.uint8)
+            if mask is None:
+                _ndimage_statistics.hist_min_max_uint8(im, hist, min_max)
+            else:
+                _ndimage_statistics.masked_hist_min_max_uint8(im, mask, hist, min_max)
+        elif im.dtype.type is numpy.uint16:
+            hist = numpy.zeros((1024,), dtype=numpy.uint32)
+            min_max = numpy.zeros((2,), dtype=numpy.uint16)
+            if mask is None:
+                if twelve_bit:
+                    _ndimage_statistics.hist_min_max_uint12(im, hist, min_max)
+                else:
+                    _ndimage_statistics.hist_min_max_uint16(im, hist, min_max)
+            else:
+                if twelve_bit:
+                    _ndimage_statistics.masked_hist_min_max_uint12(im, mask, hist, min_max)
+                else:
+                    _ndimage_statistics.masked_hist_min_max_uint16(im, mask, hist, min_max)
+        return NDImageStatistics(hist, hist.argmax(), min_max)
+
 except ImportError:
     import warnings
     warnings.warn('warning: Failed to load _ndimage_statistics binary module; using slow histogram and extrema computation methods.')
 
-    def find_min_max(im, mask=None):
-        im = numpy.asarray(im)
+    def _min_max(im, mask=None):
         if mask is not None:
-            raise NotImplementedError()
-        if im.ndim == 2:
-            return numpy.array((im.min(), im.max()), dtype=im.dtype)
-        elif im.ndim == 3:
-            return numpy.array([(im[...,c].min(), im[...,c].max()) for c in range(im.shape[2])], dtype=im.dtype)
+            im = numpy.ma.array(im, dtype=im.dtype, copy=False, mask=~mask)
+        return numpy.array((im.min(), im.max()), dtype=im.dtype)
+
+    def _histogram(im, bin_count, range_, mask=None, with_overflow_bins=False):
+        if with_overflow_bins:
+            assert bin_count >= 3
+            hist = numpy.zeros((bin_count,), dtype=numpy.uint32)
+            hist[1:-1] = numpy.histogram(im, bins=bin_count-2, range=range_, density=False, weights=mask)[0].astype(numpy.uint32)
+            if mask is not None:
+                im = numpy.ma.array(im, dtype=im.dtype, copy=False, mask=~mask)
+            hist[0] = (im < range_[0]).sum()
+            hist[-1] = (im > range_[1]).sum()
+            return hist
         else:
-            raise ValueError('im must be 2D or 3D iterable / ndarray.')
+            assert bin_count >= 1
+            return numpy.histogram(im, bins=bin_count, range=range_, density=False, weights=mask)[0].astype(numpy.uint32)
 
-    def compute_ranged_histogram(im, min_max, bin_count, with_overflow_bins=False, mask=None, return_future=False, make_ndimage_statistics_tuple=False):
-        im = numpy.asarray(im)
-        def fn():
-            if im.ndim == 2:
-                histogram = numpy.histogram(im, bins=bin_count, range=min_max, density=False, weights=mask)[0].astype(numpy.uint32)
-                if make_ndimage_statistics_tuple:
-                    return NDImageStatistics(histogram, histogram.argmax(), min_max)
-                return histogram
-            elif im.ndim == 3:
-                hist_range = min_max[:,0].min(), min_max[:,1].max()
-                histogram = numpy.vstack(numpy.histogram(im[c], bins=bin_count, range=hist_range, density=False, weights=mask)[0].astype(numpy.uint32) for c in range(im.shape[2]))
-                if make_ndimage_statistics_tuple:
-                    return NDImageStatistics(histogram, numpy.hstack(histogram[c].argmax() for c in range(im.shape[2])), min_max)
-                return histogram
-            else:
-                raise ValueError('im must be 2D or 3D iterable / ndarray.')
-        if return_future:
-            return pool.submit(fn)
+    def _statistics(im, twelve_bit, mask=None):
+        if im.dtype.type is numpy.uint8:
+            min_max = numpy.zeros((2,), dtype=numpy.uint8)
+            bin_count = 256
+            range_ = (0,255)
+        elif im.dtype.type is numpy.uint16:
+            min_max = numpy.zeros((2,), dtype=numpy.uint16)
+            bin_count = 1024
+            range_ = (0,4095) if twelve_bit else (0,65535)
         else:
-            return fn()
+            raise NotImplementedError('Support for dtype of supplied im argument not implemented.')
+        hist = numpy.histogram(im, bins=bin_count, range=range, density=False, weights=mask)[0].astype(numpy.uint32)
+        if mask is not None:
+            im = numpy.ma.array(im, dtype=im.dtype, copy=False, mask=~mask)
+        min_max[0] = im.min()
+        min_max[1] = im.max()
+        return NDImageStatistics(hist, hist.argmax(), min_max)
 
-    def compute_ndimage_statistics(im, mask=None, twelve_bit=False, n_bins=1024, hist_max=None, hist_min=None, n_threads=None, return_future=False):
-        im = numpy.asarray(im)
-        if im.dtype == numpy.uint8:
-            n_bins = 256
-            histogram_range = (0, 255)
-            image_range = (im.min(), im.max())
-        elif im.dtype == numpy.uint16:
-            n_bins = 1024
-            histogram_range = (0, 4095 if twelve_bit else 65535)
-            image_range = (im.min(), im.max())
-        else:
-            histogram_range = image_range = (
-                im.min() if hist_min is None else hist_min,
-                im.max() if hist_max is None else hist_max)
+def min_max(im, mask=None, return_future=False):
+    """Supports only float32 as that's the only image dtype for which we ever do min/max and histogram in two separate steps, for the simple reason that
+    it is sometimes necessary to find the range over which the histogram is to be calculated for float32 images, but never in the case of uint8, 12, or
+    16 images, whose range is that of their data type.  (uint12 being a somewhat special case; a flag indicates that although the stored as uint16, the
+    highest 4 bits of each element remain 0.)
 
-        def get_result():
-            histogram = numpy.histogram(im, bins=n_bins, range=histogram_range, density=False, weights=mask)[0].astype(numpy.uint32)
-            max_bin = histogram.argmax()
+    im: The 2D or 3D float32 ndarray for which min and max values are found.
+    mask: None or a 2D bool or uint8 ndarray with neither dimension smaller than the corresponding dimension of im.  If mask is not None, only image
+    pixels with non-zero mask counterparts contribute to min_max.  Pixels of mask outside of im have no impact.  If mask is None, all image pixels are
+    included.
+    return_future: If not False, a concurrent.futures.Future is returned.
 
-            return NDImageStatistics(histogram, max_bin, image_range)
-
-        if return_future:
-            return pool.submit(get_result)
-        else:
-            return get_result()
-
-def compute_multichannel_ndimage_statistics(im, mask=None, twelve_bit=False, n_bins=1024, hist_max=None, hist_min=None, n_threads=1, return_future=False):
-    """Uses im.shape[2] * n_threads number of threads."""
-    im = numpy.asarray(im)
-
-    if return_future:
-        def function():
-            futures = [compute_ndimage_statistics(im[...,channel_idx], mask, twelve_bit, n_bins, hist_max, hist_min, n_threads, True) for channel_idx in range(im.shape[2])]
-            return NDImageStatistics(
-                numpy.vstack((future.result().histogram for future in futures)),
-                numpy.hstack((future.result().max_bin for future in futures)),
-                numpy.vstack((future.result().min_max_intensity for future in futures)))
-        return pool.submit(function)
+    Returns a channel_count x 2 float32 numpy array containing the min and max element values over the masked region or entirety of im."""
+    assert im.dtype.type is numpy.float32
+    assert im.ndim in (2,3)
+    if mask is not None:
+        assert mask.ndim == 2
+        assert im.shape[0] <= mask.shape[0]
+        assert im.shape[1] <= mask.shape[1]
+        mask = mask[:im.shape[0], :im.shape[1]]
+    if im.ndim == 2:
+        def proc():
+            return _min_max(im, mask)
     else:
-        statses = [compute_ndimage_statistics(im[...,channel_idx], mask, twelve_bit, n_bins, hist_max, hist_min, n_threads, False) for channel_idx in range(im.shape[2])]
-        return NDImageStatistics(
-            numpy.vstack((stats.histogram for stats in statses)),
-            numpy.hstack((stats.max_bin for stats in statses)),
-            numpy.vstack((stats.min_max_intensity for stats in statses)))
+        def axis_proc(axis):
+            return _min_max(im[..., axis], mask)
+        def proc():
+            futes = [pool.submit(axis_proc, axis) for axis in range(im.shape[2])]
+            return numpy.vstack(fute.result() for fute in futes)
+    return pool.submit(proc) if return_future else proc()
+
+def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, return_future=False):
+    """Supports only float32 as that's the only image dtype for which we ever do min/max and histogram in two separate steps, for the simple reason that
+    it is sometimes necessary to find the range over which the histogram is to be calculated for float32 images, but never in the case of uint8, 12, or
+    16 images, whose range is that of their data type.  (uint12 being a somewhat special case; a flag indicates that although the stored as uint16, the
+    highest 4 bits of each element remain 0.)
+
+    im: The 2D or 3D float32 ndarray for which histogram is computed.
+    range_: An indexable sequence of at least two elements, castable to float32, representing the closed interval which is divided into bin_count number
+    of bins comprising the histogram.
+    mask: None or a 2D bool or uint8 ndarray with neither dimension smaller than the corresponding dimension of im.  If mask is not None, only image
+    pixels with non-zero mask counterparts contribute to the histogram.  Mask pixels outside of im have no impact.  If mask is None, all image pixels
+    are included.
+    with_overfloat_bins: If true, the first and last histogram bins represent the number of image pixels falling below and above range_, respectively.
+    return_future: If not False, a concurrent.futures.Future is returned.
+
+    Returns a channel_count x bin_count numpy array uint32 values."""
+    assert im.dtype.type is numpy.float32
+    assert im.ndim in (2,3)
+    assert range_[0] < range_[1]
+    if mask is not None:
+        assert mask.ndim == 2
+        assert im.shape[0] <= mask.shape[0]
+        assert im.shape[1] <= mask.shape[1]
+        mask = mask[:im.shape[0], :im.shape[1]]
+    if with_overflow_bins:
+        assert bin_count >= 4
+    else:
+        assert bin_count >= 2
+    if im.ndim == 2:
+        def proc():
+            return _histogram(im, bin_count, range_, mask, with_overflow_bins)
+    else:
+        def axis_proc(axis):
+            return _histogram(im[..., axis], bin_count, range_, mask, with_overflow_bins)
+        def proc():
+            futes = [pool.submit(axis_proc, axis) for axis in range(im.shape[2])]
+            return numpy.vstack(fute.result() for fute in futes)
+    return pool.submit(proc) if return_future else proc()
+
+def statistics(im, twelve_bit=False, mask=None, return_future=False):
+    assert im.ndim in (2,3)
+    if im.dtype.type is numpy.uint8:
+        assert twelve_bit == False
+    elif im.dtype.type is numpy.uint16:
+        pass
+    else:
+        raise NotImplementedError('Support for dtype of supplied im argument not implemented.')
+    if mask is not None:
+        assert mask.ndim == 2
+        assert im.shape[0] <= mask.shape[0]
+        assert im.shape[1] <= mask.shape[1]
+        mask = mask[:im.shape[0], :im.shape[1]]
+    if im.ndim == 2:
+        def proc():
+            return _statistics(im, twelve_bit, mask)
+    else:
+        def axis_proc(axis):
+            return _statistics(im[..., axis], twelve_bit, mask)
+        def proc():
+            futes = [pool.submit(axis_proc, axis) for axis in range(im.shape[2])]
+            return NDImageStatistics(
+                numpy.vstack((fute.result().histogram for fute in futes)),
+                numpy.hstack((fute.result().max_bin for fute in futes)),
+                numpy.vstack((fute.result().min_max_intensity for fute in futes)))
+    return pool.submit(proc) if return_future else proc()
