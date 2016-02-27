@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2014-2015 WUSTL ZPLAB
+# Copyright (c) 2014-2016 WUSTL ZPLAB
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -50,9 +50,19 @@ class Image(Qt.QObject):
     Additionally, emission of .data_changed or .name_changed causes emission of .changed."""
     changed = Qt.pyqtSignal(object)
     data_changed = Qt.pyqtSignal(object)
+    mask_changed = Qt.pyqtSignal(object)
     name_changed = Qt.pyqtSignal(object)
 
-    def __init__(self, data, parent=None, is_twelve_bit=False, float_range=None, shape_is_width_height=True, name=None):
+    def __init__(
+            self,
+            data,
+            mask=None,
+            parent=None,
+            is_twelve_bit=False,
+            specified_float_range=None,
+            shape_is_width_height=True,
+            mask_shape_is_width_height=True,
+            name=None):
         """RisWidget defaults to the convention that the first element of the shape vector of a Numpy
         array represents width.  If you are supplying image data that does not follow this convention,
         specify the argument shape_is_width_height=False, and your image will be displayed correctly
@@ -61,7 +71,7 @@ class Image(Qt.QObject):
         self.data_changed.connect(self.changed)
         self.objectNameChanged.connect(self._onObjectNameChanged)
         self.name_changed.connect(self.changed)
-        self.set_data(data, is_twelve_bit, float_range, shape_is_width_height, False, name)
+        self.update(data, mask, is_twelve_bit, specified_float_range, shape_is_width_height, mask_shape_is_width_height, name, _called_by_init=True)
 
     def _onObjectNameChanged(self):
         self.name_changed.emit(self)
@@ -97,35 +107,87 @@ class Image(Qt.QObject):
     def __repr__(self):
         num_channels = self.num_channels
         name = self.name
-        return '{}; {}, {}x{}, {} channel{} ({}){}>'.format(
+        return '{}; {}, {}x{}, {}{} channel{} ({}){}>'.format(
             super().__repr__()[:-1],
             'with name "{}"'.format(name) if name else 'unnamed',
             self.size.width(),
             self.size.height(),
+            '' if self._mask is None else 'masked, ',
             num_channels,
             '' if num_channels == 1 else 's',
             self.type,
             ' (per-channel binary)' if self.is_binary else '')
 
-    def refresh(self):
-        # Assumption: only contents of ._data may have changed, not its size, shape, striding, or dtype.
+    def refresh(self, data_changed=True, mask_changed=True, is_twelve_bit_changed=True, specified_float_range_changed=True):
+        # Assumption: only contents of ._data, ._mask, .is_twelve_bit, and/or .specified_float_range may have changed, but not their size, shape, striding,
+        # or dtype (where applicable).
+        if not any((data_changed, mask_changed, is_twelve_bit_changed, specified_float_range_changed)):
+            return
+        if self.dtype is numpy.float32:
+            if self.specified_float_range is None and data_changed:
+                self._range = ndimage_statistics.min_max(self.data)
         if self.is_grayscale:
-            self.stats_future = ndimage_statistics.compute_ndimage_statistics(self._data, self.is_twelve_bit, return_future=True)
+            if self.dtype is numpy.float32:
+                self.stats_future = ndimage_statistics.compute_ranged_histogram(
+                    self._data,
+                    self._range,
+                    256,
+                    with_overflow_bins=False,
+                    return_future=True,
+                    make_ndimage_statistics_tuple=True)
+            else:
+                self.stats_future = ndimage_statistics.compute_ndimage_statistics(self._data, self.is_twelve_bit, return_future=True)
         else:
+            if self.dtype is numpy.float32:
+
             self.stats_future = ndimage_statistics.compute_multichannel_ndimage_statistics(self._data, self.is_twelve_bit, return_future=True)
         self.data_changed.emit(self)
 
-    def set_data(self, data, is_twelve_bit=False, float_range=None, shape_is_width_height=True, keep_name=True, name=None):
-        """If keep_name is True, the existing name is not changed, and the value supplied for the name argument is ignored.
-        If keep_name is False, the existing name is replaced with the supplied name or is cleared if supplied name is None
-        or an empty string."""
+    def update(
+            self,
+            data=...,
+            mask=...,
+            is_twelve_bit=...,
+            specified_float_range=...,
+            shape_is_width_height=True,
+            mask_shape_is_width_height=True,
+            name=...,
+            _called_by_init=False):
+        """In addition to the values __init__ accepts for the data, mask, name, is_twelve_bit, and specified_float_range arguments, update accepts ...
+        (Ellipses) for these arguments to indicate No Change.  That is, the contents of i.data, i.name, i.mask, i.is_twelve_bit, and
+        i.specified_float_range are left unchanged by i.set_data(..) if their corresponding arguments are Ellipses (as they are by default)."""
+        data_changed = data is not ...
+        mask_changed = mask is not ...
+        is_twelve_bit_changed = is_twelve_bit is not ...
+        specified_float_range_changed = specified_float_range is not ...
         self._data = numpy.asarray(data)
         self.is_twelve_bit = is_twelve_bit
         dt = self._data.dtype.type
+
+        self.refresh(data_changed, mask_changed, is_twelve_bit_changed, specified_float_range_changed)
+
+
+
         if dt not in (numpy.bool8, numpy.uint8, numpy.uint16, numpy.float32):
-            raise ValueError('The "data" argument must produce a numpy ndarray of dtype bool8, uint8, uint16, or float32 when '
-                             'passed through numpy.asarray(data).  So, if data is, itself, an ndarray, then data.dtype must be '
-                             'one of bool8, uint8, uint16, or float32.')
+            raise ValueError(
+                'The "data" argument must produce a numpy ndarray of dtype bool8, uint8, uint16, or float32 when '
+                'passed through numpy.asarray(data).  So, if data is, itself, an ndarray, then data.dtype must be '
+                'one of bool8, uint8, uint16, or float32.')
+        if specified_float_range is None:
+            self.specified_float_range = None
+        elif specified_float_range is not ...:
+            specified_float_range = tuple(specified_float_range)
+            if len(specified_float_range) != 2:
+                raise ValueError(
+                    'specified_float_range must either be {} or an iterable of two elements castable to float'.format(
+                        'None' if _called_by_init else 'None, Ellipses, '))
+            specified_float_range = float(specified_float_range[0]), float(specified_float_range[1])
+            if not specified_float_range[0] < specified_float_range[1]:
+                raise ValueError(
+                    'If the value supplied for float_range is {}, float_range[0] must be < float_range[1].'.format(
+                        'not None' if _called_by_init else 'neither None nor Ellipses'))
+            self.specified_float_range = specified_float_range
+
         if self._data.ndim == 2:
             if not shape_is_width_height:
                 self._data = self._data.transpose(1, 0)
@@ -198,11 +260,34 @@ class Image(Qt.QObject):
             else:
                 raise NotImplementedError('Support for another numpy dtype was added without implementing self._range calculation for it...')
 
-        if not keep_name:
+        if name is not ...:
             self.name = name
-        self.data_changed.emit(self)
+        if mask is not ...:
+            self.set_mask(mask, mask_shape_is_width_height)
+        self.refresh()
 
-    set_data.__doc__ = __init__.__doc__
+    set_data.__doc__ = __init__.__doc__ + '\n\n' + set_data.__doc__
+
+    def set_mask(self, mask, shape_is_width_height=True):
+        if self.dtype is numpy.float32:
+
+        if mask is None:
+            self._mask = None
+        else:
+            mask = numpy.asarray(mask, numpy.bool)
+            if mask.ndim != 2:
+                raise ValueError('mask argument must be None or a 2D iterable of elements castable to bool with the same dimensions as .data.')
+            if not shape_is_width_height:
+                mask = mask.transpose(1, 0)
+                desired_strides = (1, mask.shape[0])
+                if desired_strides != mask.strides:
+                    d = mask
+                    mask = numpy.ndarray(d.shape, strides=desired_strides, dtype=numpy.bool)
+                    mask.flat = d.flat
+            if not mask.shape == self._data.shape:
+                raise ValueError('mask argument must be None or a 2D iterable of elements castable to bool with the same dimensions as .data.')
+            self._mask = mask
+        self.refresh(data_changed_signal=False, mask_changed_signal=True)
 
     def generate_contextual_info_for_pos(self, x, y, include_image_name=True):
         sz = self.size
@@ -240,6 +325,15 @@ class Image(Qt.QObject):
         return self._data.transpose(*(1,0,2)[:self._data.ndim])
 
     @property
+    def mask(self):
+        return self._mask
+
+    @property
+    def mask_T(self):
+        if self._mask is not None:
+            return self._mask.transpose(1, 0)
+
+    @property
     def dtype(self):
         return self._data.dtype.type
 
@@ -266,6 +360,6 @@ class Image(Qt.QObject):
     def range(self):
         """The range of valid values that may be assigned to any channel of any pixel.  For 8-bit-per-channel integer images,
         this is always [0,255], for 12-bit-per-channel integer images, [0,4095], for 16-bit-per-channel integer images, [0,65535].
-        For floating point images, this is min/max values for all channels of all pixels, unless specified with the float_range
-        argument to our set_data function."""
+        For floating point images, this is min/max values over all channels and all (unmasked) pixels, as .  The .specified_, unless .specified_float_range is not None, in
+        which case .range == .specified_float_range."""
         return self._range

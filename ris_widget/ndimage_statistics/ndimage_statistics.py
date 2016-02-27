@@ -139,13 +139,19 @@ def min_max(im, mask=None, return_future=False):
         def proc():
             return _min_max(im, mask)
     else:
-        def axis_proc(axis):
-            return _min_max(im[..., axis], mask)
+        def channel_proc(channel):
+            return _min_max(im[..., channel], mask)
         def proc():
-            futes = [pool.submit(axis_proc, axis) for axis in range(im.shape[2])]
-            return numpy.vstack(fute.result() for fute in futes)
+            futes = [pool.submit(channel_proc, channel) for channel in range(im.shape[2])]
+            return numpy.array(
+                (min(fute.result()[0] for fute in futes),
+                 max(fute.result()[1] for fute in futes)),
+                dtype=numpy.uint32)
     return pool.submit(proc) if return_future else proc()
 
+# The threaded version is actually slower on heavenly... increasing thread_count from one to any number invariably increases run time.  Careful
+# consideration of caching may help (eg stride by largest possible block size rather than by element).  It is also possible that moving thread histogram
+# reduction to a second ThreadPoolExecutor would help.
 def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, return_future=False):
     """Supports only float32 as that's the only image dtype for which we ever do min/max and histogram in two separate steps, for the simple reason that
     it is sometimes necessary to find the range over which the histogram is to be calculated for float32 images, but never in the case of uint8, 12, or
@@ -185,6 +191,54 @@ def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, return
             return numpy.vstack(fute.result() for fute in futes)
     return pool.submit(proc) if return_future else proc()
 
+# def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, return_future=False, thread_count=min(int(multiprocessing.cpu_count()/4), 8)):
+#     """Supports only float32 as that's the only image dtype for which we ever do min/max and histogram in two separate steps, for the simple reason that
+#     it is sometimes necessary to find the range over which the histogram is to be calculated for float32 images, but never in the case of uint8, 12, or
+#     16 images, whose range is that of their data type.  (uint12 being a somewhat special case; a flag indicates that although the stored as uint16, the
+#     highest 4 bits of each element remain 0.)
+#
+#     im: The 2D or 3D float32 ndarray for which histogram is computed.
+#     range_: An indexable sequence of at least two elements, castable to float32, representing the closed interval which is divided into bin_count number
+#     of bins comprising the histogram.
+#     mask: None or a 2D bool or uint8 ndarray with neither dimension smaller than the corresponding dimension of im.  If mask is not None, only image
+#     pixels with non-zero mask counterparts contribute to the histogram.  Mask pixels outside of im have no impact.  If mask is None, all image pixels
+#     are included.
+#     with_overfloat_bins: If true, the first and last histogram bins represent the number of image pixels falling below and above range_, respectively.
+#     return_future: If not False, a concurrent.futures.Future is returned.
+#
+#     Returns a channel_count x bin_count numpy array uint32 values."""
+#     assert im.dtype.type is numpy.float32
+#     assert im.ndim in (2,3)
+#     assert range_[0] < range_[1]
+#     if mask is not None:
+#         assert mask.ndim == 2
+#         assert im.shape[0] <= mask.shape[0]
+#         assert im.shape[1] <= mask.shape[1]
+#         mask = mask[:im.shape[0], :im.shape[1]]
+#     if with_overflow_bins:
+#         assert bin_count >= 4
+#     else:
+#         assert bin_count >= 2
+#
+#     def channel_proc(imc):
+#         imc_slices = [imc[i::thread_count] for i in range(thread_count)]
+#         if mask is None:
+#             futes = [pool.submit(_histogram, imc_slice, bin_count, range_, with_overflow_bins=with_overflow_bins) for imc_slice in imc_slices]
+#         else:
+#             m_slices = [mask[i::thread_count] for i in range(thread_count)]
+#             futes = [pool.submit(_histogram, imc_slice, bin_count, range_, m_slice, with_overflow_bins) for imc_slice, m_slice in zip(imc_slices, m_slices)]
+#         return numpy.sum([fute.result() for fute in futes], axis=0)
+#
+#     if im.ndim == 2:
+#         def proc():
+#             return channel_proc(im)
+#     else:
+#         def proc():
+#             futes = [pool.submit(channel_proc, im[..., channel]) for channel in range(im.shape[2])]
+#             return numpy.vstack(fute.result() for fute in futes)
+#
+#     return pool.submit(proc) if return_future else proc()
+
 def statistics(im, twelve_bit=False, mask=None, return_future=False):
     assert im.ndim in (2,3)
     if im.dtype.type is numpy.uint8:
@@ -202,10 +256,10 @@ def statistics(im, twelve_bit=False, mask=None, return_future=False):
         def proc():
             return _statistics(im, twelve_bit, mask)
     else:
-        def axis_proc(axis):
-            return _statistics(im[..., axis], twelve_bit, mask)
+        def channel_proc(channel):
+            return _statistics(im[..., channel], twelve_bit, mask)
         def proc():
-            futes = [pool.submit(axis_proc, axis) for axis in range(im.shape[2])]
+            futes = [pool.submit(channel_proc, channel) for channel in range(im.shape[2])]
             return NDImageStatistics(
                 numpy.vstack((fute.result().histogram for fute in futes)),
                 numpy.hstack((fute.result().max_bin for fute in futes)),
