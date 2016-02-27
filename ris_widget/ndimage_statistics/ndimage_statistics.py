@@ -152,6 +152,10 @@ def min_max(im, mask=None, return_future=False):
 # The threaded version is actually slower on heavenly... increasing thread_count from one to any number invariably increases run time.  Careful
 # consideration of caching may help (eg stride by largest possible block size rather than by element).  It is also possible that moving thread histogram
 # reduction to a second ThreadPoolExecutor would help.
+# In the unlikely scenario where float32 histogram performance proves critically important on a scope system, it would be useful to look at
+# http://cuda-programming.blogspot.com/2013/03/optimization-in-histogram-cuda-code.html  The various approaches taken here are generally the same
+# as those we tried in opencl, with the wrinkle that in part 4, the author goes one step further than we did, using nvidia's absurdly good cuda profiler
+# to identify memory bank contention, which he resolves for a huge throughput improvement.
 def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, return_future=False):
     """Supports only float32 as that's the only image dtype for which we ever do min/max and histogram in two separate steps, for the simple reason that
     it is sometimes necessary to find the range over which the histogram is to be calculated for float32 images, but never in the case of uint8, 12, or
