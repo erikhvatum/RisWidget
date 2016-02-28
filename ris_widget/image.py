@@ -353,13 +353,15 @@ class Image(Qt.QObject):
     def extremae(self):
         """The actual per-channel minimum and maximum intensity values.  The max intensity value of 4095 for 12-bit-per-channel images
         and the range optionally supplied with floating-point images are not enforced, so it is possible for min and/or max to fall
-        outside of the interval represented by the value of the .range property."""
+        outside of the interval represented by the value of the .range property (12-bit-per-channel intensity values are stored in
+        16-bit unsigned integers, meaning that a nominally 12-bit-per-channel image may have a maximum value up to 65535.)"""
         return self.stats_future.result().min_max_intensity
 
     @property
     def range(self):
-        """The range of valid values that may be assigned to any channel of any pixel.  For 8-bit-per-channel integer images,
+        """The range of valid values that may be assigned to any component of any image pixel.  For 8-bit-per-channel integer images,
         this is always [0,255], for 12-bit-per-channel integer images, [0,4095], for 16-bit-per-channel integer images, [0,65535].
-        For floating point images, this is min/max values over all channels and all (unmasked) pixels, as .  The .specified_, unless .specified_float_range is not None, in
+        For floating point images, .range is equal to .specified_float_range unless .specified_float_range is none, in which case
+        min/max values over all channels and all (unmasked) pixels, as .  The .specified_, unless .specified_float_range is not None, in
         which case .range == .specified_float_range."""
         return self._range
