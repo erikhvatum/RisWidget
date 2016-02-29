@@ -22,10 +22,11 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from .ndimage_statistics import ndimage_statistics
 import ctypes
 import numpy
 from PyQt5 import Qt
+from .ndimage_statistics import ndimage_statistics
+from . import om
 
 class Image(Qt.QObject):
     """An instance of the Image class is a wrapper around a Numpy ndarray representing a single image, plus some related attributes and
@@ -41,13 +42,16 @@ class Image(Qt.QObject):
         .extremae, .range.  These may not be assigned to directly; .set_data(..) is intended for replacing .data and causing attendant properties
         to update, while .refresh() may be used in the case where ._data is a reference or view to an ndarray whose contents have been modified.
         The .data_changed signal is emitted to indicate that the value of any or all of these properties has changed.
-        * Plain instance attributes computed by .refresh() and .set_data(..): .size, .is_grayscale, .num_channels, .has_alpha_channel, .is_binary,
+        * mask: None or a 2D bool or uint8 ndarray with neither dimension smaller than the corresponding dimension of im.  If mask is not None, only image
+        pixels with non-zero mask counterparts contribute to the histogram.  Mask pixels outside of im have no impact.  If mask is None, all image pixels
+        are included.
+        * Plain instance attributes computed by .refresh() and .set(..): .size, .is_grayscale, .num_channels, .has_alpha_channel, .is_binary,
         .is_twelve_bit.  Although nothing prevents assigning over these attributes, doing so is not advised.  The .data_changed signal is emitted
         to indicate that the value of any or all of these attributes has changed.
         * Properties with individual change signals: .name.  It is safe to assign None in addition anything else that str(..) accepts as its argument
         to .name.  When the value of .name is modified, .name_changed is emitted.
 
-    Additionally, emission of .data_changed or .name_changed causes emission of .changed."""
+    Additionally, emission of .data_changed, mask_changed, or .name_changed causes emission of .changed."""
     changed = Qt.pyqtSignal(object)
     data_changed = Qt.pyqtSignal(object)
     mask_changed = Qt.pyqtSignal(object)
@@ -68,6 +72,8 @@ class Image(Qt.QObject):
         specify the argument shape_is_width_height=False, and your image will be displayed correctly
         rather than mirrored over the X/Y axis."""
         super().__init__(parent)
+        if data is None:
+            raise ValueError('The "data" argument supplied to Image.__init__(..) must not be None.')
         self.data_changed.connect(self.changed)
         self.objectNameChanged.connect(self._onObjectNameChanged)
         self.name_changed.connect(self.changed)
@@ -118,10 +124,14 @@ class Image(Qt.QObject):
             self.type,
             ' (per-channel binary)' if self.is_binary else '')
 
-    def refresh(self, data_changed=True, mask_changed=True, is_twelve_bit_changed=True, specified_float_range_changed=True):
-        # Assumption: only contents of ._data, ._mask, .is_twelve_bit, and/or .specified_float_range may have changed, but not their size, shape, striding,
-        # or dtype (where applicable).
-        if not any((data_changed, mask_changed, is_twelve_bit_changed, specified_float_range_changed)):
+    def refresh(self, data_changed=False, mask_changed=False, is_twelve_bit_changed=False, float_range_override_changed=False):
+        """The .refresh method should be called after modifying the contents of .data, .mask, and/or after replacing .is_twelve_bit or .stat_range
+        by assignment, with True supplied for the respective _changed argument.  It is assumed that only those changes may have occurred, and that
+        the shape, strides, and dtype of .data and/or .mask have not been changed (except by the .set method).
+
+        The .refresh method is primarily useful to cause a user interface to update in response to data changes caused by manipulation of .data.data or
+        another numpy view of the same memory.  The .set method is probably what you're looking for."""
+        if not any((data_changed, mask_changed, is_twelve_bit_changed, stat_range_changed)):
             return
         if self.dtype is numpy.float32:
             if self.specified_float_range is None and data_changed:
@@ -143,24 +153,38 @@ class Image(Qt.QObject):
             self.stats_future = ndimage_statistics.compute_multichannel_ndimage_statistics(self._data, self.is_twelve_bit, return_future=True)
         self.data_changed.emit(self)
 
-    def update(
+
+
+    def set(
             self,
             data=...,
             mask=...,
             is_twelve_bit=...,
-            specified_float_range=...,
+            float_range_override=...,
             shape_is_width_height=True,
             mask_shape_is_width_height=True,
-            name=...,
-            _called_by_init=False):
-        """In addition to the values __init__ accepts for the data, mask, name, is_twelve_bit, and specified_float_range arguments, update accepts ...
+            name=...):
+        """In addition to the values __init__ accepts for the data, mask, name, is_twelve_bit, and float_range_override arguments, set accepts ...
         (Ellipses) for these arguments to indicate No Change.  That is, the contents of i.data, i.name, i.mask, i.is_twelve_bit, and
         i.specified_float_range are left unchanged by i.set_data(..) if their corresponding arguments are Ellipses (as they are by default)."""
+        if data is ...:
+
         data_changed = data is not ...
+        data =
         mask_changed = mask is not ...
         is_twelve_bit_changed = is_twelve_bit is not ...
-        specified_float_range_changed = specified_float_range is not ...
-        self._data = numpy.asarray(data)
+        float_range_override_changed = float_range_override is not ...
+
+        if is_twelve_bit is not ... and data
+        if data_changed:
+            if data is None:
+                raise ValueError('data argument must not be None')
+            self._data = numpy.asarray(data)
+        if mask_changed:
+            if mask is None:
+                self._mask = None
+            else:
+                mask = numpy.array(mask, dtype=numpy.bool, copy=False, order=
         self.is_twelve_bit = is_twelve_bit
         dt = self._data.dtype.type
 
@@ -345,6 +369,8 @@ class Image(Qt.QObject):
     def histogram(self):
         return self.stats_future.result().histogram
 
+
+
     @property
     def max_histogram_bin(self):
         return self.stats_future.result().max_bin
@@ -361,7 +387,5 @@ class Image(Qt.QObject):
     def range(self):
         """The range of valid values that may be assigned to any component of any image pixel.  For 8-bit-per-channel integer images,
         this is always [0,255], for 12-bit-per-channel integer images, [0,4095], for 16-bit-per-channel integer images, [0,65535].
-        For floating point images, .range is equal to .specified_float_range unless .specified_float_range is none, in which case
-        min/max values over all channels and all (unmasked) pixels, as .  The .specified_, unless .specified_float_range is not None, in
-        which case .range == .specified_float_range."""
+        For floating point images, .range is the minimum and maximum values over all channels of all (non-masked) pixels."""
         return self._range
