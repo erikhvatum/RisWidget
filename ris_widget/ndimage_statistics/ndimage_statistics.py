@@ -115,7 +115,7 @@ except ImportError:
         min_max[1] = im.max()
         return NDImageStatistics(hist, hist.argmax(), min_max)
 
-def min_max(im, mask=None, return_future=False):
+def extremae(im, mask=None, return_future=False):
     """Supports only float32 as that's the only image dtype for which we ever do min/max and histogram in two separate steps, for the simple reason that
     it is sometimes necessary to find the range over which the histogram is to be calculated for float32 images, but never in the case of uint8, 12, or
     16 images, whose range is that of their data type.  (uint12 being a somewhat special case; a flag indicates that although the stored as uint16, the
@@ -143,10 +143,10 @@ def min_max(im, mask=None, return_future=False):
             return _min_max(im[..., channel], mask)
         def proc():
             futes = [pool.submit(channel_proc, channel) for channel in range(im.shape[2])]
-            return numpy.array(
-                (min(fute.result()[0] for fute in futes),
-                 max(fute.result()[1] for fute in futes)),
-                dtype=numpy.uint32)
+            ret = numpy.vstack(fute.result() for fute in futes)
+            if ret.dtype.type is not numpy.float32:
+                ret = ret.astype(numpy.float32)
+            return ret
     return pool.submit(proc) if return_future else proc()
 
 # The threaded version is actually slower on heavenly... increasing thread_count from one to any number invariably increases run time.  Careful
@@ -188,10 +188,10 @@ def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, return
         def proc():
             return _histogram(im, bin_count, range_, mask, with_overflow_bins)
     else:
-        def axis_proc(axis):
+        def channel_proc(axis):
             return _histogram(im[..., axis], bin_count, range_, mask, with_overflow_bins)
         def proc():
-            futes = [pool.submit(axis_proc, axis) for axis in range(im.shape[2])]
+            futes = [pool.submit(channel_proc, axis) for axis in range(im.shape[2])]
             return numpy.vstack(fute.result() for fute in futes)
     return pool.submit(proc) if return_future else proc()
 
@@ -269,3 +269,11 @@ def statistics(im, twelve_bit=False, mask=None, return_future=False):
                 numpy.hstack((fute.result().max_bin for fute in futes)),
                 numpy.vstack((fute.result().min_max_intensity for fute in futes)))
     return pool.submit(proc) if return_future else proc()
+
+def bundle_float_stats_into_future(histogram, extremae):
+    def proc():
+        return NDImageStatistics(
+            histogram,
+            histogram.argmax() if histogram.ndim == 1 else numpy.array([ch.argmax() for ch in histogram]),
+            extremae)
+    return pool.submit(proc)
