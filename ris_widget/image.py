@@ -51,11 +51,12 @@ class Image(Qt.QObject):
         * Properties with individual change signals: .name.  It is safe to assign None in addition anything else that str(..) accepts as its argument
         to .name.  When the value of .name is modified, .name_changed is emitted.
 
-    Additionally, emission of .data_changed, mask_changed, or .name_changed causes emission of .changed."""
+    Additionally, emission of .data_changed, .mask_changed, .imposed_float_range_changed, or .name_changed causes emission of .changed."""
     changed = Qt.pyqtSignal(object)
     data_changed = Qt.pyqtSignal(object)
     mask_changed = Qt.pyqtSignal(object)
     name_changed = Qt.pyqtSignal(object)
+    imposed_float_range_changed = Qt.pyqtSignal(object)
 
     def __init__(
             self,
@@ -63,7 +64,7 @@ class Image(Qt.QObject):
             mask=None,
             parent=None,
             is_twelve_bit=False,
-            specified_float_range=None,
+            imposed_float_range=None,
             shape_is_width_height=True,
             mask_shape_is_width_height=True,
             name=None):
@@ -77,7 +78,8 @@ class Image(Qt.QObject):
         self.data_changed.connect(self.changed)
         self.objectNameChanged.connect(self._onObjectNameChanged)
         self.name_changed.connect(self.changed)
-        self.update(data, mask, is_twelve_bit, specified_float_range, shape_is_width_height, mask_shape_is_width_height, name, _called_by_init=True)
+        self.imposed_float_range_changed.connect(self.changed)
+        self.update(data, mask, is_twelve_bit, imposed_float_range, shape_is_width_height, mask_shape_is_width_height, name, _called_by_init=True)
 
     def _onObjectNameChanged(self):
         self.name_changed.emit(self)
@@ -124,22 +126,24 @@ class Image(Qt.QObject):
             self.type,
             ' (per-channel binary)' if self.is_binary else '')
 
-    def refresh(self, data_changed=False, mask_changed=False, is_twelve_bit_changed=False, float_range=None):
-        """The .refresh method should be called after modifying the contents of .data, .mask, and/or after replacing .is_twelve_bit or .stat_range
+    def refresh(self, data_changed=False, mask_changed=False, is_twelve_bit_changed=False, imposed_float_range_changed=False):
+        """The .refresh method should be called after modifying the contents of .data, .mask, and/or after replacing .is_twelve_bit or .imposed_float_range
         by assignment, with True supplied for the respective _changed argument.  It is assumed that only those changes may have occurred, and that
         the shape, strides, and dtype of .data and/or .mask have not been changed (except by the .set method).
 
         The .refresh method is primarily useful to cause a user interface to update in response to data changes caused by manipulation of .data.data or
-        another numpy view of the same memory.  (You probably want to use the .set method is most cases.)"""
+        another numpy view of the same memory.  (You probably want to use the .set method in most cases.)"""
         if self.dtype is numpy.float32:
             if data_changed or mask_changed:
                 extremae = ndimage_statistics.extremae(self._data, self._mask)
-            if float_range is None and data_changed:
-                self._range = ndimage_statistics.extremae(self._data, self._mask)
+            else:
+                extremae = self.extremae
+            if self.imposed_float_range is None and data_changed:
+                self._range = extremae if self.is_grayscale else numpy.array((extremae[:,0].min(), extremae[:,1].max()), dtype=numpy.float32)
 
         if self.is_grayscale:
             if self.dtype is numpy.float32:
-                self.stats_future = ndimage_statistics.compute_ranged_histogram(
+                self.stats_future = ndimage_statistics.statistics(
                     self._data,
                     self._range,
                     256,
@@ -161,11 +165,11 @@ class Image(Qt.QObject):
             data=...,
             mask=...,
             is_twelve_bit=...,
-            float_range=...,
+            imposed_float_range=...,
             data_shape_is_width_height=True,
             mask_shape_is_width_height=True,
             name=...):
-        """In addition to the values __init__ accepts for the data, mask, name, is_twelve_bit, and float_range arguments, set accepts ...
+        """In addition to the values __init__ accepts for the data, mask, name, is_twelve_bit, and imposed_float_range arguments, set accepts ...
         (Ellipses) for these arguments to indicate No Change.  That is, the contents of i.data, i.name, i.mask, i.is_twelve_bit, and
         i.specified_float_range are left unchanged by i.set_data(..) if their corresponding arguments are Ellipses (as they are by default)."""
         if data is ...:
@@ -188,9 +192,9 @@ class Image(Qt.QObject):
         else:
             is_twelve_bit_changed = True
 
-        float_range_changed = float_range is ...
+        imposed_float_range_changed = imposed_float_range is ...
 
-        if not any((data_changed, mask_changed, is_twelve_bit_changed, float_range_changed)):
+        if not any((data_changed, mask_changed, is_twelve_bit_changed, imposed_float_range_changed)):
             return
 
         if data_changed:
@@ -226,19 +230,17 @@ class Image(Qt.QObject):
                 # Explicitly supplying True for is_twelve_bit for non-uint16 data is, however, not allowed
                 raise ValueError('The is_twelve_bit argument may only be True if data is of dtype numpy.uint16.')
 
-        if float_range_changed:
-            if float_range is not None:
-                if data.dtype.type is not numpy.float32:
-                    raise ValueError('The float_range argument must be either None or must be omitted unless data is floating point.')
-                float_range = numpy.asarray(float_range, dtype=numpy.float32)
-                if float_range.ndim != 1 or float_range.shape[0] != 2:
+        if imposed_float_range_changed:
+            if imposed_float_range is not None:
+                imposed_float_range = numpy.asarray(imposed_float_range, dtype=numpy.float32)
+                if imposed_float_range.ndim != 1 or imposed_float_range.shape[0] != 2:
                     raise ValueError(
-                        'The float_range argument must either be None or must, when passed through numpy.asrray(float_range_override, dtype=numpy.float32), '
-                        'yield a one dimensional, two element array.')
-                if float_range[1] > float_range[0]:
+                        'The imposed_float_range argument must either be None, Ellipses, or must, when passed through '
+                        'numpy.asrray(imposed_float_range, dtype=numpy.float32), yield a one dimensional, two element array.')
+                if imposed_float_range[0] > imposed_float_range[1]:
                     raise ValueError(
-                        'If the float_range argument is specified and is not None, the second element of float_range must be less than or equal to the '
-                        'first.')
+                        'If the imposed_float_range argument is specified and is neither None nor Ellipses, the second element of float_range must '
+                        'be less than or equal to the first.')
 
         if mask_changed:
             if mask is not None:
@@ -247,6 +249,13 @@ class Image(Qt.QObject):
                     raise ValueError('mask argument must be None or a 2D iterable.')
                 if mask.dtype.type not in (numpy.bool8, numpy.uint8):
                     mask = mask.astype(numpy.bool8)
+                if mask_shape_is_width_height:
+                    mask = mask.transpose(1, 0)
+                desired_strides = 1, mask.shape[0]
+                if desired_strides != mask.strides:
+                    _mask = mask
+                    mask = numpy.ndarray(mask.shape, strides=desired_strides, dtype=mask.dtype)
+                    mask.flat = _mask.flat
 
         if data_changed or mask_changed:
             if mask is not None and (mask.shape[0] < data.shape[0] or mask.shape[1] < data.shape[1]):
@@ -256,14 +265,26 @@ class Image(Qt.QObject):
             self._data = data
             if data.ndim == 1:
                 self.type = 'G'
+                self.is_grayscale = True
             else:
                 self.type = {2: 'Ga', 3: 'rgb', 4: 'rgba'}[self._data.shape[2]]
+                self.is_grayscale = False
+            if self.dtype is numpy.float32:
+                pass # ._range is updated by .refresh() for float32 images as ._range may depend on .data
+            elif self.dtype is numpy.uint8:
+                self._range = numpy.array((0,255), dtype=numpy.uint8)
+            elif self.dtype is numpy.uint16:
+                self._range = numpy.array((0,65535), dtype=numpy.uint16)
+            else:
+                raise NotImplementedError('Add an elif statement above here to set ._range for your data type.')
         if mask_changed:
             self._mask = mask
         if is_twelve_bit_changed:
             self.is_twelve_bit = is_twelve_bit
+        if imposed_float_range_changed:
+            self.imposed_float_range = imposed_float_range
 
-        self.refresh(data_changed, mask_changed, is_twelve_bit_changed, float_range if float_range_changed else None)
+        self.refresh(data_changed, mask_changed, is_twelve_bit_changed, imposed_float_range_changed)
 
     set.__doc__ = __init__.__doc__ + '\n\n' + set.__doc__
 
@@ -339,6 +360,6 @@ class Image(Qt.QObject):
     def range(self):
         """The range of valid values that may be assigned to any component of any image pixel.  For 8-bit-per-channel integer images,
         this is always [0,255], for 12-bit-per-channel integer images, [0,4095], for 16-bit-per-channel integer images, [0,65535].
-        For floating point images, this is min/max values for all components of all pixels, unless specified with the float_range
-        argument to our set_data function."""
+        For floating point images, this is min/max values for all components of all pixels, unless specified with the imposed_float_range
+        argument to the .__init__ or .set methods."""
         return self._range
