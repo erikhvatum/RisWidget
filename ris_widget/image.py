@@ -32,19 +32,20 @@ class Image(Qt.QObject):
     """An instance of the Image class is a wrapper around a Numpy ndarray representing a single image, plus some related attributes and
     a .name.
 
-    If an ndarray of supported dtype, shape, and striding is supplied as the data argument to Image's constructor or set_data function,
+    If an ndarray of supported dtype, shape, and striding is supplied as the data argument to Image's constructor or set method,
     a reference to that ndarray is kept rather than a copy of it.  In such cases, if the wrapped data is subsequently modified, 
     care must be taken to call the Image's .refresh method before querying, for example, its .histogram property as changes to the
     data are not automatically detected.
 
     The attributes maintained by an Image instance fall into the following categories:
         * Properties that represent aspects of the ._data ndarray or its contents: .data, .data_T, .dtype, .strides, .histogram, .max_histogram_bin,
-        .extremae, .range.  These may not be assigned to directly; .set_data(..) is intended for replacing .data and causing attendant properties
+        .extremae, .range.  These may not be assigned to directly; .set(..) is intended for replacing .data and causing attendant properties
         to update, while .refresh() may be used in the case where ._data is a reference or view to an ndarray whose contents have been modified.
         The .data_changed signal is emitted to indicate that the value of any or all of these properties has changed.
-        * mask: None or a 2D bool or uint8 ndarray with neither dimension smaller than the corresponding dimension of im.  If mask is not None, only image
-        pixels with non-zero mask counterparts contribute to the histogram and extremae.  Mask pixels outside of im have no impact.  If mask is None, all
-        image pixels are included.
+        * mask: None or a 2D bool or uint8 ndarray with neither dimension smaller than the corresponding dimension of .data.  If mask is not None, only
+        image pixels with non-zero mask counterparts contribute to the histogram and extremae.  Mask pixels outside of im have no impact.  If mask is None,
+        all image pixels are included.  The .mask_changed signal is emitted to indicate that .mask has been replaced or that the contents of .mask have
+        changed.
         * Plain instance attributes updated by .refresh() and .set(..): .size, .is_grayscale, .num_channels, .has_alpha_channel, .imposed_float_range,
         .is_twelve_bit.  Although nothing prevents assigning over these attributes, doing so is not advised.  The .data_changed signal is emitted
         to indicate that the value of any or all of these attributes has changed.
@@ -173,7 +174,7 @@ class Image(Qt.QObject):
             name=...):
         """In addition to the values __init__ accepts for the data, mask, name, is_twelve_bit, and imposed_float_range arguments, set accepts ...
         (Ellipses) for these arguments to indicate No Change.  That is, the contents of i.data, i.name, i.mask, i.is_twelve_bit, and
-        i.specified_float_range are left unchanged by i.set_data(..) if their corresponding arguments are Ellipses (as they are by default)."""
+        i.specified_float_range are left unchanged by i.set(..) if their corresponding arguments are Ellipses (as they are by default)."""
         if data is ...:
             data_changed = False
             data = self._data

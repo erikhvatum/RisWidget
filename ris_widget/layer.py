@@ -83,7 +83,7 @@ class Layer(Qt.QObject):
         BLEND_FUNCTIONS[k] = '    // blending function name: {}\n    '.format(k) + '\n    '.join(v)
     del k, v
     # A change to any mutable property, including .image, potentially impacts layer presentation.  For convenience, .changed is emitted whenever
-    # any mutable-property-changed signal is emitted, including as a result of assigning to .image.name, calling .image.set_data(..), or calling
+    # any mutable-property-changed signal is emitted, including as a result of assigning to .image.name, calling .image.set(..), or calling
     # .image.refresh().  NB: .image_changed is the more specific signal emitted in addition to .changed for modifications to .image.
     # 
     # For example, this single call supports extensibility by subclassing:
