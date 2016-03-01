@@ -41,6 +41,7 @@ class LayerTableView(Qt.QTableView):
 
     def __init__(self, layer_table_model, parent=None):
         super().__init__(parent)
+        self.layer_table_model = layer_table_model
         self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.Interactive)
         self.horizontalHeader().setHighlightSections(False)
         self.horizontalHeader().setSectionsClickable(False)
@@ -81,6 +82,38 @@ class LayerTableView(Qt.QTableView):
         # position within the column and opacity slider integer % values
         col = layer_table_model.property_columns['opacity']
         self.horizontalHeader().resizeSection(col, 100)
+
+    def contextMenuEvent(self, event):
+        focused_midx = self.selectionModel().currentIndex()
+        if focused_midx.isValid():
+            row = self.rowAt(event.pos().y())
+            col = self.columnAt(event.pos().x())
+            if row == focused_midx.row() and col == focused_midx.column():
+                try:
+                    pname = self.layer_table_model.property_names[col]
+                except IndexError:
+                    return
+                try:
+                    psdg = self.layer_table_model._special_data_getters[pname]
+                except KeyError:
+                    return
+                if psdg == self.layer_table_model._getd__defaultable_property:
+                    try:
+                        layer = self.layer_table_model.layer_stack.layers[-(row+1)]
+                    except IndexError:
+                        return
+                    try:
+                        p = getattr(type(layer), pname)
+                    except AttributeError:
+                        return
+                    if not p.is_default(layer):
+                        menu = Qt.QMenu(self)
+                        reset_to_default_action = Qt.QAction('Reset to default value', menu)
+                        def on_reset_action():
+                            p.__delete__(layer)
+                        reset_to_default_action.triggered.connect(on_reset_action)
+                        menu.addAction(reset_to_default_action)
+                        menu.exec(event.globalPos())
 
     # def setModel(self, model):
     #     super().setModel(model)
@@ -240,6 +273,10 @@ class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePro
             'auto_min_max_enabled' : self._getd_auto_min_max_enabled,
             'tint' : self._getd_tint,
             'blend_function' : self._getd_blend_function,
+            'getcolor_expression' : self._getd__defaultable_property,
+            'transform_section' : self._getd__defaultable_property,
+            'histogram_min' : self._getd__defaultable_property,
+            'histogram_max' : self._getd__defaultable_property,
             'image.size' : self._getd_image_size,
             'image.dtype' : self._getd_image_dtype}
         self._special_flag_getters = {
@@ -272,12 +309,25 @@ class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePro
 
     # data #
 
-    def _getd_default(self, midx, role):
+    def _getd__default(self, midx, role):
         return super().data(midx, role)
 
-    def _getd__checkable(self, midx, role):
-        if role == Qt.Qt.CheckStateRole:
-            return Qt.QVariant(Qt.Qt.Checked if self.get_cell(midx.row(), midx.column()) else Qt.Qt.Unchecked)
+    def _getd__defaultable_property(self, midx, role):
+        if role == Qt.Qt.FontRole and midx.isValid():
+            try:
+                pname = self.property_names[midx.column()]
+                element = self._signaling_list[midx.row()]
+            except IndexError:
+                return
+            try:
+                p = getattr(type(element), pname)
+            except AttributeError:
+                return
+            if p.is_default(element):
+                f = Qt.QFont()
+                f.setItalic(True)
+                return Qt.QVariant(f)
+        return self._getd__default(midx, role)
 
     def _getd_visible(self, midx, role):
         if role == Qt.Qt.CheckStateRole:
@@ -330,7 +380,7 @@ class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePro
             if sz is not None:
                 return Qt.QVariant('{}x{}'.format(sz.width(), sz.height()))
         else:
-            return self._getd_default(midx, role)
+            return self._getd__default(midx, role)
 
     def _getd_image_dtype(self, midx, role):
         if role == Qt.Qt.DisplayRole:
@@ -338,15 +388,15 @@ class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePro
             if image is not None:
                 return Qt.QVariant(str(image.data.dtype))
         else:
-            return self._getd_default(midx, role)
+            return self._getd__default(midx, role)
 
     def data(self, midx, role=Qt.Qt.DisplayRole):
         if midx.isValid():
-            d = self._special_data_getters.get(self.property_names[midx.column()], self._getd_default)(midx, role)
+            d = self._special_data_getters.get(self.property_names[midx.column()], self._getd__default)(midx, role)
             if isinstance(d, Qt.QVariant):
                 return d
         else:
-            return self._getd_default(midx, role)
+            return self._getd__default(midx, role)
 
     # setData #
 
