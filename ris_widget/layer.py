@@ -264,7 +264,7 @@ class Layer(Qt.QObject):
         if image is None:
             return 65535.0 if is_max else 0.0
         else:
-            return image.range[is_max]
+            return self._histogram_min_max_default(is_max)
     def _min_max_pre_set(self, v):
         image = self.image
         if image is not None:
@@ -309,22 +309,32 @@ class Layer(Qt.QObject):
             return 65535.0 if is_max else 0.0
         else:
             return float(image.range[is_max])
-    def _histogram_min_max_post_set(self, v, is_max):
+    def _histogram_min_max_pre_set(self, v, is_max):
+        r = (0, 65535.0) if self.image is None else self.image.range
+        if not r[0] <= v <= r[1]:
+            raise ValueError('histogram_min/max value must be in the closed interval [{}, {}].'.format(r[0], r[1]))
         if is_max:
-            if v < self.histogram_min:
-                self.histogram_min = v
+            if v <= self.histogram_min:
+                raise ValueError('histogram_max must be greater than histogram_min.')
         else:
-            if v > self.histogram_max:
-                self.histogram_max = v
+            if v >= self.histogram_max:
+                raise ValueError('histogram_min must be less than histogram_max.')
+    def _histogram_min_max_post_set(self, v, is_max):
+        if self.min < self.histogram_min:
+            self.min = self.histogram_min
+        if self.max > self.histogram_max:
+            self.max = self.histogram_max
     histogram_min = om.Property(
         properties, 'histogram_min',
         default_value_callback = lambda layer, f=_histogram_min_max_default: f(layer, False),
         take_arg_callback = lambda layer, v: float(v),
+        pre_set_callback = lambda layer, v, f=_histogram_min_max_pre_set: f(layer, v, False),
         post_set_callback = lambda layer, v, f=_histogram_min_max_post_set: f(layer, v, False))
     histogram_max = om.Property(
         properties, 'histogram_max',
         default_value_callback = lambda layer, f=_histogram_min_max_default: f(layer, True),
         take_arg_callback = lambda layer, v: float(v),
+        pre_set_callback=lambda layer, f=_histogram_min_max_pre_set: f(layer, True),
         post_set_callback = lambda layer, v, f=_histogram_min_max_post_set: f(layer, v, True))
 
     trilinear_filtering_enabled = om.Property(

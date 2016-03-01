@@ -66,7 +66,7 @@ class Image(Qt.QObject):
             is_twelve_bit=False,
             imposed_float_range=None,
             data_shape_is_width_height=True,
-            mask_shape_is_width_height=True,
+                mask_shape_is_width_height=True,
             name=None):
         """RisWidget defaults to the convention that the first element of the shape vector of a Numpy
         array represents width.  If you are supplying image data that does not follow this convention,

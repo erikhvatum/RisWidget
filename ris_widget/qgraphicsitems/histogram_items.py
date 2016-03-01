@@ -26,7 +26,6 @@ from contextlib import ExitStack
 import math
 import numpy
 from PyQt5 import Qt
-import sys
 from .shader_item import ShaderItem, ShaderTexture
 from ..shared_resources import QGL, UNIQUE_QGRAPHICSITEM_TYPE
 
@@ -54,6 +53,10 @@ class HistogramItem(ShaderItem):
             self.layer.image_changed.disconnect(self._on_layer_image_changed)
             self.layer.min_changed.disconnect(self.min_item.arrow_item._on_value_changed)
             self.layer.max_changed.disconnect(self.max_item.arrow_item._on_value_changed)
+            self.layer.histogram_min_changed.disconnect(self.min_item.arrow_item._on_value_changed)
+            self.layer.histogram_min_changed.disconnect(self.update)
+            self.layer.histogram_max_changed.disconnect(self.max_item.arrow_item._on_value_changed)
+            self.layer.histogram_max_changed.disconnect(self.update)
             self.layer.gamma_changed.disconnect(self.gamma_item._on_value_changed)
             self.layer = None
         if layer is None:
@@ -62,6 +65,10 @@ class HistogramItem(ShaderItem):
             layer.image_changed.connect(self._on_layer_image_changed)
             layer.min_changed.connect(self.min_item.arrow_item._on_value_changed)
             layer.max_changed.connect(self.max_item.arrow_item._on_value_changed)
+            layer.histogram_min_changed.connect(self.min_item.arrow_item._on_value_changed)
+            layer.histogram_min_changed.connect(self.update)
+            layer.histogram_max_changed.connect(self.max_item.arrow_item._on_value_changed)
+            layer.histogram_max_changed.connect(self.update)
             layer.gamma_changed.connect(self.gamma_item._on_value_changed)
             self.layer = layer
             self.show()
@@ -89,6 +96,7 @@ class HistogramItem(ShaderItem):
         else:
             image = layer.image
             view = widget.view
+            layer = self.layer
             scene = self.scene()
             with ExitStack() as estack:
                 qpainter.beginNativePainting()
@@ -171,6 +179,12 @@ class HistogramItem(ShaderItem):
                 prog.setUniformValue('tex', 0)
                 dpi_ratio = widget.devicePixelRatio()
                 prog.setUniformValue('inv_view_size', 1/(dpi_ratio * widget.size().width()), 1/(dpi_ratio * widget.size().height()))
+                r = image.range
+                r_w = r[1] - r[0]
+                h_r = layer.histogram_min, layer.histogram_max
+                h_w = h_r[1] - h_r[0]
+                prog.setUniformValue('x_offset', h_r[0] - r[0])
+                prog.setUniformValue('x_factor', h_w / r_w)
                 inv_max_transformed_bin_val = max_bin_val**-self.gamma_gamma
                 prog.setUniformValue('inv_max_transformed_bin_val', inv_max_transformed_bin_val)
                 prog.setUniformValue('gamma_gamma', self.gamma_gamma)
@@ -190,7 +204,7 @@ class HistogramItem(ShaderItem):
         if x >= 0 and x <= 1:
             image_type = image.type
             histogram = image.histogram
-            range_ = image.range
+            range_ = layer.histogram_min, layer.histogram_max
             bin_count = histogram.shape[-1]
             bin = int(x * bin_count)
             # TODO: verify this more
@@ -311,7 +325,7 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
                 self.setX(1)
                 x = 1
             layer = self.parentItem().layer
-            r = layer._default_min, layer._default_max
+            r = layer.histogram_min, layer.histogram_max
             setattr(layer, self.name, r[0] + x * float(r[1] - r[0]))
         self._min_max_item.setX(x)
 
@@ -323,7 +337,7 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
         self._ignore_x_change = True
         try:
             layer = self.parentItem().layer
-            r = layer._default_min, layer._default_max
+            r = layer.histogram_min, layer.histogram_max
             self.setX( (getattr(layer, self.name) - r[0]) / (r[1] - r[0]) )
         finally:
             self._ignore_x_change = False
