@@ -33,8 +33,8 @@ rw = RisWidget()
 # image = Image(imf)
 # print(image)
 
-im = freeimage.read('/home/ehvatum/m1_hubble.jpg')
-rw.image = im
+# im = freeimage.read('/home/ehvatum/m1_hubble.jpg')
+# rw.image = im
 # try:
 #     rw.image = im.astype(numpy.float64)
 # except Exception as e:
