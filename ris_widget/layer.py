@@ -29,25 +29,23 @@ from .image import Image
 from . import om
 
 class Layer(Qt.QObject):
-    """BasicImage's properties are all either computed from that ndarray, provide views into that ndarray's data (in the case of .data
-    and .data_T), or, in the special cases of .is_twelve_bit for uint16 images and .range for floating-point images, represent unenforced
-    constraints limiting the domain of valid values that are expected to be assumed by elements of the ndarray.
+    """Image's properties are all either computed from that ndarray, provide views into that ndarray's data (in the case of .data
+    and .data_T), or, in the special cases of .is_twelve_bit for uint16 images and .imposed_float_range for floating-point images,
+    represent unenforced constraints limiting the domain of valid values that are expected to be assumed by elements of the ndarray.
 
-    Image adds properties such as min/max/gamma scaling that control presentation of the image data contained by BasicImage, which
-    is a base class of Image.
+    Layer adds properties such as min/max/gamma scaling that control presentation of the image data contained by Image.
 
     In summary,
-    BasicImage: raw image data and essential information for interpreting that data in any context
-    Image: BasicImage + presentation data and metadata for RisWidget such as rescaling min/max/gamma values and an informative name
+    Image: raw image data and essential information for interpreting that data in any context
+    Layer: has an Image and presentation data and metadata for RisWidget such as rescaling min/max/gamma values and an informative name
 
     The changed signal is emitted when any property impacting image presentation is modified or image data is explicitly changed or refreshed.
-    In the case where any image appearence change should cause a function to be executed, do changed.connect(your_function) rather than
+    In the case where any image appearance change should cause a function to be executed, do changed.connect(your_function) rather than
     min_changed.connect(your_function); max_changed.connect(your_function); etc.
 
-    Although Image uses Property descriptors, subclasses adding properties are not obligated
-    to use Property to represent the additional properties.  The regular @property decorator syntax or property(..) builtin
-    remain available - Property provides an abstraction that is potentially convenient and worth understanding and using when
-    defining a large number of properties."""
+    Although Layer uses Property descriptors, subclasses adding properties are not obligated to use Property to represent the additional
+    properties.  The regular @property decorator syntax or property(..) builtin remain available - Property provides an abstraction that
+    is potentially convenient and worth understanding and using when defining a large number of properties."""
 
     GAMMA_RANGE = (0.0625, 16.0)
     IMAGE_TYPE_TO_GETCOLOR_EXPRESSION = {
@@ -108,6 +106,7 @@ class Layer(Qt.QObject):
     name_changed = Qt.pyqtSignal(object)
     image_changed = Qt.pyqtSignal(object)
     opacity_changed = Qt.pyqtSignal(object)
+    image_replaced = Qt.pyqtSignal(object)
 
     def __init__(self, image=None, name=None, parent=None):
         super().__init__(parent)

@@ -29,7 +29,7 @@ from .ndimage_statistics import ndimage_statistics
 from . import om
 
 class Image(Qt.QObject):
-    """An instance of the Image class is a wrapper around a Numpy ndarray representing a single image, plus some related attributes and
+    """An instance of the Image class is a wrapper around a Numpy ndarray representing a single image, optional mask data, plus some related attributes and
     a .name.
 
     If an ndarray of supported dtype, shape, and striding is supplied as the data argument to Image's constructor or set method,
@@ -38,17 +38,22 @@ class Image(Qt.QObject):
     data are not automatically detected.
 
     The attributes maintained by an Image instance fall into the following categories:
-        * Properties that represent aspects of the ._data ndarray or its contents: .data, .data_T, .dtype, .strides, .histogram, .max_histogram_bin,
-        .extremae, .range.  These may not be assigned to directly; .set(..) is intended for replacing .data and causing attendant properties
-        to update, while .refresh() may be used in the case where ._data is a reference or view to an ndarray whose contents have been modified.
-        The .data_changed signal is emitted to indicate that the value of any or all of these properties has changed.
-        * mask: None or a 2D bool or uint8 ndarray with neither dimension smaller than the corresponding dimension of .data.  If mask is not None, only
-        image pixels with non-zero mask counterparts contribute to the histogram and extremae.  Mask pixels outside of im have no impact.  If mask is None,
-        all image pixels are included.  The .mask_changed signal is emitted to indicate that .mask has been replaced or that the contents of .mask have
+        * Properties that represent aspects of ONLY .data: .dtype, .strides.  For non-floating-point Images, .range is also in this category.  The
+        .data_changed signal is emitted
+        * Properties computed from the combination of .data, .mask, and .imposed_float_range.  These include .histogram, .histogram_max_bin, .extremae.
+        * .mask: None or a 2D bool or uint8 ndarray with neither dimension smaller than the corresponding dimension of .data.  If mask is not None, only
+        image pixels with non-zero mask counterparts contribute to the histogram and extremae.  Mask pixels outside of the image have no impact.  If mask
+        is None, all image pixels are included.  The .mask_changed signal is emitted to indicate that .mask has been replaced or that the contents of .mask have
         changed.
-        * Plain instance attributes updated by .refresh() and .set(..): .size, .is_grayscale, .num_channels, .has_alpha_channel, .imposed_float_range,
-        .is_twelve_bit.  Although nothing prevents assigning over these attributes, doing so is not advised.  The .data_changed signal is emitted
-        to indicate that the value of any or all of these attributes has changed.
+
+        , .histogram, .max_histogram_bin,
+        .extremae, .range.  These may not be assigned to directly; .set(..) is intended for replacing .data and causing attendant properties
+        to update, while .refresh() may be used in the case where .data is a reference or view to an ndarray whose contents have been modified.
+        The .data_changed signal is emitted to indicate that the value of any or all of these properties has changed.
+        *
+        * Plain instance attributes updated by .refresh() and .set(..): .size, .is_grayscale, .num_channels, .has_alpha_channel, .is_twelve_bit.  Although
+        nothing prevents assigning over these attributes, doing so is not advised.  The .data_changed signal is emitted to indicate that the value of any
+        or all of these attributes has changed.
         * Properties with individual change signals: .name.  It is safe to assign None in addition anything else that str(..) accepts as its argument
         to .name.  When the value of .name is modified, .name_changed is emitted.
 
@@ -157,7 +162,7 @@ class Image(Qt.QObject):
         else:
             if data_changed or mask_changed or is_twelve_bit_changed:
                 self.stats_future = ndimage_statistics.statistics(self._data, self.is_twelve_bit, self.mask, return_future=True)
-        if data_changed or mask_changed or is_twelve_bit_changed or imposed_float_range_changed:
+        if data_changed or mask_changed or is_twelve_bit_changed:
             self.data_changed.emit(self)
         if mask_changed:
             self.mask_changed.emit(self)
