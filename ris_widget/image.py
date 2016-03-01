@@ -220,7 +220,7 @@ class Image(Qt.QObject):
                         # instead, automatically set .is_twelve_bit to False.
                         is_twelve_bit = False
                         is_twelve_bit_changed = True
-            if data_shape_is_width_height:
+            if not data_shape_is_width_height:
                 data = data.transpose(*(1,0,2)[:data.ndim])
             bpe = data.itemsize
             desired_strides = (bpe, data.shape[0]*bpe) if data.ndim == 2 else (data.shape[2]*bpe, data.shape[0]*data.shape[2]*bpe, bpe)
@@ -252,7 +252,7 @@ class Image(Qt.QObject):
                     raise ValueError('mask argument must be None or a 2D iterable.')
                 if mask.dtype.type not in (numpy.bool8, numpy.uint8):
                     mask = mask.astype(numpy.bool8)
-                if mask_shape_is_width_height:
+                if not mask_shape_is_width_height:
                     mask = mask.transpose(1, 0)
                 desired_strides = 1, mask.shape[0]
                 if desired_strides != mask.strides:
