@@ -267,10 +267,10 @@
             <Folder Name="qwidgets">
                 <F N="ris_widget/qwidgets/__init__.py"/>
                 <F N="ris_widget/qwidgets/basic_signaling_list.py"/>
-                <F N="ris_widget/qwidgets/component_flipbook.py"/>
+                <F N="ris_widget/qwidgets/default_table.py"/>
                 <F N="ris_widget/qwidgets/flipbook.py"/>
-                <F N="ris_widget/qwidgets/layer_stack_flipbook.py"/>
                 <F N="ris_widget/qwidgets/layer_table.py"/>
+                <F N="ris_widget/qwidgets/point_list_picker_table.py"/>
                 <F N="ris_widget/qwidgets/progress_thread_pool.py"/>
             </Folder>
             <Folder Name="shaders">

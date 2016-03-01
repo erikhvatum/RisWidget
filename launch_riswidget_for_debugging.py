@@ -5,10 +5,10 @@ from pathlib import Path
 from PyQt5 import Qt
 from ris_widget.ris_widget import RisWidget
 # from ris_widget.point_list_picker import PointListPicker
-from ris_widget.examples.simple_point_picker import SimplePointPicker
-from ris_widget.examples.simple_poly_line_point_picker import SimplePolyLinePointPicker
+# from ris_widget.examples.simple_point_picker import SimplePointPicker
+# from ris_widget.examples.simple_poly_line_point_picker import SimplePolyLinePointPicker
 from ris_widget.image import Image
-from ris_widget.layer import Layer
+# from ris_widget.layer import Layer
 import freeimage
 import sys
 import gc
@@ -27,9 +27,14 @@ argv = sys.argv
 #Qt.QCoreApplication.setAttribute(Qt.Qt.AA_ShareOpenGLContexts)
 app = Qt.QApplication(argv)
 rw = RisWidget()
-rw.show()
-#im = freeimage.read('/home/ehvatum/m1_hubble.jpg')
-# rw.image = im
+# rw.show()
+
+# imf = freeimage.read('/home/ehvatum/zplrepo/ris_widget/2016-02-11t1418 bf.tiff')
+# image = Image(imf)
+# print(image)
+
+im = freeimage.read('/home/ehvatum/m1_hubble.jpg')
+rw.image = im
 # try:
 #     rw.image = im.astype(numpy.float64)
 # except Exception as e:
