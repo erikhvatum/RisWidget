@@ -223,6 +223,7 @@ class Layer(Qt.QObject):
                 self._auto_min_max_values = extremae[:, 0].min(), extremae[:, 1].max()
             else:
                 self._auto_min_max_values = extremae
+            self._auto_min_max_values = max(self._auto_min_max_values[0], self.histogram_min), min(self._auto_min_max_values[1], self.histogram_max)
 
     def do_auto_min_max(self):
         self._retain_auto_min_max_enabled_on_min_max_change = True
