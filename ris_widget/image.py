@@ -145,7 +145,7 @@ class Image(Qt.QObject):
                 extremae = ndimage_statistics.extremae(self._data, self._mask)
             else:
                 extremae = self.extremae
-            if self.imposed_float_range is None and data_changed:
+            if self.imposed_float_range is None:
                 self._range = extremae if self.is_grayscale else numpy.array((extremae[:,0].min(), extremae[:,1].max()), dtype=numpy.float32)
             else:
                 self._range = self.imposed_float_range

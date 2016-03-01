@@ -22,6 +22,7 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+import numpy
 from PyQt5 import Qt
 import textwrap
 from .image import Image
@@ -302,6 +303,30 @@ class Layer(Qt.QObject):
         default_value_callback = lambda layer: 1.0,
         take_arg_callback = lambda layer, v: float(v),
         pre_set_callback = _gamma_pre_set)
+
+    def _histogram_min_max_default(self, is_max):
+        image = self.image
+        if image is None:
+            return 65535.0 if is_max else 0.0
+        else:
+            return float(image.range[is_max])
+    def _histogram_min_max_post_set(self, v, is_max):
+        if is_max:
+            if v < self.histogram_min:
+                self.histogram_min = v
+        else:
+            if v > self.histogram_max:
+                self.histogram_max = v
+    histogram_min = om.Property(
+        properties, 'histogram_min',
+        default_value_callback = lambda layer, f=_histogram_min_max_default: f(layer, False),
+        take_arg_callback = lambda layer, v: float(v),
+        post_set_callback = lambda layer, v, f=_histogram_min_max_post_set: f(layer, v, False))
+    histogram_max = om.Property(
+        properties, 'histogram_max',
+        default_value_callback = lambda layer, f=_histogram_min_max_default: f(layer, True),
+        take_arg_callback = lambda layer, v: float(v),
+        post_set_callback = lambda layer, v, f=_histogram_min_max_post_set: f(layer, v, True))
 
     trilinear_filtering_enabled = om.Property(
         properties, 'trilinear_filtering_enabled',
