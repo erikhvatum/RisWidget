@@ -45,7 +45,7 @@ class Image(Qt.QObject):
         * mask: None or a 2D bool or uint8 ndarray with neither dimension smaller than the corresponding dimension of im.  If mask is not None, only image
         pixels with non-zero mask counterparts contribute to the histogram and extremae.  Mask pixels outside of im have no impact.  If mask is None, all
         image pixels are included.
-        * Plain instance attributes computed by .refresh() and .set(..): .size, .is_grayscale, .num_channels, .has_alpha_channel, .is_binary,
+        * Plain instance attributes updated by .refresh() and .set(..): .size, .is_grayscale, .num_channels, .has_alpha_channel, .imposed_float_range,
         .is_twelve_bit.  Although nothing prevents assigning over these attributes, doing so is not advised.  The .data_changed signal is emitted
         to indicate that the value of any or all of these attributes has changed.
         * Properties with individual change signals: .name.  It is safe to assign None in addition anything else that str(..) accepts as its argument
@@ -65,7 +65,7 @@ class Image(Qt.QObject):
             parent=None,
             is_twelve_bit=False,
             imposed_float_range=None,
-            shape_is_width_height=True,
+            data_shape_is_width_height=True,
             mask_shape_is_width_height=True,
             name=None):
         """RisWidget defaults to the convention that the first element of the shape vector of a Numpy
@@ -79,7 +79,14 @@ class Image(Qt.QObject):
         self.objectNameChanged.connect(self._onObjectNameChanged)
         self.name_changed.connect(self.changed)
         self.imposed_float_range_changed.connect(self.changed)
-        self.update(data, mask, is_twelve_bit, imposed_float_range, shape_is_width_height, mask_shape_is_width_height, name, _called_by_init=True)
+        self.set(
+            data=data,
+            mask=mask,
+            is_twelve_bit=is_twelve_bit,
+            imposed_float_range=imposed_float_range,
+            data_shape_is_width_height=data_shape_is_width_height,
+            mask_shape_is_width_height=mask_shape_is_width_height,
+            name=name,)
 
     def _onObjectNameChanged(self):
         self.name_changed.emit(self)
@@ -115,7 +122,7 @@ class Image(Qt.QObject):
     def __repr__(self):
         num_channels = self.num_channels
         name = self.name
-        return '{}; {}, {}x{}, {}{} channel{} ({}){}>'.format(
+        return '{}; {}, {}x{}, {}{} channel{} ({})>'.format(
             super().__repr__()[:-1],
             'with name "{}"'.format(name) if name else 'unnamed',
             self.size.width(),
@@ -123,8 +130,7 @@ class Image(Qt.QObject):
             '' if self._mask is None else 'masked, ',
             num_channels,
             '' if num_channels == 1 else 's',
-            self.type,
-            ' (per-channel binary)' if self.is_binary else '')
+            self.type)
 
     def refresh(self, data_changed=False, mask_changed=False, is_twelve_bit_changed=False, imposed_float_range_changed=False):
         """The .refresh method should be called after modifying the contents of .data, .mask, and/or after replacing .is_twelve_bit or .imposed_float_range
@@ -140,26 +146,22 @@ class Image(Qt.QObject):
                 extremae = self.extremae
             if self.imposed_float_range is None and data_changed:
                 self._range = extremae if self.is_grayscale else numpy.array((extremae[:,0].min(), extremae[:,1].max()), dtype=numpy.float32)
-
-        if self.is_grayscale:
-            if self.dtype is numpy.float32:
-                self.stats_future = ndimage_statistics.statistics(
-                    self._data,
-                    self._range,
-                    256,
-                    with_overflow_bins=False,
-                    return_future=True,
-                    make_ndimage_statistics_tuple=True)
             else:
-                self.stats_future = ndimage_statistics.compute_ndimage_statistics(self._data, self.is_twelve_bit, return_future=True)
+                self._range = self.imposed_float_range
+            if data_changed or mask_changed or imposed_float_range_changed:
+                histogram = ndimage_statistics.histogram(self._data, 1024, self._range, self._mask)
+            else:
+                histogram = self.histogram
+            self.stats_future = ndimage_statistics.bundle_float_stats_into_future(histogram, extremae)
         else:
-            if self.dtype is numpy.float32:
-
-            self.stats_future = ndimage_statistics.compute_multichannel_ndimage_statistics(self._data, self.is_twelve_bit, return_future=True)
+            if data_changed or mask_changed or is_twelve_bit_changed:
+                self.stats_future = ndimage_statistics.statistics(self._data, self.is_twelve_bit, self.mask, return_future=True)
         if data_changed or is_twelve_bit_changed:
             self.data_changed.emit(self)
         if mask_changed:
             self.mask_changed.emit(self)
+        if imposed_float_range_changed:
+            self.imposed_float_range_changed.emit(self)
 
     def set(self,
             data=...,
@@ -192,9 +194,10 @@ class Image(Qt.QObject):
         else:
             is_twelve_bit_changed = True
 
-        imposed_float_range_changed = imposed_float_range is ...
+        imposed_float_range_changed = imposed_float_range is not ...
+        name_changed = name is not ...
 
-        if not any((data_changed, mask_changed, is_twelve_bit_changed, imposed_float_range_changed)):
+        if not any((data_changed, mask_changed, is_twelve_bit_changed, imposed_float_range_changed, name_changed)):
             return
 
         if data_changed:
@@ -263,12 +266,16 @@ class Image(Qt.QObject):
 
         if data_changed:
             self._data = data
-            if data.ndim == 1:
+            if data.ndim == 2:
                 self.type = 'G'
                 self.is_grayscale = True
+                self.num_channels = 1
             else:
                 self.type = {2: 'Ga', 3: 'rgb', 4: 'rgba'}[self._data.shape[2]]
                 self.is_grayscale = False
+                self.num_channels = self._data.shape[2]
+            self.size = Qt.QSize(*self._data.shape[:2])
+            self.has_alpha_channel = self.type in ('Ga', 'rgba')
             if self.dtype is numpy.float32:
                 pass # ._range is updated by .refresh() for float32 images as ._range may depend on .data
             elif self.dtype is numpy.uint8:
@@ -283,6 +290,8 @@ class Image(Qt.QObject):
             self.is_twelve_bit = is_twelve_bit
         if imposed_float_range_changed:
             self.imposed_float_range = imposed_float_range
+        if name_changed:
+            self.name = name
 
         self.refresh(data_changed, mask_changed, is_twelve_bit_changed, imposed_float_range_changed)
 
