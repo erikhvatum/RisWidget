@@ -47,17 +47,16 @@ class Image(Qt.QObject):
         * Properties computed from the combination of .data, .mask, and .imposed_float_range.  These include .histogram, .histogram_max_bin, .extremae.
         * .mask: None or a 2D bool or uint8 ndarray with neither dimension smaller than the corresponding dimension of .data.  If mask is not None, only
         image pixels with non-zero mask counterparts contribute to the histogram and extremae.  Mask pixels outside of the image have no impact.  If mask
-        is None, all image pixels are included.  The .mask_changed signal is emitted to indicate that .mask has been replaced or that the contents of .mask have
-        changed.
-        * Properties with individual change signals: .name, .imposed_float_range.  It is safe to assign None in addition anything else that str(..) accepts
-        as its argument to .name.  When the value of .name or .imposed_float_range is modified, .name_changed is emitted.
+        is None, all image pixels are included.  The .mask_changed signal is emitted to indicate that .mask has been replaced or that the contents of .mask
+        have changed.
+        * Properties with individual change signals: .name.  It is safe to assign None in addition anything else that str(..) accepts as its argument to
+        .name.  When the value of .name or .imposed_float_range is modified, .name_changed is emitted.
 
     Additionally, emission of .data_changed, .mask_changed, .imposed_float_range_changed, or .name_changed causes emission of .changed."""
     changed = Qt.pyqtSignal(object)
     data_changed = Qt.pyqtSignal(object)
     mask_changed = Qt.pyqtSignal(object)
     name_changed = Qt.pyqtSignal(object)
-    imposed_float_range_changed = Qt.pyqtSignal(object)
 
     def __init__(
             self,
@@ -79,7 +78,6 @@ class Image(Qt.QObject):
         self.data_changed.connect(self.changed)
         self.objectNameChanged.connect(self._onObjectNameChanged)
         self.name_changed.connect(self.changed)
-        self.imposed_float_range_changed.connect(self.changed)
         self.set(
             data=data,
             mask=mask,
@@ -157,12 +155,10 @@ class Image(Qt.QObject):
         else:
             if data_changed or mask_changed or is_twelve_bit_changed:
                 self.stats_future = ndimage_statistics.statistics(self._data, self.is_twelve_bit, self.mask, return_future=True)
-        if data_changed or mask_changed or is_twelve_bit_changed:
+        if data_changed or mask_changed or is_twelve_bit_changed or imposed_float_range_changed:
             self.data_changed.emit(self)
         if mask_changed:
             self.mask_changed.emit(self)
-        if imposed_float_range_changed:
-            self.imposed_float_range_changed.emit(self)
 
     def set(self,
             data=...,

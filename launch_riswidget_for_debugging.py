@@ -29,7 +29,7 @@ app = Qt.QApplication(argv)
 rw = RisWidget()
 # rw.show()
 
-imf = freeimage.read('/home/ehvatum/m1_hubble.jpg').astype(numpy.float32)
+imf = freeimage.read('/Users/ehvatum/Desktop/Opteron_6300_die_shot_16_core_mod.jpg').astype(numpy.float32)
 rw.image = imf
 
 btn = Qt.QPushButton('swap float range setting')

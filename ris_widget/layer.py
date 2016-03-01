@@ -106,7 +106,6 @@ class Layer(Qt.QObject):
     name_changed = Qt.pyqtSignal(object)
     image_changed = Qt.pyqtSignal(object)
     opacity_changed = Qt.pyqtSignal(object)
-    image_replaced = Qt.pyqtSignal(object)
 
     def __init__(self, image=None, name=None, parent=None):
         super().__init__(parent)
@@ -166,6 +165,8 @@ class Layer(Qt.QObject):
 
     def _on_image_data_changed(self, image):
         assert image is self.image
+        for property in self.properties:
+            property.update_default(self)
         self._find_auto_min_max()
         if image is not None:
             if self.auto_min_max_enabled:
@@ -176,8 +177,6 @@ class Layer(Qt.QObject):
                     self.min = r[0]
                 if self.max > r[1]:
                     self.max = r[1]
-        for property in self.properties:
-            property.update_default(self)
         self.image_changed.emit(self)
 
 #   def copy_property_values_from(self, source):
