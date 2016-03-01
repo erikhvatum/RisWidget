@@ -47,6 +47,9 @@ class HistogramItem(ShaderItem):
         self.gamma_gamma = 1.0
         self.hide()
 
+    def _do_update(self):
+        self.update()
+
     def _on_layer_focus_changed(self, layer_stack, old_layer, layer):
         assert layer_stack is self.layer_stack
         if old_layer is not None:
@@ -54,9 +57,9 @@ class HistogramItem(ShaderItem):
             self.layer.min_changed.disconnect(self.min_item.arrow_item._on_value_changed)
             self.layer.max_changed.disconnect(self.max_item.arrow_item._on_value_changed)
             self.layer.histogram_min_changed.disconnect(self.min_item.arrow_item._on_value_changed)
-            self.layer.histogram_min_changed.disconnect(self.update)
+            self.layer.histogram_min_changed.disconnect(self._do_update)
             self.layer.histogram_max_changed.disconnect(self.max_item.arrow_item._on_value_changed)
-            self.layer.histogram_max_changed.disconnect(self.update)
+            self.layer.histogram_max_changed.disconnect(self._do_update)
             self.layer.gamma_changed.disconnect(self.gamma_item._on_value_changed)
             self.layer = None
         if layer is None:
@@ -66,9 +69,9 @@ class HistogramItem(ShaderItem):
             layer.min_changed.connect(self.min_item.arrow_item._on_value_changed)
             layer.max_changed.connect(self.max_item.arrow_item._on_value_changed)
             layer.histogram_min_changed.connect(self.min_item.arrow_item._on_value_changed)
-            layer.histogram_min_changed.connect(self.update)
+            layer.histogram_min_changed.connect(self._do_update)
             layer.histogram_max_changed.connect(self.max_item.arrow_item._on_value_changed)
-            layer.histogram_max_changed.connect(self.update)
+            layer.histogram_max_changed.connect(self._do_update)
             layer.gamma_changed.connect(self.gamma_item._on_value_changed)
             self.layer = layer
             self.show()
@@ -204,16 +207,21 @@ class HistogramItem(ShaderItem):
         if x >= 0 and x <= 1:
             image_type = image.type
             histogram = image.histogram
-            range_ = layer.histogram_min, layer.histogram_max
-            bin_count = histogram.shape[-1]
+            h_r = layer.histogram_min, layer.histogram_max
+            h_w = h_r[1] - h_r[0]
+            r = image.range
+            w = r[1] - r[0]
+            bin_count = histogram.shape[-1] * h_w / w
+            if image.dtype is not numpy.float32:
+                bin_count = int(bin_count)
             bin = int(x * bin_count)
             # TODO: verify this more
-            bin_width = (range_[1] - range_[0]) / (bin_count)# - 1)
+            bin_width = (h_r[1] - h_r[0]) / (bin_count)# - 1)
             # print(bin_width)
-            if image.dtype == numpy.float32:
-                mst = '[{},{}{} '.format(range_[0] + bin*bin_width, range_[0] + (bin+1)*bin_width, ']' if bin == bin_count - 1 else ')')
+            if image.dtype is numpy.float32:
+                mst = '[{},{}{} '.format(h_r[0] + bin*bin_width, h_r[0] + (bin+1)*bin_width, ']' if bin == bin_count - 1 else ')')
             else:
-                l, r = math.ceil(bin*bin_width), math.floor((bin+1)*bin_width)
+                l, r = math.ceil(h_r[0] + bin*bin_width), math.floor(h_r[0] + (bin+1)*bin_width)
                 mst = '{} '.format(l) if image.dtype is numpy.uint8 else '[{},{}] '.format(l, r)
             vt = '(' + ' '.join((c + ':{}' for c in image_type)) + ')'
             if image.num_channels > 1:
