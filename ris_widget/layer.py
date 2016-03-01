@@ -334,7 +334,7 @@ class Layer(Qt.QObject):
         properties, 'histogram_max',
         default_value_callback = lambda layer, f=_histogram_min_max_default: f(layer, True),
         take_arg_callback = lambda layer, v: float(v),
-        pre_set_callback=lambda layer, f=_histogram_min_max_pre_set: f(layer, True),
+        pre_set_callback=lambda layer, v, f=_histogram_min_max_pre_set: f(layer, v, True),
         post_set_callback = lambda layer, v, f=_histogram_min_max_post_set: f(layer, v, True))
 
     trilinear_filtering_enabled = om.Property(

@@ -137,14 +137,22 @@ class HistogramItem(ShaderItem):
                     tex.bind()
                     estack.callback(tex.release)
                 histogram = image.histogram
+                h_r = layer.histogram_min, layer.histogram_max
+                h_w = h_r[1] - h_r[0]
+                r = image.range
+                w = r[1] - r[0]
+                bin_count = histogram.shape[-1] * h_w / w
+                if image.dtype is not numpy.float32:
+                    bin_count = int(bin_count)
+                bin_idx_offset = int((h_r[0] - r[0])/(w/bin_count))
+                print(bin_count, bin_idx_offset)
                 if image.num_channels == 1:
-                    max_bin_val = histogram[image.max_histogram_bin]
+                    pass
                 elif image.num_channels == 2:
                     histogram = histogram[0,:]
-                    max_bin_val = histogram.max()
                 elif image.num_channels >= 3:
                     histogram = 0.2126 * histogram[0,:] + 0.7152 * histogram[1,:] + 0.0722 * histogram[2,:]
-                    max_bin_val = histogram.max()
+                max_bin_val = histogram[bin_idx_offset:bin_idx_offset + bin_count].max()
                 if tex.serial != self._layer_data_serial:
                     orig_unpack_alignment = GL.glGetIntegerv(GL.GL_UNPACK_ALIGNMENT)
                     if orig_unpack_alignment != 1:
@@ -182,12 +190,8 @@ class HistogramItem(ShaderItem):
                 prog.setUniformValue('tex', 0)
                 dpi_ratio = widget.devicePixelRatio()
                 prog.setUniformValue('inv_view_size', 1/(dpi_ratio * widget.size().width()), 1/(dpi_ratio * widget.size().height()))
-                r = image.range
-                r_w = r[1] - r[0]
-                h_r = layer.histogram_min, layer.histogram_max
-                h_w = h_r[1] - h_r[0]
-                prog.setUniformValue('x_offset', h_r[0] - r[0])
-                prog.setUniformValue('x_factor', h_w / r_w)
+                prog.setUniformValue('x_offset', (h_r[0] - r[0]) / w)
+                prog.setUniformValue('x_factor', h_w / w)
                 inv_max_transformed_bin_val = max_bin_val**-self.gamma_gamma
                 prog.setUniformValue('inv_max_transformed_bin_val', inv_max_transformed_bin_val)
                 prog.setUniformValue('gamma_gamma', self.gamma_gamma)
@@ -211,6 +215,7 @@ class HistogramItem(ShaderItem):
             h_w = h_r[1] - h_r[0]
             r = image.range
             w = r[1] - r[0]
+            # TODO: fix this code when I'm not so tired
             bin_count = histogram.shape[-1] * h_w / w
             if image.dtype is not numpy.float32:
                 bin_count = int(bin_count)
