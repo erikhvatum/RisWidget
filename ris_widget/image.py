@@ -157,7 +157,7 @@ class Image(Qt.QObject):
         else:
             if data_changed or mask_changed or is_twelve_bit_changed:
                 self.stats_future = ndimage_statistics.statistics(self._data, self.is_twelve_bit, self.mask, return_future=True)
-        if data_changed or is_twelve_bit_changed:
+        if data_changed or mask_changed or is_twelve_bit_changed or imposed_float_range_changed:
             self.data_changed.emit(self)
         if mask_changed:
             self.mask_changed.emit(self)
