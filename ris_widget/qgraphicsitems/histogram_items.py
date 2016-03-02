@@ -141,18 +141,17 @@ class HistogramItem(ShaderItem):
                 h_w = h_r[1] - h_r[0]
                 r = image.range
                 w = r[1] - r[0]
-                bin_count = histogram.shape[-1] * h_w / w
-                if image.dtype is not numpy.float32:
-                    bin_count = int(bin_count)
-                bin_idx_offset = int((h_r[0] - r[0])/(w/bin_count))
-                print(bin_count, bin_idx_offset)
+                bin_width = w / histogram.shape[-1]
+                bin_count = h_w / bin_width
+                bin_idx_offset = int((h_r[0] - r[0]) / bin_width)
                 if image.num_channels == 1:
                     pass
                 elif image.num_channels == 2:
                     histogram = histogram[0,:]
                 elif image.num_channels >= 3:
                     histogram = 0.2126 * histogram[0,:] + 0.7152 * histogram[1,:] + 0.0722 * histogram[2,:]
-                max_bin_val = histogram[bin_idx_offset:bin_idx_offset + bin_count].max()
+                # print(bin_count, bin_idx_offset, bin_idx_offset + bin_count, histogram[bin_idx_offset:bin_idx_offset + bin_count].max())
+                max_bin_val = histogram[bin_idx_offset:bin_idx_offset + math.ceil(bin_count)].max()
                 if tex.serial != self._layer_data_serial:
                     orig_unpack_alignment = GL.glGetIntegerv(GL.GL_UNPACK_ALIGNMENT)
                     if orig_unpack_alignment != 1:
@@ -215,18 +214,19 @@ class HistogramItem(ShaderItem):
             h_w = h_r[1] - h_r[0]
             r = image.range
             w = r[1] - r[0]
-            # TODO: fix this code when I'm not so tired
-            bin_count = histogram.shape[-1] * h_w / w
+            bin_width = w / histogram.shape[-1]
+            bin_count = h_w / bin_width
+            bin_idx_offset = int((h_r[0] - r[0]) / bin_width)
             if image.dtype is not numpy.float32:
                 bin_count = round(bin_count)
-            bin = int(x * bin_count)
+            bin = bin_idx_offset + int(x * bin_count)
             # TODO: verify this more
-            bin_width = (h_r[1] - h_r[0]) / (bin_count)# - 1)
+            # bin_width = (h_r[1] - h_r[0]) / (bin_count)# - 1)
             # print(bin_width)
             if image.dtype is numpy.float32:
                 mst = '[{},{}{} '.format(h_r[0] + bin*bin_width, h_r[0] + (bin+1)*bin_width, ']' if bin == bin_count - 1 else ')')
             else:
-                l, r = math.ceil(h_r[0] + bin*bin_width), math.floor(h_r[0] + (bin+1)*bin_width)
+                l, r = math.ceil((bin_idx_offset + bin)*bin_width), math.floor((bin_idx_offset + bin + 1)*bin_width)
                 mst = '{} '.format(l) if image.dtype is numpy.uint8 else '[{},{}] '.format(l, r)
             vt = '(' + ' '.join((c + ':{}' for c in image_type)) + ')'
             if image.num_channels > 1:
