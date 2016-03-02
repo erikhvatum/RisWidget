@@ -297,7 +297,8 @@ class Layer(Qt.QObject):
     def _gamma_pre_set(self, v):
         r = self.GAMMA_RANGE
         if not r[0] <= v <= r[1]:
-            raise ValueError('gamma value must be in the closed interval [{}, {}].'.format(*r))
+            warnings.warn('gamma value must be in the closed interval [{}, {}].'.format(*r))
+            return False
     gamma = om.Property(
         properties, 'gamma',
         default_value_callback = lambda layer: 1.0,
