@@ -85,35 +85,39 @@ class LayerTableView(Qt.QTableView):
 
     def contextMenuEvent(self, event):
         focused_midx = self.selectionModel().currentIndex()
-        if focused_midx.isValid():
-            row = self.rowAt(event.pos().y())
-            col = self.columnAt(event.pos().x())
-            if row == focused_midx.row() and col == focused_midx.column():
-                try:
-                    pname = self.layer_table_model.property_names[col]
-                except IndexError:
-                    return
-                try:
-                    psdg = self.layer_table_model._special_data_getters[pname]
-                except KeyError:
-                    return
-                if psdg == self.layer_table_model._getd__defaultable_property:
-                    try:
-                        layer = self.layer_table_model.layer_stack.layers[-(row+1)]
-                    except IndexError:
-                        return
-                    try:
-                        p = getattr(type(layer), pname)
-                    except AttributeError:
-                        return
-                    if not p.is_default(layer):
-                        menu = Qt.QMenu(self)
-                        reset_to_default_action = Qt.QAction('Reset to default value', menu)
-                        def on_reset_action():
-                            p.__delete__(layer)
-                        reset_to_default_action.triggered.connect(on_reset_action)
-                        menu.addAction(reset_to_default_action)
-                        menu.exec(event.globalPos())
+        if not focused_midx.isValid():
+            return
+        row = self.rowAt(event.pos().y())
+        col = self.columnAt(event.pos().x())
+        if row != focused_midx.row() or col != focused_midx.column():
+            return
+        try:
+            pname = self.layer_table_model.property_names[col]
+        except IndexError:
+            return
+        try:
+            psdg = self.layer_table_model._special_data_getters[pname]
+        except KeyError:
+            return
+        if psdg != self.layer_table_model._getd__defaultable_property:
+            return
+        try:
+            layer = self.layer_table_model.layer_stack.layers[-(row+1)]
+        except IndexError:
+            return
+        try:
+            p = getattr(type(layer), pname)
+        except AttributeError:
+            return
+        if p.is_default(layer):
+            return
+        menu = Qt.QMenu(self)
+        reset_to_default_action = Qt.QAction('Reset to default value', menu)
+        def on_reset_action():
+            p.__delete__(layer)
+        reset_to_default_action.triggered.connect(on_reset_action)
+        menu.addAction(reset_to_default_action)
+        menu.exec(event.globalPos())
 
     # def setModel(self, model):
     #     super().setModel(model)

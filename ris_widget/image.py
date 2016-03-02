@@ -131,7 +131,7 @@ class Image(Qt.QObject):
             '' if num_channels == 1 else 's',
             self.type)
 
-    def refresh(self, data_changed=False, mask_changed=False, is_twelve_bit_changed=False, imposed_float_range_changed=False):
+    def refresh(self, data_changed=True, mask_changed=False, is_twelve_bit_changed=False, imposed_float_range_changed=False):
         """The .refresh method should be called after modifying the contents of .data, .mask, and/or after replacing .is_twelve_bit or .imposed_float_range
         by assignment, with True supplied for the respective _changed argument.  It is assumed that only those changes may have occurred, and that
         the shape, strides, and dtype of .data and/or .mask have not been changed (except by the .set method).

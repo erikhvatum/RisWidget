@@ -29,17 +29,17 @@ app = Qt.QApplication(argv)
 rw = RisWidget()
 # rw.show()
 
-imf = freeimage.read('/Users/ehvatum/Desktop/Opteron_6300_die_shot_16_core_mod.jpg').astype(numpy.float32)
-rw.image = imf
-
-btn = Qt.QPushButton('swap float range setting')
-float_range_state = False
-def on_btn_clicked():
-    global float_range_state
-    rw.image.set(imposed_float_range=[0,255] if float_range_state else [50,100])
-    float_range_state = not float_range_state
-btn.clicked.connect(on_btn_clicked)
-btn.show()
+# imf = freeimage.read('/Users/ehvatum/Desktop/Opteron_6300_die_shot_16_core_mod.jpg').astype(numpy.float32)
+# rw.image = imf
+#
+# btn = Qt.QPushButton('swap float range setting')
+# float_range_state = False
+# def on_btn_clicked():
+#     global float_range_state
+#     rw.image.set(imposed_float_range=[0,255] if float_range_state else [50,100])
+#     float_range_state = not float_range_state
+# btn.clicked.connect(on_btn_clicked)
+# btn.show()
 
 #rw.histogram_view.gl_widget.start_logging()
 

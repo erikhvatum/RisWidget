@@ -218,7 +218,7 @@ class HistogramItem(ShaderItem):
             # TODO: fix this code when I'm not so tired
             bin_count = histogram.shape[-1] * h_w / w
             if image.dtype is not numpy.float32:
-                bin_count = int(bin_count)
+                bin_count = round(bin_count)
             bin = int(x * bin_count)
             # TODO: verify this more
             bin_width = (h_r[1] - h_r[0]) / (bin_count)# - 1)
