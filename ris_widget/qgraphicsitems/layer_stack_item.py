@@ -111,38 +111,12 @@ class LayerStackItem(ShaderItem):
         self.layer_stack = layer_stack
         layer_stack.layers_replaced.connect(self._on_layerlist_replaced)
         layer_stack.layer_focus_changed.connect(self._on_layer_focus_changed)
+        layer_stack.examine_layer_mode_action.toggled.connect(self.update)
         self._texs = {}
         self._dead_texs = [] # Textures queued for deletion when an OpenGL context is available
         self._layer_data_serials = {}
         self._next_data_serial = 0
         self._layer_instance_counts = {}
-        self.layer_name_in_contextual_info_action = Qt.QAction(self)
-        self.layer_name_in_contextual_info_action.setText('Include Layer.name in Contextual Info')
-        self.layer_name_in_contextual_info_action.setCheckable(True)
-        self.layer_name_in_contextual_info_action.setChecked(False)
-        self.image_name_in_contextual_info_action = Qt.QAction(self)
-        self.image_name_in_contextual_info_action.setText('Include Image.name in Contextual Info')
-        self.image_name_in_contextual_info_action.setCheckable(True)
-        self.image_name_in_contextual_info_action.setChecked(False)
-        self.override_enable_auto_min_max_action = Qt.QAction(self)
-        self.override_enable_auto_min_max_action.setText('Force Auto Min/Max')
-        self.override_enable_auto_min_max_action.setCheckable(True)
-        self.override_enable_auto_min_max_action.setChecked(False)
-        self.override_enable_auto_min_max_action.setShortcut(Qt.Qt.Key_F)
-        self.override_enable_auto_min_max_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
-        self.override_enable_auto_min_max_action.toggled.connect(self.update)
-        self.examine_layer_mode_action = Qt.QAction(self)
-        self.examine_layer_mode_action.setText('Examine Current Layer')
-        self.examine_layer_mode_action.setCheckable(True)
-        self.examine_layer_mode_action.setChecked(False)
-        self.examine_layer_mode_action.setToolTip(textwrap.dedent("""\
-            In "Examine Layer Mode", a layer's .visible property does not control whether that
-            layer is visible in the main view.  Instead, the layer represented by the row currently
-            selected in the layer table is treated as if the value of its .visible property were
-            True and all others as if theirs were false."""))
-#       if self._get_current_layer_idx is None:
-#           self.examine_layer_mode_action.setEnabled(False)
-        self.examine_layer_mode_action.toggled.connect(self.update)
 
     def __del__(self):
         scene = self.scene()
@@ -307,11 +281,11 @@ class LayerStackItem(ShaderItem):
     def _on_layer_focus_changed(self, old_layer, layer):
         # The appearence of a layer_stack_item may depend on which layer table row is current while
         # "examine layer mode" is enabled.
-        if self.examine_layer_mode_enabled:
+        if self.layer_stack.examine_layer_mode_enabled:
             self.update()
 
     def hoverMoveEvent(self, event):
-        if self.examine_layer_mode_enabled:
+        if self.layer_stack.examine_layer_mode_enabled:
             idx = self.layer_stack.focused_layer_idx
             visible_idxs = [] if idx is None else [idx]
         elif self.layer_stack.layers:
@@ -337,8 +311,8 @@ class LayerStackItem(ShaderItem):
             ipos.x(),
             ipos.y(),
             idx if len(self.layer_stack.layers) > 1 else None,
-            self.layer_name_in_contextual_info_enabled,
-            self.image_name_in_contextual_info_enabled)
+            self.layer_stack.layer_name_in_contextual_info_enabled,
+            self.layer_stack.image_name_in_contextual_info_enabled)
         if ci is not None:
             cis.append(ci)
         image = layer.image
@@ -354,16 +328,16 @@ class LayerStackItem(ShaderItem):
             if image is None:
                 ci = layer.generate_contextual_info_for_pos(
                     None, None, idx,
-                    self.layer_name_in_contextual_info_enabled,
-                    self.image_name_in_contextual_info_enabled)
+                    self.layer_stack.layer_name_in_contextual_info_enabled,
+                    self.layer_stack.image_name_in_contextual_info_enabled)
             else:
                 imagesize = image.size
                 ci = layer.generate_contextual_info_for_pos(
                     int(fpos.x()*imagesize.width()/image0size.width()),
                     int(fpos.y()*imagesize.height()/image0size.height()),
                     idx,
-                    self.layer_name_in_contextual_info_enabled,
-                    self.image_name_in_contextual_info_enabled)
+                    self.layer_stack.layer_name_in_contextual_info_enabled,
+                    self.layer_stack.image_name_in_contextual_info_enabled)
             if ci is not None:
                 cis.append(ci)
         self.scene().update_contextual_info('\n'.join(reversed(cis)), self)
@@ -459,7 +433,7 @@ class LayerStackItem(ShaderItem):
             for tidx, idx in enumerate(visible_idxs):
                 layer = self.layer_stack.layers[idx]
                 image = layer.image
-                min_max[0], min_max[1] = (layer._auto_min_max_values) if self.override_enable_auto_min_max_action.isChecked() else (layer.min, layer.max)
+                min_max[0], min_max[1] = layer.min, layer.max
                 min_max = self._normalize_for_gl(min_max, image)
                 tidxstr = str(tidx)
                 prog.setUniformValue('tex_'+tidxstr, tidx)
@@ -499,7 +473,7 @@ class LayerStackItem(ShaderItem):
         for every visible layer with non-None .layer in self.layer_stack, in order that self._texs[layer] represents layer, including texture
         object creation and texture data uploading, and it leaves self._texs[layer] bound to texture unit n, where n is
         the associated visible_idx."""
-        if self.examine_layer_mode_enabled:
+        if self.layer_stack.examine_layer_mode_enabled:
             idx = self.layer_stack.focused_layer_idx
             visible_idxs = [] if idx is None else [idx]
         elif self.layer_stack.layers:
@@ -585,27 +559,3 @@ class LayerStackItem(ShaderItem):
         while self._dead_texs:
             dead_tex = self._dead_texs.pop()
             dead_tex.destroy()
-
-    @property
-    def layer_name_in_contextual_info_enabled(self):
-        return self.layer_name_in_contextual_info_action.isChecked()
-
-    @layer_name_in_contextual_info_enabled.setter
-    def layer_name_in_contextual_info_enabled(self, v):
-        self.layer_name_in_contextual_info_action.setChecked(v)
-
-    @property
-    def image_name_in_contextual_info_enabled(self):
-        return self.image_name_in_contextual_info_action.isChecked()
-
-    @image_name_in_contextual_info_enabled.setter
-    def image_name_in_contextual_info_enabled(self, v):
-        self.image_name_in_contextual_info_action.setChecked(v)
-
-    @property
-    def examine_layer_mode_enabled(self):
-        return self.examine_layer_mode_action.isChecked()
-
-    @examine_layer_mode_enabled.setter
-    def examine_layer_mode_enabled(self, v):
-        self.examine_layer_mode_action.setChecked(v)

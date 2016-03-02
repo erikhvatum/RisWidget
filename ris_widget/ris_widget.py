@@ -140,8 +140,8 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.main_view.zoom_to_fit_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
         self.main_view.zoom_one_to_one_action.setShortcut(Qt.Qt.Key_1)
         self.main_view.zoom_one_to_one_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
-        self.main_scene.layer_stack_item.examine_layer_mode_action.setShortcut(Qt.Qt.Key_Space)
-        self.main_scene.layer_stack_item.examine_layer_mode_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
+        self.layer_stack.examine_layer_mode_action.setShortcut(Qt.Qt.Key_Space)
+        self.layer_stack.examine_layer_mode_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
         self.main_view_snapshot_action = Qt.QAction(self)
         self.main_view_snapshot_action.setText('Main View Snapshot')
         self.main_view_snapshot_action.setShortcut(Qt.Qt.Key_S)
@@ -178,10 +178,7 @@ class RisWidgetQtObject(Qt.QMainWindow):
             Qt.QDockWidget.DockWidgetMovable | Qt.QDockWidget.DockWidgetVerticalTitleBar)
         self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self.histogram_dock_widget)
         self.layer_table_dock_widget = Qt.QDockWidget('Layer Stack', self)
-        self.layer_table_model = LayerTableModel(
-            self.layer_stack,
-            self.main_scene.layer_stack_item.override_enable_auto_min_max_action,
-            self.main_scene.layer_stack_item.examine_layer_mode_action)
+        self.layer_table_model = LayerTableModel(self.layer_stack)
         self.layer_table_model_inverter = InvertingProxyModel()
         self.layer_table_model_inverter.setSourceModel(self.layer_table_model)
         self.layer_table_view = LayerTableView(self.layer_table_model)
@@ -229,8 +226,7 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.main_view_toolbar.addAction(self.main_view.zoom_to_fit_action)
         self.main_view_toolbar.addAction(self.layer_stack_reset_curr_min_max)
         self.main_view_toolbar.addAction(self.layer_stack_reset_curr_gamma)
-        self.main_view_toolbar.addAction(self.main_scene.layer_stack_item.override_enable_auto_min_max_action)
-        self.main_view_toolbar.addAction(self.main_scene.layer_stack_item.examine_layer_mode_action)
+        self.main_view_toolbar.addAction(self.layer_stack.examine_layer_mode_action)
         self.main_view_toolbar.addAction(self.main_view_snapshot_action)
         self.main_view_toolbar.addAction(self.flipbook.consolidate_selected_action)
         self.main_view_toolbar.addAction(self.flipbook.delete_selected_action)
@@ -253,11 +249,11 @@ class RisWidgetQtObject(Qt.QMainWindow):
         m.addSeparator()
         m.addAction(self.layer_stack_reset_curr_min_max)
         m.addAction(self.layer_stack_reset_curr_gamma)
-        m.addAction(self.main_scene.layer_stack_item.override_enable_auto_min_max_action)
-        m.addAction(self.main_scene.layer_stack_item.examine_layer_mode_action)
+        m.addAction(self.layer_stack.master_enable_auto_min_max_action)
+        m.addAction(self.layer_stack.examine_layer_mode_action)
         m.addSeparator()
-        m.addAction(self.main_scene.layer_stack_item.layer_name_in_contextual_info_action)
-        m.addAction(self.main_scene.layer_stack_item.image_name_in_contextual_info_action)
+        m.addAction(self.layer_stack.layer_name_in_contextual_info_action)
+        m.addAction(self.layer_stack.image_name_in_contextual_info_action)
 
     def showEvent(self, event):
         if not self._shown:

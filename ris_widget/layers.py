@@ -25,6 +25,7 @@
 import json
 from PyQt5 import Qt
 import numpy
+import textwrap
 from . import om
 from .image import Image
 from .layer import Layer
@@ -88,6 +89,29 @@ class LayerStack(Qt.QObject):
         self.layers = layers
         self._selection_model = None
         self.selection_model = selection_model
+        self.layer_name_in_contextual_info_action = Qt.QAction(self)
+        self.layer_name_in_contextual_info_action.setText('Include Layer.name in Contextual Info')
+        self.layer_name_in_contextual_info_action.setCheckable(True)
+        self.layer_name_in_contextual_info_action.setChecked(False)
+        self.image_name_in_contextual_info_action = Qt.QAction(self)
+        self.image_name_in_contextual_info_action.setText('Include Image.name in Contextual Info')
+        self.image_name_in_contextual_info_action.setCheckable(True)
+        self.image_name_in_contextual_info_action.setChecked(False)
+        self.master_enable_auto_min_max_action = Qt.QAction(self)
+        self.master_enable_auto_min_max_action.setText('Auto Min/Max Master On')
+        self.master_enable_auto_min_max_action.setCheckable(True)
+        self.master_enable_auto_min_max_action.setChecked(False)
+        self.master_enable_auto_min_max_action.setShortcut(Qt.Qt.Key_F)
+        self.master_enable_auto_min_max_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
+        self.examine_layer_mode_action = Qt.QAction(self)
+        self.examine_layer_mode_action.setText('Examine Current Layer')
+        self.examine_layer_mode_action.setCheckable(True)
+        self.examine_layer_mode_action.setChecked(False)
+        self.examine_layer_mode_action.setToolTip(textwrap.dedent("""\
+                In "Examine Layer Mode", a layer's .visible property does not control whether that
+                layer is visible in the main view.  Instead, the layer represented by the row currently
+                selected in the layer table is treated as if the value of its .visible property were
+                True and all others as if theirs were false."""))
 
     @property
     def layers(self):
@@ -187,6 +211,30 @@ class LayerStack(Qt.QObject):
             sm.setCurrentIndex(m.index(0, 0), Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
         if len(sm.selectedRows()) == 0:
             sm.select(sm.currentIndex(), Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
+
+    @property
+    def layer_name_in_contextual_info_enabled(self):
+        return self.layer_name_in_contextual_info_action.isChecked()
+
+    @layer_name_in_contextual_info_enabled.setter
+    def layer_name_in_contextual_info_enabled(self, v):
+        self.layer_name_in_contextual_info_action.setChecked(v)
+
+    @property
+    def image_name_in_contextual_info_enabled(self):
+        return self.image_name_in_contextual_info_action.isChecked()
+
+    @image_name_in_contextual_info_enabled.setter
+    def image_name_in_contextual_info_enabled(self, v):
+        self.image_name_in_contextual_info_action.setChecked(v)
+
+    @property
+    def examine_layer_mode_enabled(self):
+        return self.examine_layer_mode_action.isChecked()
+
+    @examine_layer_mode_enabled.setter
+    def examine_layer_mode_enabled(self, v):
+        self.examine_layer_mode_action.setChecked(v)
 
     def _on_inserted_into_layers(self, idx, layers):
         self.ensure_layer_focused()
