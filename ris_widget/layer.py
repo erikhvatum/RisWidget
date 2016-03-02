@@ -22,9 +22,9 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-import numpy
 from PyQt5 import Qt
 import textwrap
+import warnings
 from .image import Image
 from . import om
 
@@ -270,7 +270,8 @@ class Layer(Qt.QObject):
         if image is not None:
             r = image.range
             if not r[0] <= v <= r[1]:
-                raise ValueError('min/max values for this image must be in the closed interval [{}, {}].'.format(*r))
+                warnings.warn('min/max values for this image must be in the closed interval [{}, {}].'.format(*r))
+                return False
     def _min_max_post_set(self, v, is_max):
         if is_max:
             if v < self.min:
@@ -312,13 +313,16 @@ class Layer(Qt.QObject):
     def _histogram_min_max_pre_set(self, v, is_max):
         r = (0, 65535.0) if self.image is None else self.image.range
         if not r[0] <= v <= r[1]:
-            raise ValueError('histogram_min/max value must be in the closed interval [{}, {}].'.format(r[0], r[1]))
+            warnings.warn('histogram_min/max value must be in the closed interval [{}, {}].'.format(r[0], r[1]))
+            return False
         if is_max:
             if v <= self.histogram_min:
-                raise ValueError('histogram_max must be greater than histogram_min.')
+                warnings.warn('histogram_max must be greater than histogram_min.')
+                return False
         else:
             if v >= self.histogram_max:
-                raise ValueError('histogram_min must be less than histogram_max.')
+                warnings.warn('histogram_min must be less than histogram_max.')
+                return False
     def _histogram_min_max_post_set(self, v, is_max):
         if self.min < self.histogram_min:
             self.min = self.histogram_min

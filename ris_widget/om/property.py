@@ -139,7 +139,8 @@ class Property(property):
             v = self.take_arg_callback(obj, v)
         if not hasattr(obj, self.var_name) or not self.eq(v, getattr(obj, self.var_name)):
             if self.pre_set_callback is not None:
-                self.pre_set_callback(obj, v)
+                if self.pre_set_callback(obj, v) == False:
+                    return
             setattr(obj, self.var_name, v)
             if self.post_set_callback is not None:
                 self.post_set_callback(obj, v)

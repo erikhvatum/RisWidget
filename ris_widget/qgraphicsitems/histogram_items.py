@@ -220,9 +220,6 @@ class HistogramItem(ShaderItem):
             if image.dtype is not numpy.float32:
                 bin_count = round(bin_count)
             bin = bin_idx_offset + int(x * bin_count)
-            # TODO: verify this more
-            # bin_width = (h_r[1] - h_r[0]) / (bin_count)# - 1)
-            # print(bin_width)
             if image.dtype is numpy.float32:
                 mst = '[{},{}{} '.format(h_r[0] + bin*bin_width, h_r[0] + (bin+1)*bin_width, ']' if bin == bin_count - 1 else ')')
             else:
