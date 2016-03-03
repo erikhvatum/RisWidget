@@ -154,7 +154,11 @@ class Image(Qt.QObject):
             self.stats_future = ndimage_statistics.bundle_float_stats_into_future(histogram, extremae)
         else:
             if data_changed or mask_changed or is_twelve_bit_changed:
-                self.stats_future = ndimage_statistics.statistics(self._data, self.is_twelve_bit, self.mask, return_future=True)
+                if self.dtype == bool:
+                    data = self._data.astype(numpy.uint8)
+                else:
+                    data = self._data
+                self.stats_future = ndimage_statistics.statistics(data, self.is_twelve_bit, self.mask, return_future=True)
         if data_changed or mask_changed or is_twelve_bit_changed or imposed_float_range_changed:
             self.data_changed.emit(self)
         if mask_changed:
@@ -273,6 +277,8 @@ class Image(Qt.QObject):
             self.has_alpha_channel = self.type in ('Ga', 'rgba')
             if self.dtype == numpy.float32:
                 pass # ._range is updated by .refresh() for float32 images as ._range may depend on .data
+            elif self.dtype == bool:
+                self._range = numpy.array((False, True), dtype=bool)
             elif self.dtype == numpy.uint8:
                 self._range = numpy.array((0,255), dtype=numpy.uint8)
             elif self.dtype == numpy.uint16:
@@ -346,7 +352,10 @@ class Image(Qt.QObject):
 
     @property
     def histogram(self):
-        return self.stats_future.result().histogram
+        histogram = self.stats_future.result().histogram
+        if self.dtype == bool:
+            return histogram[:2]
+        return histogram
 
     @property
     def max_histogram_bin(self):

@@ -454,7 +454,7 @@ class LayerStackItem(ShaderItem):
         * float32 data uploaded to float32 texture is not normalized"""
         if image.dtype == numpy.uint16:
             v /= 65535
-        elif image.dtype == numpy.uint8:
+        elif image.dtype == numpy.uint8 or image.dtype == bool:
             v /= 255
         elif image.dtype == numpy.float32:
             pass
