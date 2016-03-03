@@ -384,7 +384,7 @@ class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePro
         if role == Qt.Qt.DisplayRole:
             image = self.signaling_list[midx.row()].image
             if image is not None:
-                return Qt.QVariant(str(image.data.dtype))
+                return Qt.QVariant(str(image.dtype))
         else:
             return self._getd__default(midx, role)
 
@@ -414,7 +414,7 @@ class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePro
                 # that is shown as partially checked.  However, it is shown as partially checked because it is actually checked,
                 # but the effect of its checkedness is being supressed because we are in "examine layer" mode and the layer
                 # containing the visibility checkbox in question is not the current layer in the layer table.  It is nominally
-                # checked, and so toggling it actually means unchecking it.  This is the only instance where an override 
+                # checked, and so toggling it actually means unchecking it.  This is the only instance where an override
                 # causes something checked to appear partially checked, rather than causing something unchecked to appear
                 # partially checked.  And, so, in this one instance, we must special case *setting* of an overridable checkbox
                 # property.

@@ -138,7 +138,7 @@ class Image(Qt.QObject):
 
         The .refresh method is primarily useful to cause a user interface to update in response to data changes caused by manipulation of .data.data or
         another numpy view of the same memory.  (You probably want to use the .set method in most cases.)"""
-        if self.dtype is numpy.float32:
+        if self.dtype == numpy.float32:
             if data_changed or mask_changed:
                 extremae = ndimage_statistics.extremae(self._data, self._mask)
             else:
@@ -201,11 +201,12 @@ class Image(Qt.QObject):
             data = numpy.asarray(data)
             if not (data.ndim == 2 or (data.ndim == 3 and data.shape[2] in (2,3,4))):
                 raise ValueError('data argument must be a 2D (grayscale) or 3D (grayscale with alpha, rgb, or rgba) iterable.')
-            if data.dtype.type is numpy.float64:
-                data = data.astype(numpy.float32)
-            elif data.dtype.type not in (numpy.bool8, numpy.uint8, numpy.uint16, numpy.float32):
-                raise ValueError('Image data type must be one of bool, uint8, uint16, float32, float64, or float.')
-            if data.dtype.type is not numpy.uint16:
+            if numpy.issubdtype(data.dtype, numpy.floating):
+                if data.dtype != numpy.float32:
+                    data = data.astype(numpy.float32)
+            elif data.dtype not in (bool, numpy.uint8, numpy.uint16):
+                raise ValueError('Image data must be bool, uint8, uint16, or floating-point.')
+            if data.dtype != numpy.uint16:
                 if is_twelve_bit:
                     if is_twelve_bit_changed:
                         ValueError('The is_twelve_bit argument may only be True if data is of type uint16.')
@@ -220,10 +221,10 @@ class Image(Qt.QObject):
             desired_strides = (bpe, data.shape[0]*bpe) if data.ndim == 2 else (data.shape[2]*bpe, data.shape[0]*data.shape[2]*bpe, bpe)
             if desired_strides != data.strides:
                 _data = data
-                data = numpy.ndarray(data.shape, strides=desired_strides, dtype=data.dtype.type)
+                data = numpy.ndarray(data.shape, strides=desired_strides, dtype=data.dtype)
                 data.flat = _data.flat
         elif is_twelve_bit_changed:
-            if data.dtype.type is not numpy.uint16:
+            if data.dtype != numpy.uint16:
                 # Explicitly supplying True for is_twelve_bit for non-uint16 data is, however, not allowed
                 raise ValueError('The is_twelve_bit argument may only be True if data is of dtype numpy.uint16.')
 
@@ -244,8 +245,8 @@ class Image(Qt.QObject):
                 mask = numpy.asarray(data)
                 if mask.ndim != 2:
                     raise ValueError('mask argument must be None or a 2D iterable.')
-                if mask.dtype.type not in (numpy.bool8, numpy.uint8):
-                    mask = mask.astype(numpy.bool8)
+                if mask.dtype not in (bool, numpy.uint8):
+                    mask = mask.astype(bool)
                 if not mask_shape_is_width_height:
                     mask = mask.transpose(1, 0)
                 desired_strides = 1, mask.shape[0]
@@ -270,11 +271,11 @@ class Image(Qt.QObject):
                 self.num_channels = self._data.shape[2]
             self.size = Qt.QSize(*self._data.shape[:2])
             self.has_alpha_channel = self.type in ('Ga', 'rgba')
-            if self.dtype is numpy.float32:
+            if self.dtype == numpy.float32:
                 pass # ._range is updated by .refresh() for float32 images as ._range may depend on .data
-            elif self.dtype is numpy.uint8:
+            elif self.dtype == numpy.uint8:
                 self._range = numpy.array((0,255), dtype=numpy.uint8)
-            elif self.dtype is numpy.uint16:
+            elif self.dtype == numpy.uint16:
                 self._range = numpy.array((0,65535), dtype=numpy.uint16)
             else:
                 raise NotImplementedError('Add an elif statement above here to set ._range for your data type.')
@@ -293,7 +294,7 @@ class Image(Qt.QObject):
 
     def generate_contextual_info_for_pos(self, x, y, include_image_name=True):
         sz = self.size
-        component_format_str = '{}' if self.dtype is numpy.float32 else '{}'
+        component_format_str = '{}' if self.dtype == numpy.float32 else '{}'
         if 0 <= x < sz.width() and 0 <= y < sz.height():
             type_ = self.type
             num_channels = self.num_channels
@@ -337,7 +338,7 @@ class Image(Qt.QObject):
 
     @property
     def dtype(self):
-        return self._data.dtype.type
+        return self._data.dtype
 
     @property
     def strides(self):

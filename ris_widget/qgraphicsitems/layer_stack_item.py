@@ -406,7 +406,7 @@ class LayerStackItem(ShaderItem):
             # pixel coordinate vector <x, max_y-y, w> (using max_y-y to invert GL's Y axis which is upside-down, typically
             # with 1 for w) yields <x_t, y_t, w_t>.  In non-homogenous coordinates, that's <x_t/w_t, y_t/w_t>, which is
             # ready to be fed to the GLSL texture2D call.
-            # 
+            #
             # So, GLSL's Texture2D accepts 0-1 element-wise-normalized coordinates (IE, unit square, not unit circle), and
             # frag_to_tex maps from view pixel coordinates to texture coordinates.  If either element of the resulting coordinate
             # vector is outside the interval [0,1], the associated pixel in the view is outside of LayerStackItem.
@@ -514,7 +514,7 @@ class LayerStackItem(ShaderItem):
                 pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
                 pixel_transfer_opts.setAlignment(1)
                 tex.setData(self.IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT[image.type],
-                            self.NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[image.dtype],
+                            self.NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[image.dtype.type],
                             image.data.ctypes.data,
                             pixel_transfer_opts)
 #               else:
@@ -543,7 +543,7 @@ class LayerStackItem(ShaderItem):
 #                   GL.glTexSubImage2D(
 #                       GL.GL_TEXTURE_2D, 0, 0, 0, image.size.width(), image.size.height(),
 #                       IMAGE_TYPE_TO_GL_SRC_PIX_FORMAT[image.type],
-#                       NUMPY_DTYPE_TO_GL_PIXEL_TYPE[image.dtype],
+#                       NUMPY_DTYPE_TO_GL_PIXEL_TYPE[image.dtype.type],
 #                       memoryview(layer.data_T.flatten()))
 #                   if self._trilinear_filtering_enabled:
 #                       tex.generateMipMaps(0)

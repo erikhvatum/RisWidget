@@ -52,14 +52,14 @@ try:
         return hist
 
     def _statistics(im, twelve_bit, mask=None):
-        if im.dtype.type is numpy.uint8:
+        if im.dtype == numpy.uint8:
             hist = numpy.zeros((256,), dtype=numpy.uint32)
             min_max = numpy.zeros((2,), dtype=numpy.uint8)
             if mask is None:
                 _ndimage_statistics.hist_min_max_uint8(im, hist, min_max)
             else:
                 _ndimage_statistics.masked_hist_min_max_uint8(im, mask, hist, min_max)
-        elif im.dtype.type is numpy.uint16:
+        elif im.dtype == numpy.uint16:
             hist = numpy.zeros((1024,), dtype=numpy.uint32)
             min_max = numpy.zeros((2,), dtype=numpy.uint16)
             if mask is None:
@@ -98,11 +98,11 @@ except ImportError:
             return numpy.histogram(im, bins=bin_count, range=range_, density=False, weights=mask)[0].astype(numpy.uint32)
 
     def _statistics(im, twelve_bit, mask=None):
-        if im.dtype.type is numpy.uint8:
+        if im.dtype == numpy.uint8:
             min_max = numpy.zeros((2,), dtype=numpy.uint8)
             bin_count = 256
             range_ = (0,255)
-        elif im.dtype.type is numpy.uint16:
+        elif im.dtype == numpy.uint16:
             min_max = numpy.zeros((2,), dtype=numpy.uint16)
             bin_count = 1024
             range_ = (0,4095) if twelve_bit else (0,65535)
@@ -128,7 +128,7 @@ def extremae(im, mask=None, return_future=False):
     return_future: If not False, a concurrent.futures.Future is returned.
 
     Returns a channel_count x 2 float32 numpy array containing the min and max element values over the masked region or entirety of im."""
-    assert im.dtype.type is numpy.float32
+    assert im.dtype == numpy.float32
     assert im.ndim in (2,3)
     if mask is not None:
         assert mask.ndim == 2
@@ -144,7 +144,7 @@ def extremae(im, mask=None, return_future=False):
         def proc():
             futes = [pool.submit(channel_proc, channel) for channel in range(im.shape[2])]
             ret = numpy.vstack(fute.result() for fute in futes)
-            if ret.dtype.type is not numpy.float32:
+            if ret.dtype != numpy.float32:
                 ret = ret.astype(numpy.float32)
             return ret
     return pool.submit(proc) if return_future else proc()
@@ -172,7 +172,7 @@ def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, return
     return_future: If not False, a concurrent.futures.Future is returned.
 
     Returns a channel_count x bin_count numpy array uint32 values."""
-    assert im.dtype.type is numpy.float32
+    assert im.dtype == numpy.float32
     assert im.ndim in (2,3)
     assert range_[0] < range_[1]
     if mask is not None:
@@ -211,7 +211,7 @@ def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, return
 #     return_future: If not False, a concurrent.futures.Future is returned.
 #
 #     Returns a channel_count x bin_count numpy array uint32 values."""
-#     assert im.dtype.type is numpy.float32
+#     assert im.dtype == numpy.float32
 #     assert im.ndim in (2,3)
 #     assert range_[0] < range_[1]
 #     if mask is not None:
@@ -245,9 +245,9 @@ def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, return
 
 def statistics(im, twelve_bit=False, mask=None, return_future=False):
     assert im.ndim in (2,3)
-    if im.dtype.type is numpy.uint8:
+    if im.dtype == numpy.uint8:
         assert twelve_bit == False
-    elif im.dtype.type is numpy.uint16:
+    elif im.dtype == numpy.uint16:
         pass
     else:
         raise NotImplementedError('Support for dtype of supplied im argument not implemented.')

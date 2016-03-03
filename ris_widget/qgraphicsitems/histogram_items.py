@@ -217,14 +217,14 @@ class HistogramItem(ShaderItem):
             bin_width = w / histogram.shape[-1]
             bin_count = h_w / bin_width
             bin_idx_offset = int((h_r[0] - r[0]) / bin_width)
-            if image.dtype is not numpy.float32:
+            if image.dtype != numpy.float32:
                 bin_count = round(bin_count)
             bin = bin_idx_offset + int(x * bin_count)
-            if image.dtype is numpy.float32:
+            if image.dtype == numpy.float32:
                 mst = '[{},{}{} '.format(h_r[0] + bin*bin_width, h_r[0] + (bin+1)*bin_width, ']' if bin == bin_count - 1 else ')')
             else:
                 l, r = math.ceil((bin_idx_offset + bin)*bin_width), math.floor((bin_idx_offset + bin + 1)*bin_width)
-                mst = '{} '.format(l) if image.dtype is numpy.uint8 else '[{},{}] '.format(l, r)
+                mst = '{} '.format(l) if image.dtype == numpy.uint8 else '[{},{}] '.format(l, r)
             vt = '(' + ' '.join((c + ':{}' for c in image_type)) + ')'
             if image.num_channels > 1:
                 vt = vt.format(*histogram[..., bin])
@@ -420,7 +420,7 @@ class GammaItem(Qt.QGraphicsObject):
         self._path = Qt.QPainterPath(Qt.QPointF(0, 1))
         gamma = self.parentItem().layer.gamma
         # Compute sample point x locations such that the y increment from one sample point to the next is approximately
-        # the constant, resulting in a fairly smooth gamma plot.  This is not particularly fast, but it only happens when 
+        # the constant, resulting in a fairly smooth gamma plot.  This is not particularly fast, but it only happens when
         # gamma value changes, and it's fast enough that there is no noticable choppiness when dragging the gamma curve
         # up and down on a mac mini.
         xs = []
