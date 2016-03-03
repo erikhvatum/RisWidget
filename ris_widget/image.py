@@ -33,7 +33,7 @@ class Image(Qt.QObject):
     a .name.
 
     If an ndarray of supported dtype, shape, and striding is supplied as the data argument to Image's constructor or set method,
-    a reference to that ndarray is kept rather than a copy of it.  In such cases, if the wrapped data is subsequently modified, 
+    a reference to that ndarray is kept rather than a copy of it.  In such cases, if the wrapped data is subsequently modified,
     care must be taken to call the Image's .refresh method before querying, for example, its .histogram property as changes to the
     data are not automatically detected.
 
@@ -203,15 +203,12 @@ class Image(Qt.QObject):
                 raise ValueError('data argument must be a 2D (grayscale) or 3D (grayscale with alpha, rgb, or rgba) iterable.')
             if data.dtype.type is numpy.float64:
                 data = data.astype(numpy.float32)
-            elif data.dtype.type not in (numpy.bool, numpy.uint8, numpy.uint16, numpy.float32):
-                raise ValueError(
-                    'If the data argument contains Python float or numpy float64 values, these are converted to float32.  In all other cases, the data '
-                    'argument must produce a numpy ndarray of dtype bool8, uint8, uint16, or float32 when passed through numpy.asarray(data).  So, if the '
-                    'data argument is an ndarray, then data.dtype must be one of bool8, uint8, uint16, float32, float64, or float.')
+            elif data.dtype.type not in (numpy.bool8, numpy.uint8, numpy.uint16, numpy.float32):
+                raise ValueError('Image data type must be one of bool, uint8, uint16, float32, float64, or float.')
             if data.dtype.type is not numpy.uint16:
                 if is_twelve_bit:
                     if is_twelve_bit_changed:
-                        ValueError('The is_twelve_bit argument may only be True if data is of dtype numpy.uint16.')
+                        ValueError('The is_twelve_bit argument may only be True if data is of type uint16.')
                     else:
                         # Do not require specification of is_twelve_bit=False when .is_twelve_bit is True and .data is replaced with a non-uint16 array;
                         # instead, automatically set .is_twelve_bit to False.
