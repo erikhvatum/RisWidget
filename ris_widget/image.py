@@ -205,11 +205,11 @@ class Image(Qt.QObject):
             data = numpy.asarray(data)
             if not (data.ndim == 2 or (data.ndim == 3 and data.shape[2] in (2,3,4))):
                 raise ValueError('data argument must be a 2D (grayscale) or 3D (grayscale with alpha, rgb, or rgba) iterable.')
-            if numpy.issubdtype(data.dtype, numpy.floating):
-                if data.dtype != numpy.float32:
+            if data.dtype not in (bool, numpy.uint8, numpy.uint16, numpy.float32):
+                if numpy.issubdtype(data.dtype, numpy.floating) or numpy.issubdtype(data.dtype, numpy.integer):
                     data = data.astype(numpy.float32)
-            elif data.dtype not in (bool, numpy.uint8, numpy.uint16):
-                raise ValueError('Image data must be bool, uint8, uint16, or floating-point.')
+                else:
+                    raise ValueError('Image data must be integer or floating-point.')
             if data.dtype != numpy.uint16:
                 if is_twelve_bit:
                     if is_twelve_bit_changed:
