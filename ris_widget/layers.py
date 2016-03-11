@@ -245,7 +245,6 @@ class LayerStack(Qt.QObject):
         self.examine_layer_mode_action.setChecked(v)
 
     @property
-
     def histogram_alternate_column_shading_enabled(self):
         return self.histogram_alternate_column_shading_action.isChecked()
 
@@ -253,6 +252,7 @@ class LayerStack(Qt.QObject):
     def histogram_alternate_column_shading_enabled(self, v):
         self.histogram_alternate_column_shading_action.setChecked(v)
 
+    @property
     def master_enable_auto_min_max_is_active(self):
         return self.master_enable_auto_min_max_action.isChecked()
 
