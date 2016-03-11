@@ -101,8 +101,6 @@ class LayerStack(Qt.QObject):
         self.master_enable_auto_min_max_action.setText('Auto Min/Max Master On')
         self.master_enable_auto_min_max_action.setCheckable(True)
         self.master_enable_auto_min_max_action.setChecked(False)
-        self.master_enable_auto_min_max_action.setShortcut(Qt.Qt.Key_F)
-        self.master_enable_auto_min_max_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
         self.examine_layer_mode_action = Qt.QAction(self)
         self.examine_layer_mode_action.setText('Examine Current Layer')
         self.examine_layer_mode_action.setCheckable(True)
@@ -112,6 +110,10 @@ class LayerStack(Qt.QObject):
                 layer is visible in the main view.  Instead, the layer represented by the row currently
                 selected in the layer table is treated as if the value of its .visible property were
                 True and all others as if theirs were false."""))
+        self.histogram_alternate_column_shading_action = Qt.QAction(self)
+        self.histogram_alternate_column_shading_action.setText('Alternate Histogram Bin Shading')
+        self.histogram_alternate_column_shading_action.setCheckable(True)
+        self.histogram_alternate_column_shading_action.setChecked(False)
 
     @property
     def layers(self):
@@ -235,6 +237,14 @@ class LayerStack(Qt.QObject):
     @examine_layer_mode_enabled.setter
     def examine_layer_mode_enabled(self, v):
         self.examine_layer_mode_action.setChecked(v)
+
+    @property
+    def histogram_alternate_column_shading_enabled(self):
+        return self.histogram_alternate_column_shading_action.isChecked()
+
+    @histogram_alternate_column_shading_enabled.setter
+    def histogram_alternate_column_shading_enabled(self, v):
+        self.histogram_alternate_column_shading_action.setChecked(v)
 
     def _on_inserted_into_layers(self, idx, layers):
         self.ensure_layer_focused()

@@ -36,6 +36,7 @@ class HistogramItem(ShaderItem):
         super().__init__(graphics_item_parent)
         self.layer_stack = layer_stack
         layer_stack.layer_focus_changed.connect(self._on_layer_focus_changed)
+        layer_stack.histogram_alternate_column_shading_action.toggled.connect(self.update)
         self.layer = None
         self._layer_data_serial = 0
         self._bounding_rect = Qt.QRectF(0, 0, 1, 1)
@@ -101,11 +102,23 @@ class HistogramItem(ShaderItem):
             view = widget.view
             layer = self.layer
             scene = self.scene()
+            widget_size = widget.size()
+            histogram = image.histogram
+            h_r = layer.histogram_min, layer.histogram_max
+            h_w = h_r[1] - h_r[0]
+            r = image.range
+            w = r[1] - r[0]
+            bin_width = w / histogram.shape[-1]
+            bin_count = h_w / bin_width
+            bin_idx_offset = int((h_r[0] - r[0]) / bin_width)
             with ExitStack() as estack:
                 qpainter.beginNativePainting()
                 estack.callback(qpainter.endNativePainting)
                 GL = QGL()
-                desired_shader_type = 'G'
+                histogram_alternate_column_shading_enabled = (
+                    self.layer_stack.histogram_alternate_column_shading_enabled
+                    and widget_size.width() >= bin_count)
+                desired_shader_type = ('G', histogram_alternate_column_shading_enabled)
                 if desired_shader_type in self.progs:
                     prog = self.progs[desired_shader_type]
                     if not GL.glIsProgram(prog.programId()):
@@ -113,9 +126,13 @@ class HistogramItem(ShaderItem):
                         # the process of being floated or docked.
                         return
                 else:
+                    fs_fn = (
+                        'histogram_item_fragment_shader__alternate_column_colored.glsl'
+                        if histogram_alternate_column_shading_enabled else
+                        'histogram_item_fragment_shader.glsl')
                     prog = self.build_shader_prog(desired_shader_type,
                                                   'planar_quad_vertex_shader.glsl',
-                                                  'histogram_item_fragment_shader.glsl')
+                                                  fs_fn)
                 desired_tex_width = image.histogram.shape[-1]
                 tex = self._tex
                 if tex is not None:
@@ -136,14 +153,6 @@ class HistogramItem(ShaderItem):
                 else:
                     tex.bind()
                     estack.callback(tex.release)
-                histogram = image.histogram
-                h_r = layer.histogram_min, layer.histogram_max
-                h_w = h_r[1] - h_r[0]
-                r = image.range
-                w = r[1] - r[0]
-                bin_width = w / histogram.shape[-1]
-                bin_count = h_w / bin_width
-                bin_idx_offset = int((h_r[0] - r[0]) / bin_width)
                 if image.num_channels == 1:
                     pass
                 elif image.num_channels == 2:
@@ -188,13 +197,15 @@ class HistogramItem(ShaderItem):
                 prog.setAttributeBuffer(vert_coord_loc, GL.GL_FLOAT, 0, 2, 0)
                 prog.setUniformValue('tex', 0)
                 dpi_ratio = widget.devicePixelRatio()
-                prog.setUniformValue('inv_view_size', 1/(dpi_ratio * widget.size().width()), 1/(dpi_ratio * widget.size().height()))
+                prog.setUniformValue('inv_view_size', 1/(dpi_ratio * widget_size.width()), 1/(dpi_ratio * widget_size.height()))
                 prog.setUniformValue('x_offset', (h_r[0] - r[0]) / w)
                 prog.setUniformValue('x_factor', h_w / w)
                 inv_max_transformed_bin_val = max_bin_val**-self.gamma_gamma
                 prog.setUniformValue('inv_max_transformed_bin_val', inv_max_transformed_bin_val)
                 prog.setUniformValue('gamma_gamma', self.gamma_gamma)
                 prog.setUniformValue('opacity', self.opacity())
+                if histogram_alternate_column_shading_enabled:
+                    prog.setUniformValue('bin_count', int(bin_count))
                 self.set_blend(estack)
                 GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
                 GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)

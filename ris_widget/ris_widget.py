@@ -142,6 +142,8 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.main_view.zoom_one_to_one_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
         self.layer_stack.examine_layer_mode_action.setShortcut(Qt.Qt.Key_Space)
         self.layer_stack.examine_layer_mode_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
+        self.layer_stack.master_enable_auto_min_max_action.setShortcut(Qt.Qt.Key_F)
+        self.layer_stack.master_enable_auto_min_max_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
         self.main_view_snapshot_action = Qt.QAction(self)
         self.main_view_snapshot_action.setText('Main View Snapshot')
         self.main_view_snapshot_action.setShortcut(Qt.Qt.Key_S)
@@ -254,6 +256,7 @@ class RisWidgetQtObject(Qt.QMainWindow):
         m.addSeparator()
         m.addAction(self.layer_stack.layer_name_in_contextual_info_action)
         m.addAction(self.layer_stack.image_name_in_contextual_info_action)
+        m.addAction(self.layer_stack.histogram_alternate_column_shading_action)
 
     def showEvent(self, event):
         if not self._shown:
