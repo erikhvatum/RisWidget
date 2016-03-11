@@ -89,6 +89,7 @@ class LayerStack(Qt.QObject):
         self.layers = layers
         self._selection_model = None
         self.selection_model = selection_model
+        self._layer_instance_counts = {}
         self.layer_name_in_contextual_info_action = Qt.QAction(self)
         self.layer_name_in_contextual_info_action.setText('Include Layer.name in Contextual Info')
         self.layer_name_in_contextual_info_action.setCheckable(True)
@@ -101,6 +102,7 @@ class LayerStack(Qt.QObject):
         self.master_enable_auto_min_max_action.setText('Auto Min/Max Master On')
         self.master_enable_auto_min_max_action.setCheckable(True)
         self.master_enable_auto_min_max_action.setChecked(False)
+        self.master_enable_auto_min_max_action.toggled.connect(self._on_master_enable_auto_min_max_toggled)
         self.examine_layer_mode_action = Qt.QAction(self)
         self.examine_layer_mode_action.setText('Examine Current Layer')
         self.examine_layer_mode_action.setCheckable(True)
@@ -130,14 +132,18 @@ class LayerStack(Qt.QObject):
             v_o.inserted.disconnect(self._on_inserted_into_layers)
             v_o.removed.disconnect(self._on_removed_from_layers)
             v_o.replaced.disconnect(self._on_replaced_in_layers)
+            v_o.inserted.disconnect(self._delayed_on_inserted_into_layers)
+            v_o.removed.disconnect(self._delayed_on_removed_from_layers)
         self._layers = v
         if v is not None:
+            v.inserted.connect(self._on_inserted_into_layers)
+            v.removed.connect(self._on_removed_from_layers)
+            v.replaced.connect(self._on_replaced_in_layers)
             # Must be QueuedConnection in order to avoid race condition where self._on_inserted_into_layers may be called before any associated model's
             # "inserted" handler, which would cause ensure_layer_focused, if layers was empty before insertion, to attempt to focus row 0 before associated
             # models are even aware that a row has been inserted.
-            v.inserted.connect(self._on_inserted_into_layers, Qt.Qt.QueuedConnection)
-            v.removed.connect(self._on_removed_from_layers, Qt.Qt.QueuedConnection)
-            v.replaced.connect(self._on_replaced_in_layers)
+            v.inserted.connect(self._delayed_on_inserted_into_layers, Qt.Qt.QueuedConnection)
+            v.removed.connect(self._delayed_on_removed_from_layers, Qt.Qt.QueuedConnection)
         self.layers_replaced.emit(self, v_o, v)
         if v:
             self.ensure_layer_focused()
@@ -239,6 +245,7 @@ class LayerStack(Qt.QObject):
         self.examine_layer_mode_action.setChecked(v)
 
     @property
+
     def histogram_alternate_column_shading_enabled(self):
         return self.histogram_alternate_column_shading_action.isChecked()
 
@@ -246,17 +253,46 @@ class LayerStack(Qt.QObject):
     def histogram_alternate_column_shading_enabled(self, v):
         self.histogram_alternate_column_shading_action.setChecked(v)
 
+    def master_enable_auto_min_max_is_active(self):
+        return self.master_enable_auto_min_max_action.isChecked()
+
+    @master_enable_auto_min_max_is_active.setter
+    def master_enable_auto_min_max_is_active(self, v):
+        self.examine_layer_mode_action.setChecked(v)
+
+    def _attach_layers(self, layers):
+        for layer in layers:
+            instance_count = self._layer_instance_counts.get(layer, 0) + 1
+            assert instance_count > 0
+            self._layer_instance_counts[layer] = instance_count
+            if instance_count == 1:
+                layer.min_changed.connect(self._on_layer_min_or_max_changed)
+                layer.max_changed.connect(self._on_layer_min_or_max_changed)
+
+    def _detach_layers(self, layers):
+        for layer in layers:
+            instance_count = self._layer_instance_counts[layer] - 1
+            assert instance_count >= 0
+            if instance_count == 0:
+                layer.min_changed.disconnect(self._on_layer_min_or_max_changed)
+                layer.max_changed.disconnect(self._on_layer_min_or_max_changed)
+                del self._layer_instance_counts[layer]
+            else:
+                self._layer_instance_counts[layer] = instance_count
+
     def _on_inserted_into_layers(self, idx, layers):
-        self.ensure_layer_focused()
+        self._attach_layers(layers)
 
     def _on_removed_from_layers(self, idxs, layers):
-        self.ensure_layer_focused()
+        self._detach_layers(layers)
 
-    def _on_replaced_in_layers(self, idxs, old_layers, layers):
+    def _on_replaced_in_layers(self, idxs, replaced_layers, layers):
         # Note: the selection model may be associated with a proxy model, in which case this method's idxs argument is in terms of the proxy.  Therefore,
         # we can't use self.focused_layer_idx (if the selection model is attached to a proxy, self.focused_layer_idx is in terms of the proxied model,
         # not the proxy).
-#       self.ensure_layer_focused()
+        #       self.ensure_layer_focused()
+        self._detach_layers(replaced_layers)
+        self._attach_layers(layers)
         sm = self._selection_model
         if sm is None:
             return
@@ -268,9 +304,15 @@ class LayerStack(Qt.QObject):
             change_idx = idxs.index(focused_row)
         except ValueError:
             return
-        old_focused, focused = old_layers[change_idx], layers[change_idx]
+        old_focused, focused = replaced_layers[change_idx], layers[change_idx]
         if old_focused is not focused:
             self.layer_focus_changed.emit(self, old_focused, focused)
+
+    def _delayed_on_inserted_into_layers(self, idx, layers):
+        self.ensure_layer_focused()
+
+    def _delayed_on_removed_from_layers(self, idxs, layers):
+        self.ensure_layer_focused()
 
     def _on_current_row_changed(self, midx, old_midx):
         # TODO: verify that this happens in response to signaling list removing signal and not removed signal
@@ -286,3 +328,11 @@ class LayerStack(Qt.QObject):
         l = ls[midx.row()] if midx.isValid() else None
         if l is not ol:
             self.layer_focus_changed.emit(self, ol, l)
+
+    def _on_master_enable_auto_min_max_toggled(self, checked):
+        if checked:
+            for layer in self._layers:
+                pass
+
+    def _on_layer_min_or_max_changed(self, layer):
+        pass

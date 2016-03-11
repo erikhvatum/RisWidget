@@ -126,7 +126,6 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.layer_property_stack_load = Qt.QAction(self)
         self.layer_property_stack_load.setText('Load layer property stack from file...')
         self.layer_property_stack_load.triggered.connect(self._on_load_layer_property_stack)
-
         if sys.platform == 'darwin':
             self.exit_fullscreen_action = Qt.QAction(self)
             # If self.exit_fullscreen_action's text were "Exit Full Screen Mode" as we desire,
