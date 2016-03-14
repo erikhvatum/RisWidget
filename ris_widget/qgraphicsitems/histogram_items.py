@@ -205,7 +205,7 @@ class HistogramItem(ShaderItem):
                 prog.setUniformValue('gamma_gamma', self.gamma_gamma)
                 prog.setUniformValue('opacity', self.opacity())
                 if histogram_alternate_column_shading_enabled:
-                    prog.setUniformValue('bin_count', int(bin_count))
+                    prog.setUniformValue('bin_count', int(histogram.shape[-1]))
                 self.set_blend(estack)
                 GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
                 GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
