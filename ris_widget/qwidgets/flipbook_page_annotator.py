@@ -25,30 +25,45 @@
 from PyQt5 import Qt
 from .. import om
 
+class _BaseField(Qt.QWidget):
+    widget_value_changed = Qt.pyqtSignal(object)
+
+    def __init__(self, field_tuple, parent):
+        super().__init__(parent)
+        self.name = field_tuple[0]
+        self.type = field_tuple[1]
+        self.default = self.type(field_tuple[2])
+        self.field_tuple = field_tuple
+        self._init_widget()
+
+    def _init_widget(self):
+        pass
+
+    def update(self, value):
+        self.widget.setValue(value)
+
+    def _on_widget_change(self):
+        self.widget_value_changed.emit(self.widget.value())
+
+class _StringField(_BaseField):
+    def _init_widget(self):
+
+class _IntField(_BaseField):
+    def _init_widget(self):
+        self.min = self.field_tuple[3] if len(self.field_tuple) >= 4 else None
+        self.max = self.field_tuple[4] if len(self.field_tuple) >= 5 else None
+        self.widget = Qt.QSpinBox(self)
+        if self.min is not None:
+            self.widget.setMinimum(self.min)
+            if self.max is not None:
+                self.widget.setMaximum(self.max)
+        self.widget.valueChanged.connect(self._on_widget_change())
+
+
+
 class FlipbookPageAnnotator(Qt.QWidget):
     def __init__(self, flipbook, page_metadata_attribute_name, fields, parent=None):
         super().__init__(parent)
         self.flipbook = flipbook
         self.page_metadata_attribute_name = page_metadata_attribute_name
-        flipbook.pages_list_replaced.connect(self._on_flipbook_pages_list_replaced())
-        self._attach_pages_list(flipbook.pages)
-
-
-    def _attach_pages_list(self):
-        self._attached_pages_list = self.flipbook.pages
-
-    def _detach_pages_list(self):
-        if self._attached_pages_list is not None:
-            self._attached_pages_list.inserted.disconnect(self._on_flipbook_pages_inserted)
-            self._attached_pages_list.removed.disconnect(self._on_flipbook_pages_removed)
-            self._attached_pages_list = None
-
-    def _on_flipbook_pages_list_replaced(self):
-        self._detach_pages_list()
-        self._attach_pages_list()
-
-    def _on_flipbook_pages_inserted(self, idx, pages):
-
-
-    def _on_flipbook_pages_removed(self, idxs, pages):
-        pass
+        self.fields = fields
