@@ -23,32 +23,37 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from PyQt5 import Qt
-from .. import om
+from .property import Property
 
-class FlipbookPageAnnotator(Qt.QWidget):
-    def __init__(self, flipbook, page_metadata_attribute_name, fields, parent=None):
-        super().__init__(parent)
-        self.flipbook = flipbook
-        self.page_metadata_attribute_name = page_metadata_attribute_name
-        flipbook.pages_list_replaced.connect(self._on_flipbook_pages_list_replaced())
-        self._attach_pages_list(flipbook.pages)
+def define_struct(properties):
 
+    class Struct(Qt.QObject):
+        changed = Qt.pyqtSignal(object)
 
-    def _attach_pages_list(self):
-        self._attached_pages_list = self.flipbook.pages
-
-    def _detach_pages_list(self):
-        if self._attached_pages_list is not None:
-            self._attached_pages_list.inserted.disconnect(self._on_flipbook_pages_inserted)
-            self._attached_pages_list.removed.disconnect(self._on_flipbook_pages_removed)
-            self._attached_pages_list = None
-
-    def _on_flipbook_pages_list_replaced(self):
-        self._detach_pages_list()
-        self._attach_pages_list()
-
-    def _on_flipbook_pages_inserted(self, idx, pages):
+        def __init__(self, parent=None, **kw):
+            super().__init__(parent)
+            for property in self.properties:
+                property.instantiate(self)
+            for kw_n, kw_v in kw.items():
+                if not hasattr(self, kw_n):
+                    raise NameError('Constructor argument {0} supplied, but this struct has no property named {0}.'.format(kw_n))
 
 
-    def _on_flipbook_pages_removed(self, idxs, pages):
-        pass
+        properties = []
+
+        for property in properties:
+            exec(property.changed_signal_name + ' = Qt.pyqtSignal(object)')
+        del property
+
+        @property
+        def dict(self):
+            return {p.name : getattr(self, p.name) for p in self.properties}
+
+        @dict.setter
+        def dict(self, dict_):
+            unset = {p.name for p in self.properties}
+            for pn, pv in dict_.items():
+                setattr(self, pn, pv)
+                unset.remove(pn)
+            for pn in unset:
+                
