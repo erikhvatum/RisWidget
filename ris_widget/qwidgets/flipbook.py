@@ -120,6 +120,8 @@ class Flipbook(Qt.QWidget):
 
     __doc__ += _FLIPBOOK_PAGES_DOCSTRING
 
+    page_focus_changed = Qt.pyqtSignal(object)
+
     def __init__(self, layer_stack, parent=None):
         super().__init__(parent)
         self.layer_stack = layer_stack
@@ -392,6 +394,7 @@ class Flipbook(Qt.QWidget):
                 layers.append(focused_page[idx])
             else:
                 layers[idx].image = focused_page[idx]
+        self.page_focus_changed.emit(self)
 
     def _read_stack(self, freeimage, image_fpaths):
         return [(freeimage.read(str(image_fpath)), str(image_fpath)) for image_fpath in image_fpaths]

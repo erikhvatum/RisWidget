@@ -34,19 +34,38 @@ class _BaseField(Qt.QWidget):
         self.type = field_tuple[1]
         self.default = self.type(field_tuple[2])
         self.field_tuple = field_tuple
+        self.setLayout(Qt.QHBoxLayout())
+        self._init_label()
         self._init_widget()
+
+    def _init_label(self):
+        self.label = Qt.QLabel(self.name, self)
+        self.layout().addWidget(self.label)
+        self.layout().addStretch()
 
     def _init_widget(self):
         pass
 
-    def update(self, value):
+    def _on_widget_change(self):
+        self.widget_value_changed.emit(self)
+
+    def refresh(self, value):
         self.widget.setValue(value)
 
-    def _on_widget_change(self):
-        self.widget_value_changed.emit(self.widget.value())
+    def value(self):
+        return self.widget.value()
 
 class _StringField(_BaseField):
     def _init_widget(self):
+        self.widget = Qt.QLineEdit(self)
+        self.layout().addWidget(self.widget)
+        self.widget.textEdited.connect(self._on_widget_change)
+
+    def refresh(self, value):
+        self.widget.setText(value)
+
+    def value(self):
+        return self.widget.text()
 
 class _IntField(_BaseField):
     def _init_widget(self):
@@ -57,13 +76,107 @@ class _IntField(_BaseField):
             self.widget.setMinimum(self.min)
             if self.max is not None:
                 self.widget.setMaximum(self.max)
-        self.widget.valueChanged.connect(self._on_widget_change())
-
-
+        self.widget.valueChanged.connect(self._on_widget_change)
+        l = self.layout()
+        l.addWidget(self.widget)
+        self.setLayout(l)
 
 class FlipbookPageAnnotator(Qt.QWidget):
-    def __init__(self, flipbook, page_metadata_attribute_name, fields, parent=None):
+    """Field widgets are grayed out when no flipbook entry is focused."""
+    TYPE_FIELD_CLASSES = {
+        str: _StringField,
+        int: _IntField,
+        # float : _FloatField,
+        # tuple : _ChoiceField
+    }
+    def __init__(self, flipbook, page_metadata_attribute_name, field_descrs, parent=None):
         super().__init__(parent)
         self.flipbook = flipbook
+        flipbook.page_focus_changed.connect(self._on_page_focus_changed)
         self.page_metadata_attribute_name = page_metadata_attribute_name
-        self.fields = fields
+        layout = Qt.QVBoxLayout()
+        self.setLayout(layout)
+        self.fields = {}
+        self._ignore_gui_change = False
+        for field_descr in field_descrs:
+            assert field_descr[0] not in self.fields
+            field = self._make_field(field_descr)
+            field.refresh(field_descr[2])
+            field.widget_value_changed.connect(self._on_gui_change)
+            layout.addWidget(field)
+            self.fields[field_descr[0]] = field
+        self.refresh_gui()
+
+    @property
+    def data(self):
+        data = []
+        for page in self.flipbook.pages:
+            if hasattr(page, self.page_metadata_attribute_name):
+                page_data = getattr(page, self.page_metadata_attribute_name)
+            else:
+                page_data = {}
+                setattr(page, self.page_metadata_attribute_name, page_data)
+            for field in self.fields.values():
+                if field.name not in page_data:
+                    page_data[field.name] = field.default
+            data.append(page_data)
+        return data
+
+    @data.setter
+    def data(self, v):
+        # Replace relevant values in annotations of corresponding pages.  In the situation where an incomplete
+        # dict is supplied for a page also missing the omitted values, defaults are assigned.
+        m_n = self.page_metadata_attribute_name
+        for page_v, page in zip(v, self.flipbook.pages):
+            old_page_data = getattr(page, m_n, {})
+            updated_page_data = {}
+            for field in self.fields.values():
+                n = field.name
+                if n in page_v:
+                    updated_page_data[n] = page_v[n]
+                elif n in old_page_data:
+                    updated_page_data[n] = old_page_data[n]
+                else:
+                    updated_page_data[n] = field.default
+            setattr(page, m_n, updated_page_data)
+        self.refresh_gui()
+
+    def _make_field(self, field_descr):
+        return self.TYPE_FIELD_CLASSES[field_descr[1]](field_descr, None)
+
+    def _on_page_focus_changed(self):
+        self.refresh_gui()
+
+    def _on_gui_change(self, field):
+        if self._ignore_gui_change:
+            return
+        page = self.flipbook.focused_page
+        if page is not None:
+            data = getattr(page, self.page_metadata_attribute_name)
+            data[field.name] = field.value()
+
+    def refresh_gui(self):
+        """Ensures that the currently focused flipbook page's annotation dict contains at least default values, and
+        updates the annotator GUI with data from the annotation dict."""
+        page = self.flipbook.focused_page
+        if page is None:
+            for field in self.fields.values():
+                field.setEnabled(False)
+        else:
+            if hasattr(page, self.page_metadata_attribute_name):
+                data = getattr(page, self.page_metadata_attribute_name)
+            else:
+                data = {}
+                setattr(page, self.page_metadata_attribute_name, data)
+
+            self._ignore_gui_change = True
+            try:
+                for field in self.fields.values():
+                    if field.name in data:
+                        v = data[field.name]
+                    else:
+                        v = data[field.name] = field.default
+                    field.refresh(v)
+                    field.setEnabled(True)
+            finally:
+                self._ignore_gui_change = False
