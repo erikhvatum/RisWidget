@@ -97,7 +97,6 @@ class FlipbookPageAnnotator(Qt.QWidget):
         layout = Qt.QVBoxLayout()
         self.setLayout(layout)
         self.fields = {}
-        self._ignore_gui_change = False
         for field_descr in field_descrs:
             assert field_descr[0] not in self.fields
             field = self._make_field(field_descr)
@@ -148,8 +147,6 @@ class FlipbookPageAnnotator(Qt.QWidget):
         self.refresh_gui()
 
     def _on_gui_change(self, field):
-        if self._ignore_gui_change:
-            return
         page = self.flipbook.focused_page
         if page is not None:
             data = getattr(page, self.page_metadata_attribute_name)
@@ -169,14 +166,10 @@ class FlipbookPageAnnotator(Qt.QWidget):
                 data = {}
                 setattr(page, self.page_metadata_attribute_name, data)
 
-            self._ignore_gui_change = True
-            try:
-                for field in self.fields.values():
-                    if field.name in data:
-                        v = data[field.name]
-                    else:
-                        v = data[field.name] = field.default
-                    field.refresh(v)
-                    field.setEnabled(True)
-            finally:
-                self._ignore_gui_change = False
+            for field in self.fields.values():
+                if field.name in data:
+                    v = data[field.name]
+                else:
+                    v = data[field.name] = field.default
+                field.refresh(v)
+                field.setEnabled(True)
