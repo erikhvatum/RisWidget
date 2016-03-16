@@ -576,16 +576,16 @@ class RisWidget:
             RisWidgetQtObjectClass=RisWidgetQtObject,
             **kw):
         if Qt.QApplication.instance() is None:
-            print(
-                "Warning: RisWidget's graphical user interface is composed of Qt widgets, and A QApplication instance "
-                "must exist before any Qt widgets may be created.  Automatically creating a QApplication...",
-                file=sys.stderr)
+            # print(
+            #     "Warning: RisWidget's graphical user interface is composed of Qt widgets, and A QApplication instance "
+            #     "must exist before any Qt widgets may be created.  Automatically creating a QApplication...",
+            #     file=sys.stderr)
             global AUTO_CREATED_QAPPLICATION
             AUTO_CREATED_QAPPLICATION = Qt.QApplication(sys.argv)
-            print(
-                "QApplication created.  It is accessible as ris_widget.AUTO_CREATED_QAPPLICATION or "
-                "Qt.QApplication.instance().",
-                file=sys.stderr)
+            # print(
+            #     "QApplication created.  It is accessible as ris_widget.AUTO_CREATED_QAPPLICATION or "
+            #     "Qt.QApplication.instance().",
+            #     file=sys.stderr)
         self.qt_object = RisWidgetQtObjectClass(
             self.APP_PREFS_NAME,
             self.APP_PREFS_VERSION,
