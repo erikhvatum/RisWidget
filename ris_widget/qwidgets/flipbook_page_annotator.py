@@ -28,13 +28,14 @@ from .. import om
 class _BaseField(Qt.QObject):
     widget_value_changed = Qt.pyqtSignal(object)
 
-    def __init__(self, field_tuple, parent):
+    def __init__(self, field_tuple, parent, call_init_widget=True):
         super().__init__(parent)
         self.name = field_tuple[0]
         self.type = field_tuple[1]
-        self.default = self.type(field_tuple[2])
+        self.default = field_tuple[2]
         self.field_tuple = field_tuple
-        self._init_widget()
+        if call_init_widget:
+            self._init_widget()
 
     def _init_widget(self):
         pass
@@ -97,13 +98,35 @@ class _FloatField(_BaseField):
         else:
             return v
 
+class _ChoiceField(_BaseField):
+    def __init__(self, field_tuple, parent):
+        super().__init__(field_tuple, parent, call_init_widget=False)
+        choices = tuple(field_tuple[3])
+        assert len(set(choices)) == len(choices), "choices must be unique"
+        assert self.default in choices
+        self.choices = choices
+        self._init_widget()
+
+    def _init_widget(self):
+        self.widget = Qt.QComboBox()
+        for choice in self.choices:
+            self.widget.addItem(choice)
+        self.widget.currentIndexChanged[str].connect(self._on_widget_change)
+
+    def refresh(self, value):
+        self.widget.setCurrentText(value)
+
+    def value(self):
+        i = self.widget.currentIndex()
+        return self.default if i==-1 else self.choices[i]
+
 class FlipbookPageAnnotator(Qt.QWidget):
     """Field widgets are grayed out when no flipbook entry is focused."""
     TYPE_FIELD_CLASSES = {
         str: _StringField,
         int: _IntField,
         float : _FloatField,
-        #tuple : _ChoiceField
+        tuple : _ChoiceField
     }
     def __init__(self, flipbook, page_metadata_attribute_name, field_descrs, parent=None):
         super().__init__(parent)

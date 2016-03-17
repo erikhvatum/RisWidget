@@ -29,7 +29,7 @@ app = Qt.QApplication(argv)
 rw = RisWidget()
 rw.show()
 
-# rw.image = freeimage.read('/Users/ehvatum/Desktop/Opteron_6300_die_shot_16_core_mod.jpg')
+rw.add_image_files_to_flipbook([Path(__file__).parent / 'Opteron_6300_die_shot_16_core_mod.jpg'])
 # rw.qt_object.layer_stack.histogram_alternate_column_shading_enabled = True
 # rw.layer.histogram_min = 0
 # rw.layer.histogram_max = 1
@@ -53,7 +53,8 @@ fpa = FlipbookPageAnnotator(
     (
         ('foo', str, 'default_text'),
         ('bar', int, -11, -20, 35),
-        ('baz', float, -1.1, -1000, 1101.111)
+        ('baz', float, -1.1, -1000, 1101.111),
+        ('choice', tuple, 'za', list('aaaa basd casder eadf ZZza aasdfer lo ad bas za e12 1'.split()))
     )
 )
 fpa.show()
