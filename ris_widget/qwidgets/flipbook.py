@@ -121,6 +121,7 @@ class Flipbook(Qt.QWidget):
     __doc__ += _FLIPBOOK_PAGES_DOCSTRING
 
     page_focus_changed = Qt.pyqtSignal(object)
+    page_selection_changed = Qt.pyqtSignal(object)
 
     def __init__(self, layer_stack, parent=None):
         super().__init__(parent)
@@ -133,6 +134,7 @@ class Flipbook(Qt.QWidget):
         self.pages_view = PagesView(self.pages_model)
         self.pages_view.setModel(self.pages_model)
         self.pages_view.selectionModel().currentRowChanged.connect(self._on_page_focus_changed)
+        self.pages_view.selectionModel().selectionChanged.connect(self._on_page_selection_changed)
         l.addWidget(self.pages_view)
         self.progress_thread_pool = None
         self.progress_thread_pool_completion_callbacks = []
@@ -151,8 +153,8 @@ class Flipbook(Qt.QWidget):
         self.consolidate_selected_action.setShortcutContext(Qt.Qt.WidgetWithChildrenShortcut)
         self.consolidate_selected_action.triggered.connect(self.merge_selected)
         self.addAction(self.consolidate_selected_action)
-        self.pages_view.selectionModel().selectionChanged.connect(self._on_selection_changed)
-        self._on_selection_changed()
+        self.pages_view.selectionModel().selectionChanged.connect(self._on_page_selection_changed)
+        self._on_page_selection_changed()
         self._on_page_focus_changed()
 
     def add_image_files(self, image_fpaths, completion_callback=None):
@@ -313,10 +315,11 @@ class Flipbook(Qt.QWidget):
         target_page.extend(extension)
         self._on_page_focus_changed()
 
-    def _on_selection_changed(self, newly_selected_midxs=None, newly_deselected_midxs=None):
+    def _on_page_selection_changed(self, newly_selected_midxs=None, newly_deselected_midxs=None):
         midxs = self.pages_view.selectionModel().selectedRows()
         self.delete_selected_action.setEnabled(len(midxs) >= 1)
         self.consolidate_selected_action.setEnabled(len(midxs) >= 2)
+        self.page_selection_changed.emit(self)
 
     @property
     def pages(self):
@@ -328,6 +331,7 @@ class Flipbook(Qt.QWidget):
             pages = PageList(pages)
         self.pages_model.signaling_list = pages
         self._on_page_focus_changed()
+        self.page_selection_changed.emit(self)
 
     try:
         pages.__doc__ = _FLIPBOOK_PAGES_DOCSTRING
@@ -356,6 +360,42 @@ class Flipbook(Qt.QWidget):
         focused_page_idx = self.focused_page_idx
         if focused_page_idx is not None:
             return self.pages[focused_page_idx]
+
+    @property
+    def selected_page_idxs(self):
+        return sorted(midx.row() for midx in self.pages_view.selectionModel().selectedRows() if midx.isValid())
+
+    @selected_page_idxs.setter
+    def selected_page_idxs(self, idxs):
+        idxs = sorted(idxs)
+        if not idxs:
+            self.pages_view.selectionModel().clearSelection()
+            return
+        m = self.pages_model
+        sm = self.pages_view.selectionModel()
+        page_count = len(self.pages)
+        idxs = [idx for idx in idxs if 0 <= idx < page_count]
+        # "run" as in consecutive indexes specified as range rather than individually
+        runs = []
+        run_start_idx = None
+        run_end_idx = None
+        for idx in idxs:
+            if run_start_idx is None:
+                run_end_idx = run_start_idx = idx
+            elif idx - run_end_idx == 1:
+                run_end_idx = idx
+            else:
+                runs.append((run_start_idx, run_end_idx))
+                run_end_idx = run_start_idx = idx
+        if run_start_idx is not None:
+            runs.append((run_start_idx, run_end_idx))
+        focused_idx = self.focused_page_idx
+        item_selection = Qt.QItemSelection()
+        for run_start_idx, run_end_idx in runs:
+            item_selection.append(Qt.QItemSelectionRange(m.index(run_start_idx, 0), m.index(run_end_idx, 0)))
+        sm.select(item_selection, Qt.QItemSelectionModel.ClearAndSelect)
+        if focused_idx not in idxs:
+            sm.setCurrentIndex(m.index(idxs[0], 0), Qt.QItemSelectionModel.Current)
 
     def ensure_page_focused(self):
         """If no page is selected and .pages is not empty:
