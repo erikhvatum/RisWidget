@@ -25,7 +25,7 @@
 from PyQt5 import Qt
 from .. import om
 
-class _BaseField(Qt.QWidget):
+class _BaseField(Qt.QObject):
     widget_value_changed = Qt.pyqtSignal(object)
 
     def __init__(self, field_tuple, parent):
@@ -34,14 +34,7 @@ class _BaseField(Qt.QWidget):
         self.type = field_tuple[1]
         self.default = self.type(field_tuple[2])
         self.field_tuple = field_tuple
-        self.setLayout(Qt.QHBoxLayout())
-        self._init_label()
         self._init_widget()
-
-    def _init_label(self):
-        self.label = Qt.QLabel(self.name, self)
-        self.layout().addWidget(self.label)
-        self.layout().addStretch()
 
     def _init_widget(self):
         pass
@@ -57,8 +50,7 @@ class _BaseField(Qt.QWidget):
 
 class _StringField(_BaseField):
     def _init_widget(self):
-        self.widget = Qt.QLineEdit(self)
-        self.layout().addWidget(self.widget)
+        self.widget = Qt.QLineEdit()
         self.widget.textEdited.connect(self._on_widget_change)
 
     def refresh(self, value):
@@ -71,24 +63,20 @@ class _IntField(_BaseField):
     def _init_widget(self):
         self.min = self.field_tuple[3] if len(self.field_tuple) >= 4 else None
         self.max = self.field_tuple[4] if len(self.field_tuple) >= 5 else None
-        self.widget = Qt.QSpinBox(self)
+        self.widget = Qt.QSpinBox()
         if self.min is not None:
             self.widget.setMinimum(self.min)
             if self.max is not None:
                 self.widget.setMaximum(self.max)
         self.widget.valueChanged.connect(self._on_widget_change)
-        l = self.layout()
-        l.addWidget(self.widget)
-        self.setLayout(l)
 
 class _FloatField(_BaseField):
     def _init_widget(self):
-        self.widget = Qt.QLineEdit(self)
+        self.widget = Qt.QLineEdit()
         self.min = self.field_tuple[3] if len(self.field_tuple) >= 4 else None
         self.max = self.field_tuple[4] if len(self.field_tuple) >= 5 else None
         self.widget.textEdited.connect(self._on_widget_change)
         self.widget.editingFinished.connect(self._on_editing_finished)
-        self.layout().addWidget(self.widget)
 
     def _on_editing_finished(self):
         v = self.value()
@@ -119,10 +107,11 @@ class FlipbookPageAnnotator(Qt.QWidget):
     }
     def __init__(self, flipbook, page_metadata_attribute_name, field_descrs, parent=None):
         super().__init__(parent)
+        self.setAttribute(Qt.Qt.WA_DeleteOnClose)
         self.flipbook = flipbook
         flipbook.page_focus_changed.connect(self._on_page_focus_changed)
         self.page_metadata_attribute_name = page_metadata_attribute_name
-        layout = Qt.QVBoxLayout()
+        layout = Qt.QFormLayout()
         self.setLayout(layout)
         self.fields = {}
         for field_descr in field_descrs:
@@ -130,9 +119,8 @@ class FlipbookPageAnnotator(Qt.QWidget):
             field = self._make_field(field_descr)
             field.refresh(field_descr[2])
             field.widget_value_changed.connect(self._on_gui_change)
-            layout.addWidget(field)
+            layout.addRow(field.name, field.widget)
             self.fields[field_descr[0]] = field
-        layout.addStretch()
         self.refresh_gui()
 
     @property
@@ -170,7 +158,7 @@ class FlipbookPageAnnotator(Qt.QWidget):
         self.refresh_gui()
 
     def _make_field(self, field_descr):
-        return self.TYPE_FIELD_CLASSES[field_descr[1]](field_descr, None)
+        return self.TYPE_FIELD_CLASSES[field_descr[1]](field_descr, self)
 
     def _on_page_focus_changed(self):
         self.refresh_gui()
@@ -185,9 +173,11 @@ class FlipbookPageAnnotator(Qt.QWidget):
         """Ensures that the currently focused flipbook page's annotation dict contains at least default values, and
         updates the annotator GUI with data from the annotation dict."""
         page = self.flipbook.focused_page
+        layout = self.layout()
         if page is None:
             for field in self.fields.values():
-                field.setEnabled(False)
+                field.widget.setEnabled(False)
+                layout.labelForField(field.widget).setEnabled(False)
         else:
             if hasattr(page, self.page_metadata_attribute_name):
                 data = getattr(page, self.page_metadata_attribute_name)
@@ -201,4 +191,5 @@ class FlipbookPageAnnotator(Qt.QWidget):
                 else:
                     v = data[field.name] = field.default
                 field.refresh(v)
-                field.setEnabled(True)
+                field.widget.setEnabled(True)
+                layout.labelForField(field.widget).setEnabled(True)
