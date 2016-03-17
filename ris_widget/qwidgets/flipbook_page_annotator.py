@@ -23,19 +23,18 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from PyQt5 import Qt
-from .. import om
+from .flipbook import ImageList
 
 class _BaseField(Qt.QObject):
     widget_value_changed = Qt.pyqtSignal(object)
 
-    def __init__(self, field_tuple, parent, call_init_widget=True):
+    def __init__(self, field_tuple, parent):
         super().__init__(parent)
         self.name = field_tuple[0]
         self.type = field_tuple[1]
         self.default = field_tuple[2]
         self.field_tuple = field_tuple
-        if call_init_widget:
-            self._init_widget()
+        self._init_widget()
 
     def _init_widget(self):
         pass
@@ -98,19 +97,43 @@ class _FloatField(_BaseField):
         else:
             return v
 
+class _ChoicesModel(Qt.QAbstractListModel):
+    def __init__(self, choices, font, parent=None):
+        super().__init__(parent)
+        self.choices = choices
+        self.font = font
+
+    def rowCount(self, _=None):
+        return len(self.choices)
+
+    def flags(self, midx):
+        f = Qt.Qt.ItemNeverHasChildren
+        if midx.isValid():
+            row = midx.row()
+            f |= Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable
+        return f
+
+    def data(self, midx, role=Qt.Qt.DisplayRole):
+        if midx.isValid():
+            if role == Qt.Qt.DisplayRole:
+                return Qt.QVariant(self.choices[midx.row()])
+            # if role == Qt.Qt.FontRole:
+            #     print('role == Qt.Qt.FontRole')
+            #     return Qt.QVariant(self.font)
+        return Qt.QVariant()
+
 class _ChoiceField(_BaseField):
     def __init__(self, field_tuple, parent):
-        super().__init__(field_tuple, parent, call_init_widget=False)
         choices = tuple(field_tuple[3])
         assert len(set(choices)) == len(choices), "choices must be unique"
-        assert self.default in choices
+        assert field_tuple[2] in choices, "value supplied for default must be a choice"
         self.choices = choices
-        self._init_widget()
+        super().__init__(field_tuple, parent)
 
     def _init_widget(self):
         self.widget = Qt.QComboBox()
-        for choice in self.choices:
-            self.widget.addItem(choice)
+        self.choices_model = _ChoicesModel(self.choices, self.widget.font(), self.widget)
+        self.widget.setModel(self.choices_model)
         self.widget.currentIndexChanged[str].connect(self._on_widget_change)
 
     def refresh(self, value):
@@ -132,11 +155,12 @@ class FlipbookPageAnnotator(Qt.QWidget):
         super().__init__(parent)
         self.setAttribute(Qt.Qt.WA_DeleteOnClose)
         self.flipbook = flipbook
-        flipbook.page_focus_changed.connect(self._on_page_focus_changed)
+        flipbook.page_selection_changed.connect(self._on_page_selection_changed)
         self.page_metadata_attribute_name = page_metadata_attribute_name
         layout = Qt.QFormLayout()
         self.setLayout(layout)
         self.fields = {}
+        self._ignore_gui_change = False
         for field_descr in field_descrs:
             assert field_descr[0] not in self.fields
             field = self._make_field(field_descr)
@@ -183,36 +207,93 @@ class FlipbookPageAnnotator(Qt.QWidget):
     def _make_field(self, field_descr):
         return self.TYPE_FIELD_CLASSES[field_descr[1]](field_descr, self)
 
-    def _on_page_focus_changed(self):
+    def _on_page_selection_changed(self):
         self.refresh_gui()
 
     def _on_gui_change(self, field):
-        page = self.flipbook.focused_page
-        if page is not None:
-            data = getattr(page, self.page_metadata_attribute_name)
-            data[field.name] = field.value()
+        if not self._ignore_gui_change:
+            pages = self.flipbook.selected_pages
+            m_n = self.page_metadata_attribute_name
+            v = field.value()
+            for page in pages:
+                try:
+                    data = getattr(page, m_n)
+                except AttributeError:
+                    continue
+                data[field.name] = v
+            self.refresh_gui(set_values=False)
 
-    def refresh_gui(self):
-        """Ensures that the currently focused flipbook page's annotation dict contains at least default values, and
-        updates the annotator GUI with data from the annotation dict."""
-        page = self.flipbook.focused_page
+    def refresh_gui(self, set_values=True):
+        """Ensures that the currently selected flipbook pages' annotation dicts contain at least default values, and
+        updates the annotator GUI with data from the annotation dicts."""
+        pages = self.flipbook.selected_pages
         layout = self.layout()
-        if page is None:
-            for field in self.fields.values():
-                field.widget.setEnabled(False)
-                layout.labelForField(field.widget).setEnabled(False)
-        else:
-            if hasattr(page, self.page_metadata_attribute_name):
-                data = getattr(page, self.page_metadata_attribute_name)
-            else:
-                data = {}
-                setattr(page, self.page_metadata_attribute_name, data)
-
-            for field in self.fields.values():
-                if field.name in data:
-                    v = data[field.name]
+        self._ignore_gui_change = True
+        try:
+            if len(pages) == 0:
+                for field in self.fields.values():
+                    field.widget.setEnabled(False)
+                    layout.labelForField(field.widget).setEnabled(False)
+                    f = field.widget.font()
+                    if f.strikeOut():
+                        f.setStrikeOut(False)
+                        field.widget.setFont(f)
+            elif len(pages) == 1:
+                page = pages[0]
+                if hasattr(page, self.page_metadata_attribute_name):
+                    data = getattr(page, self.page_metadata_attribute_name)
                 else:
-                    v = data[field.name] = field.default
-                field.refresh(v)
-                field.widget.setEnabled(True)
-                layout.labelForField(field.widget).setEnabled(True)
+                    data = {}
+                    setattr(page, self.page_metadata_attribute_name, data)
+                for field in self.fields.values():
+                    if field.name in data:
+                        v = data[field.name]
+                    else:
+                        v = data[field.name] = field.default
+                    if set_values:
+                        field.refresh(v)
+                    field.widget.setEnabled(True)
+                    layout.labelForField(field.widget).setEnabled(True)
+                    f = field.widget.font()
+                    if f.strikeOut():
+                        f.setStrikeOut(False)
+                        field.widget.setFont(f)
+            else:
+                initial = True
+                for page in pages:
+                    if not isinstance(page, ImageList):
+                        continue
+                    if hasattr(page, self.page_metadata_attribute_name):
+                        data = getattr(page, self.page_metadata_attribute_name)
+                    else:
+                        data = {}
+                        setattr(page, self.page_metadata_attribute_name, data)
+                    for field in self.fields.values():
+                        if field.name not in data:
+                            data[field.name] = field.default
+                    if initial:
+                        initial = False
+                        fvs = {}
+                        for field in self.fields.values():
+                            v = fvs[field.name] = data[field.name]
+                            if set_values:
+                                field.refresh(v)
+                            field.widget.setEnabled(True)
+                    else:
+                        for field_name, field_value in list(fvs.items()):
+                            if data[field_name] != field_value:
+                                del fvs[field_name]
+                for field in self.fields.values():
+                    s = field.name not in fvs
+                    f = field.widget.font()
+                    if f.strikeOut() != s:
+                        f.setStrikeOut(s)
+                        field.widget.setFont(f)
+            # for field in self.fields.values():
+            #     if isinstance(field, _ChoiceField):
+            #         c = field.value()
+            #         field.choices_model.beginResetModel()
+            #         field.choices_model.endResetModel()
+            #         field.refresh(c)
+        finally:
+            self._ignore_gui_change = False

@@ -397,6 +397,11 @@ class Flipbook(Qt.QWidget):
         if focused_idx not in idxs:
             sm.setCurrentIndex(m.index(idxs[0], 0), Qt.QItemSelectionModel.Current)
 
+    @property
+    def selected_pages(self):
+        pages = self.pages
+        return [pages[idx] for idx in self.selected_page_idxs]
+
     def ensure_page_focused(self):
         """If no page is selected and .pages is not empty:
            If there is a "current" page, IE highlighted but not selected, select it.
