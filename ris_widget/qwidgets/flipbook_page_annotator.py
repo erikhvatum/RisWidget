@@ -144,7 +144,7 @@ class _ChoiceField(_BaseField):
         return self.default if i==-1 else self.choices[i]
 
 class FlipbookPageAnnotator(Qt.QWidget):
-    """Field widgets are grayed out when no flipbook entry is focused."""
+    """Field widgets are grayed out when no flipbook entry is selected."""
     TYPE_FIELD_CLASSES = {
         str: _StringField,
         int: _IntField,
