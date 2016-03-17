@@ -81,13 +81,41 @@ class _IntField(_BaseField):
         l.addWidget(self.widget)
         self.setLayout(l)
 
+class _FloatField(_BaseField):
+    def _init_widget(self):
+        self.widget = Qt.QLineEdit(self)
+        self.min = self.field_tuple[3] if len(self.field_tuple) >= 4 else None
+        self.max = self.field_tuple[4] if len(self.field_tuple) >= 5 else None
+        self.widget.textEdited.connect(self._on_widget_change)
+        self.widget.editingFinished.connect(self._on_editing_finished)
+        self.layout().addWidget(self.widget)
+
+    def _on_editing_finished(self):
+        v = self.value()
+        self.refresh(v)
+
+    def refresh(self, value):
+        self.widget.setText(str(value))
+
+    def value(self):
+        try:
+            v = float(self.widget.text())
+        except ValueError:
+            return self.default
+        if self.min is not None and v < self.min:
+            return self.min
+        elif self.max is not None and v > self.max:
+            return self.max
+        else:
+            return v
+
 class FlipbookPageAnnotator(Qt.QWidget):
     """Field widgets are grayed out when no flipbook entry is focused."""
     TYPE_FIELD_CLASSES = {
         str: _StringField,
         int: _IntField,
-        # float : _FloatField,
-        # tuple : _ChoiceField
+        float : _FloatField,
+        #tuple : _ChoiceField
     }
     def __init__(self, flipbook, page_metadata_attribute_name, field_descrs, parent=None):
         super().__init__(parent)
@@ -104,6 +132,7 @@ class FlipbookPageAnnotator(Qt.QWidget):
             field.widget_value_changed.connect(self._on_gui_change)
             layout.addWidget(field)
             self.fields[field_descr[0]] = field
+        layout.addStretch()
         self.refresh_gui()
 
     @property

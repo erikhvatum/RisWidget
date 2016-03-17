@@ -53,7 +53,7 @@ fpa = FlipbookPageAnnotator(
     (
         ('foo', str, 'default_text'),
         ('bar', int, -11, -20, 35),
-        ('baz', int, 1)
+        ('baz', float, -1.1, -1000, 1101.111)
     )
 )
 fpa.show()
