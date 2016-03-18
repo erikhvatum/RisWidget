@@ -280,11 +280,5 @@ class FlipbookPageAnnotator(Qt.QWidget):
                     if f.strikeOut() != s:
                         f.setStrikeOut(s)
                         field.widget.setFont(f)
-            # for field in self.fields.values():
-            #     if isinstance(field, _ChoiceField):
-            #         c = field.value()
-            #         field.choices_model.beginResetModel()
-            #         field.choices_model.endResetModel()
-            #         field.refresh(c)
         finally:
             self._ignore_gui_change = False
