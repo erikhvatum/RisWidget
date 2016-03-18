@@ -54,7 +54,7 @@ class _NoClickToPartialTristateCheckbox(Qt.QCheckBox):
         self.setTristate(True)
 
     def nextCheckState(self):
-        # Do not enter partially clicked state in response to manipulating the checkbox widget.  Calling
+        # Do not enter partially clicked state in response to checkbox widget manipulation.  Calling
         # setCheckState(Qt.Qt.PartiallyChecked) is not affected (that is, continues to work as normal).
         self.setCheckState(Qt.Qt.Unchecked if self.isChecked() else Qt.Qt.Checked)
 
