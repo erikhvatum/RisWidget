@@ -321,6 +321,28 @@ class Flipbook(Qt.QWidget):
         self.consolidate_selected_action.setEnabled(len(midxs) >= 2)
         self.page_selection_changed.emit(self)
 
+    def focus_prev_page(self):
+        """Advance to the previous page, if there is one."""
+        idx = self.focused_page_idx
+        if idx is None:
+            selected_idxs = self.selected_page_idxs
+            if not selected_idxs:
+                self.ensure_page_focused()
+                return
+            idx = selected_idxs[0]
+        self.focused_page_idx = max(idx - 1, 0)
+
+    def focus_next_page(self):
+        """Advance to the next page, if there is one."""
+        idx = self.focused_page_idx
+        if idx is None:
+            selected_idxs = self.selected_page_idxs
+            if not selected_idxs:
+                self.ensure_page_focused()
+                return
+            idx = selected_idxs[0]
+        self.focused_page_idx = min(idx + 1, len(self.pages) - 1)
+
     @property
     def pages(self):
         return self.pages_model.signaling_list

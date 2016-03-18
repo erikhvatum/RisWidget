@@ -176,16 +176,6 @@ class FlipbookPageAnnotator(Qt.QWidget):
             layout.addRow(field.name, field.widget)
             self.fields[field_descr[0]] = field
         self.refresh_gui()
-        self.up_action = Qt.QAction("Previous page", self)
-        self.up_action.setShortcutContext(Qt.Qt.WidgetWithChildrenShortcut)
-        self.up_action.setShortcut(Qt.Qt.Key_Up)
-        self.up_action.triggered.connect(self._on_up_action)
-        self.addAction(self.up_action)
-        self.down_action = Qt.QAction("Next page", self)
-        self.down_action.setShortcutContext(Qt.Qt.WidgetWithChildrenShortcut)
-        self.down_action.setShortcut(Qt.Qt.Key_Down)
-        self.down_action.triggered.connect(self._on_down_action)
-        self.addAction(self.down_action)
 
     @property
     def data(self):
@@ -240,26 +230,6 @@ class FlipbookPageAnnotator(Qt.QWidget):
                 except AttributeError:
                     continue
                 data[field.name] = v
-
-    def _on_up_action(self):
-        idx = self.flipbook.focused_page_idx
-        if idx is None:
-            selected_idxs = self.flipbook.selected_page_idxs
-            if not selected_idxs:
-                self.flipbook.ensure_page_focused()
-                return
-            idx = selected_idxs[0]
-        self.flipbook.focused_page_idx = max(idx-1, 0)
-
-    def _on_down_action(self):
-        idx = self.flipbook.focused_page_idx
-        if idx is None:
-            selected_idxs = self.flipbook.selected_page_idxs
-            if not selected_idxs:
-                self.flipbook.ensure_page_focused()
-                return
-            idx = selected_idxs[0]
-        self.flipbook.focused_page_idx = min(idx + 1, len(self.flipbook.pages) - 1)
 
     def refresh_gui(self):
         """Ensures that the currently selected flipbook pages' annotation dicts contain at least default values, and

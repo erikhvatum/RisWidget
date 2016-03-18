@@ -104,6 +104,16 @@ class RisWidgetQtObject(Qt.QMainWindow):
     #     self.histogram_view.gl_widget.setAttribute(Qt.Qt.WA_AlwaysStackOnTop)
 
     def _init_actions(self):
+        self.flipbook_focus_prev_page = Qt.QAction(self)
+        self.flipbook_focus_prev_page.setText('Previous Page')
+        self.flipbook_focus_prev_page.setShortcut(Qt.Qt.Key_PageUp)
+        self.flipbook_focus_prev_page.triggered.connect(self.flipbook.focus_prev_page)
+        self.flipbook_focus_prev_page.setShortcutContext(Qt.Qt.ApplicationShortcut)
+        self.flipbook_focus_next_page = Qt.QAction(self)
+        self.flipbook_focus_next_page.setText('Next Page')
+        self.flipbook_focus_next_page.setShortcut(Qt.Qt.Key_PageDown)
+        self.flipbook_focus_next_page.triggered.connect(self.flipbook.focus_next_page)
+        self.flipbook_focus_next_page.setShortcutContext(Qt.Qt.ApplicationShortcut)
         self.layer_stack_reset_curr_min_max = Qt.QAction(self)
         self.layer_stack_reset_curr_min_max.setText('Reset Min/Max')
         self.layer_stack_reset_curr_min_max.setShortcut(Qt.Qt.Key_M)
@@ -139,7 +149,7 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.main_view.zoom_to_fit_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
         self.main_view.zoom_one_to_one_action.setShortcut(Qt.Qt.Key_1)
         self.main_view.zoom_one_to_one_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
-        self.layer_stack.examine_layer_mode_action.setShortcut(Qt.Qt.Key_Space)
+        self.layer_stack.examine_layer_mode_action.setShortcut(Qt.Qt.Key_E)
         self.layer_stack.examine_layer_mode_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
         self.layer_stack.master_enable_auto_min_max_action.setShortcut(Qt.Qt.Key_F)
         self.layer_stack.master_enable_auto_min_max_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
@@ -149,8 +159,6 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.main_view_snapshot_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
         self.main_view_snapshot_action.setToolTip('Take snapshot and show save image dialog.')
         self.main_view_snapshot_action.triggered.connect(self._on_main_view_snapshot_action)
-        self.main_view_snapshot_action.setShortcut(Qt.Qt.Key_S)
-        self.main_view_snapshot_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
 
     @staticmethod
     def _format_zoom(zoom):
@@ -247,6 +255,9 @@ class RisWidgetQtObject(Qt.QMainWindow):
             m.addSeparator()
         m.addAction(self.main_view.zoom_to_fit_action)
         m.addAction(self.main_view.zoom_one_to_one_action)
+        m.addSeparator()
+        m.addAction(self.flipbook_focus_prev_page)
+        m.addAction(self.flipbook_focus_next_page)
         m.addSeparator()
         m.addAction(self.layer_stack_reset_curr_min_max)
         m.addAction(self.layer_stack_reset_curr_gamma)
