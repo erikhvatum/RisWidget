@@ -61,14 +61,30 @@ class _StringField(_BaseField):
 
 class _IntField(_BaseField):
     def _init_widget(self):
+        self.widget = Qt.QLineEdit()
         self.min = self.field_tuple[3] if len(self.field_tuple) >= 4 else None
         self.max = self.field_tuple[4] if len(self.field_tuple) >= 5 else None
-        self.widget = Qt.QSpinBox()
-        if self.min is not None:
-            self.widget.setMinimum(self.min)
-            if self.max is not None:
-                self.widget.setMaximum(self.max)
-        self.widget.valueChanged.connect(self._on_widget_change)
+        self.widget.textEdited.connect(self._on_widget_change)
+        self.widget.editingFinished.connect(self._on_editing_finished)
+
+    def _on_editing_finished(self):
+        v = self.value()
+        self.refresh(v)
+
+    def refresh(self, value):
+        self.widget.setText(str(value))
+
+    def value(self):
+        try:
+            v = int(self.widget.text())
+        except ValueError:
+            return self.default
+        if self.min is not None and v < self.min:
+            return self.min
+        elif self.max is not None and v > self.max:
+            return self.max
+        else:
+            return v
 
 class _FloatField(_BaseField):
     def _init_widget(self):
@@ -97,31 +113,6 @@ class _FloatField(_BaseField):
         else:
             return v
 
-class _ChoicesModel(Qt.QAbstractListModel):
-    def __init__(self, choices, font, parent=None):
-        super().__init__(parent)
-        self.choices = choices
-        self.font = font
-
-    def rowCount(self, _=None):
-        return len(self.choices)
-
-    def flags(self, midx):
-        f = Qt.Qt.ItemNeverHasChildren
-        if midx.isValid():
-            row = midx.row()
-            f |= Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable
-        return f
-
-    def data(self, midx, role=Qt.Qt.DisplayRole):
-        if midx.isValid():
-            if role == Qt.Qt.DisplayRole:
-                return Qt.QVariant(self.choices[midx.row()])
-            # if role == Qt.Qt.FontRole:
-            #     print('role == Qt.Qt.FontRole')
-            #     return Qt.QVariant(self.font)
-        return Qt.QVariant()
-
 class _ChoiceField(_BaseField):
     def __init__(self, field_tuple, parent):
         choices = tuple(field_tuple[3])
@@ -132,8 +123,8 @@ class _ChoiceField(_BaseField):
 
     def _init_widget(self):
         self.widget = Qt.QComboBox()
-        self.choices_model = _ChoicesModel(self.choices, self.widget.font(), self.widget)
-        self.widget.setModel(self.choices_model)
+        for choice in self.choices:
+            self.widget.addItem(choice)
         self.widget.currentIndexChanged[str].connect(self._on_widget_change)
 
     def refresh(self, value):
