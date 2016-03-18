@@ -48,6 +48,34 @@ class _BaseField(Qt.QObject):
     def value(self):
         return self.widget.value()
 
+class _NoClickToPartialTristateCheckbox(Qt.QCheckBox):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setTristate(True)
+
+    def nextCheckState(self):
+        # Do not enter partially clicked state in response to manipulating the checkbox widget.  Calling
+        # setCheckState(Qt.Qt.PartiallyChecked) is not affected (that is, continues to work as normal).
+        self.setCheckState(Qt.Qt.Unchecked if self.isChecked() else Qt.Qt.Checked)
+
+class _BoolField(_BaseField):
+    CHECK_STATE_VALUES = {
+        Qt.Qt.Checked : True,
+        Qt.Qt.Unchecked : False,
+        Qt.Qt.PartiallyChecked : None
+    }
+    VALUE_CHECK_STATES = {v : k for k, v in CHECK_STATE_VALUES.items()}
+
+    def _init_widget(self):
+        self.widget = _NoClickToPartialTristateCheckbox()
+        self.widget.stateChanged.connect(self._on_widget_change)
+
+    def refresh(self, value):
+        self.widget.setCheckState(self.VALUE_CHECK_STATES[value])
+
+    def value(self):
+        return self.CHECK_STATE_VALUES[self.widget.checkState()]
+
 class _StringField(_BaseField):
     def _init_widget(self):
         self.widget = Qt.QLineEdit()
@@ -59,7 +87,7 @@ class _StringField(_BaseField):
     def value(self):
         return self.widget.text()
 
-class _IntField(_BaseField):
+class _NumField(_BaseField):
     def _init_widget(self):
         self.widget = Qt.QLineEdit()
         self.min = self.field_tuple[3] if len(self.field_tuple) >= 4 else None
@@ -72,11 +100,14 @@ class _IntField(_BaseField):
         self.refresh(v)
 
     def refresh(self, value):
-        self.widget.setText(str(value))
+        self.widget.setText('' if value is None else str(value))
 
     def value(self):
+        t = self.widget.text()
+        if len(t) == 0:
+            return None
         try:
-            v = int(self.widget.text())
+            v = self.NUM_TYPE(t)
         except ValueError:
             return self.default
         if self.min is not None and v < self.min:
@@ -86,32 +117,11 @@ class _IntField(_BaseField):
         else:
             return v
 
-class _FloatField(_BaseField):
-    def _init_widget(self):
-        self.widget = Qt.QLineEdit()
-        self.min = self.field_tuple[3] if len(self.field_tuple) >= 4 else None
-        self.max = self.field_tuple[4] if len(self.field_tuple) >= 5 else None
-        self.widget.textEdited.connect(self._on_widget_change)
-        self.widget.editingFinished.connect(self._on_editing_finished)
+class _IntField(_NumField):
+    NUM_TYPE = int
 
-    def _on_editing_finished(self):
-        v = self.value()
-        self.refresh(v)
-
-    def refresh(self, value):
-        self.widget.setText(str(value))
-
-    def value(self):
-        try:
-            v = float(self.widget.text())
-        except ValueError:
-            return self.default
-        if self.min is not None and v < self.min:
-            return self.min
-        elif self.max is not None and v > self.max:
-            return self.max
-        else:
-            return v
+class _FloatField(_NumField):
+    NUM_TYPE = float
 
 class _ChoiceField(_BaseField):
     def __init__(self, field_tuple, parent):
@@ -128,15 +138,19 @@ class _ChoiceField(_BaseField):
         self.widget.currentIndexChanged[str].connect(self._on_widget_change)
 
     def refresh(self, value):
-        self.widget.setCurrentText(value)
+        if value is None:
+            self.widget.setCurrentIndex(-1)
+        else:
+            self.widget.setCurrentText(value)
 
     def value(self):
         i = self.widget.currentIndex()
-        return self.default if i==-1 else self.choices[i]
+        return None if i==-1 else self.choices[i]
 
 class FlipbookPageAnnotator(Qt.QWidget):
     """Field widgets are grayed out when no flipbook entry is selected."""
     TYPE_FIELD_CLASSES = {
+        bool: _BoolField,
         str: _StringField,
         int: _IntField,
         float : _FloatField,
@@ -206,15 +220,16 @@ class FlipbookPageAnnotator(Qt.QWidget):
             pages = self.flipbook.selected_pages
             m_n = self.page_metadata_attribute_name
             v = field.value()
+            if v is None:
+                return
             for page in pages:
                 try:
                     data = getattr(page, m_n)
                 except AttributeError:
                     continue
                 data[field.name] = v
-            self.refresh_gui(set_values=False)
 
-    def refresh_gui(self, set_values=True):
+    def refresh_gui(self):
         """Ensures that the currently selected flipbook pages' annotation dicts contain at least default values, and
         updates the annotator GUI with data from the annotation dicts."""
         pages = self.flipbook.selected_pages
@@ -225,10 +240,6 @@ class FlipbookPageAnnotator(Qt.QWidget):
                 for field in self.fields.values():
                     field.widget.setEnabled(False)
                     layout.labelForField(field.widget).setEnabled(False)
-                    f = field.widget.font()
-                    if f.strikeOut():
-                        f.setStrikeOut(False)
-                        field.widget.setFont(f)
             elif len(pages) == 1:
                 page = pages[0]
                 if hasattr(page, self.page_metadata_attribute_name):
@@ -241,14 +252,9 @@ class FlipbookPageAnnotator(Qt.QWidget):
                         v = data[field.name]
                     else:
                         v = data[field.name] = field.default
-                    if set_values:
-                        field.refresh(v)
+                    field.refresh(v)
                     field.widget.setEnabled(True)
                     layout.labelForField(field.widget).setEnabled(True)
-                    f = field.widget.font()
-                    if f.strikeOut():
-                        f.setStrikeOut(False)
-                        field.widget.setFont(f)
             else:
                 initial = True
                 for page in pages:
@@ -267,18 +273,12 @@ class FlipbookPageAnnotator(Qt.QWidget):
                         fvs = {}
                         for field in self.fields.values():
                             v = fvs[field.name] = data[field.name]
-                            if set_values:
-                                field.refresh(v)
                             field.widget.setEnabled(True)
                     else:
                         for field_name, field_value in list(fvs.items()):
                             if data[field_name] != field_value:
                                 del fvs[field_name]
                 for field in self.fields.values():
-                    s = field.name not in fvs
-                    f = field.widget.font()
-                    if f.strikeOut() != s:
-                        f.setStrikeOut(s)
-                        field.widget.setFont(f)
+                    field.refresh(fvs.get(field.name))
         finally:
             self._ignore_gui_change = False

@@ -54,7 +54,8 @@ fpa = FlipbookPageAnnotator(
         ('foo', str, 'default_text'),
         ('bar', int, -11, -20, 35),
         ('baz', float, -1.1, -1000, 1101.111),
-        ('choice', tuple, 'za', list('aaaa basd casder eadf ZZza aasdfer lo ad bas za e12 1'.split()))
+        ('choice', tuple, 'za', list('aaaa basd casder eadf ZZza aasdfer lo ad bas za e12 1'.split())),
+        ('toggle', bool, False)
     )
 )
 fpa.show()
