@@ -67,7 +67,7 @@ class Point(Qt.QObject):
 class PointList(om.UniformSignalingList):
     def take_input_element(self, obj):
         if isinstance(obj, Point):
-            if obj in self:
+            if hasattr(self, '_list') and obj in self:
                 return Point(obj.x, obj.y)
             return obj
         elif isinstance(obj, (Qt.QPointF, Qt.QPoint)):
@@ -157,12 +157,13 @@ class PointListPicker(Qt.QGraphicsObject):
     point_focused = Qt.pyqtSignal(object)
 
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
+    POINT_LIST_TYPE = PointList
 
-    def __init__(self, general_view, parent_item, points=None, PointListType=PointList):
+    def __init__(self, general_view, parent_item, points=None):
         super().__init__(parent_item)
         self.view = general_view
         self.view.scene_region_changed.connect(self._on_scene_region_changed)
-        self.PointListType = PointListType
+        self.PointListType = self.POINT_LIST_TYPE
         self.pen = Qt.QPen(Qt.Qt.red)
         self.pen.setWidth(2)
         color = Qt.QColor(Qt.Qt.yellow)

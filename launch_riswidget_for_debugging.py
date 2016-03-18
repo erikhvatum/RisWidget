@@ -47,7 +47,8 @@ rw.add_image_files_to_flipbook([Path(__file__).parent / 'Opteron_6300_die_shot_1
 #rw.histogram_view.gl_widget.start_logging()
 
 from ris_widget.qwidgets.flipbook_page_annotator import FlipbookPageAnnotator
-fpa = FlipbookPageAnnotator(
+from ris_widget.examples.flipbook_page_poly_line_annotator import FlipbookPagePolyLineAnnotator, PolyLinePointPicker
+fpa = FlipbookPagePolyLineAnnotator(
     rw.flipbook,
     'annotation',
     (
@@ -55,7 +56,8 @@ fpa = FlipbookPageAnnotator(
         ('bar', int, -11, -20, 35),
         ('baz', float, -1.1, -1000, 1101.111),
         ('choice', tuple, 'za', list('aaaa basd casder eadf ZZza aasdfer lo ad bas za e12 1'.split())),
-        ('toggle', bool, False)
+        ('toggle', bool, False),
+        ('line_points', PolyLinePointPicker.POINT_LIST_TYPE, [(10,100),(100,10)], rw.main_scene.layer_stack_item, rw.main_view)
     )
 )
 fpa.show()

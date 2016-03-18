@@ -29,8 +29,8 @@ from ..shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
 class PolyLinePointPicker(PointListPicker):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
 
-    def __init__(self, general_view, parent_item, points=None, PointListType=PointList):
-        super().__init__(general_view, parent_item, points, PointListType)
+    def __init__(self, general_view, parent_item, points=None):
+        super().__init__(general_view, parent_item, points)
         self.line_pen = Qt.QPen(Qt.Qt.green)
         self.line_pen.setWidth(5)
         self.line_pen.setCosmetic(True)
