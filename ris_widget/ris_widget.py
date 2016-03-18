@@ -563,6 +563,7 @@ class RisWidget:
         'hide',
         'close'
     ]
+    QT_OBJECT_CLASS = RisWidgetQtObject
 
     def __init__(
             self,
@@ -573,7 +574,6 @@ class RisWidget:
             show=True,
             layers = tuple(),
             layer_selection_model=None,
-            RisWidgetQtObjectClass=RisWidgetQtObject,
             **kw):
         if Qt.QApplication.instance() is None:
             # print(
@@ -586,7 +586,7 @@ class RisWidget:
             #     "QApplication created.  It is accessible as ris_widget.AUTO_CREATED_QAPPLICATION or "
             #     "Qt.QApplication.instance().",
             #     file=sys.stderr)
-        self.qt_object = RisWidgetQtObjectClass(
+        self.qt_object = self.QT_OBJECT_CLASS(
             self.APP_PREFS_NAME,
             self.APP_PREFS_VERSION,
             window_title,
