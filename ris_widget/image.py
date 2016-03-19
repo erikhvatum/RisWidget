@@ -66,7 +66,7 @@ class Image(Qt.QObject):
             is_twelve_bit=False,
             imposed_float_range=None,
             data_shape_is_width_height=True,
-                mask_shape_is_width_height=True,
+            mask_shape_is_width_height=True,
             name=None):
         """RisWidget defaults to the convention that the first element of the shape vector of a Numpy
         array represents width.  If you are supplying image data that does not follow this convention,
@@ -249,7 +249,7 @@ class Image(Qt.QObject):
                 mask = numpy.asarray(data)
                 if mask.ndim != 2:
                     raise ValueError('mask argument must be None or a 2D iterable.')
-                if mask.dtype not in (bool, numpy.uint8):
+                if mask.dtype != bool:
                     mask = mask.astype(bool)
                 if not mask_shape_is_width_height:
                     mask = mask.transpose(1, 0)

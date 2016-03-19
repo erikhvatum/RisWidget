@@ -45,7 +45,6 @@ class _PointListField(_BaseField):
         self.picker.point_list_contents_changed.connect(self._on_widget_change)
 
     def _on_widget_change(self):
-        print('_PointListField._on_widget_change')
         super()._on_widget_change()
 
     def value(self):
@@ -55,6 +54,24 @@ class _PointListField(_BaseField):
         self.picker.points = value
 
 class FlipbookPagePolyLineAnnotator(FlipbookPageAnnotator):
+    """Ex:
+
+    from ris_widget.ris_widget import RisWidget
+    from ris_widget.examples.flipbook_page_poly_line_annotator import FlipbookPagePolyLineAnnotator
+    fpa = FlipbookPagePolyLineAnnotator(
+        rw.flipbook,
+        'annotation',
+        (
+            ('foo', str, 'default_text'),
+            ('bar', int, -11, -20, 35),
+            ('baz', float, -1.1, -1000, 1101.111),
+            ('choice', tuple, 'za', list('aaaa basd casder eadf ZZza aasdfer lo ad bas za e12 1'.split())),
+            ('toggle', bool, False),
+            ('line_points', PolyLinePointPicker.POINT_LIST_TYPE, [(10,100),(100,10)], rw.main_scene.layer_stack_item, rw.main_view)
+        )
+    )
+    fpa.show()"""
+
     TYPE_FIELD_CLASSES = FlipbookPageAnnotator.TYPE_FIELD_CLASSES.copy()
     TYPE_FIELD_CLASSES[PolyLinePointPicker.POINT_LIST_TYPE] = _PointListField
 
