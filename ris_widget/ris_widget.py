@@ -29,7 +29,7 @@ import numpy
 from PyQt5 import Qt
 import sys
 from .layer import Layer
-from .layers import LayerList, LayerStack
+from .layer_stack import LayerList, LayerStack
 from .point_list_picker import PointListPicker
 from .qwidgets.flipbook import Flipbook
 from .qwidgets.layer_table import InvertingProxyModel, LayerTableModel, LayerTableView
@@ -587,16 +587,8 @@ class RisWidget:
             layer_selection_model=None,
             **kw):
         if Qt.QApplication.instance() is None:
-            # print(
-            #     "Warning: RisWidget's graphical user interface is composed of Qt widgets, and A QApplication instance "
-            #     "must exist before any Qt widgets may be created.  Automatically creating a QApplication...",
-            #     file=sys.stderr)
-            global AUTO_CREATED_QAPPLICATION
-            AUTO_CREATED_QAPPLICATION = Qt.QApplication(sys.argv)
-            # print(
-            #     "QApplication created.  It is accessible as ris_widget.AUTO_CREATED_QAPPLICATION or "
-            #     "Qt.QApplication.instance().",
-            #     file=sys.stderr)
+            # Is supposedly
+            app = Qt.QApplication(sys.argv)
         self.qt_object = self.QT_OBJECT_CLASS(
             self.APP_PREFS_NAME,
             self.APP_PREFS_VERSION,

@@ -52,7 +52,7 @@ class Image(Qt.QObject):
         * Properties with individual change signals: .name.  It is safe to assign None in addition anything else that str(..) accepts as its argument to
         .name.  When the value of .name or .imposed_float_range is modified, .name_changed is emitted.
 
-    Additionally, emission of .data_changed, .mask_changed, .imposed_float_range_changed, or .name_changed causes emission of .changed."""
+    Additionally, emission of .data_changed, .mask_changed, or .name_changed causes emission of .changed."""
     changed = Qt.pyqtSignal(object)
     data_changed = Qt.pyqtSignal(object)
     mask_changed = Qt.pyqtSignal(object)

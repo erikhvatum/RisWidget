@@ -28,7 +28,7 @@ from PyQt5 import Qt
 from string import Template
 import textwrap
 #from ._qt_debug import qtransform_to_numpy
-from ..layers import LayerStack
+from ..layer_stack import LayerStack
 from ..shared_resources import QGL, UNIQUE_QGRAPHICSITEM_TYPE
 from .shader_item import ShaderItem
 

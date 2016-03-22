@@ -23,7 +23,9 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from PyQt5 import Qt
-from ..qgraphicsitems.image_painter_item import ImagePainterItem
+from ..qgraphicsitems.layer_stack_painter_item import LayerStackPainterItem
 
-class ImagePainter(Qt.QWidget):
-    pass
+class LayerStackPainter(Qt.QWidget):
+    def __init__(self, layer_stack_item, parent=None):
+        super().__init__(self, parent)
+        self.item = LayerStackPainterItem(layer_stack_item)
