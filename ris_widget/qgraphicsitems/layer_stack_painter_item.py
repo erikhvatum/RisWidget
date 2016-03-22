@@ -25,6 +25,17 @@
 from PyQt5 import Qt
 from ..shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
 
+class LayerStackPainterBrush:
+    def __init__(self, content, mask, center=(0,0)):
+        assert content.shape[:2] == mask.shape[:2]
+        self.content = content
+        self.mask = mask
+        self.center = center
+
+    def apply(self, target_subimage, brush_subrect):
+        br = brush_subrect
+        target_subimage[self.mask[br.left():br.right(),br.top():br.bottom()]] = self.content[br.left():br.right(),br.top():br.bottom()]
+
 class LayerStackPainterItem(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
     target_layer_idx_changed = Qt.pyqtSignal(Qt.QObject)
@@ -50,10 +61,29 @@ class LayerStackPainterItem(Qt.QGraphicsObject):
         self._on_layers_replaced(self.layer_stack, None, layer_stack_item.layer_stack)
         self.target_layer_idx = target_layer_idx
         self.brush = None
-        self.brush_center = (0, 0)
+        self.alternate_brush = None
 
     def boundingRect(self):
         return self._boundingRect
+
+    def sceneEventFilter(self, watched, event):
+        if (self.target_image is not None and
+            watched is self.parentItem() and
+            event.type() in (Qt.QEvent.GraphicsSceneMousePress, Qt.QEvent.GraphicsSceneMouseMove) and
+            event.buttons() in (Qt.Qt.RightButton, Qt.Qt.MidButton)
+        ):
+            brush = self.brush if event.buttons() == Qt.Qt.RightButton else self.alternate_brush
+            if brush is None:
+                return False
+            p = self.mapFromScene(event.scenePos())
+            im = 
+            c = brush.content
+            r = Qt.QRect(p.x(), p.y(), c.shape[0], c.shape[1])
+            r.translate(-brush.center[0], -brush.center[1])
+            r = r.intersected(Qt.QRect(0,0,))
+            self.target_image.refresh(data_changed=True)
+            return True
+        return False
 
     @property
     def target_layer_idx(self):

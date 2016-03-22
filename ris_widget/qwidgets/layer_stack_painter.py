@@ -26,6 +26,8 @@ from PyQt5 import Qt
 from ..qgraphicsitems.layer_stack_painter_item import LayerStackPainterItem
 
 class LayerStackPainter(Qt.QWidget):
+    PAINTER_ITEM_TYPE = LayerStackPainterItem
+
     def __init__(self, layer_stack_item, parent=None):
         super().__init__(self, parent)
-        self.item = LayerStackPainterItem(layer_stack_item)
+        self.item = self.PAINTER_ITEM_TYPE(layer_stack_item)
