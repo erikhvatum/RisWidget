@@ -59,7 +59,7 @@ class LayerStackPainterItem(Qt.QGraphicsObject):
         self.target_image_shape = None
         self.target_image_range = None
         self.target_image_type = None
-        self._on_layers_replaced(self.layer_stack, None, layer_stack_item.layer_stack)
+        self._on_layers_replaced(self.layer_stack, None, layer_stack_item.layer_stack.layers)
         self.target_layer_idx = target_layer_idx
         self.brush = None
         self.alternate_brush = None
@@ -114,7 +114,7 @@ class LayerStackPainterItem(Qt.QGraphicsObject):
         if v is not None:
             v = int(v)
         if v != self._target_layer_idx:
-            self.target_layer_idx = v
+            self._target_layer_idx = v
             self._on_layer_changed()
             self.target_layer_idx_changed.emit(self)
 

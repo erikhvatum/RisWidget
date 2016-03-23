@@ -1,27 +1,9 @@
 #!/usr/bin/env python
 
-import numpy
 from pathlib import Path
 from PyQt5 import Qt
 from ris_widget.ris_widget import RisWidget
-from ris_widget.point_list_picker import PointListPicker
-from ris_widget.examples.simple_point_picker import SimplePointPicker
-from ris_widget.examples.simple_poly_line_point_picker import SimplePolyLinePointPicker
-from ris_widget.image import Image
-from ris_widget.layer import Layer
-import freeimage
 import sys
-import gc
-
-#if sys.platform == 'darwin':
-#    im = freeimage.read('/Volumes/scopearray/pharyngeal_pumping_max_fps/pharyngeal_pumping_max_fps_010_0.274411275.png')
-#   im = freeimage.read('/Users/ehvatum/zplrepo/ris_widget/top_left_g.png')
-#elif sys.platform == 'linux':
-#   im = freeimage.read('/home/ehvatum/2048.png')
-#   im = freeimage.read('/mnt/scopearray/pharyngeal_pumping_max_fps/pharyngeal_pumping_max_fps_010_0.274411275.png')
-#    im = freeimage.read('/home/ehvatum/potw1509a.jpg').astype(numpy.float32)
-#elif sys.platform == 'win32':
-#    im = freeimage.read('C:/zplrepo/ris_widget/top_left_g.png')
 
 argv = sys.argv
 #Qt.QCoreApplication.setAttribute(Qt.Qt.AA_ShareOpenGLContexts)
@@ -30,6 +12,11 @@ rw = RisWidget()
 rw.show()
 
 rw.add_image_files_to_flipbook([Path(__file__).parent / 'Opteron_6300_die_shot_16_core_mod.jpg'])
+
+from ris_widget.qwidgets.layer_stack_painter import LayerStackPainter
+lsp = LayerStackPainter(rw.main_scene.layer_stack_item)
+lsp.show()
+
 # rw.qt_object.layer_stack.histogram_alternate_column_shading_enabled = True
 # rw.layer.histogram_min = 0
 # rw.layer.histogram_max = 1
@@ -45,7 +32,5 @@ rw.add_image_files_to_flipbook([Path(__file__).parent / 'Opteron_6300_die_shot_1
 # btn.show()
 
 #rw.histogram_view.gl_widget.start_logging()
-
-
 
 app.exec_()

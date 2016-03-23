@@ -30,7 +30,7 @@ class LabelSliderEdit(Qt.QObject):
     value_changed = Qt.pyqtSignal(Qt.QObject)
     FLOAT_MAX = int(1e9)
 
-    def __init__(self, brush_box, value, label_text, type_, min_, max_, odd_values_only=False, max_is_hard=True):
+    def __init__(self, brush_box, label_text, type_, min_, max_, odd_values_only=False, max_is_hard=True):
         super().__init__()
         assert type_ is int or type_ is float and not odd_values_only
         assert min_ < max_
@@ -58,7 +58,6 @@ class LabelSliderEdit(Qt.QObject):
         self.editbox.editingFinished.connect(self._on_editbox_editing_finished)
         l.addWidget(self.editbox, r, 2, Qt.Qt.AlignRight)
         self._value = None
-        self.value = value
 
     def _on_slider_value_changed(self, v):
         if self.ignore_change:
@@ -105,7 +104,7 @@ class LabelSliderEdit(Qt.QObject):
         v = self.type(v)
         if v < self.min or self.max_is_hard and v > self.max:
             raise ValueError()
-        if self.odd_values_only and v % 2:
+        if self.odd_values_only and v % 2 == 0:
             raise ValueError()
         return v
 
@@ -127,7 +126,8 @@ class BrushBox(Qt.QGroupBox):
         self.brush_name = brush_name
         self.default_to_min = default_to_min
         self.setLayout(Qt.QGridLayout())
-        self.brush_size_lse = LabelSliderEdit(self, 'Brush size:', 0, 1001, odd_values_only=True, max_is_hard=False)
+        self.brush_size_lse = LabelSliderEdit(self, 'Brush size:', int, 0, 1001, odd_values_only=True, max_is_hard=False)
+        self.brush_size_lse.value = 5
         painter_item.target_image_aspect_changed.connect(self._on_target_image_aspect_changed)
         self.channel_value_set_key = None
         self.channel_value_sets = {}
@@ -164,6 +164,7 @@ class BrushBox(Qt.QGroupBox):
             t = float if numpy.issubdtype(ti.dtype, numpy.floating) else int
             m, M = ti.range
             self.channel_lses = {c : LabelSliderEdit(self, v, c, t, m, M) for (c, v) in cvs}
+        self.update_brush()
 
     def update_brush(self):
         ti = self.painter_item.target_image
@@ -197,17 +198,17 @@ class BrushBox(Qt.QGroupBox):
         if ti is None:
             return
         self.update_brush()
-        self.channel_value_sets[(ti.dtype, ti.type, ti.range)] = {c : self.channel_lses[c].value for c in ti.type}
+        self.channel_value_sets[self.channel_value_set_key] = {c : self.channel_lses[c].value for c in ti.type}
 
 class LayerStackPainter(Qt.QWidget):
     PAINTER_ITEM_TYPE = LayerStackPainterItem
 
     def __init__(self, layer_stack_item, parent=None):
-        super().__init__(self, parent)
+        super().__init__(parent)
         self.setAttribute(Qt.Qt.WA_DeleteOnClose)
         self.setWindowTitle('Layer Stack Painter')
         self.painter_item = self.PAINTER_ITEM_TYPE(layer_stack_item)
-        self.painter_item.target_layer_idx_changed.connect()
+        self.painter_item.target_layer_idx_changed.connect(self._on_target_layer_idx_changed)
         widget_layout = Qt.QVBoxLayout()
         self.setLayout(widget_layout)
         section_layout = Qt.QFormLayout()
@@ -216,9 +217,9 @@ class LayerStackPainter(Qt.QWidget):
         self.target_idx_editbox.editingFinished.connect(self._on_target_idx_editbox_edited)
         self.ignore_target_idx_change = False
         section_layout.addRow('Layer index:', self.target_idx_editbox)
-        self.brush_box = BrushBox('Right click brush', 'brush', self.painter_item)
+        self.brush_box = BrushBox('Right click brush', 'brush', self.painter_item, False)
         widget_layout.addWidget(self.brush_box)
-        self.alternate_brush_box = BrushBox('Middle click brush', 'alternate_brush', self.painter_item)
+        self.alternate_brush_box = BrushBox('Middle click brush', 'alternate_brush', self.painter_item, True)
         widget_layout.addWidget(self.alternate_brush_box)
 
     def closeEvent(self, e):
@@ -241,7 +242,7 @@ class LayerStackPainter(Qt.QWidget):
         finally:
             self.ignore_target_idx_change = False
 
-    def _on_target_idx_changed(self):
+    def _on_target_layer_idx_changed(self):
         if self.ignore_target_idx_change:
             return
         self.ignore_target_idx_change = True
