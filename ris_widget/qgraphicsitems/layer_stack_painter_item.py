@@ -50,7 +50,7 @@ class LayerStackPainterItem(Qt.QGraphicsObject):
         self._boundingRect = Qt.QRectF()
         self.layer_stack_item = layer_stack_item
         layer_stack_item.bounding_rect_changed.connect(self._on_layer_stack_item_bounding_rect_changed)
-        self.layer_stack = None
+        self.layer_stack = layer_stack_item.layer_stack
         self.layers = None
         self._target_layer_idx = None
         self.target_layer = None
@@ -58,6 +58,7 @@ class LayerStackPainterItem(Qt.QGraphicsObject):
         self.target_image_dtype = None
         self.target_image_shape = None
         self.target_image_range = None
+        self.target_image_type = None
         self._on_layers_replaced(self.layer_stack, None, layer_stack_item.layer_stack)
         self.target_layer_idx = target_layer_idx
         self.brush = None
@@ -76,11 +77,26 @@ class LayerStackPainterItem(Qt.QGraphicsObject):
             if brush is None:
                 return False
             p = self.mapFromScene(event.scenePos())
-            im = 
+            im = self.target_image
             c = brush.content
             r = Qt.QRect(p.x(), p.y(), c.shape[0], c.shape[1])
             r.translate(-brush.center[0], -brush.center[1])
-            r = r.intersected(Qt.QRect(0,0,))
+            if not r.intersects(Qt.QRect(Qt.QPoint(), im.size)):
+                return False
+            br = Qt.QRect(0, 0, c.shape[0], c.shape[1])
+            if r.left() < 0:
+                br.setLeft(-r.x())
+                r.setLeft(0)
+            if r.top() < 0:
+                br.setTop(-r.y())
+                r.setTop(0)
+            if r.right() >= im.size.width():
+                br.setRight(br.right() - (r.right() - im.size.width() + 1))
+                r.setRight(im.size.width() - 1)
+            if r.bottom() >= im.size.height():
+                br.setBottom(br.bottom() - (r.bottom() - im.size.height() + 1))
+                r.setBottom(im.size.height() - 1)
+            brush.apply(im.data[r.left():r.right(),r.top():r.bottom()], br)
             self.target_image.refresh(data_changed=True)
             return True
         return False
@@ -112,7 +128,7 @@ class LayerStackPainterItem(Qt.QGraphicsObject):
             old_layers.inserted.disconnect(self._on_layer_changed)
             old_layers.removed.disconnect(self._on_layer_changed)
             old_layers.replaced.disconnect(self._on_layer_changed)
-        self._layers = layers
+        self.layers = layers
         if layers is not None:
             layers.inserted.connect(self._on_layer_changed)
             layers.removed.connect(self._on_layer_changed)
@@ -144,6 +160,7 @@ class LayerStackPainterItem(Qt.QGraphicsObject):
             self.target_image_dtype = None
             self.target_image_shape = None
             self.target_image_range = None
+            self.target_image_type = None
             self.setVisible(False)
             self.target_image_aspect_changed.emit(self)
             return
@@ -151,11 +168,13 @@ class LayerStackPainterItem(Qt.QGraphicsObject):
         if self.target_layer.image is not ti or (
             self.target_image_dtype != ti.dtype or
             self.target_image_shape != ti.shape or
-            self.target_image_range != ti.range
+            self.target_image_range != ti.range or
+            self.target_image_type != ti.type
         ):
             ti = self.target_image = self.target_layer.image
             self.target_image_dtype = ti.dtype
             self.target_image_shape = ti.shape
             self.target_image_range = ti.range
+            self.target_image_type = ti.type
             self.setVisible(True)
             self.target_image_aspect_changed.emit(self)

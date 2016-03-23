@@ -250,6 +250,7 @@
                 <F N="ris_widget/qgraphicsitems/contextual_info_item_plain.py"/>
                 <F N="ris_widget/qgraphicsitems/histogram_items.py"/>
                 <F N="ris_widget/qgraphicsitems/layer_stack_item.py"/>
+                <F N="ris_widget/qgraphicsitems/layer_stack_painter_item.py"/>
                 <F N="ris_widget/qgraphicsitems/shader_item.py"/>
             </Folder>
             <Folder Name="qgraphicsscenes">
@@ -269,6 +270,9 @@
                 <F N="ris_widget/qwidgets/basic_signaling_list.py"/>
                 <F N="ris_widget/qwidgets/default_table.py"/>
                 <F N="ris_widget/qwidgets/flipbook.py"/>
+                <F N="ris_widget/qwidgets/flipbook_page_annotator.py"/>
+                <F N="ris_widget/qwidgets/flipbook_TESTER.py"/>
+                <F N="ris_widget/qwidgets/layer_stack_painter.py"/>
                 <F N="ris_widget/qwidgets/layer_table.py"/>
                 <F N="ris_widget/qwidgets/point_list_picker_table.py"/>
                 <F N="ris_widget/qwidgets/progress_thread_pool.py"/>
