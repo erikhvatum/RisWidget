@@ -84,7 +84,7 @@ class LayerStackPainterItem(Qt.QGraphicsObject):
             if br_sz != ti_sz:
                 p.setX(p.x() * ti_sz.width()/br_sz.width())
                 p.setY(p.y() * ti_sz.height()/br_sz.height())
-            p = p.toPoint()
+            p = Qt.QPoint(p.x(), p.y())
             im = self.target_image
             c = brush.content
             r = Qt.QRect(p.x(), p.y(), c.shape[0], c.shape[1])
