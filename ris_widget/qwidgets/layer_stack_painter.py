@@ -69,6 +69,8 @@ class LabelSliderEdit(Qt.QObject):
             v *= self.factor
             v += self.min
         if v != self._value:
+            if self.odd_values_only:
+                v = min(max(v - (1 - v % 2), self.min), self.max)
             self._value = v
             self._update_editbox()
             self.value_changed.emit(self)
@@ -121,6 +123,8 @@ class LabelSliderEdit(Qt.QObject):
         v = self.parse_value(v)
         if self._value != v:
             self._value = v
+            self._update_editbox()
+            self._update_slider()
             self.value_changed.emit(self)
 
 class BrushBox(Qt.QGroupBox):
@@ -130,13 +134,13 @@ class BrushBox(Qt.QGroupBox):
         self.brush_name = brush_name
         self.default_to_min = default_to_min
         self.setLayout(Qt.QGridLayout())
-        self.brush_size_lse = LabelSliderEdit(self, 'Brush size:', int, 0, 1001, odd_values_only=True, max_is_hard=False)
+        self.brush_size_lse = LabelSliderEdit(self, 'Brush size:', int, 0, 101, odd_values_only=True, max_is_hard=False)
         self.brush_size_lse.value = 5
         painter_item.target_image_aspect_changed.connect(self._on_target_image_aspect_changed)
-        # painter_item.target_layer_idx_changed.connect(self._on_target_image_aspect_changed)
         self.channel_value_set_key = None
         self.channel_value_sets = {}
         self.channel_lses = {}
+        self.brush_size_lse.value_changed.connect(self._on_brush_size_lse_value_changed)
         self._on_target_image_aspect_changed()
 
     def _destroy_channel_lses(self):
@@ -169,6 +173,8 @@ class BrushBox(Qt.QGroupBox):
             t = float if numpy.issubdtype(ti.dtype, numpy.floating) else int
             m, M = ti.range
             self.channel_lses = {c : LabelSliderEdit(self, c, t, m, M, value=v) for (c, v) in cvs.items()}
+            for channel_lse in self.channel_lses.values():
+                channel_lse.value_changed.connect(self._on_channel_lse_value_changed)
         self.update_brush()
 
     def update_brush(self):
@@ -190,7 +196,7 @@ class BrushBox(Qt.QGroupBox):
             r = int(bs/2)
             y, x = numpy.ogrid[-r:bs-r, -r:bs-r]
             m[y*y + x*x <= r*r] = True
-            self.painter_item.brush = LayerStackPainterBrush(b, m, (r,r))
+            setattr(self.painter_item, self.brush_name, LayerStackPainterBrush(b, m, (r,r)))
 
     def _on_brush_size_lse_value_changed(self):
         ti = self.painter_item.target_image
