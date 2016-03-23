@@ -3,6 +3,7 @@
 from pathlib import Path
 from PyQt5 import Qt
 from ris_widget.ris_widget import RisWidget
+import freeimage
 import sys
 
 argv = sys.argv
@@ -11,8 +12,7 @@ app = Qt.QApplication(argv)
 rw = RisWidget()
 rw.show()
 
-# rw.add_image_files_to_flipbook([Path(__file__).parent / 'Opteron_6300_die_shot_16_core_mod.jpg'])
-rw.add_image_files_to_flipbook([Path(__file__).parent / 'top_left_g.png'])
+rw.add_image_files_to_flipbook([[Path(__file__).parent / 'Opteron_6300_die_shot_16_core_mod.jpg', Path(__file__).parent / 'top_left_g.png']])
 
 from ris_widget.qwidgets.layer_stack_painter import LayerStackPainter
 lsp = LayerStackPainter(rw.main_scene.layer_stack_item)

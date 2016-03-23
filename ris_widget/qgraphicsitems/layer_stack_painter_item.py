@@ -36,9 +36,6 @@ class LayerStackPainterBrush:
         br = brush_subrect
         m = self.mask[br.left():br.right()+1,br.top():br.bottom()+1]
         target_subimage[m] = self.content[br.left():br.right()+1,br.top():br.bottom()+1][m]
-        # b =
-        # a.flat = b.flat
-        # target_subimage[self.mask[br.left():br.right()+1,br.top():br.bottom()+1]] = self.content[br.left():br.right()+1,br.top():br.bottom()+1].flat
 
 class LayerStackPainterItem(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
@@ -83,6 +80,11 @@ class LayerStackPainterItem(Qt.QGraphicsObject):
             if brush is None:
                 return False
             p = self.mapFromScene(event.scenePos())
+            br_sz, ti_sz = self._boundingRect.toRect().size(), self.target_image.size
+            if br_sz != ti_sz:
+                p.setX(p.x() * ti_sz.width()/br_sz.width())
+                p.setY(p.y() * ti_sz.height()/br_sz.height())
+            p = p.toPoint()
             im = self.target_image
             c = brush.content
             r = Qt.QRect(p.x(), p.y(), c.shape[0], c.shape[1])
@@ -142,7 +144,7 @@ class LayerStackPainterItem(Qt.QGraphicsObject):
         self._on_layer_changed()
 
     def _resolve_target_layer(self):
-        if self.layers is None:
+        if self.layers is None or self._target_layer_idx is None:
             return
         try:
             return self.layers[self._target_layer_idx]
