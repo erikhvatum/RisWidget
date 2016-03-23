@@ -34,7 +34,11 @@ class LayerStackPainterBrush:
 
     def apply(self, target_subimage, brush_subrect):
         br = brush_subrect
-        target_subimage[self.mask[br.left():br.right(),br.top():br.bottom()]] = self.content[br.left():br.right(),br.top():br.bottom()]
+        m = self.mask[br.left():br.right()+1,br.top():br.bottom()+1]
+        target_subimage[m] = self.content[br.left():br.right()+1,br.top():br.bottom()+1][m]
+        # b =
+        # a.flat = b.flat
+        # target_subimage[self.mask[br.left():br.right()+1,br.top():br.bottom()+1]] = self.content[br.left():br.right()+1,br.top():br.bottom()+1].flat
 
 class LayerStackPainterItem(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
@@ -50,6 +54,7 @@ class LayerStackPainterItem(Qt.QGraphicsObject):
         self._boundingRect = Qt.QRectF()
         self.layer_stack_item = layer_stack_item
         layer_stack_item.bounding_rect_changed.connect(self._on_layer_stack_item_bounding_rect_changed)
+        layer_stack_item.layer_stack.layers_replaced.connect(self._on_layers_replaced)
         self.layer_stack = layer_stack_item.layer_stack
         self.layers = None
         self._target_layer_idx = None
@@ -63,6 +68,7 @@ class LayerStackPainterItem(Qt.QGraphicsObject):
         self.target_layer_idx = target_layer_idx
         self.brush = None
         self.alternate_brush = None
+        layer_stack_item.installSceneEventFilter(self)
 
     def boundingRect(self):
         return self._boundingRect
@@ -96,7 +102,7 @@ class LayerStackPainterItem(Qt.QGraphicsObject):
             if r.bottom() >= im.size.height():
                 br.setBottom(br.bottom() - (r.bottom() - im.size.height() + 1))
                 r.setBottom(im.size.height() - 1)
-            brush.apply(im.data[r.left():r.right(),r.top():r.bottom()], br)
+            brush.apply(im.data[r.left():r.right()+1,r.top():r.bottom()+1], br)
             self.target_image.refresh(data_changed=True)
             return True
         return False
@@ -167,13 +173,13 @@ class LayerStackPainterItem(Qt.QGraphicsObject):
         ti = self.target_image
         if self.target_layer.image is not ti or (
             self.target_image_dtype != ti.dtype or
-            self.target_image_shape != ti.shape or
-            self.target_image_range != ti.range or
+            self.target_image_shape != ti.data.shape or
+            (self.target_image_range != ti.range).any() or
             self.target_image_type != ti.type
         ):
             ti = self.target_image = self.target_layer.image
             self.target_image_dtype = ti.dtype
-            self.target_image_shape = ti.shape
+            self.target_image_shape = ti.data.shape
             self.target_image_range = ti.range
             self.target_image_type = ti.type
             self.setVisible(True)

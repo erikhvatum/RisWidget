@@ -30,8 +30,9 @@ class LabelSliderEdit(Qt.QObject):
     value_changed = Qt.pyqtSignal(Qt.QObject)
     FLOAT_MAX = int(1e9)
 
-    def __init__(self, brush_box, label_text, type_, min_, max_, odd_values_only=False, max_is_hard=True):
+    def __init__(self, brush_box, label_text, type_, min_, max_, odd_values_only=False, max_is_hard=True, value=...):
         super().__init__()
+        min_, max_ = type_(min_), type_(max_)
         assert type_ is int or type_ is float and not odd_values_only
         assert min_ < max_
         self.odd_values_only = odd_values_only
@@ -58,12 +59,15 @@ class LabelSliderEdit(Qt.QObject):
         self.editbox.editingFinished.connect(self._on_editbox_editing_finished)
         l.addWidget(self.editbox, r, 2, Qt.Qt.AlignRight)
         self._value = None
+        if value is not ...:
+            self.value = value
 
     def _on_slider_value_changed(self, v):
         if self.ignore_change:
             return
-        v *= self.factor
-        v += self.min
+        if self.type is float:
+            v *= self.factor
+            v += self.min
         if v != self._value:
             self._value = v
             self._update_editbox()
@@ -129,6 +133,7 @@ class BrushBox(Qt.QGroupBox):
         self.brush_size_lse = LabelSliderEdit(self, 'Brush size:', int, 0, 1001, odd_values_only=True, max_is_hard=False)
         self.brush_size_lse.value = 5
         painter_item.target_image_aspect_changed.connect(self._on_target_image_aspect_changed)
+        # painter_item.target_layer_idx_changed.connect(self._on_target_image_aspect_changed)
         self.channel_value_set_key = None
         self.channel_value_sets = {}
         self.channel_lses = {}
@@ -152,7 +157,7 @@ class BrushBox(Qt.QGroupBox):
             self.setEnabled(False)
             self.channel_value_set_key = None
             return
-        cvsk = ti.dtype, ti.type, ti.range
+        cvsk = ti.dtype, ti.type, (ti.range[0], ti.range[1])
         if self.channel_value_set_key != cvsk:
             try:
                 cvs = self.channel_value_sets[cvsk]
@@ -163,7 +168,7 @@ class BrushBox(Qt.QGroupBox):
             self.setEnabled(True)
             t = float if numpy.issubdtype(ti.dtype, numpy.floating) else int
             m, M = ti.range
-            self.channel_lses = {c : LabelSliderEdit(self, v, c, t, m, M) for (c, v) in cvs}
+            self.channel_lses = {c : LabelSliderEdit(self, c, t, m, M, value=v) for (c, v) in cvs.items()}
         self.update_brush()
 
     def update_brush(self):
@@ -172,13 +177,13 @@ class BrushBox(Qt.QGroupBox):
             self.painter_item.brush = None
         else:
             bs = self.brush_size_lse.value
-            if ti.channel_count == 1:
+            channel_count = len(ti.type)
+            if channel_count == 1:
                 b = numpy.empty((bs, bs), ti.dtype, 'F')
                 color = self.channel_lses[ti.type].value
             else:
-                d = ti.data
-                bpe = d.itemsize
-                b = numpy.ndarray((bs, bs, ti.channel_count), strides=(d.shape[0]*bpe, d.shape[0]*d.shape[2]*bpe, bpe), dtype=d.dtype)
+                bpe = ti.data.itemsize
+                b = numpy.ndarray((bs, bs, channel_count), strides=(channel_count*bpe, channel_count*bs*bpe, bpe), dtype=ti.dtype)
                 color = [self.channel_lses[c].value for c in ti.type]
             b[:, :] = color
             m = numpy.zeros((bs, bs), bool, 'F')
@@ -215,39 +220,31 @@ class LayerStackPainter(Qt.QWidget):
         widget_layout.addLayout(section_layout)
         self.target_idx_editbox = Qt.QLineEdit()
         self.target_idx_editbox.editingFinished.connect(self._on_target_idx_editbox_edited)
-        self.ignore_target_idx_change = False
         section_layout.addRow('Layer index:', self.target_idx_editbox)
         self.brush_box = BrushBox('Right click brush', 'brush', self.painter_item, False)
         widget_layout.addWidget(self.brush_box)
         self.alternate_brush_box = BrushBox('Middle click brush', 'alternate_brush', self.painter_item, True)
         widget_layout.addWidget(self.alternate_brush_box)
+        widget_layout.addStretch()
+        self.painter_item.target_layer_idx = 0
 
     def closeEvent(self, e):
-        self.painter_item.scene().removeItem(self.painter_item)
+        try:
+            self.painter_item.scene().removeItem(self.painter_item)
+        except Exception:
+            pass
 
     def _on_target_idx_editbox_edited(self):
-        if self.ignore_target_idx_change:
-            return
-        self.ignore_target_idx_change = True
-        try:
-            t = self.target_idx_editbox.text()
-            if not t:
-                self.painter_item.target_layer_idx = None
-            else:
-                try:
-                    v = int(t)
-                    self.painter_item.target_layer_idx = v
-                except ValueError:
-                    self.target_idx_editbox.setText(str(self.painter_item.target_layer_idx))
-        finally:
-            self.ignore_target_idx_change = False
+        t = self.target_idx_editbox.text()
+        if not t:
+            self.painter_item.target_layer_idx = None
+        else:
+            try:
+                v = int(t)
+                self.painter_item.target_layer_idx = v
+            except ValueError:
+                self.target_idx_editbox.setText(str(self.painter_item.target_layer_idx))
 
     def _on_target_layer_idx_changed(self):
-        if self.ignore_target_idx_change:
-            return
-        self.ignore_target_idx_change = True
-        try:
-            target_layer_idx = self.painter_item.target_layer_idx
-            self.target_idx_editbox.setText('' if target_layer_idx is None else str(target_layer_idx))
-        finally:
-            self.ignore_target_idx_change = False
+        target_layer_idx = self.painter_item.target_layer_idx
+        self.target_idx_editbox.setText('' if target_layer_idx is None else str(target_layer_idx))
