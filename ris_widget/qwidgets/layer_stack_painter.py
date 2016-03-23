@@ -163,6 +163,7 @@ class BrushBox(Qt.QGroupBox):
             return
         cvsk = ti.dtype, ti.type, (ti.range[0], ti.range[1])
         if self.channel_value_set_key != cvsk:
+            self.channel_value_set_key = cvsk
             try:
                 cvs = self.channel_value_sets[cvsk]
             except KeyError:
