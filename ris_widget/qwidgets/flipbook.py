@@ -133,7 +133,7 @@ class Flipbook(Qt.QWidget):
         self.pages_model.rowsInserted.connect(self._on_model_rows_inserted, Qt.Qt.QueuedConnection)
         self.pages_view = PagesView(self.pages_model)
         self.pages_view.setModel(self.pages_model)
-        self.pages_view.selectionModel().currentRowChanged.connect(self._on_page_focus_changed)
+        self.pages_view.selectionModel().currentRowChanged.connect(self.apply)
         self.pages_view.selectionModel().selectionChanged.connect(self._on_page_selection_changed)
         l.addWidget(self.pages_view)
         self.progress_thread_pool = None
@@ -155,7 +155,7 @@ class Flipbook(Qt.QWidget):
         self.addAction(self.consolidate_selected_action)
         self.pages_view.selectionModel().selectionChanged.connect(self._on_page_selection_changed)
         self._on_page_selection_changed()
-        self._on_page_focus_changed()
+        self.apply()
 
     def add_image_files(self, image_fpaths, completion_callback=None):
         """image_fpaths: An iterable of filenames and/or iterables of filenames, with
@@ -313,7 +313,7 @@ class Flipbook(Qt.QWidget):
         for run_start_idx, run_end_idx in reversed(runs):
             m.removeRows(run_start_idx, run_end_idx - run_start_idx + 1)
         target_page.extend(extension)
-        self._on_page_focus_changed()
+        self.apply()
 
     def _on_page_selection_changed(self, newly_selected_midxs=None, newly_deselected_midxs=None):
         midxs = self.pages_view.selectionModel().selectedRows()
@@ -352,7 +352,7 @@ class Flipbook(Qt.QWidget):
         if not isinstance(pages, PageList):
             pages = PageList(pages)
         self.pages_model.signaling_list = pages
-        self._on_page_focus_changed()
+        self.apply()
         self.page_selection_changed.emit(self)
 
     try:
@@ -444,7 +444,11 @@ class Flipbook(Qt.QWidget):
         self.pages_view.resizeRowsToContents()
         self.ensure_page_focused()
 
-    def _on_page_focus_changed(self, midx=None, old_midx=None):
+    def apply(self):
+        """Replace the image fields of the layers in .layer_stack with the images contained in the currently
+        focused flipbook page, creating new layers as required, or clearing the image field of any excess
+        layers.  This method is called automatically when focus moves to a different page and when
+        the contents of the current page change."""
         focused_page = self.focused_page
         if not isinstance(focused_page, ImageList):
             return
@@ -520,7 +524,7 @@ class Flipbook(Qt.QWidget):
                 next_idx = idx + 1
                 pages[idx] = image_stack
                 if idx == current_idx:
-                    self._on_page_focus_changed()
+                    self.apply()
         else:
             next_idx = 0
             pages = self.pages
