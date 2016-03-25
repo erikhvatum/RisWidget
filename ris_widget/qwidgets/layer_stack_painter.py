@@ -32,7 +32,7 @@ class LabelSliderEdit(Qt.QObject):
     value_changed = Qt.pyqtSignal(Qt.QObject)
     FLOAT_MAX = int(1e9)
 
-    def __init__(self, brush_box, label_text, type_, min_, max_, odd_values_only=False, max_is_hard=True, value=...):
+    def __init__(self, layout, label_text, type_, min_, max_, odd_values_only=False, max_is_hard=True, value=...):
         super().__init__()
         min_, max_ = type_(min_), type_(max_)
         assert type_ is int or type_ is float and not odd_values_only
@@ -42,10 +42,9 @@ class LabelSliderEdit(Qt.QObject):
         self.min, self.max = min_, max_
         self.max_is_hard = max_is_hard
         self.type = type_
-        l = brush_box.layout()
-        r = l.rowCount()
+        r = layout.rowCount()
         self.label = Qt.QLabel(label_text)
-        l.addWidget(self.label, r, 0, Qt.Qt.AlignRight)
+        layout.addWidget(self.label, r, 0, Qt.Qt.AlignRight)
         self.slider = Qt.QSlider(Qt.Qt.Horizontal)
         if type_ is float:
             self.factor = (max_ - min_) / self.FLOAT_MAX
@@ -56,10 +55,10 @@ class LabelSliderEdit(Qt.QObject):
                 assert self.min % 2 == 0
             self.slider.setSingleStep(2)
         self.slider.valueChanged.connect(self._on_slider_value_changed)
-        l.addWidget(self.slider, r, 1)
+        layout.addWidget(self.slider, r, 1)
         self.editbox = Qt.QLineEdit()
         self.editbox.editingFinished.connect(self._on_editbox_editing_finished)
-        l.addWidget(self.editbox, r, 2, Qt.Qt.AlignRight)
+        layout.addWidget(self.editbox, r, 2, Qt.Qt.AlignRight)
         self._value = None
         if value is not ...:
             self.value = value
@@ -130,18 +129,17 @@ class LabelSliderEdit(Qt.QObject):
             self.value_changed.emit(self)
 
 class BrushBox(Qt.QGroupBox):
-    def __init__(self, title, brush_name, painter_item, default_to_min):
+    def __init__(self, brush_size_lse, title, brush_name, painter_item, default_to_min):
         super().__init__(title)
         self.painter_item = painter_item
         self.brush_name = brush_name
         self.default_to_min = default_to_min
         self.setLayout(Qt.QGridLayout())
-        self.brush_size_lse = LabelSliderEdit(self, 'Brush size:', int, 0, 101, odd_values_only=True, max_is_hard=False)
-        self.brush_size_lse.value = 5
         painter_item.target_image_aspect_changed.connect(self._on_target_image_aspect_changed)
         self.channel_value_set_key = None
         self.channel_value_sets = {}
         self.channel_lses = {}
+        self.brush_size_lse = brush_size_lse
         self.brush_size_lse.value_changed.connect(self._on_brush_size_lse_value_changed)
         self._on_target_image_aspect_changed()
 
@@ -175,7 +173,7 @@ class BrushBox(Qt.QGroupBox):
             self.setEnabled(True)
             t = float if numpy.issubdtype(ti.dtype, numpy.floating) else int
             m, M = ti.range
-            self.channel_lses = {c : LabelSliderEdit(self, c, t, m, M, value=v) for (c, v) in cvs.items()}
+            self.channel_lses = {c : LabelSliderEdit(self.layout(), c, t, m, M, value=v) for (c, v) in cvs.items()}
             for channel_lse in self.channel_lses.values():
                 channel_lse.value_changed.connect(self._on_channel_lse_value_changed)
         self.update_brush()
@@ -219,41 +217,25 @@ class LayerStackPainter(Qt.QWidget):
 
     def __init__(self, layer_stack_item, parent=None):
         super().__init__(parent)
-        self.setAttribute(Qt.Qt.WA_DeleteOnClose)
         self.setWindowTitle('Layer Stack Painter')
         self.painter_item = self.PAINTER_ITEM_TYPE(layer_stack_item)
-        self.painter_item.target_layer_idx_changed.connect(self._on_target_layer_idx_changed)
+        self.layer_stack = layer_stack_item.layer_stack
         widget_layout = Qt.QVBoxLayout()
         self.setLayout(widget_layout)
-        section_layout = Qt.QFormLayout()
+        section_layout = Qt.QGridLayout()
         widget_layout.addLayout(section_layout)
-        self.target_idx_editbox = Qt.QLineEdit()
-        self.target_idx_editbox.editingFinished.connect(self._on_target_idx_editbox_edited)
-        section_layout.addRow('Layer index:', self.target_idx_editbox)
-        self.brush_box = BrushBox('Right click brush', 'brush', self.painter_item, False)
+        self.brush_size_lse = LabelSliderEdit(section_layout, 'Brush size:', int, 0, 101, odd_values_only=True, max_is_hard=False)
+        self.brush_size_lse.value = 5
+        self.painter_item.target_image_aspect_changed.connect(self._on_target_image_aspect_changed)
+        self.brush_box = BrushBox(self.brush_size_lse, 'Right click brush', 'brush', self.painter_item, False)
         widget_layout.addWidget(self.brush_box)
-        self.alternate_brush_box = BrushBox('Middle click brush', 'alternate_brush', self.painter_item, True)
+        self.alternate_brush_box = BrushBox(self.brush_size_lse, 'Middle click brush', 'alternate_brush', self.painter_item, True)
         widget_layout.addWidget(self.alternate_brush_box)
         widget_layout.addStretch()
-        self.painter_item.target_layer_idx = 0
 
-    def closeEvent(self, e):
-        try:
-            self.painter_item.scene().removeItem(self.painter_item)
-        except Exception:
-            pass
-
-    def _on_target_idx_editbox_edited(self):
-        t = self.target_idx_editbox.text()
-        if not t:
-            self.painter_item.target_layer_idx = None
-        else:
-            try:
-                v = int(t)
-                self.painter_item.target_layer_idx = v
-            except ValueError:
-                self.target_idx_editbox.setText(str(self.painter_item.target_layer_idx))
-
-    def _on_target_layer_idx_changed(self):
-        target_layer_idx = self.painter_item.target_layer_idx
-        self.target_idx_editbox.setText('' if target_layer_idx is None else str(target_layer_idx))
+    def _on_target_image_aspect_changed(self):
+        e = self.painter_item.target_image is not None
+        bse = self.brush_size_lse
+        bse.label.setEnabled(e)
+        bse.slider.setEnabled(e)
+        bse.editbox.setEnabled(e)

@@ -33,6 +33,7 @@ from .layer_stack import LayerList, LayerStack
 from .point_list_picker import PointListPicker
 from .qwidgets.flipbook import Flipbook
 from .qwidgets.layer_table import InvertingProxyModel, LayerTableModel, LayerTableView
+from .qwidgets.layer_stack_painter import LayerStackPainter
 from .qwidgets.point_list_picker_table import PointListPickerTable
 from .qgraphicsscenes.general_scene import GeneralScene
 from .qgraphicsviews.general_view import GeneralView
@@ -87,6 +88,7 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self._init_scenes_and_views()
         # self._apply_deep_color_fix()
         self._init_flipbook()
+        self._init_layer_stack_painter()
         self._init_actions()
         self._init_toolbars()
         self._init_menus()
@@ -210,13 +212,30 @@ class RisWidgetQtObject(Qt.QMainWindow):
         fb.pages_model.rowsInserted.connect(self._on_flipbook_pages_inserted)
         fb.pages_model.rowsRemoved.connect(self._on_flipbook_pages_removed)
         self.flipbook_dock_widget.hide()
-        # The remaining LoC in this method are either:
-        # * a cheap trick
-        # * a pragmatic expedience
-        # * a cheap, pragmatic, expedient trick
+        # Make the flipbook deal with drop events
         self.dragEnterEvent = self.flipbook.pages_view.dragEnterEvent
         self.dragMoveEvent = self.flipbook.pages_view.dragMoveEvent
         self.dropEvent = self.flipbook.pages_view.dropEvent
+
+    def _init_layer_stack_painter(self):
+        self.layer_stack_painter_dock_widget = Qt.QDockWidget('Layer Stack Painter', self)
+        self.layer_stack_painter_dock_widget.setAllowedAreas(Qt.Qt.RightDockWidgetArea | Qt.Qt.LeftDockWidgetArea)
+        self.layer_stack_painter_dock_widget.setFeatures(
+            Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
+        self.addDockWidget(Qt.Qt.RightDockWidgetArea, self.layer_stack_painter_dock_widget)
+        self.layer_stack_painter_dock_widget.hide()
+        self.layer_stack_painter = None
+        self.layer_stack_painter_dock_widget.toggleViewAction().toggled.connect(self._on_layer_stack_painter_dock_widget_visibility_toggled)
+
+    def _on_layer_stack_painter_dock_widget_visibility_toggled(self, is_visible):
+        if is_visible:
+            if self.layer_stack_painter is None:
+                self.layer_stack_painter = LayerStackPainter(self.main_scene.layer_stack_item)
+                self.layer_stack_painter_dock_widget.setWidget(self.layer_stack_painter)
+        else:
+            if self.layer_stack_painter is not None:
+                self.main_scene.removeItem(self.layer_stack_painter.painter_item)
+                self.layer_stack_painter = None
 
     def _init_toolbars(self):
         self.main_view_toolbar = self.addToolBar('Main View')
@@ -241,6 +260,7 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.main_view_toolbar.addAction(self.flipbook.delete_selected_action)
         self.dock_widget_visibility_toolbar = self.addToolBar('Dock Widget Visibility')
         self.dock_widget_visibility_toolbar.addAction(self.layer_table_dock_widget.toggleViewAction())
+        self.dock_widget_visibility_toolbar.addAction(self.layer_stack_painter_dock_widget.toggleViewAction())
         self.dock_widget_visibility_toolbar.addAction(self.histogram_dock_widget.toggleViewAction())
         self.dock_widget_visibility_toolbar.addAction(self.flipbook_dock_widget.toggleViewAction())
 
@@ -587,7 +607,6 @@ class RisWidget:
             layer_selection_model=None,
             **kw):
         if Qt.QApplication.instance() is None:
-            # Is supposedly
             app = Qt.QApplication(sys.argv)
         self.qt_object = self.QT_OBJECT_CLASS(
             self.APP_PREFS_NAME,

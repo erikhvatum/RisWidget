@@ -39,19 +39,19 @@ class LayerStackPainterBrush:
 
 class LayerStackPainterItem(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
-    target_layer_idx_changed = Qt.pyqtSignal(Qt.QObject)
     # Something relevant to LayerStackPainter changed: either we are now looking at a different Image
     # instance due to assignment to layer.image, or image data type and/or channel count and/or range
     # changed.  target_image_aspect_changed is not emitted when just image data changes.
     target_image_aspect_changed = Qt.pyqtSignal(Qt.QObject)
 
-    def __init__(self, layer_stack_item, target_layer_idx=None):
+    def __init__(self, layer_stack_item):
         super().__init__(layer_stack_item)
         self.setFlag(Qt.QGraphicsItem.ItemHasNoContents)
         self._boundingRect = Qt.QRectF()
         self.layer_stack_item = layer_stack_item
         layer_stack_item.bounding_rect_changed.connect(self._on_layer_stack_item_bounding_rect_changed)
         layer_stack_item.layer_stack.layers_replaced.connect(self._on_layers_replaced)
+        layer_stack_item.layer_stack.layer_focus_changed.connect(self._on_layer_changed)
         self.layer_stack = layer_stack_item.layer_stack
         self.layers = None
         self._target_layer_idx = None
@@ -62,7 +62,7 @@ class LayerStackPainterItem(Qt.QGraphicsObject):
         self.target_image_range = None
         self.target_image_type = None
         self._on_layers_replaced(self.layer_stack, None, layer_stack_item.layer_stack.layers)
-        self.target_layer_idx = target_layer_idx
+        self._on_layer_stack_item_bounding_rect_changed()
         self.brush = None
         self.alternate_brush = None
         layer_stack_item.installSceneEventFilter(self)
@@ -109,23 +109,6 @@ class LayerStackPainterItem(Qt.QGraphicsObject):
             return True
         return False
 
-    @property
-    def target_layer_idx(self):
-        """It is permissible to assign a negative value to .target_layer_idx; a negative value selects
-        nth-from-end, following the common Python idiom.  Assigning an out of range value is equivalent
-        to assigning None, except that the painter will activate if/when the specified index does
-        come into range.  Assigning None deactivates the painter."""
-        return self._target_layer_idx
-
-    @target_layer_idx.setter
-    def target_layer_idx(self, v):
-        if v is not None:
-            v = int(v)
-        if v != self._target_layer_idx:
-            self._target_layer_idx = v
-            self._on_layer_changed()
-            self.target_layer_idx_changed.emit(self)
-
     def _on_layer_stack_item_bounding_rect_changed(self):
         self.prepareGeometryChange()
         self._boundingRect = self.layer_stack_item.boundingRect()
@@ -143,16 +126,8 @@ class LayerStackPainterItem(Qt.QGraphicsObject):
             layers.replaced.connect(self._on_layer_changed)
         self._on_layer_changed()
 
-    def _resolve_target_layer(self):
-        if self.layers is None or self._target_layer_idx is None:
-            return
-        try:
-            return self.layers[self._target_layer_idx]
-        except IndexError:
-            pass
-
     def _on_layer_changed(self):
-        target_layer = self._resolve_target_layer()
+        target_layer = self.layer_stack.focused_layer
         if target_layer is self.target_layer:
             return
         if self.target_layer is not None:
