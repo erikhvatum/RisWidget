@@ -159,6 +159,7 @@ class Flipbook(Qt.QWidget):
         self.views_splitter.addWidget(self.page_content_groupbox)
         self.views_splitter.setStretchFactor(0, 4)
         self.views_splitter.setStretchFactor(0, 1)
+        self.views_splitter.setSizes((1, 0))
         self.progress_thread_pool = None
         self.progress_thread_pool_completion_callbacks = []
         self._attached_page = None
