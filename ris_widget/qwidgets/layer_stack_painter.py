@@ -22,8 +22,6 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-# TODO: TEST WITH FLOATING POINT IMAGES!  PAINTING OF FLOATING POINT IMAGES HAVE NOT BEEN TESTED AT ALL.
-
 import numpy
 from PyQt5 import Qt
 from ..qgraphicsitems.layer_stack_painter_item import LayerStackPainterBrush, LayerStackPainterItem
