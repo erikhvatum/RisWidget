@@ -263,11 +263,11 @@ def statistics(im, twelve_bit=False, mask=None, return_future=False):
         def channel_proc(channel):
             return _statistics(im[..., channel], twelve_bit, mask)
         def proc():
-            futes = [pool.submit(channel_proc, channel) for channel in range(im.shape[2])]
+            results = [channel_proc(channel) for channel in range(im.shape[2])]
             return NDImageStatistics(
-                numpy.vstack((fute.result().histogram for fute in futes)),
-                numpy.hstack((fute.result().max_bin for fute in futes)),
-                numpy.vstack((fute.result().min_max_intensity for fute in futes)))
+                numpy.vstack((result.histogram for result in results)),
+                numpy.hstack((result.max_bin for result in results)),
+                numpy.vstack((result.min_max_intensity for result in results)))
     return pool.submit(proc) if return_future else proc()
 
 def bundle_float_stats_into_future(histogram, extremae):
