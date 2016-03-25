@@ -28,6 +28,7 @@ from PyQt5 import Qt
 from .. import om
 from ..image import Image
 from ..shared_resources import FREEIMAGE
+from .default_table import DefaultTable
 from .progress_thread_pool import ProgressThreadPool, Task, TaskStatus
 
 class ImageList(om.UniformSignalingList):
@@ -126,16 +127,31 @@ class Flipbook(Qt.QWidget):
     def __init__(self, layer_stack, parent=None):
         super().__init__(parent)
         self.layer_stack = layer_stack
-        l = Qt.QVBoxLayout()
-        self.setLayout(l)
-        self.pages_model = PagesModel(PageList())
+        self.setLayout(Qt.QVBoxLayout())
+        self.views_splitter = Qt.QSplitter(Qt.Qt.Vertical)
+        self.layout().addWidget(self.views_splitter)
+        self.pages_groupbox = Qt.QGroupBox('Pages')
+        self.pages_groupbox.setLayout(Qt.QHBoxLayout())
+        self.pages_view = PagesView()
+        self.pages_groupbox.layout().addWidget(self.pages_view)
+        self.pages_model = PagesModel(PageList(), self.pages_view)
         self.pages_model.handle_dropped_files = self._handle_dropped_files
         self.pages_model.rowsInserted.connect(self._on_model_rows_inserted, Qt.Qt.QueuedConnection)
-        self.pages_view = PagesView(self.pages_model)
         self.pages_view.setModel(self.pages_model)
         self.pages_view.selectionModel().currentRowChanged.connect(self.apply)
         self.pages_view.selectionModel().selectionChanged.connect(self._on_page_selection_changed)
-        l.addWidget(self.pages_view)
+        self.views_splitter.addWidget(self.pages_groupbox)
+        self.page_content_groupbox = Qt.QGroupBox('Page Contents')
+        self.page_content_groupbox.setLayout(Qt.QHBoxLayout())
+        self.page_content_view = DefaultTable()
+        self.page_content_groupbox.layout().addWidget(self.page_content_view)
+        self.page_content_model = PageContentModel(parent=self.page_content_view)
+        self.page_content_model.rowsInserted.connect(self._on_content_model_rows_inserted, Qt.Qt.QueuedConnection)
+        self.page_content_model.modelReset.connect(self._on_content_model_rows_inserted, Qt.Qt.QueuedConnection)
+        self.page_content_view.setModel(self.page_content_model)
+        self.views_splitter.addWidget(self.page_content_groupbox)
+        self.views_splitter.setStretchFactor(0, 4)
+        self.views_splitter.setStretchFactor(0, 1)
         self.progress_thread_pool = None
         self.progress_thread_pool_completion_callbacks = []
         self._attached_page = None
@@ -143,9 +159,9 @@ class Flipbook(Qt.QWidget):
         self.delete_selected_action.setText('Delete pages')
         self.delete_selected_action.setToolTip('Delete currently selected main flipbook pages')
         self.delete_selected_action.setShortcut(Qt.Qt.Key_Delete)
-        self.delete_selected_action.setShortcutContext(Qt.Qt.WidgetWithChildrenShortcut)
+        self.delete_selected_action.setShortcutContext(Qt.Qt.WidgetShortcut)
         self.delete_selected_action.triggered.connect(self.delete_selected)
-        self.addAction(self.delete_selected_action)
+        self.pages_view.addAction(self.delete_selected_action)
         self.consolidate_selected_action = Qt.QAction(self)
         self.consolidate_selected_action.setText('Consolidate pages')
         self.consolidate_selected_action.setToolTip('Consolidate selected main flipbook pages (combine them into one page)')
@@ -164,6 +180,8 @@ class Flipbook(Qt.QWidget):
         the contents of the current page change."""
         focused_page = self.focused_page
         if not isinstance(focused_page, ImageList):
+            self.page_content_groupbox.setEnabled(False)
+            self.page_content_model.signaling_list = None
             self._detach_page()
             return
         if focused_page is not self._attached_page:
@@ -171,6 +189,8 @@ class Flipbook(Qt.QWidget):
             focused_page.inserted.connect(self.apply)
             focused_page.removed.connect(self.apply)
             focused_page.replaced.connect(self.apply)
+            self.page_content_groupbox.setEnabled(True)
+            self.page_content_model.signaling_list = focused_page
             self._attached_page = focused_page
         layer_stack = self.layer_stack
         if layer_stack.layers is None:
@@ -481,6 +501,9 @@ class Flipbook(Qt.QWidget):
         self.pages_view.resizeRowsToContents()
         self.ensure_page_focused()
 
+    def _on_content_model_rows_inserted(self):
+        self.page_content_view.resizeRowsToContents()
+
     def _read_stack(self, freeimage, image_fpaths):
         return [(freeimage.read(str(image_fpath)), str(image_fpath)) for image_fpath in image_fpaths]
 
@@ -556,9 +579,8 @@ class Flipbook(Qt.QWidget):
         self.progress_thread_pool_completion_callbacks = []
 
 class PagesView(Qt.QTableView):
-    def __init__(self, pages_model, parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.setModel(pages_model)
         self.horizontalHeader().setStretchLastSection(True)
         self.horizontalHeader().setHighlightSections(False)
         self.horizontalHeader().setSectionsClickable(False)
@@ -578,9 +600,6 @@ class PagesView(Qt.QTableView):
 class PagesModelDragDropBehavior(om.signaling_list.DragDropModelBehavior):
     def can_drop_rows(self, src_model, src_rows, dst_row, dst_column, dst_parent):
         return isinstance(src_model, PagesModel)
-
-    # def dropMimeData(self, mime_data, drop_action, row, column, parent):
-    #     print(super().dropMimeData(mime_data, drop_action, row, column, parent))
 
 class PagesModel(PagesModelDragDropBehavior, om.signaling_list.PropertyTableModel):
     PROPERTIES = (
@@ -610,3 +629,33 @@ class PagesModel(PagesModelDragDropBehavior, om.signaling_list.PropertyTableMode
                 if role == Qt.Qt.ForegroundRole:
                     return Qt.QVariant(Qt.QApplication.palette().brush(Qt.QPalette.Disabled, Qt.QPalette.WindowText))
         return super().data(midx, role)
+
+class PageContentModelDragDropBehavior(om.signaling_list.DragDropModelBehavior):
+    def can_drop_rows(self, src_model, src_rows, dst_row, dst_column, dst_parent):
+        return isinstance(src_model, PageContentModel)
+
+    def handle_dropped_qimage(self, qimage, name, dst_row, dst_column, dst_parent):
+        image = Image.from_qimage(qimage=qimage, name=name)
+        if image is not None:
+            self.signaling_list[dst_row:dst_row] = [image]
+            return True
+        return False
+
+    def handle_dropped_files(self, fpaths, dst_row, dst_column, dst_parent):
+        freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=None)
+        if freeimage is None:
+            return False
+        images = ImageList()
+        for fpath in fpaths:
+            fpath_str = str(fpath)
+            images.append(Image(freeimage.read(fpath_str), name=fpath_str))
+        self.signaling_list[dst_row:dst_row] = images
+        return True
+
+class PageContentModel(PageContentModelDragDropBehavior, om.signaling_list.PropertyTableModel):
+    PROPERTIES = (
+        'name',
+        )
+
+    def __init__(self, signaling_list=None, parent=None):
+        super().__init__(self.PROPERTIES, signaling_list, parent)
