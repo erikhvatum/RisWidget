@@ -157,6 +157,29 @@ class Flipbook(Qt.QWidget):
         self._on_page_selection_changed()
         self.apply()
 
+    def apply(self):
+        """Replace the image fields of the layers in .layer_stack with the images contained in the currently
+        focused flipbook page, creating new layers as required, or clearing the image field of any excess
+        layers.  This method is called automatically when focus moves to a different page and when
+        the contents of the current page change."""
+        focused_page = self.focused_page
+        if not isinstance(focused_page, ImageList):
+            return
+        layer_stack = self.layer_stack
+        if layer_stack.layers is None:
+            layer_stack.layers = []
+        layers = layer_stack.layers
+        lfp = len(focused_page)
+        lls = len(layers)
+        for idx in range(max(lfp, lls)):
+            if idx >= lfp:
+                layers[idx].image = None
+            elif idx >= lls:
+                layers.append(focused_page[idx])
+            else:
+                layers[idx].image = focused_page[idx]
+        self.page_focus_changed.emit(self)
+
     def add_image_files(self, image_fpaths, completion_callback=None):
         """image_fpaths: An iterable of filenames and/or iterables of filenames, with
         a filename being either a pathlib.Path object or a string.  For example, the
@@ -440,32 +463,9 @@ class Flipbook(Qt.QWidget):
                 sm.currentIndex(),
                 Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
 
-    def _on_model_rows_inserted(self, _, __, ___):
+    def _on_model_rows_inserted(self):
         self.pages_view.resizeRowsToContents()
         self.ensure_page_focused()
-
-    def apply(self):
-        """Replace the image fields of the layers in .layer_stack with the images contained in the currently
-        focused flipbook page, creating new layers as required, or clearing the image field of any excess
-        layers.  This method is called automatically when focus moves to a different page and when
-        the contents of the current page change."""
-        focused_page = self.focused_page
-        if not isinstance(focused_page, ImageList):
-            return
-        layer_stack = self.layer_stack
-        if layer_stack.layers is None:
-            layer_stack.layers = []
-        layers = layer_stack.layers
-        lfp = len(focused_page)
-        lls = len(layers)
-        for idx in range(max(lfp, lls)):
-            if idx >= lfp:
-                layers[idx].image = None
-            elif idx >= lls:
-                layers.append(focused_page[idx])
-            else:
-                layers[idx].image = focused_page[idx]
-        self.page_focus_changed.emit(self)
 
     def _read_stack(self, freeimage, image_fpaths):
         return [(freeimage.read(str(image_fpath)), str(image_fpath)) for image_fpath in image_fpaths]
