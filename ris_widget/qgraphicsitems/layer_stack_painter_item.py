@@ -147,6 +147,8 @@ class LayerStackPainterItem(Qt.QGraphicsObject):
             self.setVisible(False)
             self.target_image_aspect_changed.emit(self)
             return
+        if self.target_layer.image is None:
+            return
         ti = self.target_image
         if self.target_layer.image is not ti or (
             self.target_image_dtype != ti.dtype or
