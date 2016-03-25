@@ -74,9 +74,10 @@ class LayerStackPainterItem(Qt.QGraphicsObject):
         if (self.target_image is not None and
             watched is self.parentItem() and
             event.type() in (Qt.QEvent.GraphicsSceneMousePress, Qt.QEvent.GraphicsSceneMouseMove) and
-            event.buttons() in (Qt.Qt.RightButton, Qt.Qt.MidButton)
+            event.buttons() == Qt.Qt.RightButton and
+            event.modifiers() in (Qt.Qt.ShiftModifier, Qt.Qt.NoModifier)
         ):
-            brush = self.brush if event.buttons() == Qt.Qt.RightButton else self.alternate_brush
+            brush = self.brush if event.modifiers() == Qt.Qt.NoModifier else self.alternate_brush
             if brush is None:
                 return False
             p = self.mapFromScene(event.scenePos())

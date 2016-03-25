@@ -227,7 +227,7 @@ class LayerStackPainter(Qt.QWidget):
         self.painter_item.target_image_aspect_changed.connect(self._on_target_image_aspect_changed)
         self.brush_box = BrushBox(self.brush_size_lse, 'Right click brush', 'brush', self.painter_item, False)
         widget_layout.addWidget(self.brush_box)
-        self.alternate_brush_box = BrushBox(self.brush_size_lse, 'Middle click brush', 'alternate_brush', self.painter_item, True)
+        self.alternate_brush_box = BrushBox(self.brush_size_lse, 'Shift right click brush', 'alternate_brush', self.painter_item, True)
         widget_layout.addWidget(self.alternate_brush_box)
         widget_layout.addStretch()
 
