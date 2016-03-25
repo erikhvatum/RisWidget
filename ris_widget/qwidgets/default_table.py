@@ -32,7 +32,6 @@ class DefaultTable(Qt.QTableView):
         super().__init__(parent)
         if model is not None:
             self.setModel(model)
-        # self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
         self.setDragDropOverwriteMode(False)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
@@ -45,7 +44,6 @@ class DefaultTable(Qt.QTableView):
         self.setDragDropMode(Qt.QAbstractItemView.DragDrop)
         self.setDropIndicatorShown(True)
         self.setDefaultDropAction(Qt.Qt.LinkAction)
-        self.horizontalHeader().setSectionResizeMode(Qt.QHeaderView.ResizeToContents)
         self.delete_selected_rows_action = Qt.QAction(self)
         self.delete_selected_rows_action.setText('Delete selected rows')
         self.delete_selected_rows_action.triggered.connect(self._on_delete_selected_rows_action_triggered)
