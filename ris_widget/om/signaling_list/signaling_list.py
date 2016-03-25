@@ -80,14 +80,13 @@ class SignalingList(Qt.QObject, MutableSequence, metaclass=_QtAbcMeta):
     @staticmethod
     def _obj_repr(obj):
         s = obj.__repr__()
-        if isinstance(obj, SignalingList):
-            s = textwrap.indent(s, ' ' * 4)
+        s = textwrap.indent(s, ' ' * 4)
         return s
 
     def __repr__(self):
         r = super().__repr__()[:-1]
         if self._list:
-            r += '\n[\n    ' + ',\n    '.join(self._obj_repr(obj) for obj in self._list) + '\n]'
+            r += '\n[\n' + ',\n'.join(self._obj_repr(obj) for obj in self._list) + '\n]'
         return r + '>'
 
     def __iter__(self):
