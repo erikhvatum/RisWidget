@@ -164,7 +164,14 @@ class Flipbook(Qt.QWidget):
         the contents of the current page change."""
         focused_page = self.focused_page
         if not isinstance(focused_page, ImageList):
+            self._detach_page()
             return
+        if focused_page is not self._attached_page:
+            self._detach_page()
+            focused_page.inserted.connect(self.apply)
+            focused_page.removed.connect(self.apply)
+            focused_page.replaced.connect(self.apply)
+            self._attached_page = focused_page
         layer_stack = self.layer_stack
         if layer_stack.layers is None:
             layer_stack.layers = []
@@ -179,6 +186,13 @@ class Flipbook(Qt.QWidget):
             else:
                 layers[idx].image = focused_page[idx]
         self.page_focus_changed.emit(self)
+
+    def _detach_page(self):
+        if self._attached_page is not None:
+            self._attached_page.inserted.disconnect(self.apply)
+            self._attached_page.removed.disconnect(self.apply)
+            self._attached_page.replaced.disconnect(self.apply)
+            self._attached_page = None
 
     def add_image_files(self, image_fpaths, completion_callback=None):
         """image_fpaths: An iterable of filenames and/or iterables of filenames, with
