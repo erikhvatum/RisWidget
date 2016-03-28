@@ -29,13 +29,16 @@ from ..shared_resources import QGL, GL_LOGGER, GL_QSURFACE_FORMAT
 from ..image import Image
 
 class BaseView(Qt.QGraphicsView):
-    """Updates to things depending directly on the view's size (eg, in many cases, the view's own transformation), if any,
-    are initiated by the BaseView subclass's resizeEvent handler.
+    """Instances of BaseView and its subclasses have a .viewport_rect_item attribute, which is an instance of
+    ViewportRectItem, an invisible graphics item.  A BaseView (or subclass) instance resizes and repositions
+    its .viewport_rect_item to exactly fill its viewport.  This can be seen by assigning True to
+    .viewport_rect_item.is_visible.
 
-    Updates to things depending directly on the view's transformation and/or the region of the scene visible in the view
-    (eg, the position of the scene's context_info_item relative to the top left of its view) occur in response to the
-    scene_region_changed signal."""
-    scene_region_changed = Qt.pyqtSignal(Qt.QGraphicsView)
+    So, if you wish for a scene element to remain fixed in scale with respect to the viewport and fixed in
+    position with respect to the top-left corner of the viewport, simply parent the item in question to
+    .viewport_rect_item (.scene().contextual_info_item does this, for example).  To make item placement relative
+    to a viewport anchor that varies with viewport size, such as the bottom-right corner, it must be
+    repositioned in response to emission of the .viewport_rect_item.size_changed signal."""
 
     def __init__(self, base_scene, parent):
         super().__init__(base_scene, parent)
@@ -50,8 +53,7 @@ class BaseView(Qt.QGraphicsView):
         gl_widget.context_changed.connect(self._on_context_changed, Qt.Qt.DirectConnection)
         if GL_QSURFACE_FORMAT().samples() > 0:
             self.setRenderHint(Qt.QPainter.Antialiasing)
-        self.scene_region_changed.connect(base_scene.contextual_info_item.return_to_fixed_position)
-        self.scene_region_changed.emit(self)
+        self._update_viewport_rect_item()
 
     def _on_gl_initializing(self):
         self._make_quad_vao()
@@ -92,25 +94,35 @@ class BaseView(Qt.QGraphicsView):
         super().scrollContentsBy(dx, dy)
         # In the case of scrollContentsBy(..) execution in response to view resize, self.resizeEvent(..)
         # has not yet had a chance to do its thing, meaning that self.transform() may differ from
-        # the value obtained during painting.  However, self.on_resize_done(..) also emits
-        # scene_view_rect_changed, at which point self.transform() does return the correct value.
+        # the value obtained during painting.  However, self.on_resize_done(..) also calls
+        # _update_viewport_rect_item, at which point self.transform() does return the correct value.
         # Both happen during the same event loop iteration, and no repaint will occur until the next
-        # iteration, so any incorrect position possibly set in response to scene_view_rect_change emission
+        # iteration, so any incorrect position possibly set in response to _update_viewport_rect_item
         # here will be corrected in response to resizeEvent(..)'s scene_view_rect_changed emission
-        # before the next repaint.  Thus, nothing repositioned in response to our emission should be
+        # before the next repaint.  Thus, nothing repositioned in response to our call should be
         # visible to the user in an incorrect position.
-        self.scene_region_changed.emit(self)
+        self._update_viewport_rect_item()
 
     def _on_resize(self, size):
-        """_on_resize is called after self.size has been updated and before scene_region_changed is emitted,
-        providing an opportunity for subclasses to modify view transform in response to view resize without
-        causing incorrect positioning of view-relative items."""
+        """_on_resize is called after self.size has been updated and before ._update_viewport_rect_item is
+        called, providing an opportunity for subclasses to modify view transform in response to view resize
+        without causing incorrect positioning of view-relative items."""
         pass
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._on_resize(event.size())
-        self.scene_region_changed.emit(self)
+        self._update_viewport_rect_item()
+
+    def _update_viewport_rect_item(self):
+        try:
+            i = self.viewport_rect_item
+        except AttributeError:
+            return
+        i.size = self.size()
+        p = self.mapToScene(0,0)
+        if i.pos() != p:
+            i.setPos(p)
 
     def drawBackground(self, p, rect):
         p.beginNativePainting()
@@ -123,6 +135,10 @@ class BaseView(Qt.QGraphicsView):
     # def paintEvent(self, event):
     #     print('paintEvent')
     #     pass
+
+    @property
+    def viewport_rect_item(self):
+        return self.scene().viewport_rect_item
 
     def snapshot(self, scene_rect=None, size=None, msaa_sample_count=16):
         scene = self.scene()

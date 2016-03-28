@@ -28,6 +28,19 @@ from pathlib import Path
 from PyQt5 import Qt
 import sys
 
+def qtransform_to_ndarray(t):
+    return numpy.array([
+        [t.m11(), t.m21(), t.m31()],
+        [t.m12(), t.m22(), t.m32()],
+        [t.m13(), t.m23(), t.m33()]])
+
+def ndarray_to_qtransform(a):
+    assert a.ndim == 2 and a.shape[0] == 3 and a.shape[1] == 3
+    return Qt.QTransform(
+        a[0,0], a[1,0], a[2,0],
+        a[0,1], a[1,1], a[2,1],
+        a[0,2], a[1,2], a[2,2])
+
 _NEXT_QGRAPHICSITEM_USERTYPE = Qt.QGraphicsItem.UserType + 1
 
 def UNIQUE_QGRAPHICSITEM_TYPE():

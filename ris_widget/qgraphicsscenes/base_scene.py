@@ -23,6 +23,7 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from PyQt5 import Qt
+from ..qgraphicsitems.viewport_rect_item import ViewportRectItem
 
 class BaseScene(Qt.QGraphicsScene):
     """BaseScene provides for creating and maintaining a ContextualInfoItem (or compatible).
@@ -71,10 +72,12 @@ class BaseScene(Qt.QGraphicsScene):
 
     def __init__(self, parent):
         super().__init__(parent)
+        self.viewport_rect_item = ViewportRectItem()
+        self.addItem(self.viewport_rect_item)
         self._requester_of_current_nonempty_mouseover_info = None
         from ..qgraphicsitems.contextual_info_item import ContextualInfoItem
-        self.contextual_info_item = ContextualInfoItem()
-        self.addItem(self.contextual_info_item)
+        self.contextual_info_item = ContextualInfoItem(self.viewport_rect_item)
+        self.contextual_info_item.setPos(10, 5)
 
     def clear_contextual_info(self, requester):
         self.update_contextual_info(None, requester)

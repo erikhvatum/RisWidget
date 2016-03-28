@@ -70,6 +70,7 @@ class SimplePointPicker(Qt.QGraphicsObject):
     def __init__(self, general_view, parent_item, points=None):
         super().__init__(parent_item)
         self.view = general_view
+        self.view.viewport_rect_item.size_changed.connect(self.on_viewport_size_changed)
         self.point_items = []
         self.pen = Qt.QPen(Qt.Qt.red)
         self.pen.setWidth(2)
@@ -124,8 +125,7 @@ class SimplePointPicker(Qt.QGraphicsObject):
                 self.delete_selected()
         return False
 
-    def on_scene_region_changed(self, view):
-        assert view is self.view
+    def on_viewport_size_changed(self):
         scale = 1 / self.view.transform().m22()
         for point_item in self.point_items:
             point_item.setScale(scale)

@@ -37,13 +37,11 @@ c_uint8_p = ctypes.POINTER(ctypes.c_uint8)
 
 class ContextualInfoItemNV(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
-    FIXED_POSITION_IN_VIEW = Qt.QPoint(10, 5)
 
     text_changed = Qt.pyqtSignal()
 
     def __init__(self, parent_item=None):
         super().__init__(parent_item)
-        self.setFlag(Qt.QGraphicsItem.ItemIgnoresTransformations)
 #       self._font = Qt.QFont('Courier', pointSize=16, weight=Qt.QFont.Bold)
 #       self._font.setKerning(False)
 #       self._font.setStyleHint(Qt.QFont.Monospace, Qt.QFont.OpenGLCompatible | Qt.QFont.PreferQuality)
@@ -153,12 +151,6 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
                     self._glyph_base,
                     PR.GL_BOUNDING_BOX_OF_BOUNDING_BOXES_NV,
                     PR.GL_TRANSLATE_X_NV, k_p)
-
-    def return_to_fixed_position(self, view):
-        """Maintain position self.FIXED_POSITION_IN_VIEW relative to view's top left corner."""
-        topleft = self.FIXED_POSITION_IN_VIEW
-        if view.mapFromScene(self.pos()) != topleft:
-            self.setPos(view.mapToScene(topleft))
 
     def _update_paths(self):
         if self._path is None:

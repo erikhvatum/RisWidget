@@ -23,19 +23,16 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from contextlib import ExitStack
-from pathlib import Path
 from PyQt5 import Qt
 from ..shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
 
 class ContextualInfoItemPlain(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
-    FIXED_POSITION_IN_VIEW = Qt.QPoint(10, 5)
 
     text_changed = Qt.pyqtSignal()
 
     def __init__(self, parent_item=None):
         super().__init__(parent_item)
-        self.setFlag(Qt.QGraphicsItem.ItemIgnoresTransformations)
         self._font = Qt.QFont('Courier', pointSize=16, weight=Qt.QFont.Bold)
         self._font.setKerning(False)
         self._font.setStyleHint(Qt.QFont.Monospace, Qt.QFont.OpenGLCompatible | Qt.QFont.PreferQuality)
@@ -51,8 +48,6 @@ class ContextualInfoItemPlain(Qt.QGraphicsObject):
         # context info text
         self.setAcceptHoverEvents(False)
         self.setAcceptedMouseButtons(Qt.Qt.NoButton)
-        # Info text generally should appear over anything else rather than z-fighting
-        self.setZValue(10)
         self.hide()
 
     def type(self):
@@ -68,12 +63,6 @@ class ContextualInfoItemPlain(Qt.QGraphicsObject):
     def paint(self, qpainter, option, widget):
         self._update_picture()
         self._picture.play(qpainter)
-
-    def return_to_fixed_position(self, view):
-        """Maintain position self.FIXED_POSITION_IN_VIEW relative to view's top left corner."""
-        topleft = self.FIXED_POSITION_IN_VIEW
-        if view.mapFromScene(self.pos()) != topleft:
-            self.setPos(view.mapToScene(topleft))
 
     def _update_picture(self):
         if self._picture is None:

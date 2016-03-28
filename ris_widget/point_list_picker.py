@@ -162,7 +162,7 @@ class PointListPicker(Qt.QGraphicsObject):
     def __init__(self, general_view, parent_item, points=None):
         super().__init__(parent_item)
         self.view = general_view
-        self.view.scene_region_changed.connect(self._on_scene_region_changed)
+        self.view.viewport_rect_item.size_changed.connect(self._on_viewport_size_changed)
         self.PointListType = self.POINT_LIST_TYPE
         self.pen = Qt.QPen(Qt.Qt.red)
         self.pen.setWidth(2)
@@ -353,8 +353,7 @@ class PointListPicker(Qt.QGraphicsObject):
     def _on_point_item_focused(self, point):
         self.point_focused.emit(point)
 
-    def _on_scene_region_changed(self, view):
-        assert view is self.view
+    def _on_viewport_size_changed(self):
         scale = 1 / self.view.transform().m22()
         for point_item in self.point_items.values():
             point_item.setScale(scale)
