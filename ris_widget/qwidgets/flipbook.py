@@ -386,6 +386,10 @@ class Flipbook(Qt.QWidget):
         self.consolidate_selected_action.setEnabled(len(midxs) >= 2)
         self.page_selection_changed.emit(self)
 
+    def _on_pages_replaced(self, idxs, replaced_pages, pages):
+        if self.focused_page_idx in idxs:
+            self.apply()
+
     def focus_prev_page(self):
         """Advance to the previous page, if there is one."""
         idx = self.focused_page_idx
@@ -416,9 +420,18 @@ class Flipbook(Qt.QWidget):
     def pages(self, pages):
         if not isinstance(pages, PageList):
             pages = PageList(pages)
+        sl = self.pages_model.signaling_list
+        if sl is not None:
+            try:
+                sl.replaced.disconnect(self._on_pages_replaced)
+            except TypeError:
+                pass
         self.pages_model.signaling_list = pages
-        self.apply()
+        if pages is not None:
+            pages.replaced.connect(self._on_pages_replaced)
+        self.ensure_page_focused()
         self.page_selection_changed.emit(self)
+        self.apply()
 
     try:
         pages.__doc__ = _FLIPBOOK_PAGES_DOCSTRING
