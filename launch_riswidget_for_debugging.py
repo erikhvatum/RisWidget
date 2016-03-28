@@ -11,8 +11,12 @@ argv = sys.argv
 app = Qt.QApplication(argv)
 rw = RisWidget()
 rw.show()
+rw.main_view.zoom_preset_idx = 27
 
-rw.add_image_files_to_flipbook([[Path(__file__).parent / 'Opteron_6300_die_shot_16_core_mod.jpg', Path(__file__).parent / 'top_left_g.png']])
+rw.add_image_files_to_flipbook([
+    ['/Users/ehvatum/zplrepo/ris_widget/Opteron_6300_die_shot_16_core_mod.jpg', '/Users/ehvatum/zplrepo/ris_widget/top_left_g.png'],
+    ['/Volumes/MrSpinny/14/2015-11-18t0948 focus-03_ffc.png']
+])
 
 # from ris_widget.qwidgets.layer_stack_painter import LayerStackPainter
 # lsp = LayerStackPainter(rw.main_scene.layer_stack_item)

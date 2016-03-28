@@ -79,6 +79,8 @@ class GeneralView(BaseView):
     def _on_layer_stack_item_bounding_rect_changed(self):
         if self.zoom_to_fit:
             self._apply_zoom()
+        else:
+            self.scene_region_changed.emit(self)
 
     def _on_resize(self, size):
         if self.zoom_to_fit:
