@@ -18,9 +18,13 @@ rw.add_image_files_to_flipbook([
     ['/Volumes/MrSpinny/14/2015-11-18t0948 focus-03_ffc.png']
 ])
 
+
+
 # from ris_widget.qwidgets.layer_stack_painter import LayerStackPainter
 # lsp = LayerStackPainter(rw.main_scene.layer_stack_item)
 # lsp.show()
+
+# plp, plpt = rw.make_poly_line_picker_and_table()
 
 # rw.qt_object.layer_stack.histogram_alternate_column_shading_enabled = True
 # rw.layer.histogram_min = 0
