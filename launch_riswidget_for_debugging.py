@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import numpy
 from pathlib import Path
 from PyQt5 import Qt
 from ris_widget.ris_widget import RisWidget
@@ -10,13 +11,17 @@ argv = sys.argv
 #Qt.QCoreApplication.setAttribute(Qt.Qt.AA_ShareOpenGLContexts)
 app = Qt.QApplication(argv)
 rw = RisWidget()
-rw.show()
-rw.main_view.zoom_preset_idx = 27
+# rw.main_view.zoom_preset_idx = 27
 
-rw.add_image_files_to_flipbook([
-    ['/Users/ehvatum/zplrepo/ris_widget/Opteron_6300_die_shot_16_core_mod.jpg', '/Users/ehvatum/zplrepo/ris_widget/top_left_g.png'],
-    ['/Volumes/MrSpinny/14/2015-11-18t0948 focus-03_ffc.png']
-])
+rw.image = numpy.zeros((100,100), dtype=numpy.uint8)
+
+from ris_widget.examples.main_thread_mandelbrot import MandelbrotWidget
+mandelbrot_widget = MandelbrotWidget(rw.image)
+
+# rw.add_image_files_to_flipbook([
+#     ['/Users/ehvatum/zplrepo/ris_widget/Opteron_6300_die_shot_16_core_mod.jpg', '/Users/ehvatum/zplrepo/ris_widget/top_left_g.png'],
+#     ['/Volumes/MrSpinny/14/2015-11-18t0948 focus-03_ffc.png']
+# ])
 
 
 
