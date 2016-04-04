@@ -20,22 +20,28 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
-// Authors: Erik Hvatum <ice.rikh@gmail.com>
+// Authors: Erik Hvatum <ice.rikh@gmail.com
 
-#include "_cpp_image.h"
+#pragma once
+#include <cstdint>
+#include <QtCore>
 
-PYBIND11_PLUGIN(_cpp_image)
+enum class ImageStatus : std::uint8_t
 {
-    py::module m("_cpp_image", "ris_widget.image_impl._cpp_image module");
+    Empty,
+    AsyncLoading,
+    AsyncLoadingFailed,
+    Valid
+};
 
-    py::class_<_CppImage, std::shared_ptr<_CppImage>>(m, "_CppImage")
-        .def(py::init<const char*>());
+class _CppImage
+  : public QObject
+{
+    Q_OBJECT
+public:
+    explicit _CppImage(const QString& name=QString(), QObject* parent=nullptr);
+    virtual ~_CppImage();
 
-    py::enum_<ImageStatus>(m, "ImageStatus")
-        .value("Empty", ImageStatus::Empty)
-        .value("AsyncLoading", ImageStatus::AsyncLoading)
-        .value("AsyncLoadingFailed", ImageStatus::AsyncLoadingFailed)
-        .value("Valid", ImageStatus::Valid);
-
-    return m.ptr();
-}
+protected:
+    ImageStatus m_status;
+};

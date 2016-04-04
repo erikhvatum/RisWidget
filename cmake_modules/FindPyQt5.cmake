@@ -40,6 +40,7 @@
 #                 PyQt5 .sip files, we fail and the user must specify PYQT5_SIP_DIR.
 
 set(PYQT5_FOUND false)
+
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import PyQt5.QtCore;print(PyQt5.QtCore.PYQT_CONFIGURATION['sip_flags'])"
                 RESULT_VARIABLE _PYQT5_SIP_FLAGS_RETRIEVED
                 ERROR_VARIABLE _PYQT5_SIP_FLAGS_ERROR
@@ -111,4 +112,7 @@ if(PYQT5_FOUND)
 endif()
 
 mark_as_advanced(PYQT5_FOUND PYQT5_SIP_FLAGS PYQT5_SIP_DIR)
+set(PYQT5_FOUND ${PYQT5_FOUND} CACHE BOOL "")
+set(PYQT5_SIP_FLAGS ${PYQT5_SIP_FLAGS} CACHE PATH "Value of PyQt5.QtCore.PYQT_CONFIGURATION['sip_flags'], a string containing the -t and -x flags that that were used by sip during the PyQt5 build process (ie, PyQt5's configure.py script called sip with these -t and -x parameters while building PyQt5).  C++ PyQt5 extensions are advised to use the same -t and -x arguments when calling sip.")
+set(PYQT5_SIP_DIR ${PYQT5_SIP_DIR} CACHE PATH "Location of PyQt5 .sip files.  Unlike PyQt4, which offers an API for determining this path, PyQt5 does... not...........  So, we check the default sip includes directory, and if we don't find our PyQt5 .sip files, we fail and the user must specify PYQT5_SIP_DIR.")
 unset(_PYQT5_SIP_FLAGS)

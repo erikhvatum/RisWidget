@@ -20,50 +20,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
-// Authors: Erik Hvatum <ice.rikh@gmail.com
+// Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-#pragma once
-#include <cstdint>
-#include <forward_list>
-#include <functional>
-#include <memory>
-#include <pybind11/pybind11.h>
-#include <pybind11/functional.h>
-#include <stdexcept>
-#include <string>
-#include <vector>
+#include "_CppImage.h"
 
-namespace py = pybind11;
-
-enum class ImageStatus : std::uint8_t
+_CppImage::_CppImage(const QString& name, QObject* parent)
+  : QObject(parent)
 {
-    Empty,
-    AsyncLoading,
-    AsyncLoadingFailed,
-    Valid
-};
+    setObjectName(name);
+}
 
-class _CppImage
-  : public std::enable_shared_from_this<_CppImage>
-{
-public:
-    typedef std::function<void()> Callback;
-    typedef std::forward_list<Callback> CallbackList;
-
-    _CppImage(const char* name);
-
-    const ImageStatus& status() const;
-    void setStatus(const ImageStatus& status);
-    void addStatusChangedCallback(const Callback& callback);
-    void removeStatusChangedCallback(const Callback& callback);
-    bool hasStatusChangedCallback(const Callback& callback) const;
-
-protected:
-    typedef CallbackList _CppImage::*CallbackListMPtr;
-
-    ImageStatus m_status;
-    CallbackList m_statusChangedCallbacks;
-    std::string m_name;
-
-    void call(const CallbackListMPtr& callbackListMPtr);
-};
+_CppImage::~_CppImage() {}

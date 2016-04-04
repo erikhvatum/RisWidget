@@ -20,54 +20,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 //
-// Authors: Erik Hvatum <ice.rikh@gmail.com>
+// Authors: Erik Hvatum <ice.rikh@gmail.com
 
-#include <algorithm>
-#include "_cpp_image.h"
+%Module _cpp_image
 
-_CppImage::_CppImage(const char* s)
+%Import QtCore/QtCoremod.sip
+%Import QtGui/QtGuimod.sip
+%Import QtOpenGL/QtOpenGLmod.sip
+%Import QtWidgets/QtWidgetsmod.sip
+
+%DefaultDocstringFormat "deindented"
+
+class _CppImage
+  : public QObject
 {
-    if(s) m_name = s;
-}
-
-const ImageStatus& _CppImage::status() const
-{
-    return m_status;
-}
-
-void _CppImage::setStatus(const ImageStatus& status)
-{
-    if(status != m_status)
-    {
-        m_status = status;
-        call(&_CppImage::m_statusChangedCallbacks);
-    }
-}
-
-void _CppImage::addStatusChangedCallback(const Callback& callback)
-{
-    if(!callback) throw std::invalid_argument
-}
-
-void _CppImage::removeStatusChangedCallback(const Callback& callback)
-{
-}
-
-bool _CppImage::hasStatusChangedCallback(const Callback& callback) const
-{
-    bool ret{false};
-    for(const Callback& currCallback : m_statusChangedCallbacks)
-    {
-        if(currCallback.target<void()>() == callback.target<void()>())
-        {
-            ret = true;
-            break;
-        }
-    }
-    return ret;
-}
-
-void _CppImage::call(const CallbackListMPtr& callbackListMPtr)
-{
-    for(Callback& callback : this->*callbackListMPtr) callback();
-}
+%TypeHeaderCode
+#include "_CppImage.h"
+%End
+public:
+    explicit _CppImage(const QString& name=QString(), QObject* parent=nullptr);
+    virtual ~_CppImage();
+};

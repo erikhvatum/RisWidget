@@ -20,45 +20,44 @@
 # SIP_DEFAULT_SIP_DIR - Default directory where .sip files should be installed
 #     into.
 
-# Copyright (c) 2007, Simon Edwards <simon@simonzone.com>
-# Redistribution and use is allowed according to the terms of the BSD license.
-# For details see the accompanying COPYING-CMAKE-SCRIPTS file.
+IF (SIP_VERSION)
+    # Already in cache, be silent
+    SET(SIP_FOUND TRUE CACHE BOOL "")
+ELSE (SIP_VERSION)
 
+    FIND_FILE(_find_sip_py FindSIP.py PATHS ${CMAKE_MODULE_PATH})
 
+    EXECUTE_PROCESS(COMMAND ${PYTHON_EXECUTABLE} ${_find_sip_py} OUTPUT_VARIABLE sip_config)
+    IF (sip_config)
+        STRING(REGEX REPLACE "^sip_version:([^\n]+).*$" "\\1" SIP_VERSION ${sip_config})
+        STRING(REGEX REPLACE ".*\nsip_version_str:([^\n]+).*$" "\\1" SIP_VERSION_STR ${sip_config})
+        STRING(REGEX REPLACE ".*\nsip_bin:([^\n]+).*$" "\\1" SIP_EXECUTABLE ${sip_config})
+        IF (NOT SIP_DEFAULT_SIP_DIR)
+            STRING(REGEX REPLACE ".*\ndefault_sip_dir:([^\n]+).*$" "\\1" SIP_DEFAULT_SIP_DIR ${sip_config})
+        ENDIF (NOT SIP_DEFAULT_SIP_DIR)
+        STRING(REGEX REPLACE ".*\nsip_inc_dir:([^\n]+).*$" "\\1" SIP_INCLUDE_DIR ${sip_config})
+        FILE(TO_CMAKE_PATH ${SIP_DEFAULT_SIP_DIR} SIP_DEFAULT_SIP_DIR)
+        FILE(TO_CMAKE_PATH ${SIP_INCLUDE_DIR} SIP_INCLUDE_DIR)
+        IF (EXISTS ${SIP_EXECUTABLE})
+            SET(SIP_FOUND TRUE CACHE BOOL "")
+        ELSE ()
+            MESSAGE(STATUS "Found SIP configuration but the sip executable could not be found.")
+        ENDIF ()
+        SET(SIP_VERSION ${SIP_VERSION} CACHE STRING "The version of SIP found expressed as a 6 digit hex number suitable for comparison as a string.")
+        SET(SIP_VERSION_STR ${SIP_VERSION_STR} CACHE STRING "The version of SIP found as a human readable string.")
+        SET(SIP_EXECUTABLE ${SIP_EXECUTABLE} CACHE FILEPATH "Path and filename of the SIP command line executable.")
+        SET(SIP_INCLUDE_DIR ${SIP_INCLUDE_DIR} CACHE PATH "Directory holding the SIP C++ header file.")
+        SET(SIP_DEFAULT_SIP_DIR ${SIP_DEFAULT_SIP_DIR} CACHE PATH "Default directory where .sip files should be installed into.")
+    ENDIF (sip_config)
 
-IF(SIP_VERSION)
-  # Already in cache, be silent
-  SET(SIP_FOUND TRUE)
-ELSE(SIP_VERSION)
+    IF (SIP_FOUND)
+        IF (NOT SIP_FIND_QUIETLY)
+            MESSAGE(STATUS "Found SIP version: ${SIP_VERSION_STR}")
+        ENDIF (NOT SIP_FIND_QUIETLY)
+    ELSE (SIP_FOUND)
+        IF (SIP_FIND_REQUIRED)
+            MESSAGE(FATAL_ERROR "Could not find SIP")
+        ENDIF (SIP_FIND_REQUIRED)
+    ENDIF (SIP_FOUND)
 
-  FIND_FILE(_find_sip_py FindSIP.py PATHS ${CMAKE_MODULE_PATH})
-
-  EXECUTE_PROCESS(COMMAND ${PYTHON_EXECUTABLE} ${_find_sip_py} OUTPUT_VARIABLE sip_config)
-  IF(sip_config)
-    STRING(REGEX REPLACE "^sip_version:([^\n]+).*$" "\\1" SIP_VERSION ${sip_config})
-    STRING(REGEX REPLACE ".*\nsip_version_str:([^\n]+).*$" "\\1" SIP_VERSION_STR ${sip_config})
-    STRING(REGEX REPLACE ".*\nsip_bin:([^\n]+).*$" "\\1" SIP_EXECUTABLE ${sip_config})
-    IF(NOT SIP_DEFAULT_SIP_DIR)
-        STRING(REGEX REPLACE ".*\ndefault_sip_dir:([^\n]+).*$" "\\1" SIP_DEFAULT_SIP_DIR ${sip_config})
-    ENDIF(NOT SIP_DEFAULT_SIP_DIR)
-    STRING(REGEX REPLACE ".*\nsip_inc_dir:([^\n]+).*$" "\\1" SIP_INCLUDE_DIR ${sip_config})
-    FILE(TO_CMAKE_PATH ${SIP_DEFAULT_SIP_DIR} SIP_DEFAULT_SIP_DIR)
-    FILE(TO_CMAKE_PATH ${SIP_INCLUDE_DIR} SIP_INCLUDE_DIR)
-    IF(EXISTS ${SIP_EXECUTABLE})
-      SET(SIP_FOUND TRUE)
-    ELSE()
-      MESSAGE(STATUS "Found SIP configuration but the sip executable could not be found.")
-    ENDIF()
-  ENDIF(sip_config)
-
-  IF(SIP_FOUND)
-    IF(NOT SIP_FIND_QUIETLY)
-      MESSAGE(STATUS "Found SIP version: ${SIP_VERSION_STR}")
-    ENDIF(NOT SIP_FIND_QUIETLY)
-  ELSE(SIP_FOUND)
-    IF(SIP_FIND_REQUIRED)
-      MESSAGE(FATAL_ERROR "Could not find SIP")
-    ENDIF(SIP_FIND_REQUIRED)
-  ENDIF(SIP_FOUND)
-
-ENDIF(SIP_VERSION)
+ENDIF (SIP_VERSION)

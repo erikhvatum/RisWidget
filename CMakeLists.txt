@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2016 Erik Hvatum
+# Copyright (c) 2016 WUSTL ZPLAB
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -23,8 +23,9 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 cmake_minimum_required(VERSION 3.0)
-project(StackStream)
+project(ris_widget)
 
+set(CMAKE_VERBOSE_MAKEFILE TRUE CACHE BOOL "Verbose output" FORCE)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 if(NOT MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
@@ -90,7 +91,13 @@ endif()
 unset(_NUMPY_INCLUDE_DIR_FOUND)
 unset(_NUMPY_INCLUDE_DIR_ERROR)
 
-set(BUILD_STACKSTREAM_PYTHON_MODULE ON)
+find_package(SIP REQUIRED)
+find_package(PyQt5 REQUIRED)
+
+set(SIP_INCLUDES ${SIP_INCLUDE_DIR} ${PYQT5_SIP_DIR})
+message(STATUS ${SIP_INCLUDES})
+set(SIP_EXTRA_OPTIONS ${SIP_EXTRA_OPTIONS} ${PYQT5_SIP_FLAGS} "-e")
+message(STATUS ${SIP_EXTRA_OPTIONS})
 
 include_directories(SYSTEM ${FREEIMAGE_INCLUDE_PATH})
 include_directories(SYSTEM ${FREEIMAGEPLUS_INCLUDE_PATH})
