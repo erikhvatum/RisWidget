@@ -206,14 +206,27 @@
         <Folder Name="ris_widget">
             <Folder Name="examples">
                 <F N="ris_widget/examples/__init__.py"/>
+                <F N="ris_widget/examples/flipbook_page_poly_line_annotator.py"/>
+                <F N="ris_widget/examples/main_thread_mandelbrot.py"/>
+                <F N="ris_widget/examples/main_thread_mandelbrot.qml"/>
+                <F N="ris_widget/examples/poly_fill_point_picker.py"/>
                 <F N="ris_widget/examples/poly_line_point_picker.py"/>
                 <F N="ris_widget/examples/quadratic_compound_bezier_picker.py"/>
                 <F N="ris_widget/examples/simple_point_picker.py"/>
                 <F N="ris_widget/examples/simple_poly_line_picker.py"/>
+                <F N="ris_widget/examples/simple_poly_line_point_picker.py"/>
+                <F N="ris_widget/examples/very_simple_poly_line_picker.py"/>
+            </Folder>
+            <Folder Name="image_impl">
+                <F N="ris_widget/image_impl/__init__.py"/>
+                <F N="ris_widget/image_impl/_cpp_image.cpp"/>
+                <F N="ris_widget/image_impl/_cpp_image.h"/>
+                <F N="ris_widget/image_impl/_cpp_image_module.cpp"/>
+                <F N="ris_widget/image_impl/cpp_image.py"/>
+                <F N="ris_widget/image_impl/py_image.py"/>
             </Folder>
             <Folder Name="ndimage_statistics">
                 <F N="ris_widget/ndimage_statistics/__init__.py"/>
-                <F N="ris_widget/ndimage_statistics/_ndimage_statistics.cpp"/>
                 <F N="ris_widget/ndimage_statistics/_ndimage_statistics.pyx"/>
                 <F N="ris_widget/ndimage_statistics/_ndimage_statistics_impl.cpp"/>
                 <F N="ris_widget/ndimage_statistics/_ndimage_statistics_impl.h"/>
