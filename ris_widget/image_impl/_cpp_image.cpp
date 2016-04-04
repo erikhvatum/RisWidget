@@ -46,6 +46,7 @@ void _CppImage::setStatus(const ImageStatus& status)
 
 void _CppImage::addStatusChangedCallback(const Callback& callback)
 {
+    if(!callback) throw std::invalid_argument
 }
 
 void _CppImage::removeStatusChangedCallback(const Callback& callback)
