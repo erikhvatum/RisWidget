@@ -90,6 +90,8 @@ public:
     bool get_is_valid() const;
     const quint64& get_data_serial() const;
     const quint64& get_mask_serial() const;
+    PyObject* get_data();
+    PyObject* get_mask();
 
 %Property(name=title, get=get_title, set=set_title)
 %Property(name=status, get=get_status)

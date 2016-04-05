@@ -30,6 +30,7 @@
 #else
  #include <Python.h>
 #include <atomic>
+#include <memory>
 #include <QtCore>
 #endif
 
@@ -53,6 +54,7 @@ public:
         SetTitle = 16
     };
     Q_DECLARE_FLAGS(SetFlags, SetFlag)
+    typedef std::shared_ptr<std::uint8_t> RawData;
 
 private:
     Q_OBJECT
@@ -73,6 +75,8 @@ public:
     bool get_is_valid() const;
     const quint64& get_data_serial() const;
     const quint64& get_mask_serial() const;
+    PyObject* get_data();
+    PyObject* get_mask();
 
 //  void set(
 //     SetFlags setFlags,
@@ -92,6 +96,10 @@ protected:
     Status m_status;
     quint64 m_data_serial;
     quint64 m_mask_serial;
+    RawData m_raw_data;
+    RawData m_raw_mask;
+    PyObject* m_data;
+    PyObject* m_mask;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(_CppImage::SetFlags)
