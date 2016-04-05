@@ -26,7 +26,7 @@
 #include "Gil.h"
 
 GilLocker::GilLocker()
-        : m_PyGILState_STATE(PyGILState_Ensure())
+  : m_PyGILState_STATE(PyGILState_Ensure())
 {
 }
 
@@ -44,7 +44,7 @@ GilLocker::~GilLocker()
 }
 
 GilUnlocker::GilUnlocker()
-        : m_pyThreadState(PyEval_SaveThread())
+  : m_pyThreadState(PyEval_SaveThread())
 {
     if(m_pyThreadState == nullptr)
     {
