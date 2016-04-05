@@ -34,7 +34,7 @@
     #include <algorithm>
     #include <QHash>
     #include <QString>
-    extern QHash<PyObject*, std::uint8_t> objectCppImageDTypes;
+    extern QHash<PyObject*, _CppImage::DType> objectCppImageDTypes;
     // Contents match _CppImage::DType
     extern PyObject* cppImageDTypeObjects[_CppImage::DTYPE_COUNT];
     extern PyObject** cppImageDTypeObjectsEnd;
@@ -66,7 +66,7 @@
         return reinterpret_cast<void*>(1);
     }
 
-    QHash<PyObject*, std::uint8_t> objectCppImageDTypes;
+    QHash<PyObject*, _CppImage::DType> objectCppImageDTypes;
     PyObject* cppImageDTypeObjects[_CppImage::DTYPE_COUNT];
     PyObject** cppImageDTypeObjectsEnd = cppImageDTypeObjects + _CppImage::DTYPE_COUNT;
     QHash<QString, _CppImage::Components> stringCppImageComponents;
@@ -92,12 +92,12 @@
 //  cppImageDTypeObjects[_CppImage::DTypeFloat16] = (PyObject*)PyArray_TypeObjectFromType(NPY_FLOAT16);
     cppImageDTypeObjects[_CppImage::DTypeFloat32] = (PyObject*)PyArray_TypeObjectFromType(NPY_FLOAT32);
 //  cppImageDTypeObjects[_CppImage::DTypeFloat64] = (PyObject*)PyArray_TypeObjectFromType(NPY_FLOAT64);
-    std::uint8_t e{0};
+    int e = 0;
     for(PyObject** cppImageDTypeObject{cppImageDTypeObjects};
         cppImageDTypeObject != cppImageDTypeObjectsEnd;
         ++cppImageDTypeObject, ++e)
     {
-        objectCppImageDTypes[*cppImageDTypeObject] = e;
+        objectCppImageDTypes[*cppImageDTypeObject] = (_CppImage::DType)e;
     }
     e = 0;
     for(QString* cppImageComponentString{cppImageComponentStrings};
@@ -188,7 +188,7 @@ signals:
             if(objectCppImageDTypes.contains(sipPy)) return 1;
             return 0;
         }
-        *sipCppPtr = new _CppImage::DType((_CppImage::DType)objectCppImageDTypes[sipPy]);
+        *sipCppPtr = new _CppImage::DType(objectCppImageDTypes[sipPy]);
         return sipGetState(sipTransferObj);
     %End
 
