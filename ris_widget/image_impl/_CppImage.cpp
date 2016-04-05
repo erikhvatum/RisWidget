@@ -32,16 +32,26 @@ quint64 _CppImage::generate_serial()
     return sm_next_serial++;
 }
 
-_CppImage::_CppImage(const QString& name, QObject* parent)
+_CppImage::_CppImage(const QString& title, QObject* parent)
   : QObject(parent),
     m_status(Empty),
     m_serial(std::numeric_limits<std::size_t>::max())
 {
-    setObjectName(name);
-    connect(this, &QObject::objectNameChanged, this, [&](const QString&){name_changed(this);});
+    setObjectName(title);
+    connect(this, &QObject::objectNameChanged, this, [&](const QString&){title_changed(this);});
 }
 
 _CppImage::~_CppImage() {}
+
+QString _CppImage::get_title() const
+{
+    return objectName();
+}
+
+void _CppImage::set_title(const QString& title)
+{
+    setObjectName(title);
+}
 
 const _CppImage::Status& _CppImage::get_status() const
 {

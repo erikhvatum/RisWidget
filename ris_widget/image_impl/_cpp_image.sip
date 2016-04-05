@@ -45,17 +45,20 @@ public:
         AsyncLoadingFailed,
         Valid
     };
-    explicit _CppImage(const QString& name=QString(), QObject* parent=nullptr);
+    explicit _CppImage(const QString& title=QString(), QObject* parent=nullptr);
     virtual ~_CppImage();
 
+    QString get_title() const;
+    void set_title(const QString& title);
     const Status& get_status() const;
     const quint64& get_serial() const;
 
+%Property(name=title, get=get_title, set=set_title)
 %Property(name=status, get=get_status)
 %Property(name=serial, get=get_serial)
 
 signals:
-    void name_changed(_CppImage*);
+    void title_changed(_CppImage*);
     void status_changed(_CppImage*);
     void serial_changed(_CppImage*);
 };

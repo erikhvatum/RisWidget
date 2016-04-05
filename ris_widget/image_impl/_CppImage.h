@@ -41,19 +41,21 @@ public:
 private:
     Q_OBJECT
     Q_ENUM(Status)
-    Q_PROPERTY(QString name READ objectName WRITE setObjectName NOTIFY name_changed FINAL)
+    Q_PROPERTY(QString title READ objectName WRITE setObjectName NOTIFY title_changed FINAL)
     Q_PROPERTY(Status status READ get_status NOTIFY status_changed FINAL)
     Q_PROPERTY(std::uint64_t serial READ get_serial NOTIFY serial_changed FINAL)
 
 public:
-    explicit _CppImage(const QString& name=QString(), QObject* parent=nullptr);
+    explicit _CppImage(const QString& title=QString(), QObject* parent=nullptr);
     virtual ~_CppImage();
 
+    QString get_title() const;
+    void set_title(const QString& title);
     const Status& get_status() const;
     const quint64& get_serial() const;
 
 signals:
-    void name_changed(_CppImage*);
+    void title_changed(_CppImage*);
     void status_changed(_CppImage*);
     void serial_changed(_CppImage*);
 
