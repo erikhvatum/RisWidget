@@ -54,6 +54,19 @@ public:
         SetTitle = 16
     };
     Q_DECLARE_FLAGS(SetFlags, SetFlag)
+    enum DType
+    {
+        DTypeNull = 0,
+        DTypeUInt8,
+        DTypeUInt12,
+        DTypeUInt16,
+        DTypeUInt32,
+        DTypeUInt64,
+        DTypeFloat16,
+        DTypeFloat32,
+        DTypeFloat64,
+        DTYPE_COUNT = DTypeFloat64
+    };
     typedef std::shared_ptr<std::uint8_t> RawData;
 
 private:
@@ -77,6 +90,7 @@ public:
     const quint64& get_mask_serial() const;
     PyObject* get_data();
     PyObject* get_mask();
+    const DType& get_dtype() const;
 
 //  void set(
 //     SetFlags setFlags,
@@ -100,6 +114,7 @@ protected:
     RawData m_raw_mask;
     PyObject* m_data;
     PyObject* m_mask;
+    DType m_dtype;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(_CppImage::SetFlags)

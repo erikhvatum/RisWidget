@@ -46,7 +46,8 @@ _CppImage::_CppImage(const QString& title, QObject* parent)
     m_data_serial(generate_serial()),
     m_mask_serial(generate_serial()),
     m_data(nullptr),
-    m_mask(nullptr)
+    m_mask(nullptr),
+    m_dtype(DTypeNull)
 {
     setObjectName(title);
     connect(this, &QObject::objectNameChanged, this, [&](const QString&){title_changed(this);});
@@ -94,4 +95,9 @@ PyObject* _CppImage::get_mask()
 {
     if(m_mask) return m_mask;
     Py_RETURN_NONE;
+}
+
+const _CppImage::DType& _CppImage::get_dtype() const
+{
+    return m_dtype;
 }

@@ -29,33 +29,77 @@
 %Import QtOpenGL/QtOpenGLmod.sip
 %Import QtWidgets/QtWidgetsmod.sip
 
+%ModuleHeaderCode
+    #include "_CppImage.h"
+    #include <algorithm>
+    #include <QHash>
+    extern QHash<PyObject*, std::uint8_t> objectCppImageDTypes;
+    // Contents match _CppImage::DType, indexing by _CppImage::DType value
+    extern PyObject* cppImageDTypeObjects[_CppImage::DTYPE_COUNT + 1];
+    extern PyObject** cppImageDTypeObjectsEnd;
+%End
+
 %ModuleCode
-#ifdef _DEBUG
- #undef _DEBUG
- #include <Python.h>
- #define _DEBUG
-#else
- #include <Python.h>
-#endif
+    #ifdef _DEBUG
+     #undef _DEBUG
+     #include <Python.h>
+     #define _DEBUG
+    #else
+     #include <Python.h>
+    #endif
 
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
-#define PY_ARRAY_UNIQUE_SYMBOL _CppImage_ARRAY_API
-#include <numpy/arrayobject.h>
-#include <iostream>
+    #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+    #define PY_ARRAY_UNIQUE_SYMBOL _CppImage_ARRAY_API
+    #include <numpy/arrayobject.h>
+    #include <iostream>
 
-void* do_import_array()
-{
-    // import_array() is actually a macro that returns NULL if it fails, so it has to be wrapped in order to be called
-    // from a constructor which necessarily does not return anything
-    import_array();
-    std::cout << "do_import_array()\n";
-    return reinterpret_cast<void*>(1);
-}
+    void* do_import_array()
+    {
+        // import_array() is actually a macro that returns NULL if it fails, so it has to be wrapped in order to be called
+        // from a constructor which necessarily does not return anything
+        import_array();
+        return reinterpret_cast<void*>(1);
+    }
+
+    QHash<PyObject*, std::uint8_t> objectCppImageDTypes;
+    PyObject* cppImageDTypeObjects[_CppImage::DTYPE_COUNT + 1];
+    PyObject** cppImageDTypeObjectsEnd = cppImageDTypeObjects + _CppImage::DTYPE_COUNT + 1;
 %End
 
 %PostInitialisationCode
-do_import_array();
+    do_import_array();
+    cppImageDTypeObjects[_CppImage::DTypeNull]    = (PyObject*)Py_None;
+    Py_INCREF(Py_None);
+    cppImageDTypeObjects[_CppImage::DTypeUInt8]   = (PyObject*)PyArray_TypeObjectFromType(NPY_UINT8);
+    cppImageDTypeObjects[_CppImage::DTypeUInt12]  = (PyObject*)PyArray_TypeObjectFromType(NPY_UINT16);
+    cppImageDTypeObjects[_CppImage::DTypeUInt16]  = (PyObject*)PyArray_TypeObjectFromType(NPY_UINT16);
+    cppImageDTypeObjects[_CppImage::DTypeUInt32]  = (PyObject*)PyArray_TypeObjectFromType(NPY_UINT32);
+    cppImageDTypeObjects[_CppImage::DTypeUInt64]  = (PyObject*)PyArray_TypeObjectFromType(NPY_UINT64);
+    cppImageDTypeObjects[_CppImage::DTypeFloat16] = (PyObject*)PyArray_TypeObjectFromType(NPY_FLOAT16);
+    cppImageDTypeObjects[_CppImage::DTypeFloat32] = (PyObject*)PyArray_TypeObjectFromType(NPY_FLOAT32);
+    cppImageDTypeObjects[_CppImage::DTypeFloat64] = (PyObject*)PyArray_TypeObjectFromType(NPY_FLOAT64);
+    std::uint8_t cppImageDTypeObjectIdx;
+    for(PyObject** cppImageDTypeObject{cppImageDTypeObjects};
+        cppImageDTypeObject != cppImageDTypeObjectsEnd;
+        ++cppImageDTypeObject, ++cppImageDTypeObjectIdx)
+    {
+        objectCppImageDTypes[*cppImageDTypeObject] = cppImageDTypeObjectIdx;
+    }
 %End
+
+%Exception std::exception(SIP_Exception) /PyName=StdException/
+{
+    %TypeHeaderCode
+    #include <exception>
+    %End
+    %RaiseCode
+        const char *detail = sipExceptionRef.what();
+
+        SIP_BLOCK_THREADS
+        PyErr_SetString(sipException_std_exception, detail);
+        SIP_UNBLOCK_THREADS
+    %End
+};
 
 %DefaultDocstringFormat "deindented"
 
@@ -63,7 +107,7 @@ class _CppImage
   : public QObject
 {
 %TypeHeaderCode
-#include "_CppImage.h"
+    #include "_CppImage.h"
 %End
 public:
     enum Status
@@ -92,6 +136,7 @@ public:
     const quint64& get_mask_serial() const;
     PyObject* get_data();
     PyObject* get_mask();
+    DType get_dtype() const;
 
 %Property(name=title, get=get_title, set=set_title)
 %Property(name=status, get=get_status)
@@ -105,4 +150,28 @@ signals:
     void is_valid_changed(_CppImage*);
     void data_serial_changed(_CppImage*);
     void mask_serial_changed(_CppImage*);
+};
+
+%MappedType _CppImage::DType
+{
+
+    %TypeHeaderCode
+        #include "_CppImage.h"
+    %End
+
+    %ConvertToTypeCode
+        if(!sipIsErr)
+        {
+            if(objectCppImageDTypes.contains(sipPy)) return 1;
+            return 0;
+        }
+        *sipCppPtr = new _CppImage::DType((_CppImage::DType)objectCppImageDTypes[sipPy]);
+        return sipGetState(sipTransferObj);
+    %End
+
+    %ConvertFromTypeCode
+        PyObject* r{cppImageDTypeObjects[*sipCpp]};
+        Py_INCREF(r);
+        return r;
+    %End
 };
