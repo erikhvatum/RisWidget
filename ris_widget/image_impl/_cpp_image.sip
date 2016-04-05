@@ -42,6 +42,7 @@
     // Contents match _CppImage::Components
     extern QString cppImageComponentStrings[_CppImage::COMPONENTS_COUNT];
     extern QString* cppImageComponentStringsEnd;
+    extern QString cppImageStatusStrings[_CppImage::STATUS_COUNT];
 %End
 
 %ModuleCode
@@ -78,6 +79,12 @@
         "rgba"
     };
     QString* cppImageComponentStringsEnd = cppImageComponentStrings + _CppImage::COMPONENTS_COUNT;
+    QString cppImageStatusStrings[_CppImage::STATUS_COUNT] = {
+        "Empty",
+        "AsyncLoading",
+        "AsyncLoadingFailed",
+        "Valid"
+    };
 %End
 
 %PostInitialisationCode
@@ -131,13 +138,6 @@ class _CppImage
     #include "_CppImage.h"
 %End
 public:
-    enum Status
-    {
-        Empty,
-        AsyncLoading,
-        AsyncLoadingFailed,
-        Valid
-    };
     enum SetFlag
     {
         SetData = 1,
@@ -239,6 +239,27 @@ signals:
             Py_RETURN_NONE;
         }
         QByteArray str = cppImageComponentStrings[*sipCpp].toUtf8();
+        return PyUnicode_FromString(str.data());
+    %End
+};
+
+%MappedType _CppImage::Status
+{
+    %TypeHeaderCode
+        #include "_CppImage.h"
+    %End
+
+    %ConvertToTypeCode
+        // Not supported - never needed
+        if(!sipIsErr)
+        {
+            return 0;
+        }
+        return sipGetState(sipTransferObj);
+    %End
+
+    %ConvertFromTypeCode
+        QByteArray str = cppImageStatusStrings[*sipCpp].toUtf8();
         return PyUnicode_FromString(str.data());
     %End
 };

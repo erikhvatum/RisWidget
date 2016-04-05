@@ -43,7 +43,8 @@ public:
         Empty,
         AsyncLoading,
         AsyncLoadingFailed,
-        Valid
+        Valid,
+        STATUS_COUNT
     };
     enum SetFlag
     {
