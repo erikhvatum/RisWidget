@@ -149,6 +149,8 @@ public:
     explicit _CppImage(const QString& title=QString(), QObject* parent=nullptr);
     virtual ~_CppImage();
 
+    virtual void read(const QString& fpath, bool async=false);
+
     QString get_title() const;
     void set_title(const QString& title);
     const Status& get_status() const;
@@ -159,6 +161,8 @@ public:
     PyObject* get_mask();
     const DType& get_dtype() const;
     const Components& get_components() const;
+    const QSize& get_size() const;
+    const QList<int> get_strides() const;
 
 %Property(name=title, get=get_title, set=set_title)
 %Property(name=status, get=get_status)
@@ -167,6 +171,8 @@ public:
 %Property(name=mask_serial, get=get_mask_serial)
 %Property(name=dtype, get=get_dtype)
 %Property(name=components, get=get_components)
+%Property(name=size, get=get_size)
+%Property(name=strides, get=get_strides)
 
 signals:
     void title_changed(_CppImage*);

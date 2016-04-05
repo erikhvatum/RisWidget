@@ -22,15 +22,19 @@
 //
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-#include <limits>
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #define PY_ARRAY_UNIQUE_SYMBOL _CppImage_ARRAY_API
 #define NO_IMPORT_ARRAY
 #include <numpy/arrayobject.h>
 #include "_CppImage.h"
 #include "Gil.h"
+#include <FreeImage.h>
 
 static void noop_deleter(void*) {}
+static void freeimage_deleter(void* d)
+{
+    FreeImage_Unload((FIBITMAP*)d);
+}
 using get_default_deleter = std::default_delete<std::uint8_t[]>;
 
 volatile std::atomic<quint64> _CppImage::sm_next_serial{0};
@@ -54,7 +58,42 @@ _CppImage::_CppImage(const QString& title, QObject* parent)
     connect(this, &QObject::objectNameChanged, this, [&](const QString&){title_changed(this);});
 }
 
+_CppImage::_CppImage(const QString& fpath, bool async, QObject* parent)
+  : QObject(parent),
+    m_status(Empty),
+
 _CppImage::~_CppImage() {}
+
+void _CppImage::read(const QString& fpath, bool async)
+{
+    QByteArray fpath_{fpath.toUtf8()};
+    FREE_IMAGE_FORMAT fif{FreeImage_GetFileType(fpath_.data(), 0)};
+    if(fif == FIF_UNKNOWN)
+    {
+        fif = FreeImage_GetFIFFFromFilename(fpath_.data());
+    }
+    if(fif == FIF_UNKNOWN)
+    {
+        throw std::runtime_error("failed to open file or file type not recognized");
+    }
+    FIBITMAP* fibmp{FreeImage_Load(fif, fpath_.data(), 0)};
+    if(!fibmp)
+    {
+        throw std::runtime_error("failed to read file");
+    }
+    if(!FreeImage_HasPixels(fibmp))
+    {
+        throw std::runtime_error("no pixel data");
+    }
+    FREE_IMAGE_TYPE fit{FreeImage_GetImageType(fibmp)};
+    if(fit == FIT_UNKNOWN)
+    {
+        throw std::runtime_error("unsupported component data type or arrangement");
+    }
+    // Todo: store strides
+    RawData d()
+    QSize new_size((int)FreeImage_GetWidth(fibmp), (int)FreeImage_GetHeight(fibmp));
+}
 
 QString _CppImage::get_title() const
 {
@@ -106,4 +145,14 @@ const _CppImage::DType& _CppImage::get_dtype() const
 const _CppImage::Components& _CppImage::get_components() const
 {
     return m_components;
+}
+
+const QSize& _CppImage::get_size() const
+{
+    return m_size;
+}
+
+const QList<int>& _CppImage::get_strides() const
+{
+    return m_strides;
 }

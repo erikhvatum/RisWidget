@@ -33,7 +33,7 @@ set(SOURCES
 set(LIBRARIES
         ${OPENGL_LIBRARIES}
         ${FREEIMAGE_LIBRARY}
-        ${FREEIMAGEPLUS_LIBRARY}
+#        ${FREEIMAGEPLUS_LIBRARY}
         ${PYTHON_LIBRARY}
         Qt5::Core
         Qt5::Gui

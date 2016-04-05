@@ -35,7 +35,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
 find_package(FreeImage REQUIRED)
-find_package(FreeImagePlus REQUIRED)
+#find_package(FreeImagePlus REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(Qt5 COMPONENTS Core Gui OpenGL Qml Quick Svg Widgets)
 
@@ -100,7 +100,7 @@ set(SIP_EXTRA_OPTIONS ${SIP_EXTRA_OPTIONS} ${PYQT5_SIP_FLAGS} "-e")
 message(STATUS ${SIP_EXTRA_OPTIONS})
 
 include_directories(SYSTEM ${FREEIMAGE_INCLUDE_PATH})
-include_directories(SYSTEM ${FREEIMAGEPLUS_INCLUDE_PATH})
+#include_directories(SYSTEM ${FREEIMAGEPLUS_INCLUDE_PATH})
 include_directories(SYSTEM ${NUMPY_INCLUDE_DIR})
 include_directories(SYSTEM ${PYTHON_INCLUDE_DIR})
 

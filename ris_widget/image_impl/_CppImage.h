@@ -91,7 +91,8 @@ private:
     Q_PROPERTY(quint64 mask_serial READ get_mask_serial NOTIFY mask_serial_changed FINAL)
 
 public:
-    explicit _CppImage(const QString& title=QString(), QObject* parent=nullptr);
+    _CppImage(const QString& title, QObject* parent);
+    _CppImage(const QString& fpath, bool async, QObject* parent);
 //    explicit _CppImage(
 //       const RawData& data,
 //       const QSize& shape,
@@ -101,6 +102,8 @@ public:
 //       const double* imposed_float_range,
 //       );
     virtual ~_CppImage();
+
+    virtual void read(const QString& fpath, bool async=false);
 
     QString get_title() const;
     void set_title(const QString& title);
@@ -112,6 +115,8 @@ public:
     PyObject* get_mask();
     const DType& get_dtype() const;
     const Components& get_components() const;
+    const QSize& get_size() const;
+    const QList<int>& get_strides() const;
 
 //  void set(
 //     SetFlags setFlags,
@@ -137,6 +142,8 @@ protected:
     PyObject* m_mask;
     DType m_dtype;
     Components m_components;
+    QSize m_size;
+    QList<int> m_strides;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(_CppImage::SetFlags)
