@@ -35,7 +35,8 @@ quint64 _CppImage::generate_serial()
 _CppImage::_CppImage(const QString& title, QObject* parent)
   : QObject(parent),
     m_status(Empty),
-    m_serial(std::numeric_limits<std::size_t>::max())
+    m_data_serial(generate_serial()),
+    m_mask_serial(generate_serial())
 {
     setObjectName(title);
     connect(this, &QObject::objectNameChanged, this, [&](const QString&){title_changed(this);});
@@ -58,7 +59,17 @@ const _CppImage::Status& _CppImage::get_status() const
     return m_status;
 }
 
-const std::uint64_t& _CppImage::get_serial() const
+bool _CppImage::get_is_valid() const
 {
-    return m_serial;
+    return m_status == Valid;
+}
+
+const std::uint64_t& _CppImage::get_data_serial() const
+{
+    return m_data_serial;
+}
+
+const std::uint64_t& _CppImage::get_mask_serial() const
+{
+    return m_mask_serial;
 }

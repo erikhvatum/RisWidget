@@ -37,13 +37,24 @@ public:
         AsyncLoadingFailed,
         Valid
     };
+    enum SetFlag
+    {
+        SetData = 1,
+        SetMask = 2,
+        SetIsTwelveBit = 4,
+        SetImposedFloatRange = 8,
+        SetTitle = 16
+    };
+    Q_DECLARE_FLAGS(SetFlags, SetFlag)
 
 private:
     Q_OBJECT
     Q_ENUM(Status)
+    Q_FLAG(SetFlags)
     Q_PROPERTY(QString title READ objectName WRITE setObjectName NOTIFY title_changed FINAL)
     Q_PROPERTY(Status status READ get_status NOTIFY status_changed FINAL)
-    Q_PROPERTY(std::uint64_t serial READ get_serial NOTIFY serial_changed FINAL)
+    Q_PROPERTY(std::uint64_t data_serial READ get_data_serial NOTIFY data_serial_changed FINAL)
+    Q_PROPERTY(std::uint64_t mask_serial READ get_mask_serial NOTIFY mask_serial_changed FINAL)
 
 public:
     explicit _CppImage(const QString& title=QString(), QObject* parent=nullptr);
@@ -52,17 +63,28 @@ public:
     QString get_title() const;
     void set_title(const QString& title);
     const Status& get_status() const;
-    const quint64& get_serial() const;
+    bool get_is_valid() const;
+    const quint64& get_data_serial() const;
+    const quint64& get_mask_serial() const;
+
+//  void set(
+//     SetFlags setFlags,
+//     PyObject* )
 
 signals:
     void title_changed(_CppImage*);
     void status_changed(_CppImage*);
-    void serial_changed(_CppImage*);
+    void is_valid_changed(_CppImage*);
+    void data_serial_changed(_CppImage*);
+    void mask_serial_changed(_CppImage*);
 
 protected:
     static volatile std::atomic<quint64> sm_next_serial;
     static quint64 generate_serial();
 
     Status m_status;
-    quint64 m_serial;
+    quint64 m_data_serial;
+    quint64 m_mask_serial;
 };
+
+Q_DECLARE_OPERATORS_FOR_FLAGS(_CppImage::SetFlags)

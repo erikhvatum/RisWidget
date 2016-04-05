@@ -219,9 +219,9 @@
             </Folder>
             <Folder Name="image_impl">
                 <F N="ris_widget/image_impl/__init__.py"/>
-                <F N="ris_widget/image_impl/_cpp_image.cpp"/>
-                <F N="ris_widget/image_impl/_cpp_image.h"/>
-                <F N="ris_widget/image_impl/_cpp_image_module.cpp"/>
+                <F N="ris_widget/image_impl/_cpp_image.sip"/>
+                <F N="ris_widget/image_impl/_CppImage.cpp"/>
+                <F N="ris_widget/image_impl/_CppImage.h"/>
                 <F N="ris_widget/image_impl/cpp_image.py"/>
                 <F N="ris_widget/image_impl/py_image.py"/>
             </Folder>

@@ -45,20 +45,34 @@ public:
         AsyncLoadingFailed,
         Valid
     };
+    enum SetFlag
+    {
+        SetData = 1,
+        SetMask = 2,
+        SetIsTwelveBit = 4,
+        SetImposedFloatRange = 8,
+        SetTitle = 16
+    };
     explicit _CppImage(const QString& title=QString(), QObject* parent=nullptr);
     virtual ~_CppImage();
 
     QString get_title() const;
     void set_title(const QString& title);
     const Status& get_status() const;
-    const quint64& get_serial() const;
+    bool get_is_valid() const;
+    const quint64& get_data_serial() const;
+    const quint64& get_mask_serial() const;
 
 %Property(name=title, get=get_title, set=set_title)
 %Property(name=status, get=get_status)
-%Property(name=serial, get=get_serial)
+%Property(name=is_valid, get=get_is_valid)
+%Property(name=data_serial, get=get_data_serial)
+%Property(name=mask_serial, get=get_mask_serial)
 
 signals:
     void title_changed(_CppImage*);
     void status_changed(_CppImage*);
-    void serial_changed(_CppImage*);
+    void is_valid_changed(_CppImage*);
+    void data_serial_changed(_CppImage*);
+    void mask_serial_changed(_CppImage*);
 };
