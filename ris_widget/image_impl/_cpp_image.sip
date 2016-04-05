@@ -250,9 +250,10 @@ signals:
     %End
 
     %ConvertToTypeCode
-        // Not supported - never needed
         if(!sipIsErr)
         {
+            // There is never a need to go from, for example, "Empty" to _CppImage::Empty.  So, we return 0 
+            // in all cases when asked if conversion to _CppImage::Status is possible.
             return 0;
         }
         return sipGetState(sipTransferObj);
