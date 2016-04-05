@@ -33,10 +33,15 @@
     #include "_CppImage.h"
     #include <algorithm>
     #include <QHash>
+    #include <QString>
     extern QHash<PyObject*, std::uint8_t> objectCppImageDTypes;
-    // Contents match _CppImage::DType, indexing by _CppImage::DType value
-    extern PyObject* cppImageDTypeObjects[_CppImage::DTYPE_COUNT + 1];
+    // Contents match _CppImage::DType
+    extern PyObject* cppImageDTypeObjects[_CppImage::DTYPE_COUNT];
     extern PyObject** cppImageDTypeObjectsEnd;
+    extern QHash<QString, _CppImage::Components> stringCppImageComponents;
+    // Contents match _CppImage::Components
+    extern QString cppImageComponentStrings[_CppImage::COMPONENTS_COUNT];
+    extern QString* cppImageComponentStringsEnd;
 %End
 
 %ModuleCode
@@ -62,8 +67,17 @@
     }
 
     QHash<PyObject*, std::uint8_t> objectCppImageDTypes;
-    PyObject* cppImageDTypeObjects[_CppImage::DTYPE_COUNT + 1];
-    PyObject** cppImageDTypeObjectsEnd = cppImageDTypeObjects + _CppImage::DTYPE_COUNT + 1;
+    PyObject* cppImageDTypeObjects[_CppImage::DTYPE_COUNT];
+    PyObject** cppImageDTypeObjectsEnd = cppImageDTypeObjects + _CppImage::DTYPE_COUNT;
+    QHash<QString, _CppImage::Components> stringCppImageComponents;
+    QString cppImageComponentStrings[_CppImage::COMPONENTS_COUNT] = {
+        "",
+        "G",
+        "Ga",
+        "rgb",
+        "rgba"
+    };
+    QString* cppImageComponentStringsEnd = cppImageComponentStrings + _CppImage::COMPONENTS_COUNT;
 %End
 
 %PostInitialisationCode
@@ -73,17 +87,24 @@
     cppImageDTypeObjects[_CppImage::DTypeUInt8]   = (PyObject*)PyArray_TypeObjectFromType(NPY_UINT8);
     cppImageDTypeObjects[_CppImage::DTypeUInt12]  = (PyObject*)PyArray_TypeObjectFromType(NPY_UINT16);
     cppImageDTypeObjects[_CppImage::DTypeUInt16]  = (PyObject*)PyArray_TypeObjectFromType(NPY_UINT16);
-    cppImageDTypeObjects[_CppImage::DTypeUInt32]  = (PyObject*)PyArray_TypeObjectFromType(NPY_UINT32);
-    cppImageDTypeObjects[_CppImage::DTypeUInt64]  = (PyObject*)PyArray_TypeObjectFromType(NPY_UINT64);
-    cppImageDTypeObjects[_CppImage::DTypeFloat16] = (PyObject*)PyArray_TypeObjectFromType(NPY_FLOAT16);
+//  cppImageDTypeObjects[_CppImage::DTypeUInt32]  = (PyObject*)PyArray_TypeObjectFromType(NPY_UINT32);
+//  cppImageDTypeObjects[_CppImage::DTypeUInt64]  = (PyObject*)PyArray_TypeObjectFromType(NPY_UINT64);
+//  cppImageDTypeObjects[_CppImage::DTypeFloat16] = (PyObject*)PyArray_TypeObjectFromType(NPY_FLOAT16);
     cppImageDTypeObjects[_CppImage::DTypeFloat32] = (PyObject*)PyArray_TypeObjectFromType(NPY_FLOAT32);
-    cppImageDTypeObjects[_CppImage::DTypeFloat64] = (PyObject*)PyArray_TypeObjectFromType(NPY_FLOAT64);
-    std::uint8_t cppImageDTypeObjectIdx;
+//  cppImageDTypeObjects[_CppImage::DTypeFloat64] = (PyObject*)PyArray_TypeObjectFromType(NPY_FLOAT64);
+    std::uint8_t e{0};
     for(PyObject** cppImageDTypeObject{cppImageDTypeObjects};
         cppImageDTypeObject != cppImageDTypeObjectsEnd;
-        ++cppImageDTypeObject, ++cppImageDTypeObjectIdx)
+        ++cppImageDTypeObject, ++e)
     {
-        objectCppImageDTypes[*cppImageDTypeObject] = cppImageDTypeObjectIdx;
+        objectCppImageDTypes[*cppImageDTypeObject] = e;
+    }
+    e = 0;
+    for(QString* cppImageComponentString{cppImageComponentStrings};
+        cppImageComponentString != cppImageComponentStringsEnd;
+        ++cppImageComponentString, ++e)
+    {
+        stringCppImageComponents[*cppImageComponentString] = (_CppImage::Components)e;
     }
 %End
 
@@ -136,13 +157,16 @@ public:
     const quint64& get_mask_serial() const;
     PyObject* get_data();
     PyObject* get_mask();
-    DType get_dtype() const;
+    const DType& get_dtype() const;
+    const Components& get_components() const;
 
 %Property(name=title, get=get_title, set=set_title)
 %Property(name=status, get=get_status)
 %Property(name=is_valid, get=get_is_valid)
 %Property(name=data_serial, get=get_data_serial)
 %Property(name=mask_serial, get=get_mask_serial)
+%Property(name=dtype, get=get_dtype)
+%Property(name=components, get=get_components)
 
 signals:
     void title_changed(_CppImage*);
@@ -154,7 +178,6 @@ signals:
 
 %MappedType _CppImage::DType
 {
-
     %TypeHeaderCode
         #include "_CppImage.h"
     %End
@@ -173,5 +196,49 @@ signals:
         PyObject* r{cppImageDTypeObjects[*sipCpp]};
         Py_INCREF(r);
         return r;
+    %End
+};
+
+%MappedType _CppImage::Components
+{
+    %TypeHeaderCode
+        #include "_CppImage.h"
+    %End
+
+    %ConvertToTypeCode
+        if(!sipIsErr)
+        {
+            if(sipPy == Py_None) return 1;
+            if(PyUnicode_Check(sipPy))
+            {
+                Py_UCS4* str{PyUnicode_AsUCS4Copy(sipPy)};
+                if(!str) return 0; // MemoryError
+                bool r{stringCppImageComponents.contains(QString::fromUcs4(str))};
+                PyMem_Free(str);
+                if(r) return 1;
+            }
+            return 0;
+        }
+        if(sipPy == Py_None)
+        {
+            *sipCppPtr = new _CppImage::Components(_CppImage::ComponentsNull);
+        }
+        else
+        {
+            Py_UCS4* str{PyUnicode_AsUCS4Copy(sipPy)};
+            if(!str) return 0; // MemoryError
+            *sipCppPtr = new _CppImage::Components(stringCppImageComponents[QString::fromUcs4(str)]);
+            PyMem_Free(str);
+        }
+        return sipGetState(sipTransferObj);
+    %End
+
+    %ConvertFromTypeCode
+        if(*sipCpp == _CppImage::ComponentsNull)
+        {
+            Py_RETURN_NONE;
+        }
+        QByteArray str = cppImageComponentStrings[*sipCpp].toUtf8();
+        return PyUnicode_FromString(str.data());
     %End
 };

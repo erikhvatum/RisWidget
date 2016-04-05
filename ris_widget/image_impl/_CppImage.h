@@ -60,26 +60,45 @@ public:
         DTypeUInt8,
         DTypeUInt12,
         DTypeUInt16,
-        DTypeUInt32,
-        DTypeUInt64,
-        DTypeFloat16,
+//      DTypeUInt32,
+//      DTypeUInt64,
+//      DTypeFloat16,
         DTypeFloat32,
-        DTypeFloat64,
-        DTYPE_COUNT = DTypeFloat64
+//      DTypeFloat64,
+        DTYPE_COUNT
+    };
+    enum Components
+    {
+        ComponentsNull = 0,
+        ComponentsGr,
+        ComponentsGrA,
+        ComponentsRGB,
+        ComponentsRGBA,
+        COMPONENTS_COUNT
     };
     typedef std::shared_ptr<std::uint8_t> RawData;
 
 private:
     Q_OBJECT
     Q_ENUM(Status)
+    Q_ENUM(DType)
+    Q_ENUM(Components)
     Q_FLAG(SetFlags)
     Q_PROPERTY(QString title READ objectName WRITE setObjectName NOTIFY title_changed FINAL)
     Q_PROPERTY(Status status READ get_status NOTIFY status_changed FINAL)
-    Q_PROPERTY(std::uint64_t data_serial READ get_data_serial NOTIFY data_serial_changed FINAL)
-    Q_PROPERTY(std::uint64_t mask_serial READ get_mask_serial NOTIFY mask_serial_changed FINAL)
+    Q_PROPERTY(quint64 data_serial READ get_data_serial NOTIFY data_serial_changed FINAL)
+    Q_PROPERTY(quint64 mask_serial READ get_mask_serial NOTIFY mask_serial_changed FINAL)
 
 public:
     explicit _CppImage(const QString& title=QString(), QObject* parent=nullptr);
+//    explicit _CppImage(
+//       const RawData& data,
+//       const QSize& shape,
+//
+//       const RawData& mask=RawData(),
+//       bool is_twelve_bit=false,
+//       const double* imposed_float_range,
+//       );
     virtual ~_CppImage();
 
     QString get_title() const;
@@ -91,6 +110,7 @@ public:
     PyObject* get_data();
     PyObject* get_mask();
     const DType& get_dtype() const;
+    const Components& get_components() const;
 
 //  void set(
 //     SetFlags setFlags,
@@ -115,6 +135,7 @@ protected:
     PyObject* m_data;
     PyObject* m_mask;
     DType m_dtype;
+    Components m_components;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(_CppImage::SetFlags)
