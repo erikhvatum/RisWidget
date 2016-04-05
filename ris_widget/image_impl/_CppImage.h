@@ -23,8 +23,15 @@
 // Authors: Erik Hvatum <ice.rikh@gmail.com
 
 #pragma once
+#ifdef _DEBUG
+ #undef _DEBUG
+ #include <Python.h>
+ #define _DEBUG
+#else
+ #include <Python.h>
 #include <atomic>
 #include <QtCore>
+#endif
 
 class _CppImage
   : public QObject

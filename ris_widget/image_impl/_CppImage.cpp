@@ -23,7 +23,15 @@
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 #include <limits>
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#define PY_ARRAY_UNIQUE_SYMBOL _CppImage_ARRAY_API
+#define NO_IMPORT_ARRAY
+#include <numpy/arrayobject.h>
 #include "_CppImage.h"
+#include "Gil.h"
+
+static void noop_deleter(void*) {}
+using get_default_deleter = std::default_delete<std::uint8_t[]>;
 
 volatile std::atomic<quint64> _CppImage::sm_next_serial{0};
 

@@ -26,7 +26,9 @@ include(SIPMacros)
 
 set(SOURCES
         _CppImage.cpp
-        _CppImage.h)
+        _CppImage.h
+        Gil.h
+        Gil.cpp)
 
 set(LIBRARIES
         ${OPENGL_LIBRARIES}

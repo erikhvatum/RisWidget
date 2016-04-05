@@ -29,6 +29,34 @@
 %Import QtOpenGL/QtOpenGLmod.sip
 %Import QtWidgets/QtWidgetsmod.sip
 
+%ModuleCode
+#ifdef _DEBUG
+ #undef _DEBUG
+ #include <Python.h>
+ #define _DEBUG
+#else
+ #include <Python.h>
+#endif
+
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#define PY_ARRAY_UNIQUE_SYMBOL _CppImage_ARRAY_API
+#include <numpy/arrayobject.h>
+#include <iostream>
+
+void* do_import_array()
+{
+    // import_array() is actually a macro that returns NULL if it fails, so it has to be wrapped in order to be called
+    // from a constructor which necessarily does not return anything
+    import_array();
+    std::cout << "do_import_array()\n";
+    return reinterpret_cast<void*>(1);
+}
+%End
+
+%PostInitialisationCode
+do_import_array();
+%End
+
 %DefaultDocstringFormat "deindented"
 
 class _CppImage
