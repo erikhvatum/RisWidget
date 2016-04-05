@@ -38,6 +38,24 @@ class _CppImage
 #include "_CppImage.h"
 %End
 public:
+    enum Status
+    {
+        Empty,
+        AsyncLoading,
+        AsyncLoadingFailed,
+        Valid
+    };
     explicit _CppImage(const QString& name=QString(), QObject* parent=nullptr);
     virtual ~_CppImage();
+
+    const Status& get_status() const;
+    const quint64& get_serial() const;
+
+%Property(name=status, get=get_status)
+%Property(name=serial, get=get_serial)
+
+signals:
+    void name_changed(_CppImage*);
+    void status_changed(_CppImage*);
+    void serial_changed(_CppImage*);
 };

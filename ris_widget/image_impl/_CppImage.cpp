@@ -22,12 +22,33 @@
 //
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+#include <limits>
 #include "_CppImage.h"
 
+volatile std::atomic<quint64> _CppImage::sm_next_serial{0};
+
+quint64 _CppImage::generate_serial()
+{
+    return sm_next_serial++;
+}
+
 _CppImage::_CppImage(const QString& name, QObject* parent)
-  : QObject(parent)
+  : QObject(parent),
+    m_status(Empty),
+    m_serial(std::numeric_limits<std::size_t>::max())
 {
     setObjectName(name);
+    connect(this, &QObject::objectNameChanged, this, [&](const QString&){name_changed(this);});
 }
 
 _CppImage::~_CppImage() {}
+
+const _CppImage::Status& _CppImage::get_status() const
+{
+    return m_status;
+}
+
+const std::uint64_t& _CppImage::get_serial() const
+{
+    return m_serial;
+}
