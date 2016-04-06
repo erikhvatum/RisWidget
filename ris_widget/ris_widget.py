@@ -541,6 +541,8 @@ class RisWidget:
         'flipbook',
         'main_scene',
         'main_view',
+        ('main_scene.viewport_rect_item', 'main_viewport_rect_item'),
+        ('main_scene.layer_stack_item', 'layer_stack_item'),
         'show',
         'hide',
         'close'
@@ -570,8 +572,16 @@ class RisWidget:
             layer_selection_model,
             **kw)
         self.main_view_change_signal = self.qt_object.main_view_change_signal
-        for refname in self.COPY_REFS:
-            setattr(self, refname, getattr(self.qt_object, refname))
+        for refdesc in self.COPY_REFS:
+            if isinstance(refdesc, str):
+                path, name = refdesc, refdesc
+            else:
+                path, name = refdesc
+                obj = self.qt_object
+            obj = self.qt_object
+            for element in path.split('.'):
+                obj = getattr(obj, element)
+            setattr(self, name, obj)
         self.add_image_files_to_flipbook = self.flipbook.add_image_files
         self.snapshot = self.qt_object.main_view.snapshot
         if show:
