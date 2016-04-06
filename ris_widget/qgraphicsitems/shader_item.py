@@ -60,8 +60,8 @@ class ShaderItemMixin:
             GL.glEnable(GL.GL_BLEND)
             estack.callback(lambda: GL.glDisable(GL.GL_BLEND))
         bfs = GL.glGetIntegerv(GL.GL_BLEND_SRC), GL.glGetIntegerv(GL.GL_BLEND_DST)
-        if bfs != (GL.GL_SRC_ALPHA, GL.GL_DST_ALPHA):
-            GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_DST_ALPHA)
+        if bfs != (GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA):
+            GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
             estack.callback(lambda: GL.glBlendFunc(*bfs))
         be = GL.glGetIntegerv(GL.GL_BLEND_EQUATION)
         if be != GL.GL_FUNC_ADD:
