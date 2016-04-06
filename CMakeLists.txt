@@ -38,7 +38,7 @@ set(CMAKE_AUTORCC ON)
 #set(FREEIMAGE_INCLUDE_PATH "/Users/ehvatum/Desktop/FreeImage/Dist")
 #set(FREEIMAGE_LIBRARY "/Users/ehvatum/Desktop/FreeImage/Dist/libfreeimage.dylib")
 find_package(FreeImage REQUIRED)
-find_package(FreeImagePlus REQUIRED)
+#find_package(FreeImagePlus REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(Qt5 COMPONENTS Core Gui OpenGL Qml Quick Svg Widgets)
 
