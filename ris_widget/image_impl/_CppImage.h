@@ -61,7 +61,7 @@ public:
         DTypeUInt8,
         DTypeUInt12,
         DTypeUInt16,
-//      DTypeUInt32,
+        DTypeUInt32,
 //      DTypeUInt64,
 //      DTypeFloat16,
         DTypeFloat32,
@@ -92,7 +92,7 @@ private:
 
 public:
     _CppImage(const QString& title, QObject* parent);
-    _CppImage(const QString& fpath, bool async, QObject* parent);
+//    _CppImage(const QString& fpath, bool async, QObject* parent);
 //    explicit _CppImage(
 //       const RawData& data,
 //       const QSize& shape,
@@ -103,7 +103,7 @@ public:
 //       );
     virtual ~_CppImage();
 
-    virtual void read(const QString& fpath, bool async=false);
+    virtual void read(const QString& fpath, bool async=true);
 
     QString get_title() const;
     void set_title(const QString& title);

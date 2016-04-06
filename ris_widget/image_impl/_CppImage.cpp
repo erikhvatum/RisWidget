@@ -29,6 +29,7 @@
 #include "_CppImage.h"
 #include "Gil.h"
 #include <FreeImage.h>
+#include <iostream>
 
 static void noop_deleter(void*) {}
 static void freeimage_deleter(void* d)
@@ -58,25 +59,26 @@ _CppImage::_CppImage(const QString& title, QObject* parent)
     connect(this, &QObject::objectNameChanged, this, [&](const QString&){title_changed(this);});
 }
 
-_CppImage::_CppImage(const QString& fpath, bool async, QObject* parent)
-  : QObject(parent),
-    m_status(Empty),
+//_CppImage::_CppImage(const QString& fpath, bool async, QObject* parent)
+//  : QObject(parent),
+//    m_status(Empty),
 
 _CppImage::~_CppImage() {}
 
 void _CppImage::read(const QString& fpath, bool async)
 {
+    // TODO: async
     QByteArray fpath_{fpath.toUtf8()};
     FREE_IMAGE_FORMAT fif{FreeImage_GetFileType(fpath_.data(), 0)};
     if(fif == FIF_UNKNOWN)
     {
-        fif = FreeImage_GetFIFFFromFilename(fpath_.data());
+        fif = FreeImage_GetFIFFromFilename(fpath_.data());
     }
     if(fif == FIF_UNKNOWN)
     {
         throw std::runtime_error("failed to open file or file type not recognized");
     }
-    FIBITMAP* fibmp{FreeImage_Load(fif, fpath_.data(), 0)};
+    FIBITMAP* fibmp{FreeImage_Load(fif, fpath_.data())};
     if(!fibmp)
     {
         throw std::runtime_error("failed to read file");
@@ -86,12 +88,64 @@ void _CppImage::read(const QString& fpath, bool async)
         throw std::runtime_error("no pixel data");
     }
     FREE_IMAGE_TYPE fit{FreeImage_GetImageType(fibmp)};
+    QString d;
+    switch(fit)
+    {
+    case FIT_UNKNOWN:
+        d = "FIT_UNKNOWN";
+        break;
+    case FIT_BITMAP:
+        d = "FIT_BITMAP";
+        break;
+    case FIT_UINT16:
+        d = "FIT_UINT16";
+        break;
+    case FIT_INT16:
+        d = "FIT_INT16";
+        break;
+    case FIT_UINT32:
+        d = "FIT_UINT32";
+        break;
+    case FIT_INT32:
+        d = "FIT_INT32";
+        break;
+    case FIT_FLOAT:
+        d = "FIT_FLOAT";
+        break;
+    case FIT_DOUBLE:
+        d = "FIT_DOUBLE";
+        break;
+    case FIT_COMPLEX:
+        d = "FIT_COMPLEX";
+        break;
+    case FIT_RGB16:
+        d = "FIT_RGB16";
+        break;
+    case FIT_RGBA16:
+        d = "FIT_RGBA16";
+        break;
+    case FIT_RGBF:
+        d = "FIT_RGBF";
+        break;
+    case FIT_RGBAF:
+        d = "FIT_RGBAF";
+        break;
+    default:
+        d = "***ERRONEOUS***";
+        break;
+    }
+    qDebug() << d;
     if(fit == FIT_UNKNOWN)
     {
         throw std::runtime_error("unsupported component data type or arrangement");
     }
-    // Todo: store strides
-    RawData d()
+    
+    // Todo: store strides 
+    // If the image data format and channel arrangement happen to be natively supported, 
+    // a buffer copy is avoided.  This is accomplished by providing our new data smart 
+    // pointer with a deleter that calls FreeImage_Unload(..) on the associated FIBITMAP 
+    // pointer.  NB: That FIBITMAP pointer is copied into the deleter's lambda closure. 
+//    RawData d()
     QSize new_size((int)FreeImage_GetWidth(fibmp), (int)FreeImage_GetHeight(fibmp));
 }
 

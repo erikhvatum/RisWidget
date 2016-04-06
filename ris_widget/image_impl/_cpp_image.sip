@@ -31,9 +31,12 @@
 
 %ModuleHeaderCode
     #include "_CppImage.h"
+    #include <FreeImage.h>
     #include <algorithm>
     #include <QHash>
     #include <QString>
+    extern "C" void freeimage_error_callback(FREE_IMAGE_FORMAT fif, const char* msg);
+    void* do_import_array();
     extern QHash<PyObject*, _CppImage::DType> objectCppImageDTypes;
     // Contents match _CppImage::DType
     extern PyObject* cppImageDTypeObjects[_CppImage::DTYPE_COUNT];
@@ -67,9 +70,15 @@
         return reinterpret_cast<void*>(1);
     }
 
+    extern "C" void freeimage_error_callback(FREE_IMAGE_FORMAT fif, const char* msg)
+    {
+        std::cerr << msg << '\n';
+    }
+
     QHash<PyObject*, _CppImage::DType> objectCppImageDTypes;
     PyObject* cppImageDTypeObjects[_CppImage::DTYPE_COUNT];
     PyObject** cppImageDTypeObjectsEnd = cppImageDTypeObjects + _CppImage::DTYPE_COUNT;
+
     QHash<QString, _CppImage::Components> stringCppImageComponents;
     QString cppImageComponentStrings[_CppImage::COMPONENTS_COUNT] = {
         "",
@@ -79,6 +88,7 @@
         "rgba"
     };
     QString* cppImageComponentStringsEnd = cppImageComponentStrings + _CppImage::COMPONENTS_COUNT;
+
     QString cppImageStatusStrings[_CppImage::STATUS_COUNT] = {
         "Empty",
         "AsyncLoading",
@@ -94,7 +104,7 @@
     cppImageDTypeObjects[_CppImage::DTypeUInt8]   = (PyObject*)PyArray_TypeObjectFromType(NPY_UINT8);
     cppImageDTypeObjects[_CppImage::DTypeUInt12]  = (PyObject*)PyArray_TypeObjectFromType(NPY_UINT16);
     cppImageDTypeObjects[_CppImage::DTypeUInt16]  = (PyObject*)PyArray_TypeObjectFromType(NPY_UINT16);
-//  cppImageDTypeObjects[_CppImage::DTypeUInt32]  = (PyObject*)PyArray_TypeObjectFromType(NPY_UINT32);
+    cppImageDTypeObjects[_CppImage::DTypeUInt32]  = (PyObject*)PyArray_TypeObjectFromType(NPY_UINT32);
 //  cppImageDTypeObjects[_CppImage::DTypeUInt64]  = (PyObject*)PyArray_TypeObjectFromType(NPY_UINT64);
 //  cppImageDTypeObjects[_CppImage::DTypeFloat16] = (PyObject*)PyArray_TypeObjectFromType(NPY_FLOAT16);
     cppImageDTypeObjects[_CppImage::DTypeFloat32] = (PyObject*)PyArray_TypeObjectFromType(NPY_FLOAT32);
@@ -113,6 +123,7 @@
     {
         stringCppImageComponents[*cppImageComponentString] = (_CppImage::Components)e;
     }
+    FreeImage_SetOutputMessage(freeimage_error_callback);
 %End
 
 %Exception std::exception(SIP_Exception) /PyName=StdException/
@@ -149,7 +160,7 @@ public:
     explicit _CppImage(const QString& title=QString(), QObject* parent=nullptr);
     virtual ~_CppImage();
 
-    virtual void read(const QString& fpath, bool async=false);
+    virtual void read(const QString& fpath, bool async=true);
 
     QString get_title() const;
     void set_title(const QString& title);

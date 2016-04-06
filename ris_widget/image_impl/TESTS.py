@@ -21,3 +21,19 @@
 # SOFTWARE.
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
+
+from pathlib import Path
+from _cpp_image import _CppImage
+
+c = _CppImage()
+im_dpath = Path(__file__).absolute().parent.parent.parent
+im_fpaths =  list(im_dpath.glob('*.png'))
+im_fpaths.extend(list(im_dpath.glob('*.tiff')))
+im_fpaths.extend(list(im_dpath.glob('*.jpg')))
+im_fpaths.sort()
+for im_fpathstr in map(str, im_fpaths):
+    print(im_fpathstr)
+    try:
+        c.read(im_fpathstr)
+    except:
+        pass

@@ -30,6 +30,8 @@ set(SOURCES
         Gil.h
         Gil.cpp)
 
+set(SIPSOURCE _cpp_image.sip)
+
 set(LIBRARIES
         ${OPENGL_LIBRARIES}
         ${FREEIMAGE_LIBRARY}
@@ -53,7 +55,7 @@ target_link_libraries(_cpp_image_impl ${LIBRARIES})
 #set(SIP_INCLUDES ${SIP_INCLUDES} ${PYQT5_SIP_DIR})
 #set(SIP_EXTRA_OPTIONS ${SIP_EXTRA_OPTIONS} ${PYQT5_SIP_FLAGS} "-e")
 
-add_sip_python_module(_cpp_image _cpp_image.sip _cpp_image_impl ${LIBRARIES})
+add_sip_python_module(_cpp_image ${SIPSOURCE} _cpp_image_impl ${LIBRARIES})
 
 # TODO: Remove this cheap hack, which is, at the moment, very helpful
 # for running directly out of a build directory.
