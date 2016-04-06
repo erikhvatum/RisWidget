@@ -169,12 +169,12 @@ bool _CppImage::get_is_valid() const
     return m_status == Valid;
 }
 
-const std::uint64_t& _CppImage::get_data_serial() const
+const quint64& _CppImage::get_data_serial() const
 {
     return m_data_serial;
 }
 
-const std::uint64_t& _CppImage::get_mask_serial() const
+const quint64& _CppImage::get_mask_serial() const
 {
     return m_mask_serial;
 }
