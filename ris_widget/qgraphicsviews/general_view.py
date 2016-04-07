@@ -75,6 +75,7 @@ class GeneralView(BaseView):
         # behavior, and this signal is emitted upon reception of a mouse movement event.  So, to be safe,
         # we explicitly enable mouse tracking.
         self.setMouseTracking(True)
+        self.background_color = .5,.5,.5,1
 
     def _on_layer_stack_item_bounding_rect_changed(self):
         if self.zoom_to_fit:
