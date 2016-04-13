@@ -25,10 +25,13 @@
 #pragma once
 #include <Python.h>
 #include <numpy/npy_common.h>
-
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include <cstddef>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 // Copies u_shape to o_shape and u_strides to o_strides, reversing the elements of each if u_strides[0] < u_strides[1] 
 void reorder_to_inner_outer(const Py_ssize_t* u_shape, const Py_ssize_t* u_strides,

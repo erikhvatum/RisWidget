@@ -24,45 +24,76 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>, Zach Pincus
 
-import distutils.core
 import numpy
-import pathlib
+import setuptools
+import setuptools.command
 import sys
 
-extra_compile_args = []
-if sys.platform != 'win32':
-    extra_compile_args.append('-std=c++11')
+# As of Python 3.6, CCompiler has a `has_flag` method.
+# cf http://bugs.python.org/issue26689
+def has_flag(compiler, flagname):
+    """Return a boolean indicating whether a flag name is supported on
+    the specified compiler.
+    """
+    import tempfile
+    with tempfile.NamedTemporaryFile('w', suffix='.cpp') as f:
+        f.write('int main (int argc, char **argv) { return 0; }')
+        try:
+            compiler.compile([f.name], extra_postargs=[flagname])
+        except setuptools.distutils.errors.CompileError:
+            return False
+    return True
 
-try:
-    from Cython.Build import cythonize
-    ext_processor = cythonize
-except ImportError:
-    def uncythonize(extensions, **_ignore):
-        for extension in extensions:
-            sources = []
-            for src in map(pathlib.Path, extension.sources):
-                if src.suffix == '.pyx':
-                    if extension.language == 'c++':
-                        ext = '.cpp'
-                    else:
-                        ext = '.c'
-                    src = src.with_suffix(ext)
-                sources.append(str(src))
-            extension.sources[:] = sources
-        return extensions
-    ext_processor = uncythonize
+def cpp_flag(compiler):
+    """Return the -std=c++[11/14] compiler flag.
+    The c++14 is prefered over c++11 (when it is available).
+    """
+    if has_flag(compiler, '-std=c++14'):
+        return '-std=c++14'
+    elif has_flag(compiler, '-std=c++11'):
+        return '-std=c++11'
+    else:
+        raise RuntimeError('Unsupported compiler -- at least C++11 support is needed!')
 
-_ndimage_statistics = distutils.core.Extension(
-    'ris_widget.ndimage_statistics._ndimage_statistics',
-    language = 'c++',
-    sources = [
-        'ris_widget/ndimage_statistics/_ndimage_statistics.pyx',
-        'ris_widget/ndimage_statistics/_ndimage_statistics_impl.cpp'],
-    depends = ['ris_widget/ndimage_statistics/_ndimage_statistics_impl.h'],
-    extra_compile_args = extra_compile_args,
-    include_dirs = [numpy.get_include()])
 
-distutils.core.setup(
+class BuildExt(setuptools.command.build_ext):
+    """A custom build extension for adding compiler-specific options."""
+    c_opts = {
+        'msvc': ['/EHsc'],
+        'unix': [],
+    }
+
+    if sys.platform == 'darwin':
+        c_opts['unix'] += ['-stdlib=libc++', '-mmacosx-version-min=10.7']
+
+    def build_extensions(self):
+        ct = self.compiler.compiler_type
+        opts = self.c_opts.get(ct, [])
+        if ct == 'unix':
+            opts.append(cpp_flag(self.compiler))
+            if has_flag(self.compiler, '-fvisibility=hidden'):
+                opts.append('-fvisibility=hidden')
+        for ext in self.extensions:
+            ext.extra_compile_args = opts
+            setuptools.command.build_ext.build_extensions(self)
+
+ext_modules = [
+    setuptools.Extension(
+        'ris_widget.ndimage_statistics._ndimage_statistics',
+        language='c++',
+        sources=[
+            'ris_widget/ndimage_statistics/_ndimage_statistics_module.cpp',
+            'ris_widget/ndimage_statistics/_ndimage_statistics.cpp'
+        ],
+        depends=['ris_widget/ndimage_statistics/_ndimage_statistics.h'],
+        include_dirs=[
+            numpy.get_include(),
+            'pybind11'
+        ]
+    ),
+]
+
+setuptools.setup(
     classifiers = [
         'Environment :: MacOS X',
         'Environment :: Win32 (MS Windows)',
@@ -80,7 +111,8 @@ distutils.core.setup(
         'Topic :: Multimedia :: Video :: Display',
         'Topic :: Scientific/Engineering :: Medical Science Apps.',
         'Topic :: Scientific/Engineering :: Visualization',
-        'Topic :: Software Development :: Widget Sets'],
+        'Topic :: Software Development :: Widget Sets'
+    ],
     package_data = {
         'ris_widget' : [
             'icons/checked_box_icon.svg',
@@ -96,8 +128,10 @@ distutils.core.setup(
             'icons/wrong_type_checked_box_icon.svg',
             'shaders/histogram_item_fragment_shader.glsl',
             'shaders/layer_stack_item_fragment_shader_template.glsl',
-            'shaders/planar_quad_vertex_shader.glsl']},
-    ext_modules = ext_processor([_ndimage_statistics]),
+            'shaders/planar_quad_vertex_shader.glsl'
+        ]
+    },
+    ext_modules = ext_modules,
     description = 'ris_widget (rapid image streaming widget) package',
     name = 'ris_widget',
     packages = [
@@ -109,5 +143,6 @@ distutils.core.setup(
         'ris_widget.qgraphicsitems',
         'ris_widget.qgraphicsscenes',
         'ris_widget.qgraphicsviews',
-        'ris_widget.qwidgets'],
-    version = '1.2')
+        'ris_widget.qwidgets'
+    ],
+    version = '1.3')
