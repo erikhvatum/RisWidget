@@ -214,9 +214,9 @@
             <Folder Name="ndimage_statistics">
                 <F N="ris_widget/ndimage_statistics/__init__.py"/>
                 <F N="ris_widget/ndimage_statistics/_ndimage_statistics.cpp"/>
+                <F N="ris_widget/ndimage_statistics/_ndimage_statistics.h"/>
                 <F N="ris_widget/ndimage_statistics/_ndimage_statistics.pyx"/>
-                <F N="ris_widget/ndimage_statistics/_ndimage_statistics_impl.cpp"/>
-                <F N="ris_widget/ndimage_statistics/_ndimage_statistics_impl.h"/>
+                <F N="ris_widget/ndimage_statistics/_ndimage_statistics_module.cpp"/>
                 <F N="ris_widget/ndimage_statistics/ndimage_statistics.py"/>
             </Folder>
             <Folder Name="om">

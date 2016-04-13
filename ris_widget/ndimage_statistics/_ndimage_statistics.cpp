@@ -22,11 +22,11 @@
 //
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-#include "_ndimage_statistics_impl.h"
+#include "_ndimage_statistics.h"
 #include <string.h>
 
-void reorder_to_inner_outer(const Py_ssize_t* u_shape, const Py_ssize_t* u_strides,
-                                  Py_ssize_t* o_shape,       Py_ssize_t* o_strides)
+void reorder_to_inner_outer(const std::size_t* u_shape, const std::size_t* u_strides,
+                                  std::size_t* o_shape,       std::size_t* o_strides)
 {
     if(u_strides[0] >= u_strides[1])
     {
@@ -40,10 +40,10 @@ void reorder_to_inner_outer(const Py_ssize_t* u_shape, const Py_ssize_t* u_strid
     }
 }
 
-void reorder_to_inner_outer(const Py_ssize_t* u_shape,       const Py_ssize_t* u_strides,
-                                  Py_ssize_t* o_shape,             Py_ssize_t* o_strides,
-                            const Py_ssize_t* u_slave_shape, const Py_ssize_t* u_slave_strides,
-                                  Py_ssize_t* o_slave_shape,       Py_ssize_t* o_slave_strides)
+void reorder_to_inner_outer(const std::size_t* u_shape,       const std::size_t* u_strides,
+                                  std::size_t* o_shape,             std::size_t* o_strides,
+                            const std::size_t* u_slave_shape, const std::size_t* u_slave_strides,
+                                  std::size_t* o_slave_shape,       std::size_t* o_slave_strides)
 {
     // The u_strides[0] < u_strides[1] comparison controlling slave shape and striding reversal is not a typo: slave
     // striding and shape are reversed if non-slave striding and shape are reversed. 
@@ -71,20 +71,20 @@ void reorder_to_inner_outer(const Py_ssize_t* u_shape,       const Py_ssize_t* u
 
 #ifdef _WIN32
 template<>
-const std::size_t bin_count<npy_uint8>()
+const std::size_t bin_count<std::uint8_t>()
 {
     return 256;
 }
 
 template<>
-const std::size_t bin_count<npy_uint16>()
+const std::size_t bin_count<std::uint16_t>()
 {
     return 1024;
 }
 #endif
 
 template<>
-const npy_uint16 apply_bin_shift<npy_uint16, true>(const npy_uint16& v)
+const std::uint16_t apply_bin_shift<std::uint16_t, true>(const std::uint16_t& v)
 {
-    return std::min(v, static_cast<const npy_uint16>(4095)) >> bin_shift<npy_uint16, true>();
+    return std::min(v, static_cast<const std::uint16_t>(4095)) >> bin_shift<std::uint16_t, true>();
 }

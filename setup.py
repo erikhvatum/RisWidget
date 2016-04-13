@@ -27,6 +27,7 @@
 import numpy
 import setuptools
 import setuptools.command
+import setuptools.command.build_ext
 import sys
 
 # As of Python 3.6, CCompiler has a `has_flag` method.
@@ -56,7 +57,7 @@ def cpp_flag(compiler):
         raise RuntimeError('Unsupported compiler -- at least C++11 support is needed!')
 
 
-class BuildExt(setuptools.command.build_ext):
+class BuildExt(setuptools.command.build_ext.build_ext):
     """A custom build extension for adding compiler-specific options."""
     c_opts = {
         'msvc': ['/EHsc'],
@@ -75,7 +76,7 @@ class BuildExt(setuptools.command.build_ext):
                 opts.append('-fvisibility=hidden')
         for ext in self.extensions:
             ext.extra_compile_args = opts
-            setuptools.command.build_ext.build_extensions(self)
+            setuptools.command.build_ext.build_ext.build_extensions(self)
 
 ext_modules = [
     setuptools.Extension(
@@ -88,7 +89,7 @@ ext_modules = [
         depends=['ris_widget/ndimage_statistics/_ndimage_statistics.h'],
         include_dirs=[
             numpy.get_include(),
-            'pybind11'
+            'pybind11/include'
         ]
     ),
 ]
@@ -145,4 +146,5 @@ setuptools.setup(
         'ris_widget.qgraphicsviews',
         'ris_widget.qwidgets'
     ],
+    cmdclass={'build_ext': BuildExt},
     version = '1.3')
