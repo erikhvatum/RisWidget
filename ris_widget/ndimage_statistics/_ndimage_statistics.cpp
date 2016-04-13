@@ -70,16 +70,15 @@ void reorder_to_inner_outer(const std::size_t* u_shape,       const std::size_t*
 #include <algorithm>
 
 #ifdef _WIN32
+template<typename C>
+const std::size_t bin_count()
+{
+    return 1024;
+}
 template<>
 const std::size_t bin_count<std::uint8_t>()
 {
     return 256;
-}
-
-template<>
-const std::size_t bin_count<std::uint16_t>()
-{
-    return 1024;
 }
 #endif
 

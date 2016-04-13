@@ -257,9 +257,6 @@ const std::size_t bin_count();
 template<>
 const std::size_t bin_count<std::uint8_t>();
 
-template<>
-const std::size_t bin_count<std::uint16_t>();
-
 template<typename C, bool is_twelve_bit>
 const std::ptrdiff_t bin_shift()
 {
@@ -296,6 +293,8 @@ const C apply_bin_shift(const C& v)
     return v >> bin_shift<C, is_twelve_bit>();
 }
 
+// This specialization guards against the case where a putative uint12-in-uint16 image has at least one element with a non-zero
+// high nibble.
 template<>
 const std::uint16_t apply_bin_shift<std::uint16_t, true>(const std::uint16_t& v);
 

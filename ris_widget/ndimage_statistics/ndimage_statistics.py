@@ -35,12 +35,12 @@ NDImageStatistics = namedtuple('NDImageStatistics', ('histogram', 'max_bin', 'mi
 try:
     from . import _ndimage_statistics
 
-    def _min_max(im, mask=None):
-        min_max = numpy.zeros((2,), dtype=numpy.float32)
+    def min_max(im, mask=None):
+        min_max = numpy.zeros((2,), dtype=im.dtype)
         if mask is None:
-            _ndimage_statistics.min_max_float32(im, min_max)
+            _ndimage_statistics.min_max(im, min_max)
         else:
-            _ndimage_statistics.masked_min_max_float32(im, mask, min_max)
+            _ndimage_statistics.min_max(im, mask, min_max)
         return min_max
 
     def _histogram(im, bin_count, range_, mask=None, with_overflow_bins=False):
@@ -78,7 +78,7 @@ except ImportError:
     import warnings
     warnings.warn('warning: Failed to load _ndimage_statistics binary module; using slow histogram and extrema computation methods.')
 
-    def _min_max(im, mask=None):
+    def min_max(im, mask=None):
         if mask is not None:
             im = numpy.ma.array(im, dtype=im.dtype, copy=False, mask=~mask)
         return numpy.array((im.min(), im.max()), dtype=im.dtype)
