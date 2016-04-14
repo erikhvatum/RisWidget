@@ -189,18 +189,26 @@ void masked_min_max(const C* im, const std::size_t* im_shape, const std::size_t*
 
 template<typename C, bool with_overflow_bins>
 void ranged_hist(const C* im, const std::size_t* im_shape, const std::size_t* im_strides,
-                 const C& range_min, const C& range_max, const std::size_t& bin_count,
-                 std::uint32_t* hist)
+                 const C* range, const std::size_t& range_stride,
+                 const std::size_t& bin_count,
+                 std::uint32_t* hist, const std::size_t& hist_stride)
 {
     std::size_t shape[2], strides[2];
     reorder_to_inner_outer(im_shape, im_strides, shape, strides);
 
-    memset(hist, 0, bin_count * sizeof(std::uint32_t));
+    std::uint8_t* hist8{reinterpret_cast<std::uint8_t*>(hist)};
+    for(std::uint8_t *hist8It{hist8}, *const hist8EndIt{hist8 + bin_count * hist_stride}; hist8It != hist8EndIt; hist8It += hist_stride)
+    {
+        *reinterpret_cast<std::uint32_t*>(hist8It) = 0;
+    }
+
+    const C range_min{range[0]};
+    const C range_max{*reinterpret_cast<const C*>(reinterpret_cast<const std::uint8_t*>(range) + range_stride)};
 
     const C range_width = range_max - range_min;
     const std::size_t non_overflow_bin_count = with_overflow_bins ? bin_count - 2 : bin_count;
     const double bin_factor = static_cast<double>(non_overflow_bin_count - 1) / range_width;
-    std::uint32_t*const last_bin = hist + bin_count;
+    std::uint32_t*const last_bin = reinterpret_cast<std::uint32_t*>(hist8 + bin_count * hist_stride);
     const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im);
     const std::uint8_t*const outer_end = outer + shape[0] * strides[0];
     const std::uint8_t* inner;
@@ -225,7 +233,7 @@ void ranged_hist(const C* im, const std::size_t* im_shape, const std::size_t* im
                 }
                 else
                 {
-                    ++hist[1 + static_cast<std::ptrdiff_t>( bin_factor * (v - range_min) )];
+                    ++*reinterpret_cast<C*>(hist8 + (1 + static_cast<std::ptrdiff_t>( bin_factor * (v - range_min) ))*hist_stride);
                 }
             }
             else

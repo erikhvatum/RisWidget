@@ -135,7 +135,133 @@ void py_masked_min_max(py::buffer im, py::buffer min_max, py::buffer mask)
         throw std::invalid_argument("Only uint8, uint16, uint32, uint64, float32, and float64 im and min_max buffers are supported.");
 }
 
-// void py_ranged_hist(
+void py_ranged_hist(py::buffer im, py::buffer range, py::buffer hist, bool with_overflow_bins)
+{
+    py::buffer_info im_info{im.request()}, range_info{range.request()}, hist_info{hist.request()};
+    if(im_info.ndim != 2)
+        throw std::invalid_argument("im argument must be a 2 dimensional buffer object (such as a numpy array).");
+    if(im_info.format != range_info.format)
+        throw std::invalid_argument(
+            "im and range arguments must be the same format (or dtype, in the case where they are numpy arays).");
+    if(hist_info.ndim != 1)
+        throw std::invalid_argument("hist argument must be a 1 dimensional buffer object (such as a numpy array).");
+    if(hist_info.format != py::format_descriptor<std::uint32_t>::value())
+        throw std::invalid_argument("hist argument format must be uint32.");
+    if(with_overflow_bins)
+    {
+        if(im_info.format == py::format_descriptor<float>::value())
+            ranged_hist<float, true>((float*)im_info.ptr,
+                                     im_info.shape.data(),
+                                     im_info.strides.data(),
+                                     (float*)range_info.ptr,
+                                     range_info.strides[0],
+                                     hist_info.shape[0],
+                                     (std::uint32_t*)hist_info.ptr,
+                                     hist_info.strides[0]);
+        else if(im_info.format == py::format_descriptor<std::uint8_t>::value())
+            ranged_hist<std::uint8_t, true>((std::uint8_t*)im_info.ptr,
+                                            im_info.shape.data(),
+                                            im_info.strides.data(),
+                                            (std::uint8_t*)range_info.ptr,
+                                            range_info.strides[0],
+                                            hist_info.shape[0],
+                                            (std::uint32_t*)hist_info.ptr,
+                                            hist_info.strides[0]);
+        else if(im_info.format == py::format_descriptor<std::uint16_t>::value())
+            ranged_hist<std::uint16_t, true>((std::uint16_t*)im_info.ptr,
+                                             im_info.shape.data(),
+                                             im_info.strides.data(),
+                                             (std::uint16_t*)range_info.ptr,
+                                             range_info.strides[0],
+                                             hist_info.shape[0],
+                                             (std::uint32_t*)hist_info.ptr,
+                                             hist_info.strides[0]);
+        else if(im_info.format == py::format_descriptor<std::uint32_t>::value())
+            ranged_hist<std::uint32_t, true>((std::uint32_t*)im_info.ptr,
+                                             im_info.shape.data(),
+                                             im_info.strides.data(),
+                                             (std::uint32_t*)range_info.ptr,
+                                             range_info.strides[0],
+                                             hist_info.shape[0],
+                                             (std::uint32_t*)hist_info.ptr,
+                                             hist_info.strides[0]);
+        else if(im_info.format == py::format_descriptor<std::uint64_t>::value())
+            ranged_hist<std::uint64_t, true>((std::uint64_t*)im_info.ptr,
+                                             im_info.shape.data(),
+                                             im_info.strides.data(),
+                                             (std::uint64_t*)range_info.ptr,
+                                             range_info.strides[0],
+                                             hist_info.shape[0],
+                                             (std::uint32_t*)hist_info.ptr,
+                                             hist_info.strides[0]);
+        else if(im_info.format == py::format_descriptor<double>::value())
+            ranged_hist<double, true>((double*)im_info.ptr,
+                                      im_info.shape.data(),
+                                      im_info.strides.data(),
+                                      (double*)range_info.ptr,
+                                      range_info.strides[0],
+                                      hist_info.shape[0],
+                                      (std::uint32_t*)hist_info.ptr,
+                                      hist_info.strides[0]);
+    }
+    else
+    {
+        if(im_info.format == py::format_descriptor<float>::value())
+            ranged_hist<float, false>((float*)im_info.ptr,
+                                      im_info.shape.data(),
+                                      im_info.strides.data(),
+                                      (float*)range_info.ptr,
+                                      range_info.strides[0],
+                                      hist_info.shape[0],
+                                      (std::uint32_t*)hist_info.ptr,
+                                      hist_info.strides[0]);
+        else if(im_info.format == py::format_descriptor<std::uint8_t>::value())
+            ranged_hist<std::uint8_t, false>((std::uint8_t*)im_info.ptr,
+                                             im_info.shape.data(),
+                                             im_info.strides.data(),
+                                             (std::uint8_t*)range_info.ptr,
+                                             range_info.strides[0],
+                                             hist_info.shape[0],
+                                             (std::uint32_t*)hist_info.ptr,
+                                             hist_info.strides[0]);
+        else if(im_info.format == py::format_descriptor<std::uint16_t>::value())
+            ranged_hist<std::uint16_t, false>((std::uint16_t*)im_info.ptr,
+                                              im_info.shape.data(),
+                                              im_info.strides.data(),
+                                              (std::uint16_t*)range_info.ptr,
+                                              range_info.strides[0],
+                                              hist_info.shape[0],
+                                              (std::uint32_t*)hist_info.ptr,
+                                              hist_info.strides[0]);
+        else if(im_info.format == py::format_descriptor<std::uint32_t>::value())
+            ranged_hist<std::uint32_t, false>((std::uint32_t*)im_info.ptr,
+                                              im_info.shape.data(),
+                                              im_info.strides.data(),
+                                              (std::uint32_t*)range_info.ptr,
+                                              range_info.strides[0],
+                                              hist_info.shape[0],
+                                              (std::uint32_t*)hist_info.ptr,
+                                              hist_info.strides[0]);
+        else if(im_info.format == py::format_descriptor<std::uint64_t>::value())
+            ranged_hist<std::uint64_t, false>((std::uint64_t*)im_info.ptr,
+                                              im_info.shape.data(),
+                                              im_info.strides.data(),
+                                              (std::uint64_t*)range_info.ptr,
+                                              range_info.strides[0],
+                                              hist_info.shape[0],
+                                              (std::uint32_t*)hist_info.ptr,
+                                              hist_info.strides[0]);
+        else if(im_info.format == py::format_descriptor<double>::value())
+            ranged_hist<double, false>((double*)im_info.ptr,
+                                       im_info.shape.data(),
+                                       im_info.strides.data(),
+                                       (double*)range_info.ptr,
+                                       range_info.strides[0],
+                                       hist_info.shape[0],
+                                       (std::uint32_t*)hist_info.ptr,
+                                       hist_info.strides[0]);
+    }
+}
 
 PYBIND11_PLUGIN(_ndimage_statistics)
 {
@@ -143,6 +269,7 @@ PYBIND11_PLUGIN(_ndimage_statistics)
 
     m.def("min_max", &py_min_max);
     m.def("masked_min_max", &py_masked_min_max);
+    m.def("ranged_hist", &py_ranged_hist);
 
 //  py::class_<Luts>(m, "Luts")
 //      .def(py::init<const std::size_t&>())
