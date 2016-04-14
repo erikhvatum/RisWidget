@@ -37,6 +37,8 @@
 
 #include "resampling_lut.h"
 
+extern Luts luts;
+
 // Copies u_shape to o_shape and u_strides to o_strides, reversing the elements of each if u_strides[0] < u_strides[1] 
 void reorder_to_inner_outer(const std::size_t* u_shape, const std::size_t* u_strides,
                                   std::size_t* o_shape,       std::size_t* o_strides);
@@ -83,51 +85,96 @@ void min_max(const C* im, const std::size_t* im_shape, const std::size_t* im_str
 }
 
 template<typename C>
-void _masked_min_max(const C* im, const std::size_t* im_shape, const std::size_t* im_strides,
-                     const std::uint8_t* mask, const std::size_t* mask_shape, const std::size_t* mask_strides,
-                     C* min_max)
+void masked_min_max(const C* im, const std::size_t* im_shape, const std::size_t* im_strides,
+                    const std::uint8_t* mask, const std::size_t* mask_shape, const std::size_t* mask_strides,
+                    C* min_max)
 {
     std::size_t shape[2], strides[2], mshape[2], mstrides[2];
     reorder_to_inner_outer(im_shape, im_strides, shape, strides,
                            mask_shape, mask_strides, mshape, mstrides);
-    // At this point, it should be true that shape == mshape.  Our caller is expected to have verified 
-    // that this is the case.
-
     min_max[0] = min_max[1] = 0;
     bool seen_unmasked = false;
-
     const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im);
-    const std::uint8_t* mouter = mask;
     const std::uint8_t*const outer_end = outer + shape[0] * strides[0];
     const std::uint8_t* inner;
-    const std::uint8_t* minner;
     const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
     const std::uint8_t* inner_end;
-    for(; outer != outer_end; outer += strides[0], mouter += mstrides[0])
+    const std::uint8_t* mouter = mask;
+    const std::uint8_t* minner;
+    if(im_shape[0] == mask_shape[0] && im_shape[1] == mask_shape[1])
     {
-        inner = outer;
-        inner_end = inner + inner_end_offset;
-        minner = mouter;
-        for(; inner != inner_end; inner += strides[1], minner += mstrides[1])
+        for(; outer != outer_end; outer += strides[0], mouter += mstrides[0])
         {
-            const C& v = *reinterpret_cast<const C*>(inner);
-            if(*minner != 0)
+            inner = outer;
+            inner_end = inner + inner_end_offset;
+            minner = mouter;
+            for(; inner != inner_end; inner += strides[1], minner += mstrides[1])
             {
-                if(seen_unmasked)
+                const C& v = *reinterpret_cast<const C*>(inner);
+                if(*minner != 0)
                 {
-                    if(v < min_max[0])
+                    if(seen_unmasked)
                     {
-                        min_max[0] = v;
+                        if(v < min_max[0])
+                        {
+                            min_max[0] = v;
+                        }
+                        else if(v > min_max[1])
+                        {
+                            min_max[1] = v;
+                        }
                     }
-                    else if(v > min_max[1])
+                    else
                     {
-                        min_max[1] = v;
+                        seen_unmasked = true;
+                        min_max[1] = min_max[0] = v;
                     }
                 }
-                else
+            }
+        }
+    }
+    else
+    {
+        LutPtr mouter_lut_obj{luts.getLut(shape[0], mshape[0])};
+        const std::uint32_t* mouter_lut{mouter_lut_obj->m_data.data()};
+        std::uint32_t mouter_lut_val, mouter_prev_lut_val = 0;
+        LutPtr minner_lut_obj{luts.getLut(shape[1], mshape[1])};
+        const std::uint32_t* minner_lut;
+        std::uint32_t minner_lut_val, minner_prev_lut_val;
+        for(; outer != outer_end; outer += strides[0], ++mouter_lut)
+        {
+            mouter_lut_val = *mouter_lut;
+            mouter += mstrides[0] * (mouter_lut_val - mouter_prev_lut_val);
+            mouter_prev_lut_val = mouter_lut_val;
+            inner = outer;
+            inner_end = inner + inner_end_offset;
+            minner = mouter;
+            minner_lut = minner_lut_obj->m_data.data();
+            minner_prev_lut_val = 0;
+            for(; inner != inner_end; inner += strides[1], ++minner_lut)
+            {
+                minner_lut_val = *minner_lut;
+                minner += mstrides[1] * (minner_lut_val - minner_prev_lut_val);
+                minner_prev_lut_val = minner_lut_val;
+                const C& v = *reinterpret_cast<const C*>(inner);
+                if(*minner != 0)
                 {
-                    seen_unmasked = true;
-                    min_max[1] = min_max[0] = v;
+                    if(seen_unmasked)
+                    {
+                        if(v < min_max[0])
+                        {
+                            min_max[0] = v;
+                        }
+                        else if(v > min_max[1])
+                        {
+                            min_max[1] = v;
+                        }
+                    }
+                    else
+                    {
+                        seen_unmasked = true;
+                        min_max[1] = min_max[0] = v;
+                    }
                 }
             }
         }

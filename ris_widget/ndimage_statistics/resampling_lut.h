@@ -29,6 +29,7 @@
 #include <list>
 #include <memory>
 #include <map>
+#include <mutex>
 #include <stdexcept>
 #include <vector>
 
@@ -64,11 +65,11 @@ class Luts
 public:
     explicit Luts(const std::size_t& maxCachedLuts);
 
-    const LutPtr& getLut(const std::uint32_t& fromSampleCount, const std::uint32_t& toSampleCount);
+    LutPtr getLut(const std::uint32_t& fromSampleCount, const std::uint32_t& toSampleCount);
 
 protected:
     LutCache m_lutCache;
     LutCacheLru m_lutCacheLru;
-
+    std::mutex m_lutCacheMutex;
     std::size_t m_maxCachedLuts;
 };

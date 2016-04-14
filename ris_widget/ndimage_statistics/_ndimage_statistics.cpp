@@ -25,6 +25,8 @@
 #include "_ndimage_statistics.h"
 #include <string.h>
 
+Luts luts{200};
+
 void reorder_to_inner_outer(const std::size_t* u_shape, const std::size_t* u_strides,
                                   std::size_t* o_shape,       std::size_t* o_strides)
 {

@@ -51,8 +51,9 @@ Luts::Luts(const std::size_t& maxCachedLuts)
         throw std::invalid_argument("The value supplied for maxCachedLuts must be > 0.");
 }
 
-const LutPtr& Luts::getLut(const std::uint32_t& fromSampleCount, const std::uint32_t& toSampleCount)
+LutPtr Luts::getLut(const std::uint32_t& fromSampleCount, const std::uint32_t& toSampleCount)
 {
+    std::lock_guard<std::mutex> lutCacheLock(m_lutCacheMutex);
     if(fromSampleCount == 0 || toSampleCount == 0)
         throw std::invalid_argument("The values supplied for fromSampleCount and toSampleCount must be > 0.");
     std::pair<std::uint32_t, std::uint32_t> key(fromSampleCount, toSampleCount);
@@ -60,7 +61,7 @@ const LutPtr& Luts::getLut(const std::uint32_t& fromSampleCount, const std::uint
     if(lutCacheIt == m_lutCache.end())
     {
         LutPtr lut(new Lut(fromSampleCount, toSampleCount));
-        lut->m_lutCacheIt = m_lutCache.insert(
+        lutCacheIt = lut->m_lutCacheIt = m_lutCache.insert(
             std::pair<std::pair<std::uint32_t, std::uint32_t>, LutPtr>(
                 std::pair<std::uint32_t, std::uint32_t>(fromSampleCount, toSampleCount), lut
             )
@@ -84,6 +85,7 @@ const LutPtr& Luts::getLut(const std::uint32_t& fromSampleCount, const std::uint
             lut.m_lutCacheLruIt = m_lutCacheLru.begin();
         }
     }
+    std::cout << lutCacheIt->second << ' ' << lutCacheIt->second->m_fromSampleCount << ':' << lutCacheIt->second->m_toSampleCount << '\n';
     return lutCacheIt->second;
 }
 
