@@ -35,7 +35,7 @@ NDImageStatistics = namedtuple('NDImageStatistics', ('histogram', 'max_bin', 'mi
 try:
     from . import _ndimage_statistics
 
-    def min_max(im, mask=None):
+    def _min_max(im, mask=None):
         min_max = numpy.zeros((2,), dtype=im.dtype)
         if mask is None:
             _ndimage_statistics.min_max(im, min_max)
@@ -43,7 +43,7 @@ try:
             _ndimage_statistics.masked_min_max(im, mask, min_max)
         return min_max
 
-    def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False):
+    def _histogram(im, bin_count, range_, mask=None, with_overflow_bins=False):
         hist = numpy.zeros((bin_count,), dtype=numpy.uint32)
         if mask is None:
             _ndimage_statistics.ranged_hist(im, range_, hist, with_overflow_bins)
@@ -51,7 +51,7 @@ try:
             _ndimage_statistics.masked_ranged_hist(im, mask, range_[0], range_[1], bin_count, with_overflow_bins, hist)
         return hist
 
-    def statistics_(im, twelve_bit, mask=None):
+    def _statistics(im, twelve_bit, mask=None):
         if im.dtype == numpy.uint8:
             hist = numpy.zeros((256,), dtype=numpy.uint32)
             min_max = numpy.zeros((2,), dtype=numpy.uint8)
@@ -72,12 +72,12 @@ except ImportError:
     import warnings
     warnings.warn('warning: Failed to load _ndimage_statistics binary module; using slow histogram and extrema computation methods.')
 
-    def min_max(im, mask=None):
+    def _min_max(im, mask=None):
         if mask is not None:
             im = numpy.ma.array(im, dtype=im.dtype, copy=False, mask=~mask)
         return numpy.array((im.min(), im.max()), dtype=im.dtype)
 
-    def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False):
+    def _histogram(im, bin_count, range_, mask=None, with_overflow_bins=False):
         if with_overflow_bins:
             assert bin_count >= 3
             hist = numpy.zeros((bin_count,), dtype=numpy.uint32)
@@ -91,7 +91,7 @@ except ImportError:
             assert bin_count >= 1
             return numpy.histogram(im, bins=bin_count, range=range_, density=False, weights=mask)[0].astype(numpy.uint32)
 
-    def statistics_(im, twelve_bit, mask=None):
+    def _statistics(im, twelve_bit, mask=None):
         if im.dtype == numpy.uint8:
             min_max = numpy.zeros((2,), dtype=numpy.uint8)
             bin_count = 256
@@ -131,10 +131,10 @@ def extremae(im, mask=None, return_future=False):
         mask = mask[:im.shape[0], :im.shape[1]]
     if im.ndim == 2:
         def proc():
-            return min_max(im, mask)
+            return _min_max(im, mask)
     else:
         def channel_proc(channel):
-            return min_max(im[..., channel], mask)
+            return _min_max(im[..., channel], mask)
         def proc():
             futes = [pool.submit(channel_proc, channel) for channel in range(im.shape[2])]
             ret = numpy.vstack(fute.result() for fute in futes)
@@ -180,10 +180,10 @@ def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, return
         assert bin_count >= 2
     if im.ndim == 2:
         def proc():
-            return histogram(im, bin_count, range_, mask, with_overflow_bins)
+            return _histogram(im, bin_count, range_, mask, with_overflow_bins)
     else:
         def channel_proc(axis):
-            return histogram(im[..., axis], bin_count, range_, mask, with_overflow_bins)
+            return _histogram(im[..., axis], bin_count, range_, mask, with_overflow_bins)
         def proc():
             futes = [pool.submit(channel_proc, axis) for axis in range(im.shape[2])]
             return numpy.vstack(fute.result() for fute in futes)
@@ -249,10 +249,10 @@ def statistics(im, twelve_bit=False, mask=None, return_future=False):
         assert mask.ndim == 2
     if im.ndim == 2:
         def proc():
-            return statistics_(im, twelve_bit, mask)
+            return _statistics(im, twelve_bit, mask)
     else:
         def channel_proc(channel):
-            return statistics_(im[..., channel], twelve_bit, mask)
+            return _statistics(im[..., channel], twelve_bit, mask)
         def proc():
             results = [channel_proc(channel) for channel in range(im.shape[2])]
             return NDImageStatistics(
