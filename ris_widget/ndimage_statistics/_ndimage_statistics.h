@@ -248,65 +248,71 @@ void ranged_hist(const C* im, const std::size_t* im_shape, const std::size_t* im
 }
 
 template<typename C, bool with_overflow_bins>
-void _masked_ranged_hist(const C* im, const std::size_t* im_shape, const std::size_t* im_strides,
-                         const std::uint8_t* mask, const std::size_t* mask_shape, const std::size_t* mask_strides,
-                         const C& range_min, const C& range_max, const std::size_t& bin_count,
-                         std::uint32_t* hist)
+void masked_ranged_hist(const C* im, const std::size_t* im_shape, const std::size_t* im_strides,
+                        const std::uint8_t* mask, const std::size_t* mask_shape, const std::size_t* mask_strides,
+                        const C* range, const std::size_t& range_stride,
+                        const std::size_t& bin_count,
+                        std::uint32_t* hist, const std::size_t& hist_stride)
 {
-    std::size_t shape[2], strides[2], mshape[2], mstrides[2];
-    reorder_to_inner_outer(im_shape, im_strides, shape, strides,
-                           mask_shape, mask_strides, mshape, mstrides);
-    // At this point, it should be true that shape == mshape.  Our caller is expected to have verified 
-    // that this is the case.
-
-    memset(hist, 0, bin_count * sizeof(std::uint32_t));
-
-    const C range_width = range_max - range_min;
-    const std::size_t non_overflow_bin_count = with_overflow_bins ? bin_count - 2 : bin_count;
-    const float bin_factor = static_cast<float>(non_overflow_bin_count - 1) / range_width;
-    std::uint32_t*const last_bin = hist + bin_count;
-    const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im);
-    const std::uint8_t* mouter = mask;
-    const std::uint8_t*const outer_end = outer + shape[0] * strides[0];
-    const std::uint8_t* inner;
-    const std::uint8_t* minner;
-    const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
-    const std::uint8_t* inner_end;
-    for(; outer != outer_end; outer += strides[0], mouter += mstrides[0])
-    {
-        inner = outer;
-        inner_end = inner + inner_end_offset;
-        minner = mouter;
-        for(; inner != inner_end; inner += strides[1], minner += mstrides[1])
-        {
-            if(*minner != 0)
-            {
-                const C& v = *reinterpret_cast<const C*>(inner);
-                if(with_overflow_bins)
-                {
-                    if(v < range_min)
-                    {
-                        ++*hist;
-                    }
-                    else if(v > range_max)
-                    {
-                        ++*last_bin;
-                    }
-                    else
-                    {
-                        ++hist[1 + static_cast<std::ptrdiff_t>( bin_factor * (v - range_min) )];
-                    }
-                }
-                else
-                {
-                    if(v >= range_min && v <= range_max)
-                    {
-                        ++hist[static_cast<std::ptrdiff_t>( bin_factor * (v - range_min) )];
-                    }
-                }
-            }
-        }
-    }
+//  std::size_t shape[2], strides[2], mshape[2], mstrides[2];
+//  reorder_to_inner_outer(im_shape, im_strides, shape, strides,
+//                         mask_shape, mask_strides, mshape, mstrides);
+// 
+//  std::uint8_t* hist8{reinterpret_cast<std::uint8_t*>(hist)};
+//  for(std::uint8_t *hist8It{hist8}, *const hist8EndIt{hist8 + bin_count * hist_stride}; hist8It != hist8EndIt; hist8It += hist_stride)
+//  {
+//      *reinterpret_cast<std::uint32_t*>(hist8It) = 0;
+//  }
+// 
+//  const C range_width = range_max - range_min;
+//  const std::size_t non_overflow_bin_count = with_overflow_bins ? bin_count - 2 : bin_count;
+//  const float bin_factor = static_cast<float>(non_overflow_bin_count - 1) / range_width;
+//  std::uint32_t*const last_bin = reinterpret_cast<std::uint32_t*>(hist8 + bin_count * hist_stride);
+//  const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im);
+//  const std::uint8_t* mouter = mask;
+//  const std::uint8_t*const outer_end = outer + shape[0] * strides[0];
+//  const std::uint8_t* inner;
+//  const std::uint8_t* minner;
+//  const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
+//  const std::uint8_t* inner_end;
+//  if(im_shape[0] == mask_shape[0] && im_shape[1] == mask_shape[1])
+//  {
+//      for(; outer != outer_end; outer += strides[0], mouter += mstrides[0])
+//      {
+//          inner = outer;
+//          inner_end = inner + inner_end_offset;
+//          minner = mouter;
+//          for(; inner != inner_end; inner += strides[1], minner += mstrides[1])
+//          {
+//              if(*minner != 0)
+//              {
+//                  const C& v = *reinterpret_cast<const C*>(inner);
+//                  if(with_overflow_bins)
+//                  {
+//                      if(v < range_min)
+//                      {
+//                          ++*hist;
+//                      }
+//                      else if(v > range_max)
+//                      {
+//                          ++*last_bin;
+//                      }
+//                      else
+//                      {
+//                          ++hist[1 + static_cast<std::ptrdiff_t>( bin_factor * (v - range_min) )];
+//                      }
+//                  }
+//                  else
+//                  {
+//                      if(v >= range_min && v <= range_max)
+//                      {
+//                          ++hist[static_cast<std::ptrdiff_t>( bin_factor * (v - range_min) )];
+//                      }
+//                  }
+//              }
+//          }
+//      }
+//  }
 }
 
 #ifdef _WIN32
@@ -327,18 +333,15 @@ const std::ptrdiff_t bin_shift()
 // Outside of the Microsoft ghetto, humanity has transcended all limitations and explores the stars at warp speed,
 // sharing the gifts of justice and knowledge without expectation of reward.
 template<typename C>
-constexpr std::size_t bin_count();
+constexpr std::size_t bin_count()
+{
+    return 1024;
+}
 
 template<>
 constexpr std::size_t bin_count<std::uint8_t>()
 {
     return 256;
-}
-
-template<>
-constexpr std::size_t bin_count<std::uint16_t>()
-{
-    return 1024;
 }
 
 template<typename C, bool is_twelve_bit>
@@ -360,92 +363,92 @@ template<>
 const std::uint16_t apply_bin_shift<std::uint16_t, true>(const std::uint16_t& v);
 
 template<typename C, bool is_twelve_bit>
-void _hist_min_max(const C* im, const std::size_t* im_shape, const std::size_t* im_strides,
-                   std::uint32_t* hist,
-                   C* min_max)
+void hist_min_max(const C* im, const std::size_t* im_shape, const std::size_t* im_strides,
+                  std::uint32_t* hist, const std::size_t& hist_stride,
+                  C* min_max, const std::size_t& min_max_stride)
 {
-    std::size_t shape[2], strides[2];
-    reorder_to_inner_outer(im_shape, im_strides, shape, strides);
-
-    memset(hist, 0, bin_count<C>() * sizeof(std::uint32_t));
-    min_max[0] = min_max[1] = im[0];
-
-    const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im);
-    const std::uint8_t*const outer_end = outer + shape[0] * strides[0];
-    const std::uint8_t* inner;
-    const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
-    const std::uint8_t* inner_end;
-    for(; outer != outer_end; outer += strides[0])
-    {
-        inner = outer;
-        inner_end = inner + inner_end_offset;
-        for(; inner != inner_end; inner += strides[1])
-        {
-            const C& v = *reinterpret_cast<const C*>(inner);
-            ++hist[apply_bin_shift<C, is_twelve_bit>(v)];
-            if(v < min_max[0])
-            {
-                min_max[0] = v;
-            }
-            else if(v > min_max[1])
-            {
-                min_max[1] = v;
-            }
-        }
-    }
+//  std::size_t shape[2], strides[2];
+//  reorder_to_inner_outer(im_shape, im_strides, shape, strides);
+// 
+//  memset(hist, 0, bin_count<C>() * sizeof(std::uint32_t));
+//  min_max[0] = min_max[1] = im[0];
+// 
+//  const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im);
+//  const std::uint8_t*const outer_end = outer + shape[0] * strides[0];
+//  const std::uint8_t* inner;
+//  const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
+//  const std::uint8_t* inner_end;
+//  for(; outer != outer_end; outer += strides[0])
+//  {
+//      inner = outer;
+//      inner_end = inner + inner_end_offset;
+//      for(; inner != inner_end; inner += strides[1])
+//      {
+//          const C& v = *reinterpret_cast<const C*>(inner);
+//          ++hist[apply_bin_shift<C, is_twelve_bit>(v)];
+//          if(v < min_max[0])
+//          {
+//              min_max[0] = v;
+//          }
+//          else if(v > min_max[1])
+//          {
+//              min_max[1] = v;
+//          }
+//      }
+//  }
 }
 
 template<typename C, bool is_twelve_bit>
-void _masked_hist_min_max(const C* im, const std::size_t* im_shape, const std::size_t* im_strides,
-                          const std::uint8_t* mask, const std::size_t* mask_shape, const std::size_t* mask_strides,
-                          std::uint32_t* hist,
-                          C* min_max)
+void masked_hist_min_max(const C* im, const std::size_t* im_shape, const std::size_t* im_strides,
+                         const std::uint8_t* mask, const std::size_t* mask_shape, const std::size_t* mask_strides,
+                         std::uint32_t* hist, const std::size_t& hist_stride,
+                         C* min_max, const std::size_t& min_max_stride)
 {
-    std::size_t shape[2], strides[2], mshape[2], mstrides[2];
-    reorder_to_inner_outer(im_shape, im_strides, shape, strides,
-                           mask_shape, mask_strides, mshape, mstrides);
-    // At this point, it should be true that shape == mshape.  Our caller is expected to have verified 
-    // that this is the case.
-
-    memset(hist, 0, bin_count<C>() * sizeof(std::uint32_t));
-    min_max[0] = min_max[1] = 0;
-    bool seen_unmasked = false;
-
-    const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im);
-    const std::uint8_t* mouter = mask;
-    const std::uint8_t*const outer_end = outer + shape[0] * strides[0];
-    const std::uint8_t* inner;
-    const std::uint8_t* minner;
-    const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
-    const std::uint8_t* inner_end;
-    for(; outer != outer_end; outer += strides[0], mouter += mstrides[0])
-    {
-        inner = outer;
-        inner_end = inner + inner_end_offset;
-        minner = mouter;
-        for(; inner != inner_end; inner += strides[1], minner += mstrides[1])
-        {
-            if(*minner != 0)
-            {
-                const C& v = *reinterpret_cast<const C*>(inner);
-                ++hist[apply_bin_shift<C, is_twelve_bit>(v)];
-                if(seen_unmasked)
-                {
-                    if(v < min_max[0])
-                    {
-                        min_max[0] = v;
-                    }
-                    else if(v > min_max[1])
-                    {
-                        min_max[1] = v;
-                    }
-                }
-                else
-                {
-                    seen_unmasked = true;
-                    min_max[1] = min_max[0] = v;
-                }
-            }
-        }
-    }
+//  std::size_t shape[2], strides[2], mshape[2], mstrides[2];
+//  reorder_to_inner_outer(im_shape, im_strides, shape, strides,
+//                         mask_shape, mask_strides, mshape, mstrides);
+//  // At this point, it should be true that shape == mshape.  Our caller is expected to have verified
+//  // that this is the case.
+// 
+//  memset(hist, 0, bin_count<C>() * sizeof(std::uint32_t));
+//  min_max[0] = min_max[1] = 0;
+//  bool seen_unmasked = false;
+// 
+//  const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im);
+//  const std::uint8_t* mouter = mask;
+//  const std::uint8_t*const outer_end = outer + shape[0] * strides[0];
+//  const std::uint8_t* inner;
+//  const std::uint8_t* minner;
+//  const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
+//  const std::uint8_t* inner_end;
+//  for(; outer != outer_end; outer += strides[0], mouter += mstrides[0])
+//  {
+//      inner = outer;
+//      inner_end = inner + inner_end_offset;
+//      minner = mouter;
+//      for(; inner != inner_end; inner += strides[1], minner += mstrides[1])
+//      {
+//          if(*minner != 0)
+//          {
+//              const C& v = *reinterpret_cast<const C*>(inner);
+//              ++hist[apply_bin_shift<C, is_twelve_bit>(v)];
+//              if(seen_unmasked)
+//              {
+//                  if(v < min_max[0])
+//                  {
+//                      min_max[0] = v;
+//                  }
+//                  else if(v > min_max[1])
+//                  {
+//                      min_max[1] = v;
+//                  }
+//              }
+//              else
+//              {
+//                  seen_unmasked = true;
+//                  min_max[1] = min_max[0] = v;
+//              }
+//          }
+//      }
+//  }
 }
