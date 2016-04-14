@@ -15,13 +15,13 @@ rw = RisWidget()
 
 rw.image = numpy.zeros((100,100), dtype=numpy.uint8)
 
-from ris_widget.examples.main_thread_mandelbrot import MandelbrotWidget
-mandelbrot_widget = MandelbrotWidget(rw.image)
+# from ris_widget.examples.main_thread_mandelbrot import MandelbrotWidget
+# mandelbrot_widget = MandelbrotWidget(rw.image)
 
-# rw.add_image_files_to_flipbook([
-#     ['/Users/ehvatum/zplrepo/ris_widget/Opteron_6300_die_shot_16_core_mod.jpg', '/Users/ehvatum/zplrepo/ris_widget/top_left_g.png'],
+rw.add_image_files_to_flipbook([
+    ['/Users/ehvatum/zplrepo/ris_widget/Opteron_6300_die_shot_16_core_mod.jpg', '/Users/ehvatum/zplrepo/ris_widget/top_left_g.png'],
 #     ['/Volumes/MrSpinny/14/2015-11-18t0948 focus-03_ffc.png']
-# ])
+])
 
 
 

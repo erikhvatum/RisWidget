@@ -493,7 +493,7 @@ void py_hist_min_max(py::buffer im, py::buffer hist, py::buffer min_max, bool is
         }
         else if(im_info.format == py::format_descriptor<std::uint16_t>::value())
         {
-            if(hist_info.shape[0] != bin_count<std::uint8_t>())
+            if(hist_info.shape[0] != bin_count<std::uint16_t>())
             {
                 std::ostringstream o;
                 o << "hist argument must contain " << bin_count<std::uint16_t>() << " elements for uint16 im.";

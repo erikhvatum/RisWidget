@@ -56,9 +56,9 @@ try:
             hist = numpy.zeros((256,), dtype=numpy.uint32)
             min_max = numpy.zeros((2,), dtype=numpy.uint8)
             if mask is None:
-                _ndimage_statistics.hist_min_max_uint8(im, hist, min_max)
+                _ndimage_statistics.hist_min_max(im, hist, min_max, twelve_bit)
             else:
-                _ndimage_statistics.masked_hist_min_max_uint8(im, mask, hist, min_max)
+                _ndimage_statistics.masked_hist_min_max(im, mask, hist, min_max, twelve_bit)
         else:
             hist = numpy.zeros((1024,), dtype=numpy.uint32)
             min_max = numpy.zeros((2,), dtype=im.dtype)
@@ -131,10 +131,10 @@ def extremae(im, mask=None, return_future=False):
         mask = mask[:im.shape[0], :im.shape[1]]
     if im.ndim == 2:
         def proc():
-            return _min_max(im, mask)
+            return min_max(im, mask)
     else:
         def channel_proc(channel):
-            return _min_max(im[..., channel], mask)
+            return min_max(im[..., channel], mask)
         def proc():
             futes = [pool.submit(channel_proc, channel) for channel in range(im.shape[2])]
             ret = numpy.vstack(fute.result() for fute in futes)
@@ -249,7 +249,7 @@ def statistics(im, twelve_bit=False, mask=None, return_future=False):
         assert mask.ndim == 2
     if im.ndim == 2:
         def proc():
-            return statistics(im, twelve_bit, mask)
+            return statistics_(im, twelve_bit, mask)
     else:
         def channel_proc(channel):
             return statistics_(im[..., channel], twelve_bit, mask)
