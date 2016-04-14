@@ -24,6 +24,7 @@
 
 #include <pybind11/pybind11.h>
 #include "_ndimage_statistics.h"
+#include "resampling_lut.h"
 
 namespace py = pybind11;
 
@@ -64,6 +65,12 @@ PYBIND11_PLUGIN(_ndimage_statistics)
     py::module m("_ndimage_statistics", "ris_widget.ndimage_statistics._ndimage_statistics module");
 
     m.def("min_max", &py_min_max);
+
+    py::class_<Luts>(m, "Luts")
+        .def(py::init<const std::size_t&>())
+        .def("getLut", [](Luts& luts, const std::uint32_t& fromSamples, const std::uint32_t& toSamples){
+            luts.getLut(fromSamples, toSamples);
+        });
 
     return m.ptr();
 }

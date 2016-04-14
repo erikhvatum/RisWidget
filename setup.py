@@ -74,6 +74,7 @@ class BuildExt(setuptools.command.build_ext.build_ext):
             opts.append(cpp_flag(self.compiler))
             if has_flag(self.compiler, '-fvisibility=hidden'):
                 opts.append('-fvisibility=hidden')
+        opts.append('-O0')
         for ext in self.extensions:
             ext.extra_compile_args = opts
             setuptools.command.build_ext.build_ext.build_extensions(self)
@@ -84,9 +85,13 @@ ext_modules = [
         language='c++',
         sources=[
             'ris_widget/ndimage_statistics/_ndimage_statistics_module.cpp',
-            'ris_widget/ndimage_statistics/_ndimage_statistics.cpp'
+            'ris_widget/ndimage_statistics/_ndimage_statistics.cpp',
+            'ris_widget/ndimage_statistics/resampling_lut.cpp'
         ],
-        depends=['ris_widget/ndimage_statistics/_ndimage_statistics.h'],
+        depends=[
+            'ris_widget/ndimage_statistics/_ndimage_statistics.h',
+            'ris_widget/ndimage_statistics/resampling_lut.h'
+        ],
         include_dirs=[
             numpy.get_include(),
             'pybind11/include'

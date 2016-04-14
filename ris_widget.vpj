@@ -218,6 +218,8 @@
                 <F N="ris_widget/ndimage_statistics/_ndimage_statistics.pyx"/>
                 <F N="ris_widget/ndimage_statistics/_ndimage_statistics_module.cpp"/>
                 <F N="ris_widget/ndimage_statistics/ndimage_statistics.py"/>
+                <F N="ris_widget/ndimage_statistics/resampling_lut.cpp"/>
+                <F N="ris_widget/ndimage_statistics/resampling_lut.h"/>
             </Folder>
             <Folder Name="om">
                 <Folder Name="signaling_list">

@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2015 WUSTL ZPLAB
+// Copyright (c) 2015-2016 WUSTL ZPLAB
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -34,6 +34,8 @@
 #include <string>
 #include <vector>
 #include <iostream>
+
+#include "resampling_lut.h"
 
 // Copies u_shape to o_shape and u_strides to o_strides, reversing the elements of each if u_strides[0] < u_strides[1] 
 void reorder_to_inner_outer(const std::size_t* u_shape, const std::size_t* u_strides,
@@ -78,8 +80,6 @@ void min_max(const C* im, const std::size_t* im_shape, const std::size_t* im_str
             }
         }
     }
-
-    std::cout << min_max[0] << " : " << min_max[1] << "\n";
 }
 
 template<typename C>
