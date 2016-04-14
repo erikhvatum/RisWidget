@@ -53,12 +53,14 @@ void reorder_to_inner_outer(const std::size_t* u_shape,       const std::size_t*
 
 template<typename C>
 void min_max(const C* im, const std::size_t* im_shape, const std::size_t* im_strides,
-              C* min_max)
+             C* min_max, const std::size_t& min_max_stride)
 {
     std::size_t shape[2], strides[2];
     reorder_to_inner_outer(im_shape, im_strides, shape, strides);
 
     min_max[0] = min_max[1] = im[0];
+    C& min{min_max[0]};
+    C& max{*reinterpret_cast<C*>(reinterpret_cast<std::uint8_t*>(min_max) + min_max_stride)};
 
     const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im);
     const std::uint8_t*const outer_end = outer + shape[0] * strides[0];
@@ -72,13 +74,13 @@ void min_max(const C* im, const std::size_t* im_shape, const std::size_t* im_str
         for(; inner != inner_end; inner += strides[1])
         {
             const C& v = *reinterpret_cast<const C*>(inner);
-            if(v < min_max[0])
+            if(v < min)
             {
-                min_max[0] = v;
+                min = v;
             }
-            else if(v > min_max[1])
+            else if(v > max)
             {
-                min_max[1] = v;
+                max = v;
             }
         }
     }
@@ -87,12 +89,16 @@ void min_max(const C* im, const std::size_t* im_shape, const std::size_t* im_str
 template<typename C>
 void masked_min_max(const C* im, const std::size_t* im_shape, const std::size_t* im_strides,
                     const std::uint8_t* mask, const std::size_t* mask_shape, const std::size_t* mask_strides,
-                    C* min_max)
+                    C* min_max, const std::size_t& min_max_stride)
 {
     std::size_t shape[2], strides[2], mshape[2], mstrides[2];
     reorder_to_inner_outer(im_shape, im_strides, shape, strides,
                            mask_shape, mask_strides, mshape, mstrides);
+
     min_max[0] = min_max[1] = 0;
+    C& min{min_max[0]};
+    C& max{*reinterpret_cast<C*>(reinterpret_cast<std::uint8_t*>(min_max) + min_max_stride)};
+
     bool seen_unmasked = false;
     const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im);
     const std::uint8_t*const outer_end = outer + shape[0] * strides[0];
@@ -115,19 +121,19 @@ void masked_min_max(const C* im, const std::size_t* im_shape, const std::size_t*
                 {
                     if(seen_unmasked)
                     {
-                        if(v < min_max[0])
+                        if(v < min)
                         {
-                            min_max[0] = v;
+                            min = v;
                         }
-                        else if(v > min_max[1])
+                        else if(v > max)
                         {
-                            min_max[1] = v;
+                            max = v;
                         }
                     }
                     else
                     {
                         seen_unmasked = true;
-                        min_max[1] = min_max[0] = v;
+                        min = max = v;
                     }
                 }
             }
@@ -161,19 +167,19 @@ void masked_min_max(const C* im, const std::size_t* im_shape, const std::size_t*
                 {
                     if(seen_unmasked)
                     {
-                        if(v < min_max[0])
+                        if(v < min)
                         {
-                            min_max[0] = v;
+                            min = v;
                         }
-                        else if(v > min_max[1])
+                        else if(v > max)
                         {
-                            min_max[1] = v;
+                            max = v;
                         }
                     }
                     else
                     {
                         seen_unmasked = true;
-                        min_max[1] = min_max[0] = v;
+                        min = max = v;
                     }
                 }
             }
@@ -182,9 +188,9 @@ void masked_min_max(const C* im, const std::size_t* im_shape, const std::size_t*
 }
 
 template<typename C, bool with_overflow_bins>
-void _ranged_hist(const C* im, const std::size_t* im_shape, const std::size_t* im_strides,
-                  const C& range_min, const C& range_max, const std::size_t& bin_count,
-                  std::uint32_t* hist)
+void ranged_hist(const C* im, const std::size_t* im_shape, const std::size_t* im_strides,
+                 const C& range_min, const C& range_max, const std::size_t& bin_count,
+                 std::uint32_t* hist)
 {
     std::size_t shape[2], strides[2];
     reorder_to_inner_outer(im_shape, im_strides, shape, strides);
