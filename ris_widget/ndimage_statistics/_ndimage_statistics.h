@@ -58,9 +58,9 @@ void min_max(const C* im, const std::size_t* im_shape, const std::size_t* im_str
     std::size_t shape[2], strides[2];
     reorder_to_inner_outer(im_shape, im_strides, shape, strides);
 
-    min_max[0] = min_max[1] = im[0];
     C& min{min_max[0]};
     C& max{*reinterpret_cast<C*>(reinterpret_cast<std::uint8_t*>(min_max) + min_max_stride)};
+    max = min = im[0];
 
     const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im);
     const std::uint8_t*const outer_end = outer + shape[0] * strides[0];
@@ -95,7 +95,6 @@ void masked_min_max(const C* im, const std::size_t* im_shape, const std::size_t*
     reorder_to_inner_outer(im_shape, im_strides, shape, strides,
                            mask_shape, mask_strides, mshape, mstrides);
 
-    min_max[0] = min_max[1] = 0;
     C& min{min_max[0]};
     C& max{*reinterpret_cast<C*>(reinterpret_cast<std::uint8_t*>(min_max) + min_max_stride)};
 
@@ -367,35 +366,42 @@ void hist_min_max(const C* im, const std::size_t* im_shape, const std::size_t* i
                   std::uint32_t* hist, const std::size_t& hist_stride,
                   C* min_max, const std::size_t& min_max_stride)
 {
-//  std::size_t shape[2], strides[2];
-//  reorder_to_inner_outer(im_shape, im_strides, shape, strides);
-// 
-//  memset(hist, 0, bin_count<C>() * sizeof(std::uint32_t));
-//  min_max[0] = min_max[1] = im[0];
-// 
-//  const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im);
-//  const std::uint8_t*const outer_end = outer + shape[0] * strides[0];
-//  const std::uint8_t* inner;
-//  const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
-//  const std::uint8_t* inner_end;
-//  for(; outer != outer_end; outer += strides[0])
-//  {
-//      inner = outer;
-//      inner_end = inner + inner_end_offset;
-//      for(; inner != inner_end; inner += strides[1])
-//      {
-//          const C& v = *reinterpret_cast<const C*>(inner);
-//          ++hist[apply_bin_shift<C, is_twelve_bit>(v)];
-//          if(v < min_max[0])
-//          {
-//              min_max[0] = v;
-//          }
-//          else if(v > min_max[1])
-//          {
-//              min_max[1] = v;
-//          }
-//      }
-//  }
+    std::size_t shape[2], strides[2];
+    reorder_to_inner_outer(im_shape, im_strides, shape, strides);
+
+    std::uint8_t* hist8{reinterpret_cast<std::uint8_t*>(hist)};
+    for(std::uint8_t *hist8It{hist8}, *const hist8EndIt{hist8 + bin_count<C>() * hist_stride}; hist8It != hist8EndIt; hist8It += hist_stride)
+    {
+        *reinterpret_cast<std::uint32_t*>(hist8It) = 0;
+    }
+
+    C& min{min_max[0]};
+    C& max{*reinterpret_cast<C*>(reinterpret_cast<std::uint8_t*>(min_max) + min_max_stride)};
+    max = min = im[0];
+
+    const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im);
+    const std::uint8_t*const outer_end = outer + shape[0] * strides[0];
+    const std::uint8_t* inner;
+    const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
+    const std::uint8_t* inner_end;
+    for(; outer != outer_end; outer += strides[0])
+    {
+        inner = outer;
+        inner_end = inner + inner_end_offset;
+        for(; inner != inner_end; inner += strides[1])
+        {
+            const C& v = *reinterpret_cast<const C*>(inner);
+            ++*reinterpret_cast<std::uint32_t*>(hist8 + hist_stride*apply_bin_shift<C, is_twelve_bit>(v));
+            if(v < min)
+            {
+                min = v;
+            }
+            else if(v > max)
+            {
+                max = v;
+            }
+        }
+    }
 }
 
 template<typename C, bool is_twelve_bit>

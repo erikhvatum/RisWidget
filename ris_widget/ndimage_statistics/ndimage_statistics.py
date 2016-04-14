@@ -40,18 +40,18 @@ try:
         if mask is None:
             _ndimage_statistics.min_max(im, min_max)
         else:
-            _ndimage_statistics.min_max(im, mask, min_max)
+            _ndimage_statistics.masked_min_max(im, mask, min_max)
         return min_max
 
-    def _histogram(im, bin_count, range_, mask=None, with_overflow_bins=False):
+    def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False):
         hist = numpy.zeros((bin_count,), dtype=numpy.uint32)
         if mask is None:
-            _ndimage_statistics.ranged_hist_float32(im, range_[0], range_[1], bin_count, with_overflow_bins, hist)
+            _ndimage_statistics.ranged_hist(im, range_, hist, with_overflow_bins)
         else:
-            _ndimage_statistics.masked_ranged_hist_float32(im, mask, range_[0], range_[1], bin_count, with_overflow_bins, hist)
+            _ndimage_statistics.masked_ranged_hist(im, mask, range_[0], range_[1], bin_count, with_overflow_bins, hist)
         return hist
 
-    def _statistics(im, twelve_bit, mask=None):
+    def statistics_(im, twelve_bit, mask=None):
         if im.dtype == numpy.uint8:
             hist = numpy.zeros((256,), dtype=numpy.uint32)
             min_max = numpy.zeros((2,), dtype=numpy.uint8)
@@ -59,19 +59,13 @@ try:
                 _ndimage_statistics.hist_min_max_uint8(im, hist, min_max)
             else:
                 _ndimage_statistics.masked_hist_min_max_uint8(im, mask, hist, min_max)
-        elif im.dtype == numpy.uint16:
+        else:
             hist = numpy.zeros((1024,), dtype=numpy.uint32)
-            min_max = numpy.zeros((2,), dtype=numpy.uint16)
+            min_max = numpy.zeros((2,), dtype=im.dtype)
             if mask is None:
-                if twelve_bit:
-                    _ndimage_statistics.hist_min_max_uint12(im, hist, min_max)
-                else:
-                    _ndimage_statistics.hist_min_max_uint16(im, hist, min_max)
+                _ndimage_statistics.hist_min_max(im, hist, min_max, twelve_bit)
             else:
-                if twelve_bit:
-                    _ndimage_statistics.masked_hist_min_max_uint12(im, mask, hist, min_max)
-                else:
-                    _ndimage_statistics.masked_hist_min_max_uint16(im, mask, hist, min_max)
+                _ndimage_statistics.masked_hist_min_max(im, mask, hist, min_max, twelve_bit)
         return NDImageStatistics(hist, hist.argmax(), min_max)
 
 except ImportError:
@@ -83,7 +77,7 @@ except ImportError:
             im = numpy.ma.array(im, dtype=im.dtype, copy=False, mask=~mask)
         return numpy.array((im.min(), im.max()), dtype=im.dtype)
 
-    def _histogram(im, bin_count, range_, mask=None, with_overflow_bins=False):
+    def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False):
         if with_overflow_bins:
             assert bin_count >= 3
             hist = numpy.zeros((bin_count,), dtype=numpy.uint32)
@@ -97,7 +91,7 @@ except ImportError:
             assert bin_count >= 1
             return numpy.histogram(im, bins=bin_count, range=range_, density=False, weights=mask)[0].astype(numpy.uint32)
 
-    def _statistics(im, twelve_bit, mask=None):
+    def statistics_(im, twelve_bit, mask=None):
         if im.dtype == numpy.uint8:
             min_max = numpy.zeros((2,), dtype=numpy.uint8)
             bin_count = 256
@@ -186,10 +180,10 @@ def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, return
         assert bin_count >= 2
     if im.ndim == 2:
         def proc():
-            return _histogram(im, bin_count, range_, mask, with_overflow_bins)
+            return histogram(im, bin_count, range_, mask, with_overflow_bins)
     else:
         def channel_proc(axis):
-            return _histogram(im[..., axis], bin_count, range_, mask, with_overflow_bins)
+            return histogram(im[..., axis], bin_count, range_, mask, with_overflow_bins)
         def proc():
             futes = [pool.submit(channel_proc, axis) for axis in range(im.shape[2])]
             return numpy.vstack(fute.result() for fute in futes)
@@ -253,15 +247,12 @@ def statistics(im, twelve_bit=False, mask=None, return_future=False):
         raise NotImplementedError('Support for dtype of supplied im argument not implemented.')
     if mask is not None:
         assert mask.ndim == 2
-        assert im.shape[0] <= mask.shape[0]
-        assert im.shape[1] <= mask.shape[1]
-        mask = mask[:im.shape[0], :im.shape[1]]
     if im.ndim == 2:
         def proc():
-            return _statistics(im, twelve_bit, mask)
+            return statistics(im, twelve_bit, mask)
     else:
         def channel_proc(channel):
-            return _statistics(im[..., channel], twelve_bit, mask)
+            return statistics_(im[..., channel], twelve_bit, mask)
         def proc():
             results = [channel_proc(channel) for channel in range(im.shape[2])]
             return NDImageStatistics(
