@@ -310,7 +310,7 @@ class Layer(Qt.QObject):
         if image is None:
             return 65535.0 if is_max else 0.0
         else:
-            return float(image.range[is_max])
+            return float(image.range[int(is_max)])
     def _histogram_min_max_pre_set(self, v, is_max):
         r = (0, 65535.0) if self.image is None else self.image.range
         if not r[0] <= v <= r[1]:

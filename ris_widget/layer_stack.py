@@ -134,6 +134,7 @@ class LayerStack(Qt.QObject):
             v_o.replaced.disconnect(self._on_replaced_in_layers)
             v_o.inserted.disconnect(self._delayed_on_inserted_into_layers)
             v_o.removed.disconnect(self._delayed_on_removed_from_layers)
+            self._detach_layers(v_o)
         self._layers = v
         if v is not None:
             v.inserted.connect(self._on_inserted_into_layers)
@@ -144,6 +145,7 @@ class LayerStack(Qt.QObject):
             # models are even aware that a row has been inserted.
             v.inserted.connect(self._delayed_on_inserted_into_layers, Qt.Qt.QueuedConnection)
             v.removed.connect(self._delayed_on_removed_from_layers, Qt.Qt.QueuedConnection)
+            self._attach_layers(v)
         self.layers_replaced.emit(self, v_o, v)
         if v:
             self.ensure_layer_focused()
