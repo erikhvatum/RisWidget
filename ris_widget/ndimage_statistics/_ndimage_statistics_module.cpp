@@ -273,7 +273,7 @@ static inline bool hist_min_max_C(py::buffer_info& im_info, py::buffer_info& his
         if(hist_info.shape[0] != bin_count<C>())
         {
             std::ostringstream o;
-            o << "hist argument must contain " << bin_count<C>() << " elements for " << py::format_descriptor<C>::value() << "im.";
+            o << "hist argument must contain " << bin_count<C>() << " elements for " << py::format_descriptor<C>::value() << " im.";
             throw std::invalid_argument(o.str());
         }
         hist_min_max<C, is_twelve_bit>(
@@ -325,66 +325,33 @@ void py_hist_min_max(py::buffer im, py::buffer hist, py::buffer min_max, bool is
     }
 }
 
-// template<typename C, bool is_twelve_bit>
-// static inline bool masked_hist_min_max_C(py::buffer_info& im_info, py::buffer_info& mask_info, py::buffer_info& hist_info, py::buffer_info& min_max_info)
-// {
-//     bool ret{false};
-//     if(im_info.format == py::format_descriptor<C>::value())
-//     {
-//         if(hist_info.shape[0] != bin_count<C>())
-//         {
-//             std::ostringstream o;
-//             o << "hist argument must contain " << bin_count<C>() << " elements for " << py::format_descriptor<C>::value() << "im.";
-//             throw std::invalid_argument(o.str());
-//         }
-//         hist_min_max<C, is_twelve_bit>(
-//            reinterpret_cast<C*>(im_info.ptr),
-//            im_info.shape.data(),
-//            im_info.strides.data(),
-//            reinterpret_cast<std::uint32_t*>(hist_info.ptr),
-//            hist_info.strides[0],
-//            reinterpret_cast<C*>(min_max_info.ptr),
-//            min_max_info.strides[0]);
-//         ret = true;
-//     }
-//     return ret;
-// }
-// 
-// void py_masked_hist_min_max(py::buffer im, py::buffer hist, py::buffer min_max, bool is_twelve_bit)
-// {
-//     py::buffer_info im_info{im.request()}, hist_info{hist.request()}, min_max_info{min_max.request()};
-//     if(im_info.ndim != 2)
-//         throw std::invalid_argument("im argument must be a 2 dimensional buffer object (such as a numpy array).");
-//     if(hist_info.ndim != 1)
-//         throw std::invalid_argument("hist argument must be a 1 dimensional buffer object (such as a numpy array).");
-//     if(hist_info.format != py::format_descriptor<std::uint32_t>::value())
-//         throw std::invalid_argument("hist argument format must be uint32.");
-//     if(min_max_info.ndim != 1)
-//         throw std::invalid_argument("min_max arugment must be a 1 dimensional buffer object (such as a numpy array).");
-//     if(min_max_info.shape[0] != 2)
-//         throw std::invalid_argument("min_max argument must contain exactly 2 elements.");
-//     if(im_info.format != min_max_info.format)
-//         throw std::invalid_argument(
-//             "im and min_max arguments must be the same format (or dtype, in the case where they are numpy arays).");
-//     if(is_twelve_bit)
-//     {
-//         if(!hist_min_max_C<std::uint16_t, true>(im_info, hist_info, min_max_info))
-//         {
-//             throw std::invalid_argument("is_twelve_bit may be True only if im is uint16.");
-//         }
-//     }
-//     else
-//     {
-//         if ( !(
-//             hist_min_max_C<std::uint8_t, false>(im_info, hist_info, min_max_info) ||
-//             hist_min_max_C<std::uint16_t, false>(im_info, hist_info, min_max_info) ||
-//             hist_min_max_C<std::uint32_t, false>(im_info, hist_info, min_max_info) ||
-//             hist_min_max_C<std::uint64_t, false>(im_info, hist_info, min_max_info)) )
-//         {
-//             throw std::invalid_argument("Only uint8, uint16, uint32, and uint64 im buffers are supported.");
-//         }
-//     }
-// }
+template<typename C, bool is_twelve_bit>
+static inline bool masked_hist_min_max_C(py::buffer_info& im_info, py::buffer_info& mask_info, py::buffer_info& hist_info, py::buffer_info& min_max_info)
+{
+    bool ret{false};
+    if(im_info.format == py::format_descriptor<C>::value())
+    {
+        if(hist_info.shape[0] != bin_count<C>())
+        {
+            std::ostringstream o;
+            o << "hist argument must contain " << bin_count<C>() << " elements for " << py::format_descriptor<C>::value() << " im.";
+            throw std::invalid_argument(o.str());
+        }
+        masked_hist_min_max<C, is_twelve_bit>(
+           reinterpret_cast<C*>(im_info.ptr),
+           im_info.shape.data(),
+           im_info.strides.data(),
+           reinterpret_cast<std::uint8_t*>(mask_info.ptr),
+           mask_info.shape.data(),
+           mask_info.strides.data(),
+           reinterpret_cast<std::uint32_t*>(hist_info.ptr),
+           hist_info.strides[0],
+           reinterpret_cast<C*>(min_max_info.ptr),
+           min_max_info.strides[0]);
+        ret = true;
+    }
+    return ret;
+}
 
 void py_masked_hist_min_max(py::buffer im, py::buffer mask, py::buffer hist, py::buffer min_max, bool is_twelve_bit)
 {
@@ -408,108 +375,21 @@ void py_masked_hist_min_max(py::buffer im, py::buffer mask, py::buffer hist, py:
             "im and min_max arguments must be the same format (or dtype, in the case where they are numpy arays).");
     if(is_twelve_bit)
     {
-        if(im_info.format == py::format_descriptor<std::uint16_t>::value())
+        if(!masked_hist_min_max_C<std::uint16_t, true>(im_info, mask_info, hist_info, min_max_info))
         {
-            if(hist_info.shape[0] != bin_count<std::uint16_t>())
-            {
-                std::ostringstream o;
-                o << "hist argument must contain " << bin_count<std::uint16_t>() << " elements for uint16 im.";
-                throw std::invalid_argument(o.str());
-            }
-            masked_hist_min_max<std::uint16_t, true>((std::uint16_t*)im_info.ptr,
-                                                     im_info.shape.data(),
-                                                     im_info.strides.data(),
-                                                     (std::uint8_t*)mask_info.ptr,
-                                                     mask_info.shape.data(),
-                                                     mask_info.strides.data(),
-                                                     (std::uint32_t*)hist_info.ptr,
-                                                     hist_info.strides[0],
-                                                     (std::uint16_t*)min_max_info.ptr,
-                                                     min_max_info.strides[0]);
-        }
-        else
             throw std::invalid_argument("is_twelve_bit may be True only if im is uint16.");
+        }
     }
     else
     {
-        if(im_info.format == py::format_descriptor<std::uint8_t>::value())
+        if ( !(
+            masked_hist_min_max_C<std::uint8_t, false>(im_info, mask_info, hist_info, min_max_info) ||
+            masked_hist_min_max_C<std::uint16_t, false>(im_info, mask_info, hist_info, min_max_info) ||
+            masked_hist_min_max_C<std::uint32_t, false>(im_info, mask_info, hist_info, min_max_info) ||
+            masked_hist_min_max_C<std::uint64_t, false>(im_info, mask_info, hist_info, min_max_info)) )
         {
-            if(hist_info.shape[0] != bin_count<std::uint8_t>())
-            {
-                std::ostringstream o;
-                o << "hist argument must contain " << bin_count<std::uint8_t>() << " elements for uint8 im.";
-                throw std::invalid_argument(o.str());
-            }
-            masked_hist_min_max<std::uint8_t, false>((std::uint8_t*)im_info.ptr,
-                                                     im_info.shape.data(),
-                                                     im_info.strides.data(),
-                                                     (std::uint8_t*)mask_info.ptr,
-                                                     mask_info.shape.data(),
-                                                     mask_info.strides.data(),
-                                                     (std::uint32_t*)hist_info.ptr,
-                                                     hist_info.strides[0],
-                                                     (std::uint8_t*)min_max_info.ptr,
-                                                     min_max_info.strides[0]);
-        }
-        else if(im_info.format == py::format_descriptor<std::uint16_t>::value())
-        {
-            if(hist_info.shape[0] != bin_count<std::uint8_t>())
-            {
-                std::ostringstream o;
-                o << "hist argument must contain " << bin_count<std::uint16_t>() << " elements for uint16 im.";
-                throw std::invalid_argument(o.str());
-            }
-            masked_hist_min_max<std::uint16_t, false>((std::uint16_t*)im_info.ptr,
-                                                      im_info.shape.data(),
-                                                      im_info.strides.data(),
-                                                      (std::uint8_t*)mask_info.ptr,
-                                                      mask_info.shape.data(),
-                                                      mask_info.strides.data(),
-                                                      (std::uint32_t*)hist_info.ptr,
-                                                      hist_info.strides[0],
-                                                      (std::uint16_t*)min_max_info.ptr,
-                                                      min_max_info.strides[0]);
-        }
-        else if(im_info.format == py::format_descriptor<std::uint32_t>::value())
-        {
-            if(hist_info.shape[0] != bin_count<std::uint32_t>())
-            {
-                std::ostringstream o;
-                o << "hist argument must contain " << bin_count<std::uint32_t>() << " elements for uint32 im.";
-                throw std::invalid_argument(o.str());
-            }
-            masked_hist_min_max<std::uint32_t, false>((std::uint32_t*)im_info.ptr,
-                                                      im_info.shape.data(),
-                                                      im_info.strides.data(),
-                                                      (std::uint8_t*)mask_info.ptr,
-                                                      mask_info.shape.data(),
-                                                      mask_info.strides.data(),
-                                                      (std::uint32_t*)hist_info.ptr,
-                                                      hist_info.strides[0],
-                                                      (std::uint32_t*)min_max_info.ptr,
-                                                      min_max_info.strides[0]);
-        }
-        else if(im_info.format == py::format_descriptor<std::uint64_t>::value())
-        {
-            if(hist_info.shape[0] != bin_count<std::uint64_t>())
-            {
-                std::ostringstream o;
-                o << "hist argument must contain " << bin_count<std::uint64_t>() << " elements for uint64 im.";
-                throw std::invalid_argument(o.str());
-            }
-            masked_hist_min_max<std::uint64_t, false>((std::uint64_t*)im_info.ptr,
-                                                      im_info.shape.data(),
-                                                      im_info.strides.data(),
-                                                      (std::uint8_t*)mask_info.ptr,
-                                                      mask_info.shape.data(),
-                                                      mask_info.strides.data(),
-                                                      (std::uint32_t*)hist_info.ptr,
-                                                      hist_info.strides[0],
-                                                      (std::uint64_t*)min_max_info.ptr,
-                                                      min_max_info.strides[0]);
-        }
-        else
             throw std::invalid_argument("Only uint8, uint16, uint32, and uint64 im buffers are supported.");
+        }
     }
 }
 
