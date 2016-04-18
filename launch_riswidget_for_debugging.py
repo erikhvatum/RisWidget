@@ -14,16 +14,40 @@ app = Qt.QApplication(argv)
 rw = RisWidget()
 # rw.main_view.zoom_preset_idx = 27
 
-rw.image = numpy.zeros((100,100), dtype=numpy.uint8)
+rw.flipbook.pages.append(numpy.array(list(range(10000)),numpy.uint16).reshape((100,100)))
+rw.flipbook.pages[0][0].name = 'image'
+rw.flipbook.pages[0].append(numpy.zeros((100,10), numpy.uint8))
+rw.flipbook.pages[0][1].name = 'mask'
+
+w = Qt.QWidget()
+w.show()
+w.setLayout(Qt.QHBoxLayout())
+wl = Qt.QLabel()
+wr = Qt.QLabel()
+w.layout().addWidget(wl)
+w.layout().addWidget(wr)
+
+from ris_widget.ndimage_statistics import _ndimage_statistics
+
+def on_mask_data_changed():
+    min_max = numpy.zeros((2,),numpy.uint16)
+    _ndimage_statistics.masked_min_max(rw.flipbook.pages[0][0].data, rw.flipbook.pages[0][1].data, min_max)
+    wl.setText(str(min_max[0]))
+    wr.setText(str(min_max[1]))
+
+rw.flipbook_pages[0][1].data_changed.connect(on_mask_data_changed)
+
+# rw.image = numpy.zeros((100,100), dtype=numpy.uint8)
 
 # from ris_widget.examples.main_thread_mandelbrot import MandelbrotWidget
 # mandelbrot_widget = MandelbrotWidget(rw.image)
 
-rw_dpath = Path(os.path.expanduser('~')) / 'zplrepo' / 'ris_widget'
-rw.add_image_files_to_flipbook([
-    [rw_dpath / 'Opteron_6300_die_shot_16_core_mod.jpg']#, rw_dpath / 'top_left_g.png'],
+# rw_dpath = Path(os.path.expanduser('~')) / 'zplrepo' / 'ris_widget'
+# rw.add_image_files_to_flipbook([
+#     [rw_dpath / 'Opteron_6300_die_shot_16_core_mod.jpg']#, rw_dpath / 'top_left_g.png'],
 #     ['/Volumes/MrSpinny/14/2015-11-18t0948 focus-03_ffc.png']
-])
+# ])
+
 
 
 
