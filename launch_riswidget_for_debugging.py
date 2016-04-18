@@ -14,28 +14,28 @@ app = Qt.QApplication(argv)
 rw = RisWidget()
 # rw.main_view.zoom_preset_idx = 27
 
-rw.flipbook.pages.append(numpy.array(list(range(10000)),numpy.uint16).reshape((100,100)))
+rw.flipbook.pages.append(numpy.array(list(range(10000)),numpy.float32).reshape((100,100)))
 rw.flipbook.pages[0][0].name = 'image'
 rw.flipbook.pages[0].append(numpy.zeros((100,10), numpy.bool))
 rw.flipbook.pages[0][1].name = 'mask'
 
-w = Qt.QWidget()
-w.show()
-w.setLayout(Qt.QHBoxLayout())
-wl = Qt.QLabel()
-wr = Qt.QLabel()
-w.layout().addWidget(wl)
-w.layout().addWidget(wr)
-
 from ris_widget.ndimage_statistics import _ndimage_statistics
+from matplotlib import pyplot as plt
+plt.ion()
+fig = plt.figure()
 
 def on_mask_data_changed():
-    min_max = numpy.zeros((2,),numpy.uint16)
-    _ndimage_statistics.masked_min_max(rw.flipbook.pages[0][0].data, rw.flipbook.pages[0][1].data, min_max)
-    wl.setText(str(min_max[0]))
-    wr.setText(str(min_max[1]))
+    hist = numpy.zeros((2048,),numpy.uint32)
+    range_ = rw.flipbook.pages[0][0].range.copy()
+    range_[0] = 4000
+    range_[1] = 5000
+    _ndimage_statistics.masked_ranged_hist(rw.flipbook.pages[0][0].data, rw.flipbook.pages[0][1].data, range_, hist, True)
+    fig.clear()
+    plt.scatter(list(range(2048)), hist)
+    print(hist[0], hist[-1], hist.max(), hist.argmax())
 
 rw.flipbook_pages[0][1].data_changed.connect(on_mask_data_changed)
+on_mask_data_changed()
 
 # rw.image = numpy.zeros((100,100), dtype=numpy.uint8)
 
