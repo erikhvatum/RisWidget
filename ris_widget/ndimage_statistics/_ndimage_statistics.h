@@ -116,9 +116,9 @@ void masked_min_max(const C* im, const std::size_t* im_shape, const std::size_t*
             minner = mouter;
             for(; inner != inner_end; inner += strides[1], minner += mstrides[1])
             {
-                const C& v = *reinterpret_cast<const C*>(inner);
                 if(*minner != 0)
                 {
+                    const C& v = *reinterpret_cast<const C*>(inner);
                     if(seen_unmasked)
                     {
                         if(v < min)
@@ -155,9 +155,9 @@ void masked_min_max(const C* im, const std::size_t* im_shape, const std::size_t*
             for(; inner != inner_end; inner += strides[1], ++minner_lut)
             {
                 minner = mouter + mstrides[1] * *minner_lut;
-                const C& v = *reinterpret_cast<const C*>(inner);
                 if(*minner != 0)
                 {
+                    const C& v = *reinterpret_cast<const C*>(inner);
                     if(seen_unmasked)
                     {
                         if(v < min)
@@ -233,7 +233,7 @@ void ranged_hist(const C* im, const std::size_t* im_shape, const std::size_t* im
             {
                 if(v >= range_min && v <= range_max)
                 {
-                    ++hist[static_cast<std::ptrdiff_t>( bin_factor * (v - range_min) )];
+                    ++*reinterpret_cast<C*>(hist8 + static_cast<std::ptrdiff_t>(bin_factor * (v - range_min)) * hist_stride);
                 }
             }
         }
