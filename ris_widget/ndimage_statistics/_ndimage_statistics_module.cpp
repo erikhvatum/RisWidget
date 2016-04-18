@@ -100,6 +100,10 @@ void py_masked_min_max(py::buffer im, py::buffer mask, py::buffer min_max)
     py::buffer_info im_info{im.request()}, min_max_info{min_max.request()}, mask_info{mask.request()};
     if(im_info.ndim != 2)
         throw std::invalid_argument("im argument must be a 2 dimensional buffer object (such as a numpy array).");
+    if(mask_info.ndim != 2)
+        throw std::invalid_argument("mask argument must be a 2 dimensionsal buffer object (such as a numpy array).");
+    if(mask_info.format != py::format_descriptor<std::uint8_t>::value() && mask_info.format != py::format_descriptor<bool>::value())
+        throw std::invalid_argument("mask argument format must be uint8 or bool.");
     if(min_max_info.ndim != 1)
         throw std::invalid_argument("min_max arugment must be a 1 dimensional buffer object (such as a numpy array).");
     if(min_max_info.shape[0] != 2)
@@ -107,10 +111,6 @@ void py_masked_min_max(py::buffer im, py::buffer mask, py::buffer min_max)
     if(im_info.format != min_max_info.format)
         throw std::invalid_argument(
             "im and min_max arguments must be the same format (or dtype, in the case where they are numpy arays).");
-    if(mask_info.ndim != 2)
-        throw std::invalid_argument("mask argument must be a 2 dimensionsal buffer object (such as a numpy array).");
-    if(mask_info.format != py::format_descriptor<std::uint8_t>::value())
-        throw std::invalid_argument("mask argument format must be uint8 or bool.");
     if ( !(
         masked_min_max_C<float>(im_info, mask_info, min_max_info) ||
         masked_min_max_C<std::uint8_t>(im_info, mask_info, min_max_info) ||
@@ -218,13 +218,13 @@ void py_masked_ranged_hist(py::buffer im, py::buffer mask, py::buffer range, py:
     py::buffer_info im_info{im.request()}, mask_info{mask.request()}, range_info{range.request()}, hist_info{hist.request()};
     if(im_info.ndim != 2)
         throw std::invalid_argument("im argument must be a 2 dimensional buffer object (such as a numpy array).");
+    if(mask_info.ndim != 2)
+        throw std::invalid_argument("mask argument must be a 2 dimensionsal buffer object (such as a numpy array).");
+    if(mask_info.format != py::format_descriptor<std::uint8_t>::value() && mask_info.format != py::format_descriptor<bool>::value())
+        throw std::invalid_argument("mask argument format must be uint8 or bool.");
     if(im_info.format != range_info.format)
         throw std::invalid_argument(
             "im and range arguments must be the same format (or dtype, in the case where they are numpy arays).");
-    if(mask_info.ndim != 2)
-        throw std::invalid_argument("mask argument must be a 2 dimensionsal buffer object (such as a numpy array).");
-    if(mask_info.format != py::format_descriptor<std::uint8_t>::value())
-        throw std::invalid_argument("mask argument format must be uint8 or bool.");
     if(hist_info.ndim != 1)
         throw std::invalid_argument("hist argument must be a 1 dimensional buffer object (such as a numpy array).");
     if(hist_info.format != py::format_descriptor<std::uint32_t>::value())
@@ -360,7 +360,7 @@ void py_masked_hist_min_max(py::buffer im, py::buffer mask, py::buffer hist, py:
         throw std::invalid_argument("im argument must be a 2 dimensional buffer object (such as a numpy array).");
     if(mask_info.ndim != 2)
         throw std::invalid_argument("mask argument must be a 2 dimensionsal buffer object (such as a numpy array).");
-    if(mask_info.format != py::format_descriptor<std::uint8_t>::value())
+    if(mask_info.format != py::format_descriptor<std::uint8_t>::value() && mask_info.format != py::format_descriptor<bool>::value())
         throw std::invalid_argument("mask argument format must be uint8 or bool.");
     if(hist_info.ndim != 1)
         throw std::invalid_argument("hist argument must be a 1 dimensional buffer object (such as a numpy array).");

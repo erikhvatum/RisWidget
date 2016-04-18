@@ -29,11 +29,11 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <iostream>
 
 #include "resampling_lut.h"
 
@@ -189,16 +189,16 @@ void ranged_hist(const C* im, const std::size_t* im_shape, const std::size_t* im
     std::size_t shape[2], strides[2];
     reorder_to_inner_outer(im_shape, im_strides, shape, strides);
 
+    const C& range_min{range[0]};
+    const C& range_max{*reinterpret_cast<const C*>(reinterpret_cast<const std::uint8_t*>(range) + range_stride)};
+    const C range_width{static_cast<C>(range_max - range_min)};
+
     std::uint8_t* hist8{reinterpret_cast<std::uint8_t*>(hist)};
     for(std::uint8_t *hist8It{hist8}, *const hist8EndIt{hist8 + bin_count * hist_stride}; hist8It != hist8EndIt; hist8It += hist_stride)
     {
         *reinterpret_cast<std::uint32_t*>(hist8It) = 0;
     }
 
-    const C range_min{range[0]};
-    const C range_max{*reinterpret_cast<const C*>(reinterpret_cast<const std::uint8_t*>(range) + range_stride)};
-
-    const C range_width = range_max - range_min;
     const std::size_t non_overflow_bin_count = with_overflow_bins ? bin_count - 2 : bin_count;
     const double bin_factor = static_cast<double>(non_overflow_bin_count - 1) / range_width;
     std::uint32_t*const last_bin = reinterpret_cast<std::uint32_t*>(hist8 + bin_count * hist_stride);
@@ -247,69 +247,72 @@ void masked_ranged_hist(const C* im, const std::size_t* im_shape, const std::siz
                         const std::size_t& bin_count,
                         std::uint32_t* hist, const std::size_t& hist_stride)
 {
-//  std::size_t shape[2], strides[2], mshape[2], mstrides[2];
-//  reorder_to_inner_outer(im_shape, im_strides, shape, strides,
-//                         mask_shape, mask_strides, mshape, mstrides);
-// 
-//  std::uint8_t* hist8{reinterpret_cast<std::uint8_t*>(hist)};
-//  for(std::uint8_t *hist8It{hist8}, *const hist8EndIt{hist8 + bin_count * hist_stride}; hist8It != hist8EndIt; hist8It += hist_stride)
-//  {
-//      *reinterpret_cast<std::uint32_t*>(hist8It) = 0;
-//  }
-// 
-//  const C range_width = range_max - range_min;
-//  const std::size_t non_overflow_bin_count = with_overflow_bins ? bin_count - 2 : bin_count;
-//  const float bin_factor = static_cast<float>(non_overflow_bin_count - 1) / range_width;
-//  std::uint32_t*const last_bin = reinterpret_cast<std::uint32_t*>(hist8 + bin_count * hist_stride);
-//  const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im);
-//  const std::uint8_t* mouter = mask;
-//  const std::uint8_t*const outer_end = outer + shape[0] * strides[0];
-//  const std::uint8_t* inner;
-//  const std::uint8_t* minner;
-//  const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
-//  const std::uint8_t* inner_end;
-//  if(im_shape[0] == mask_shape[0] && im_shape[1] == mask_shape[1])
-//  {
-//      for(; outer != outer_end; outer += strides[0], mouter += mstrides[0])
-//      {
-//          inner = outer;
-//          inner_end = inner + inner_end_offset;
-//          minner = mouter;
-//          for(; inner != inner_end; inner += strides[1], minner += mstrides[1])
-//          {
-//              if(*minner != 0)
-//              {
-//                  const C& v = *reinterpret_cast<const C*>(inner);
-//                  if(with_overflow_bins)
-//                  {
-//                      if(v < range_min)
-//                      {
-//                          ++*hist;
-//                      }
-//                      else if(v > range_max)
-//                      {
-//                          ++*last_bin;
-//                      }
-//                      else
-//                      {
-//                          ++hist[1 + static_cast<std::ptrdiff_t>( bin_factor * (v - range_min) )];
-//                      }
-//                  }
-//                  else
-//                  {
-//                      if(v >= range_min && v <= range_max)
-//                      {
-//                          ++hist[static_cast<std::ptrdiff_t>( bin_factor * (v - range_min) )];
-//                      }
-//                  }
-//              }
-//          }
-//      }
-//  }
-//  else
-//  {
-// 
-//  }
+    std::size_t shape[2], strides[2], mshape[2], mstrides[2];
+    reorder_to_inner_outer(im_shape, im_strides, shape, strides,
+                           mask_shape, mask_strides, mshape, mstrides);
+
+    const C& range_min{range[0]};
+    const C& range_max{*reinterpret_cast<const C*>(reinterpret_cast<const std::uint8_t*>(range) + range_stride)};
+    const C range_width{static_cast<C>(range_max - range_min)};
+
+    std::uint8_t* hist8{reinterpret_cast<std::uint8_t*>(hist)};
+    for(std::uint8_t *hist8It{hist8}, *const hist8EndIt{hist8 + bin_count * hist_stride}; hist8It != hist8EndIt; hist8It += hist_stride)
+    {
+        *reinterpret_cast<std::uint32_t*>(hist8It) = 0;
+    }
+
+    const std::size_t non_overflow_bin_count = with_overflow_bins ? bin_count - 2 : bin_count;
+    const float bin_factor = static_cast<float>(non_overflow_bin_count - 1) / range_width;
+    std::uint32_t*const last_bin = reinterpret_cast<std::uint32_t*>(hist8 + bin_count * hist_stride);
+    const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im);
+    const std::uint8_t* mouter = mask;
+    const std::uint8_t*const outer_end = outer + shape[0] * strides[0];
+    const std::uint8_t* inner;
+    const std::uint8_t* minner;
+    const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
+    const std::uint8_t* inner_end;
+    if(im_shape[0] == mask_shape[0] && im_shape[1] == mask_shape[1])
+    {
+        for(; outer != outer_end; outer += strides[0], mouter += mstrides[0])
+        {
+            inner = outer;
+            inner_end = inner + inner_end_offset;
+            minner = mouter;
+            for(; inner != inner_end; inner += strides[1], minner += mstrides[1])
+            {
+                if(*minner != 0)
+                {
+                    const C& v = *reinterpret_cast<const C*>(inner);
+                    if(with_overflow_bins)
+                    {
+                        if(v < range_min)
+                        {
+                            ++*hist;
+                        }
+                        else if(v > range_max)
+                        {
+                            ++*last_bin;
+                        }
+                        else
+                        {
+                            ++hist[1 + static_cast<std::ptrdiff_t>( bin_factor * (v - range_min) )];
+                        }
+                    }
+                    else
+                    {
+                        if(v >= range_min && v <= range_max)
+                        {
+                            ++hist[static_cast<std::ptrdiff_t>( bin_factor * (v - range_min) )];
+                        }
+                    }
+                }
+            }
+        }
+    }
+    else
+    {
+
+    }
 }
 
 #ifdef _WIN32

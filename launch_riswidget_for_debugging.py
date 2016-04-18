@@ -16,7 +16,7 @@ rw = RisWidget()
 
 rw.flipbook.pages.append(numpy.array(list(range(10000)),numpy.uint16).reshape((100,100)))
 rw.flipbook.pages[0][0].name = 'image'
-rw.flipbook.pages[0].append(numpy.zeros((100,10), numpy.uint8))
+rw.flipbook.pages[0].append(numpy.zeros((100,10), numpy.bool))
 rw.flipbook.pages[0][1].name = 'mask'
 
 w = Qt.QWidget()
