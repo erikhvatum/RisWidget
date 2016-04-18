@@ -29,7 +29,6 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -251,7 +250,6 @@ void masked_ranged_hist(const C* im, const std::size_t* im_shape, const std::siz
     reorder_to_inner_outer(im_shape, im_strides, shape, strides,
                            mask_shape, mask_strides, mshape, mstrides);
 
-    std::cout << "with_overflow_bins: " << with_overflow_bins << "\n";
     const C& range_min{range[0]};
     const C& range_max{*reinterpret_cast<const C*>(reinterpret_cast<const std::uint8_t*>(range) + range_stride)};
     const C range_width{static_cast<C>(range_max - range_min)};
@@ -453,51 +451,100 @@ void masked_hist_min_max(const C* im, const std::size_t* im_shape, const std::si
                          std::uint32_t* hist, const std::size_t& hist_stride,
                          C* min_max, const std::size_t& min_max_stride)
 {
-//  std::size_t shape[2], strides[2], mshape[2], mstrides[2];
-//  reorder_to_inner_outer(im_shape, im_strides, shape, strides,
-//                         mask_shape, mask_strides, mshape, mstrides);
-//  // At this point, it should be true that shape == mshape.  Our caller is expected to have verified
-//  // that this is the case.
-// 
-//  memset(hist, 0, bin_count<C>() * sizeof(std::uint32_t));
-//  min_max[0] = min_max[1] = 0;
-//  bool seen_unmasked = false;
-// 
-//  const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im);
-//  const std::uint8_t* mouter = mask;
-//  const std::uint8_t*const outer_end = outer + shape[0] * strides[0];
-//  const std::uint8_t* inner;
-//  const std::uint8_t* minner;
-//  const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
-//  const std::uint8_t* inner_end;
-//  for(; outer != outer_end; outer += strides[0], mouter += mstrides[0])
-//  {
-//      inner = outer;
-//      inner_end = inner + inner_end_offset;
-//      minner = mouter;
-//      for(; inner != inner_end; inner += strides[1], minner += mstrides[1])
-//      {
-//          if(*minner != 0)
-//          {
-//              const C& v = *reinterpret_cast<const C*>(inner);
-//              ++hist[apply_bin_shift<C, is_twelve_bit>(v)];
-//              if(seen_unmasked)
-//              {
-//                  if(v < min_max[0])
-//                  {
-//                      min_max[0] = v;
-//                  }
-//                  else if(v > min_max[1])
-//                  {
-//                      min_max[1] = v;
-//                  }
-//              }
-//              else
-//              {
-//                  seen_unmasked = true;
-//                  min_max[1] = min_max[0] = v;
-//              }
-//          }
-//      }
-//  }
+    std::size_t shape[2], strides[2], mshape[2], mstrides[2];
+    reorder_to_inner_outer(im_shape, im_strides, shape, strides,
+                           mask_shape, mask_strides, mshape, mstrides);
+
+    std::uint8_t* hist8{reinterpret_cast<std::uint8_t*>(hist)};
+    for(std::uint8_t *hist8It{hist8}, *const hist8EndIt{hist8 + bin_count<C>() * hist_stride}; hist8It != hist8EndIt; hist8It += hist_stride)
+    {
+        *reinterpret_cast<std::uint32_t*>(hist8It) = 0;
+    }
+
+    C& min{min_max[0]};
+    C& max{*reinterpret_cast<C*>(reinterpret_cast<std::uint8_t*>(min_max) + min_max_stride)};
+    max = min = 0;
+
+    bool seen_unmasked = false;
+    const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im);
+    const std::uint8_t*const outer_end = outer + shape[0] * strides[0];
+    const std::uint8_t* inner;
+    const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
+    const std::uint8_t* inner_end;
+    const std::uint8_t* mouter;
+    const std::uint8_t* minner;
+    if(im_shape[0] == mask_shape[0] && im_shape[1] == mask_shape[1])
+    {
+        mouter = mask;
+        for(; outer != outer_end; outer += strides[0], mouter += mstrides[0])
+        {
+            inner = outer;
+            inner_end = inner + inner_end_offset;
+            minner = mouter;
+            for(; inner != inner_end; inner += strides[1], minner += mstrides[1])
+            {
+                if(*minner != 0)
+                {
+                    const C& v = *reinterpret_cast<const C*>(inner);
+                    ++*reinterpret_cast<std::uint32_t*>(hist8 + hist_stride*apply_bin_shift<C, is_twelve_bit>(v));
+                    if(seen_unmasked)
+                    {
+                        if(v < min)
+                        {
+                            min = v;
+                        }
+                        else if(v > max)
+                        {
+                            max = v;
+                        }
+                    }
+                    else
+                    {
+                        seen_unmasked = true;
+                        max = min = v;
+                    }
+                }
+            }
+        }
+    }
+    else
+    {
+        LutPtr mouter_lut_obj{luts.getLut(shape[0], mshape[0])};
+        const std::uint32_t* mouter_lut{mouter_lut_obj->m_data.data()};
+        LutPtr minner_lut_obj{luts.getLut(shape[1], mshape[1])};
+        const std::uint32_t*const minner_lut_store{minner_lut_obj->m_data.data()};
+        const std::uint32_t* minner_lut;
+        for(; outer != outer_end; outer += strides[0], ++mouter_lut)
+        {
+            mouter = mask + mstrides[0] * *mouter_lut;
+            inner = outer;
+            inner_end = inner + inner_end_offset;
+            minner_lut = minner_lut_store;
+            for(; inner != inner_end; inner += strides[1], ++minner_lut)
+            {
+                minner = mouter + mstrides[1] * *minner_lut;
+                if(*minner != 0)
+                {
+                    const C& v = *reinterpret_cast<const C*>(inner);
+                    ++*reinterpret_cast<std::uint32_t*>(hist8 + hist_stride*apply_bin_shift<C, is_twelve_bit>(v));
+                    if(seen_unmasked)
+                    {
+                        if(v < min)
+                        {
+                            min = v;
+                        }
+                        else if(v > max)
+                        {
+                            max = v;
+                        }
+                    }
+                    else
+                    {
+                        seen_unmasked = true;
+                        max = min = v;
+                    }
+                }
+            }
+        }
+    }
 }
