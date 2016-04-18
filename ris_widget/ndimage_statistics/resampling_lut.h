@@ -53,7 +53,6 @@ public:
     const LutData m_data;
 
     Lut(const std::uint32_t& fromSampleCount, const std::uint32_t& toSampleCount);
-    ~Lut();
 
 protected:
     LutCacheIt m_lutCacheIt;

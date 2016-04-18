@@ -24,7 +24,6 @@
 
 #include "resampling_lut.h"
 #include <cmath>
-#include <iostream>
 
 Lut::Lut(const std::uint32_t& fromSampleCount, const std::uint32_t& toSampleCount)
   : m_fromSampleCount(fromSampleCount),
@@ -37,11 +36,6 @@ Lut::Lut(const std::uint32_t& fromSampleCount, const std::uint32_t& toSampleCoun
         *toSampleIt = fromSampleNum * (((double)(m_toSampleCount)) / (m_fromSampleCount-1));
     if(data.back() == toSampleCount)
         *data.rbegin() = toSampleCount - 1;
-}
-
-Lut::~Lut()
-{
-    std::cout << "~ " << m_fromSampleCount << " : " << m_toSampleCount << '\n';
 }
 
 Luts::Luts(const std::size_t& maxCachedLuts)
@@ -85,7 +79,6 @@ LutPtr Luts::getLut(const std::uint32_t& fromSampleCount, const std::uint32_t& t
             lut.m_lutCacheLruIt = m_lutCacheLru.begin();
         }
     }
-    std::cout << lutCacheIt->second << ' ' << lutCacheIt->second->m_fromSampleCount << ':' << lutCacheIt->second->m_toSampleCount << '\n';
     return lutCacheIt->second;
 }
 

@@ -40,7 +40,7 @@ def on_mask_data_changed():
     plt.scatter(list(range(1024)), hist)
     wl.setText(str(min_max[0]))
     wr.setText(str(min_max[1]))
-    print(hist[0], hist[-1], hist.max(), hist.argmax())
+    # print(hist[0], hist[-1], hist.max(), hist.argmax())
 
 rw.flipbook_pages[0][1].data_changed.connect(on_mask_data_changed)
 on_mask_data_changed()

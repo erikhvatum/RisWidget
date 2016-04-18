@@ -74,7 +74,8 @@ class BuildExt(setuptools.command.build_ext.build_ext):
             opts.append(cpp_flag(self.compiler))
             if has_flag(self.compiler, '-fvisibility=hidden'):
                 opts.append('-fvisibility=hidden')
-#       opts.append('-O0')
+            if has_flag(self.compiler, '-mtune=native'):
+                opts.append('-mtune=native')
         for ext in self.extensions:
             ext.extra_compile_args = opts
             setuptools.command.build_ext.build_ext.build_extensions(self)
