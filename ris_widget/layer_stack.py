@@ -288,7 +288,7 @@ class LayerStack(Qt.QObject):
                 try:
                     for layer in self._layers:
                         image = layer.image
-                        if image and image.mask is not v:
+                        if image and (v is not None or image.mask is not None):
                             image.set(mask=v)
                 finally:
                     self._ignore_layer_image_mask_change = False
@@ -300,7 +300,7 @@ class LayerStack(Qt.QObject):
             for layer in layers:
                 instance_count = self._layer_instance_counts.get(layer, 0) + 1
                 image = layer.image
-                if image and image.mask is not self._imposed_image_mask:
+                if image and (self._imposed_image_mask is not None or image.mask is not None):
                     image.set(mask=self._imposed_image_mask)
                 assert instance_count > 0
                 self._layer_instance_counts[layer] = instance_count
@@ -384,7 +384,7 @@ class LayerStack(Qt.QObject):
     def _on_layer_image_changed(self, layer):
         if not self._ignore_layer_image_mask_change:
             image = layer.image
-            if image and image.mask is not self._imposed_image_mask:
+            if image and (self._imposed_image_mask is not None or image.mask is not None):
                 self._ignore_layer_image_mask_change = True
                 try:
                     image.set(mask=self._imposed_image_mask)
