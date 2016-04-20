@@ -310,7 +310,14 @@ class Image(Qt.QObject):
                 if name:
                     mst += '"' + name + '" '
             mst+= 'x:{} y:{} '.format(x, y)
-            vt = '(' + ' '.join((c + ':' + component_format_str for c in self.type)) + ')'
+            mask = self._mask
+            if mask is None:
+                masked = ''
+            else:
+                mx = int(x * mask.shape[0] / self._data.shape[0])
+                my = int(y * mask.shape[1] / self._data.shape[1])
+                masked = 'MASKED ' if mask[mx,my] == 0 else ''
+            vt = '(' + masked + ' '.join((c + ':' + component_format_str for c in self.type)) + ')'
             if num_channels == 1:
                 vt = vt.format(self.data[x, y])
             else:

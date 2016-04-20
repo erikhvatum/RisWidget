@@ -366,6 +366,14 @@ class RisWidgetQtObject(Qt.QMainWindow):
     def image(self, v):
         self.layer.image = v
 
+    @property
+    def mask(self):
+        return self.layer_stack.imposed_image_mask
+
+    @mask.setter
+    def mask(self, v):
+        self.layer_stack.imposed_image_mask = v
+
     def _on_flipbook_pages_inserted(self, parent, first_idx, last_idx):
         self._update_flipbook_visibility()
 
@@ -592,6 +600,7 @@ class RisWidget:
     layer = ProxyProperty('layer', 'qt_object', RisWidgetQtObject)
     focused_layer = ProxyProperty('focused_layer', 'qt_object', RisWidgetQtObject)
     layers = ProxyProperty('layers', 'qt_object', RisWidgetQtObject)
+    mask = ProxyProperty('mask', 'qt_object', RisWidgetQtObject)
     # It is not easy to spot the pages property of a flipbook amongst the many possibilities visibile in dir(Flipbook).  So,
     # although flipbook_pages saves no characters compared to flipbook.pages, flipbook_pages is nice to have.
     flipbook_pages = ProxyProperty('pages', 'flipbook', Flipbook)
