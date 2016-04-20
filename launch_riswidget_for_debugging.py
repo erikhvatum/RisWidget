@@ -50,11 +50,15 @@ rw = RisWidget()
 # from ris_widget.examples.main_thread_mandelbrot import MandelbrotWidget
 # mandelbrot_widget = MandelbrotWidget(rw.image)
 
+im = freeimage.read('/Volumes/MrSpinny/14/2015-11-18t0948 focus-03_ffc.png')
 rw_dpath = Path(os.path.expanduser('~')) / 'zplrepo' / 'ris_widget'
-rw.add_image_files_to_flipbook([
-    [rw_dpath / 'Opteron_6300_die_shot_16_core_mod.jpg']#, rw_dpath / 'top_left_g.png'],
+rw.flipbook_pages.append(im)
+mask = im > 0
+rw.qt_object.layer_stack.imposed_image_mask = mask
+# rw.add_image_files_to_flipbook([
+    # [rw_dpath / 'Opteron_6300_die_shot_16_core_mod.jpg']#, rw_dpath / 'top_left_g.png'],
     # ['/Volumes/MrSpinny/14/2015-11-18t0948 focus-03_ffc.png']
-])
+# ])
 
 
 

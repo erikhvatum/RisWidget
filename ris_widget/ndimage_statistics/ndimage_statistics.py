@@ -48,7 +48,7 @@ try:
         if mask is None:
             _ndimage_statistics.ranged_hist(im, range_, hist, with_overflow_bins)
         else:
-            _ndimage_statistics.masked_ranged_hist(im, mask, range_[0], range_[1], bin_count, with_overflow_bins, hist)
+            _ndimage_statistics.masked_ranged_hist(im, mask, range_, hist, with_overflow_bins)
         return hist
 
     def _statistics(im, twelve_bit, mask=None):
