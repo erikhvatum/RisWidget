@@ -98,20 +98,20 @@ class LayerStack(Qt.QObject):
         self.image_name_in_contextual_info_action.setText('Include Image.name in Contextual Info')
         self.image_name_in_contextual_info_action.setCheckable(True)
         self.image_name_in_contextual_info_action.setChecked(False)
-        self.master_enable_auto_min_max_action = Qt.QAction(self)
-        self.master_enable_auto_min_max_action.setText('Auto Min/Max Master On')
-        self.master_enable_auto_min_max_action.setCheckable(True)
-        self.master_enable_auto_min_max_action.setChecked(False)
-        self.master_enable_auto_min_max_action.toggled.connect(self._on_master_enable_auto_min_max_toggled)
+        self.auto_min_max_master_on_enabled_action = Qt.QAction(self)
+        self.auto_min_max_master_on_enabled_action.setText('Auto Min/Max Master On')
+        self.auto_min_max_master_on_enabled_action.setCheckable(True)
+        self.auto_min_max_master_on_enabled_action.setChecked(False)
+        self.auto_min_max_master_on_enabled_action.toggled.connect(self._on_master_enable_auto_min_max_toggled)
         self.examine_layer_mode_action = Qt.QAction(self)
         self.examine_layer_mode_action.setText('Examine Current Layer')
         self.examine_layer_mode_action.setCheckable(True)
         self.examine_layer_mode_action.setChecked(False)
         self.examine_layer_mode_action.setToolTip(textwrap.dedent("""\
-                In "Examine Layer Mode", a layer's .visible property does not control whether that
-                layer is visible in the main view.  Instead, the layer represented by the row currently
-                selected in the layer table is treated as if the value of its .visible property were
-                True and all others as if theirs were false."""))
+            In "Examine Layer Mode", a layer's .visible property does not control whether that
+            layer is visible in the main view.  Instead, the layer represented by the row currently
+            selected in the layer table is treated as if the value of its .visible property were
+            True and all others as if theirs were false."""))
         self.histogram_alternate_column_shading_action = Qt.QAction(self)
         self.histogram_alternate_column_shading_action.setText('Alternate Histogram Bin Shading')
         self.histogram_alternate_column_shading_action.setCheckable(True)
@@ -255,29 +255,30 @@ class LayerStack(Qt.QObject):
         self.histogram_alternate_column_shading_action.setChecked(v)
 
     @property
-    def master_enable_auto_min_max_is_active(self):
-        return self.master_enable_auto_min_max_action.isChecked()
+    def auto_min_max_master_on_enabled(self):
+        return self.auto_min_max_master_on_enabled_action.isChecked()
 
-    @master_enable_auto_min_max_is_active.setter
-    def master_enable_auto_min_max_is_active(self, v):
-        self.examine_layer_mode_action.setChecked(v)
+    @auto_min_max_master_on_enabled.setter
+    def auto_min_max_master_on_enabled(self, v):
+        self.auto_min_max_master_on_enabled_action.setChecked(v)
 
     def _attach_layers(self, layers):
+        auto_min_max_master_on_enabled = self.auto_min_max_master_on_enabled
         for layer in layers:
             instance_count = self._layer_instance_counts.get(layer, 0) + 1
             assert instance_count > 0
             self._layer_instance_counts[layer] = instance_count
             if instance_count == 1:
-                layer.min_changed.connect(self._on_layer_min_or_max_changed)
-                layer.max_changed.connect(self._on_layer_min_or_max_changed)
+                if auto_min_max_master_on_enabled:
+                    layer.auto_min_max_enabled = True
+                layer.auto_min_max_enabled_changed.connect(self._on_layer_auto_min_max_enabled_changed)
 
     def _detach_layers(self, layers):
         for layer in layers:
             instance_count = self._layer_instance_counts[layer] - 1
             assert instance_count >= 0
             if instance_count == 0:
-                layer.min_changed.disconnect(self._on_layer_min_or_max_changed)
-                layer.max_changed.disconnect(self._on_layer_min_or_max_changed)
+                layer.auto_min_max_enabled_changed.disconnect(self._on_layer_auto_min_max_enabled_changed)
                 del self._layer_instance_counts[layer]
             else:
                 self._layer_instance_counts[layer] = instance_count
@@ -332,9 +333,10 @@ class LayerStack(Qt.QObject):
             self.layer_focus_changed.emit(self, ol, l)
 
     def _on_master_enable_auto_min_max_toggled(self, checked):
-        if checked:
+        if checked and self._layers is not None:
             for layer in self._layers:
-                pass
+                layer.auto_min_max_enabled = True
 
-    def _on_layer_min_or_max_changed(self, layer):
-        pass
+    def _on_layer_auto_min_max_enabled_changed(self, layer):
+        if self.auto_min_max_master_on_enabled and not layer.auto_min_max_enabled:
+            self.auto_min_max_master_on_enabled = False

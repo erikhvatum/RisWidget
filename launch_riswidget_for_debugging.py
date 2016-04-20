@@ -14,36 +14,36 @@ app = Qt.QApplication(argv)
 rw = RisWidget()
 # rw.main_view.zoom_preset_idx = 27
 
-rw.flipbook.pages.append(numpy.array(list(range(10000)),numpy.uint16).reshape((100,100)))
-rw.flipbook.pages[0][0].name = 'image'
-rw.flipbook.pages[0].append(numpy.zeros((100,10), numpy.bool))
-rw.flipbook.pages[0][1].name = 'mask'
+# rw.flipbook.pages.append(numpy.array(list(range(10000)),numpy.uint16).reshape((100,100)))
+# rw.flipbook.pages[0][0].name = 'image'
+# rw.flipbook.pages[0].append(numpy.zeros((100,10), numpy.bool))
+# rw.flipbook.pages[0][1].name = 'mask'
 
-from ris_widget.ndimage_statistics import _ndimage_statistics
-from matplotlib import pyplot as plt
-plt.ion()
-fig = plt.figure()
+# from ris_widget.ndimage_statistics import _ndimage_statistics
+# from matplotlib import pyplot as plt
+# plt.ion()
+# fig = plt.figure()
 
-w = Qt.QWidget()
-w.show()
-w.setLayout(Qt.QHBoxLayout())
-wl = Qt.QLabel()
-wr = Qt.QLabel()
-w.layout().addWidget(wl)
-w.layout().addWidget(wr)
+# w = Qt.QWidget()
+# w.show()
+# w.setLayout(Qt.QHBoxLayout())
+# wl = Qt.QLabel()
+# wr = Qt.QLabel()
+# w.layout().addWidget(wl)
+# w.layout().addWidget(wr)
 
-def on_mask_data_changed():
-    min_max = numpy.zeros((2,),numpy.uint16)
-    hist = numpy.zeros((1024,),numpy.uint32)
-    _ndimage_statistics.masked_hist_min_max(rw.flipbook.pages[0][0].data, rw.flipbook.pages[0][1].data, hist, min_max, False)
-    fig.clear()
-    plt.scatter(list(range(1024)), hist)
-    wl.setText(str(min_max[0]))
-    wr.setText(str(min_max[1]))
+# def on_mask_data_changed():
+#     min_max = numpy.zeros((2,),numpy.uint16)
+#     hist = numpy.zeros((1024,),numpy.uint32)
+#     _ndimage_statistics.masked_hist_min_max(rw.flipbook.pages[0][0].data, rw.flipbook.pages[0][1].data, hist, min_max, False)
+#     fig.clear()
+#     plt.scatter(list(range(1024)), hist)
+#     wl.setText(str(min_max[0]))
+#     wr.setText(str(min_max[1]))
     # print(hist[0], hist[-1], hist.max(), hist.argmax())
 
-rw.flipbook_pages[0][1].data_changed.connect(on_mask_data_changed)
-on_mask_data_changed()
+# rw.flipbook_pages[0][1].data_changed.connect(on_mask_data_changed)
+# on_mask_data_changed()
 
 # rw.image = numpy.zeros((100,100), dtype=numpy.uint8)
 
