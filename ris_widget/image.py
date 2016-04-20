@@ -246,7 +246,7 @@ class Image(Qt.QObject):
 
         if mask_changed:
             if mask is not None:
-                mask = numpy.asarray(data)
+                mask = numpy.asarray(mask)
                 if mask.ndim != 2:
                     raise ValueError('mask argument must be None or a 2D iterable.')
                 if mask.dtype != bool:
@@ -258,10 +258,6 @@ class Image(Qt.QObject):
                     _mask = mask
                     mask = numpy.ndarray(mask.shape, strides=desired_strides, dtype=mask.dtype)
                     mask.flat = _mask.flat
-
-        if data_changed or mask_changed:
-            if mask is not None and (mask.shape[0] < data.shape[0] or mask.shape[1] < data.shape[1]):
-                raise ValueError("mask width and height must be at least as large as data's.")
 
         if data_changed:
             self._data = data
