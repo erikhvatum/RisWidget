@@ -27,8 +27,7 @@ import numpy
 from PyQt5 import Qt
 from string import Template
 import textwrap
-#from ._qt_debug import qtransform_to_numpy
-from ..layer_stack import LayerStack
+from ..contextual_info import ContextualInfo
 from ..shared_resources import QGL, UNIQUE_QGRAPHICSITEM_TYPE
 from .shader_item import ShaderItem
 
@@ -108,6 +107,7 @@ class LayerStackItem(ShaderItem):
     def __init__(self, layer_stack, parent_item=None):
         super().__init__(parent_item)
         self._bounding_rect = Qt.QRectF(self.DEFAULT_BOUNDING_RECT)
+        self.contextual_info = ContextualInfo(self)
         self.layer_stack = layer_stack
         layer_stack.layers_replaced.connect(self._on_layerlist_replaced)
         layer_stack.layer_focus_changed.connect(self._on_layer_focus_changed)
@@ -220,6 +220,7 @@ class LayerStackItem(ShaderItem):
         if br_change:
             self.bounding_rect_changed.emit()
         self.update()
+        self._update_contextual_info()
 
     def _on_layers_removed(self, idxs, layers):
         assert all(idx1 > idx0 for idx0, idx1 in zip(idxs, idxs[1:])), "Implementation of _on_layers_removed relies on idxs being in ascending order"
@@ -243,6 +244,7 @@ class LayerStackItem(ShaderItem):
         if br_change:
             self.bounding_rect_changed.emit()
         self.update()
+        self._update_contextual_info()
 
     def _on_layers_replaced(self, idxs, replaced_layers, layers):
         assert all(idx1 > idx0 for idx0, idx1 in zip(idxs, idxs[1:])), "Implementation of _on_layers_replaced relies on idxs being in ascending order"
@@ -262,6 +264,7 @@ class LayerStackItem(ShaderItem):
         if br_change:
             self.bounding_rect_changed.emit()
         self.update()
+        self._update_contextual_info()
 
     def _on_layer_changed(self, layer):
         self.update()
@@ -277,6 +280,7 @@ class LayerStackItem(ShaderItem):
                 self.prepareGeometryChange()
                 self._bounding_rect = new_br
                 self.bounding_rect_changed.emit()
+        self._update_contextual_info()
 
     def _on_layer_focus_changed(self, old_layer, layer):
         # The appearence of a layer_stack_item may depend on which layer table row is current while
@@ -285,6 +289,16 @@ class LayerStackItem(ShaderItem):
             self.update()
 
     def hoverMoveEvent(self, event):
+        # NB: contextual info overlay will only be correct for the first view containing this item.
+        self.contextual_info.pos = self.scene().views()[0].mapFromScene(event.scenePos())
+        self.scene().contextual_info_item.set_contextual_info(self.contextual_info)
+        self._update_contextual_info()
+
+    def hoverLeaveEvent(self, event):
+        self.contextual_info.pos = None
+        self.scene().contextual_info_item.clear_contextual_info(self)
+
+    def _update_contextual_info(self):
         if self.layer_stack.examine_layer_mode_enabled:
             idx = self.layer_stack.focused_layer_idx
             visible_idxs = [] if idx is None else [idx]
@@ -292,18 +306,18 @@ class LayerStackItem(ShaderItem):
             visible_idxs = [idx for idx, layer in enumerate(self.layer_stack.layers) if layer.visible]
         else:
             visible_idxs = []
-        if not visible_idxs:
-            self.scene().clear_contextual_info(self)
+        if not visible_idxs or self.contextual_info.pos is None or self.scene() is None or not self.scene().views():
+            self.contextual_info.value = ''
             return
-        # NB: event.pos() is a QPointF, and one may call QPointF.toPoint(), as in the following line,
+        fpos = self.scene().views()[0].mapToScene(self.contextual_info.pos)
+        # NB: fpos is a QPointF, and one may call QPointF.toPoint(), as in the following line,
         # to get a QPoint from it.  However, toPoint() rounds x and y coordinates to the nearest int,
         # which would cause us to erroneously report mouse position as being over the pixel to the
         # right and/or below if the view with the mouse cursor is zoomed in such that an layer pixel
         # occupies more than one screen pixel and the cursor is over the right and/or bottom half
         # of a pixel.
-#       pos = event.pos().toPoint()
-        fpos = event.pos()
-        ipos = Qt.QPoint(event.pos().x(), event.pos().y())
+        # ipos = fpos.toPoint()
+        ipos = Qt.QPoint(fpos.x(), fpos.y())
         cis = []
         it = iter((idx, self.layer_stack.layers[idx]) for idx in visible_idxs)
         idx, layer = next(it)
@@ -333,17 +347,14 @@ class LayerStackItem(ShaderItem):
             else:
                 imagesize = image.size
                 ci = layer.generate_contextual_info_for_pos(
-                    int(fpos.x()*imagesize.width()/image0size.width()),
-                    int(fpos.y()*imagesize.height()/image0size.height()),
+                    int(fpos.x() * imagesize.width() / image0size.width()),
+                    int(fpos.y() * imagesize.height() / image0size.height()),
                     idx,
                     self.layer_stack.layer_name_in_contextual_info_enabled,
                     self.layer_stack.image_name_in_contextual_info_enabled)
             if ci is not None:
                 cis.append(ci)
-        self.scene().update_contextual_info('\n'.join(reversed(cis)), self)
-
-    def hoverLeaveEvent(self, event):
-        self.scene().clear_contextual_info(self)
+        self.contextual_info.value = '\n'.join(reversed(cis))
 
     def paint(self, qpainter, option, widget):
         #assert widget is not None, 'LayerStackItem.paint called with widget=None.  Ensure that view caching is disabled.'
