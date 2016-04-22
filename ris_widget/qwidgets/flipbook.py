@@ -286,7 +286,7 @@ class Flipbook(Qt.QWidget):
             return False
         if dst_row in (-1, None):
             dst_row = len(self.pages)
-        self.add_image_files(fpaths, dst_row)
+        self.add_image_files(fpaths, insertion_point=dst_row)
         if dst_row < len(self.pages):
             self.focused_page_idx = dst_row
         return True
