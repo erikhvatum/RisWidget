@@ -40,15 +40,12 @@ class UpdateEvent(Qt.QEvent):
         Qt.QApplication.instance().postEvent(sender, self)
 
 class ProgressThreadPool(Qt.QWidget):
-    progress_done = Qt.pyqtSignal()
-
-    def __init__(self, cancel_jobs, done, attached_layout, parent=None):
+    def __init__(self, cancel_jobs, attached_layout, parent=None):
         super().__init__(parent)
         self.thread_pool = futures.ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()-1)
         self.task_count_lock = threading.Lock()
         self._queued_tasks = 0
         self._retired_tasks = 0
-        self._promised_submissions = 0
 
         l = Qt.QHBoxLayout()
         self.setLayout(l)
@@ -58,9 +55,8 @@ class ProgressThreadPool(Qt.QWidget):
         self._cancel_button = Qt.QPushButton('Cancel')
         l.addWidget(self._cancel_button)
         self._cancel_button.clicked.connect(cancel_jobs)
-        self.progress_done.connect(done)
-        self.attached_layout = attached_layout
-        self.attached_layout.addWidget(self)
+        attached_layout().addWidget(self)
+        self.hide()
 
     def _task_done(self, future):
         self.increment_retired()
@@ -81,18 +77,9 @@ class ProgressThreadPool(Qt.QWidget):
         future.add_done_callback(self._task_done)
         return future
 
-    def about_to_submit(self, count):
-        with self.task_count_lock:
-            self._queued_tasks += count
-            self._promised_submissions += count
-        UpdateEvent().post(self)
-
     def increment_queued(self):
         with self.task_count_lock:
-            if self._promised_submissions > 0:
-                self._promised_submissions -= 1
-            else:
-                self._queued_tasks += 1
+            self._queued_tasks += 1
         UpdateEvent().post(self)
 
     def increment_retired(self):
@@ -109,12 +96,11 @@ class ProgressThreadPool(Qt.QWidget):
     def _update_progressbar(self):
         self._progress_bar.setMaximum(self._queued_tasks)
         self._progress_bar.setValue(self._retired_tasks)
-        if self._queued_tasks > 0 and self._queued_tasks == self._retired_tasks:
-            self.progress_done.emit()
-
-    def remove(self):
-        self.progress_done.disconnect()
-        self._cancel_button.clicked.disconnect()
-        self.attached_layout.removeWidget(self)
-        self.deleteLater() # TODO: necessary? Copied from Erik's code without complete understanding
+        with self.task_count_lock:
+            if self._queued_tasks == self._retired_tasks:
+                self.hide()
+                self._queued_tasks = 0
+                self._retired_tasks = 0
+            elif self.isHidden():
+                self.show()
 

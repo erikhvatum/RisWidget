@@ -207,7 +207,7 @@ class Flipbook(Qt.QWidget):
             self._attached_page.replaced.disconnect(self.apply)
             self._attached_page = None
 
-    def add_image_files(self, image_fpaths, flipbook_names=None, image_names=None, insertion_point=None):
+    def add_image_files(self, image_fpaths, flipbook_names=None, image_names=None, insertion_point=-1):
         """image_fpaths: An iterable of filenames and/or iterables of filenames, with
         a filename being either a pathlib.Path object or a string.  For example, the
         following would append 7 pages to the flipbook, with 1 image in the first
@@ -251,10 +251,6 @@ class Flipbook(Qt.QWidget):
         if not self.freeimage:
             return
         num_pages = len(self.pages)
-        if insertion_point is None:
-            insertion_point = num_pages
-        else:
-            assert 0 <= insertion_point <= num_pages
         flipbook_names_out = []
         args = []
         for i, p in enumerate(image_fpaths):
@@ -313,12 +309,8 @@ class Flipbook(Qt.QWidget):
 
     def queue_page_creation_tasks(self, insertion_point, task, names, args_list):
         if not hasattr(self, 'thread_pool'):
-            self.thread_pool = progress_thread_pool.ProgressThreadPool(self._cancel_page_creation_tasks, self._delete_thread_pool, self.layout())
+            self.thread_pool = progress_thread_pool.ProgressThreadPool(self.cancel_page_creation_tasks, self.layout)
         new_pages = []
-        # make sure the thread pool doesn't decide to retire before dealing with
-        # all of the present submissions. Otherwise there is a race condition
-        # if jobs complete (or error) faster than they can be submitted...
-        self.thread_pool.about_to_submit(len(names))
         for name, args in zip(names, args_list):
             image_list = ImageList()
             image_list.name = name
@@ -329,15 +321,11 @@ class Flipbook(Qt.QWidget):
         self.pages[insertion_point:insertion_point] = new_pages
         self.ensure_page_focused()
 
-    def _cancel_page_creation_tasks(self):
+    def cancel_page_creation_tasks(self):
         for i, image_list in reversed(list(enumerate(self.pages))):
             if len(image_list) == 0:
                 # page removal calls the on_removal function, which as above is the future's cancel()
                 self.pages_model.removeRows(i, 1)
-
-    def _delete_thread_pool(self):
-        self.thread_pool.remove()
-        del self.thread_pool
 
     def contextMenuEvent(self, event):
         menu = Qt.QMenu(self)
@@ -370,9 +358,9 @@ class Flipbook(Qt.QWidget):
     def merge_selected(self):
         """The contents of the currently selected pages (by ascending index order in .pages
         and excluding the target page) are appended to the target page. The target page is
-        the selected page with the lowest index. Pages with zero images are ignored."""
+        the selected page with the lowest index."""
 
-        mergeable_rows = [row for row in self.selected_page_idxs if len(self.pages[row]) > 0]
+        mergeable_rows = list(self.selected_page_idxs)
         if len(mergeable_rows) < 2:
             return
         target_row = mergeable_rows.pop(0)
