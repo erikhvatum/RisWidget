@@ -23,13 +23,13 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from contextlib import ExitStack
+
 from PyQt5 import Qt
+from .contextual_info_item_base import ContextualInfoItemBase
 from ..shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
 
-class ContextualInfoItemPlain(Qt.QGraphicsObject):
+class ContextualInfoItemPlain(ContextualInfoItemBase):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
-
-    text_changed = Qt.pyqtSignal()
 
     def __init__(self, parent_item=None):
         super().__init__(parent_item)
@@ -40,10 +40,9 @@ class ContextualInfoItemPlain(Qt.QGraphicsObject):
         self._pen.setWidth(2)
         self._pen.setCosmetic(True)
         self._brush = Qt.QBrush(Qt.QColor(45,255,70,255))
-        self._text = None
         self._text_flags = Qt.Qt.AlignLeft | Qt.Qt.AlignTop | Qt.Qt.AlignAbsolute
         self._picture = None
-        self._bounding_rect = None
+        self._bounding_rect = Qt.QRectF()
         # Necessary to prevent context information from disappearing when mouse pointer passes over
         # context info text
         self.setAcceptHoverEvents(False)
@@ -54,14 +53,9 @@ class ContextualInfoItemPlain(Qt.QGraphicsObject):
         return ContextualInfoItemPlain.QGRAPHICSITEM_TYPE
 
     def boundingRect(self):
-        if self._text:
-            self._update_picture()
-            return self._bounding_rect
-        else:
-            return Qt.QRectF(0,0,1,1)
+        return self._bounding_rect
 
     def paint(self, qpainter, option, widget):
-        self._update_picture()
         self._picture.play(qpainter)
 
     def _update_picture(self):
@@ -125,7 +119,7 @@ class ContextualInfoItemPlain(Qt.QGraphicsObject):
                 #
                 # Additionally, QGraphicsTextItem is very featureful, has a QObject base, and would be the first
                 # choice, but the one thing it can not do is outline text, so it's out.
-                i = Qt.QGraphicsSimpleTextItem(self._text)
+                i = Qt.QGraphicsSimpleTextItem(self.contextual_info.value)
                 i.setFont(self._font)
                 # Disabling brush/pen via setBrush/Pen(Qt.QBrush/Pen(Qt.Qt.NoBrush/Pen)) ought to be more intelligent
                 # than disablind via setting to transparent color.  However, using NoBrush or NoPen here seems to
@@ -147,23 +141,16 @@ class ContextualInfoItemPlain(Qt.QGraphicsObject):
                     i.paint(ppainter, Qt.QStyleOptionGraphicsItem(), None)
                 self._bounding_rect = i.boundingRect()
 
-    @property
-    def text(self):
-        return self._text
-
-    @text.setter
-    def text(self, v):
-        if self._text != v:
-            if v:
-                self.prepareGeometryChange()
-            self._text = v
-            self._picture = None
-            if self._text:
-                self.show()
-                self.update()
-            else:
-                self.hide()
-            self.text_changed.emit()
+    def _handle_contextual_info_change(self):
+        self.prepareGeometryChange()
+        self._picture = None
+        if self.contextual_info is None:
+            self._bounding_rect = Qt.QRectF()
+            self.hide()
+        else:
+            self._update_picture()
+            self.show()
+            self.update()
 
     @property
     def font(self):

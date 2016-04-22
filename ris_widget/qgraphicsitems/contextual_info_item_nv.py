@@ -30,15 +30,17 @@ import OpenGL
 import OpenGL.GL as PyGL
 import OpenGL.GL.NV.path_rendering as PR
 from PyQt5 import Qt
+from .contextual_info_item_base import ContextualInfoItemBase
 from ..shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
 
 c_float32_p = ctypes.POINTER(ctypes.c_float)
 c_uint8_p = ctypes.POINTER(ctypes.c_uint8)
 
-class ContextualInfoItemNV(Qt.QGraphicsObject):
+# Basic western unicode is supported, including all the Cyrillic and Greek letters, and many methematical symbols, but not east-Asian
+# syllabaries such as katakana, hiragana, or hangul, nor any of the ideographic scripts.  Additionally, any character that is not represented
+# by two bytes in UTF-16 is unlikely to work and any character that can not be represented with four bytes in UTF-32 certainly won't.
+class ContextualInfoItemNV(ContextualInfoItemBase):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
-
-    text_changed = Qt.pyqtSignal()
 
     def __init__(self, parent_item=None):
         super().__init__(parent_item)
@@ -49,7 +51,6 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
 #       self._pen.setWidth(2)
 #       self._pen.setCosmetic(True)
 #       self._brush = Qt.QBrush(Qt.QColor(45,255,70,255))
-        self._text = None
         self._text_serial = 0
         self._text_lines_encoded = None
         self._text_lines_kerning = None
@@ -204,14 +205,21 @@ class ContextualInfoItemNV(Qt.QGraphicsObject):
                 self._text_lines_kerning.append(tk)
             self._path_serial = self._text_serial
 
-    @property
-    def text(self):
-        """Basic western unicode is supported, including all the Cyrillic and Greek letters, and many methematical symbols, but not east-Asian
-        syllabaries such as katakana, hiragana, or hangul, nor any of the ideographic scripts.  Additionally, any character that is not represented
-        by two bytes in UTF-16 is unlikely to work and any character that can not be represented with four bytes in UTF-32 certainly won't."""
-        return self._text
+    def _handle_contextual_info_change(self):
+        if self.contextual_info is None:
+            self._text_lines_encoded = None
+            self._text_lines_kerning = None
+            self.hide()
+        else:
+            # The '&' is appended owing to a peculiarity of the glGetPathSpacingNV call, which wants a junk character
+            # at the end of each line.  The '&' is not actually visible.
+            lines_encoded = [numpy.array([ord(c) for c in l + '&'], dtype=numpy.uint32) for l in self.contextual_info.value.split('\n')]
+            self.prepareGeometryChange()
+            self._text_lines_encoded = lines_encoded
+            self.show()
+            self.update()
+        self._text_serial += 1
 
-    @text.setter
     def text(self, v):
         if self._text != v:
             if v:
