@@ -25,11 +25,12 @@
 import numpy
 from pathlib import Path
 from PyQt5 import Qt
+
 from .. import om
 from ..image import Image
 from ..shared_resources import FREEIMAGE
 from .default_table import DefaultTable
-from .progress_thread_pool import ProgressThreadPool, Task, TaskStatus
+from . import progress_thread_pool
 
 class ImageList(om.UniformSignalingList):
     def take_input_element(self, obj):
@@ -37,7 +38,7 @@ class ImageList(om.UniformSignalingList):
 
 class PageList(om.UniformSignalingList):
     def take_input_element(self, obj):
-        if isinstance(obj, (ImageList, Task)):
+        if isinstance(obj, ImageList):
             return obj
         if isinstance(obj, (numpy.ndarray, Image)):
             ret = ImageList((obj,))
@@ -45,21 +46,6 @@ class PageList(om.UniformSignalingList):
                 ret.name = obj.name
             return ret
         return ImageList(obj)
-
-_X_THREAD_ADD_IMAGE_FILES_EVENT = Qt.QEvent.registerEventType()
-
-class _XThreadAddImageFilesEvent(Qt.QEvent):
-    def __init__(self, image_fpaths, completion_callback):
-        super().__init__(_X_THREAD_ADD_IMAGE_FILES_EVENT)
-        self.image_fpaths = image_fpaths
-        self.completion_callback = completion_callback
-
-_DELAYED_CALLBACKS_EVENT = Qt.QEvent.registerEventType()
-
-class _DelayedCallbacksEvent(Qt.QEvent):
-    def __init__(self, callbacks):
-        super().__init__(_DELAYED_CALLBACKS_EVENT)
-        self.callbacks = callbacks
 
 _FLIPBOOK_PAGES_DOCSTRING = ("""
     The list of pages represented by a Flipbook instance's list view is available via a that
@@ -160,8 +146,6 @@ class Flipbook(Qt.QWidget):
         self.views_splitter.setStretchFactor(0, 4)
         self.views_splitter.setStretchFactor(0, 1)
         self.views_splitter.setSizes((1, 0))
-        self.progress_thread_pool = None
-        self.progress_thread_pool_completion_callbacks = []
         self._attached_page = None
         self.delete_selected_action = Qt.QAction(self)
         self.delete_selected_action.setText('Delete pages')
@@ -179,6 +163,7 @@ class Flipbook(Qt.QWidget):
         self.addAction(self.consolidate_selected_action)
         self.pages_view.selectionModel().selectionChanged.connect(self._on_page_selection_changed)
         self._on_page_selection_changed()
+        self.freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
         self.apply()
 
     def apply(self):
@@ -187,7 +172,7 @@ class Flipbook(Qt.QWidget):
         layers.  This method is called automatically when focus moves to a different page and when
         the contents of the current page change."""
         focused_page = self.focused_page
-        if not isinstance(focused_page, ImageList):
+        if focused_page is None:
             self.page_content_groupbox.setEnabled(False)
             self.page_content_model.signaling_list = None
             self._detach_page()
@@ -222,7 +207,7 @@ class Flipbook(Qt.QWidget):
             self._attached_page.replaced.disconnect(self.apply)
             self._attached_page = None
 
-    def add_image_files(self, image_fpaths, completion_callback=None):
+    def add_image_files(self, image_fpaths, flipbook_names=None, image_names=None, insertion_point=None):
         """image_fpaths: An iterable of filenames and/or iterables of filenames, with
         a filename being either a pathlib.Path object or a string.  For example, the
         following would append 7 pages to the flipbook, with 1 image in the first
@@ -255,52 +240,104 @@ class Flipbook(Qt.QWidget):
             '/home/me/allfish_nocontrol.png'
         ])
 
-        Flipbook.add_image_files(..) is safe to call from any thread.
+        flipbook_names: iterable of same length as image_fpaths, containing
+            names for each entry to display in the flipbook. Optional.
 
-        A callable supplied for completion_callback is executed when bulk image loading
-        completes.  If you call .add_image_files(..) before the bulk image loading
-        initiated by earlier .add_image_files(..) calls completes, callback execution
-        is postponed until the additional images have been loaded.  When loading of
-        all images has ended, regardless of whether all images loaded successfully or
-        not, all callbacks installed by .add_image_files calls during that period of
-        continuous bulk image loading are executed."""
-        
-        image_fpaths_l = []
-        for p in image_fpaths:
+        image_names: iterable of same structure as image_fpaths, containing
+            the desired image name for each loaded image. Optional.
+
+        Flipbook.add_image_files(..) is safe to call from any thread.
+        """
+        if not self.freeimage:
+            return
+        num_pages = len(self.pages)
+        if insertion_point is None:
+            insertion_point = num_pages
+        else:
+            assert 0 <= insertion_point <= num_pages
+        flipbook_names_out = []
+        args = []
+        for i, p in enumerate(image_fpaths):
+            if flipbook_names is not None:
+                fl_name = flipbook_names[i]
             if isinstance(p, (str, Path)):
-                image_fpaths_l.append(p)
+                if flipbook_names is None:
+                    fl_name = str(p)
+                if image_names is None:
+                    im_names = [str(p)]
+                else:
+                    im_names = [image_names[i]]
+                image_stack_paths = [Path(p)]
             else:
-                i_s = []
-                for i in p:
-                    assert(isinstance(i, (str, Path)))
-                    i_s.append(i)
-                image_fpaths_l.append(i_s)
-        if image_fpaths_l:
-            if Qt.QThread.currentThread() is Qt.QApplication.instance().thread():
-                self._add_image_files(image_fpaths_l, completion_callback)
-            else:
-                Qt.QApplication.instance().postEvent(self, _XThreadAddImageFilesEvent(image_fpaths_l, completion_callback))
+                image_stack_paths = []
+                for j, image_path in enumerate(p):
+                    assert(isinstance(image_path, (str, Path)))
+                    image_stack_paths.append(Path(image_path))
+                if flipbook_names is None:
+                    fl_name = ', '.join(image_path.stem for image_path in image_stack_paths)
+                if image_names is None:
+                    im_names = [str(image_path) for image_path in image_stack_paths]
+                else:
+                    im_names = image_names[i]
+            assert len(im_names) == len(image_stack_paths)
+            flipbook_names_out.append(fl_name)
+            args.append([image_stack_paths, im_names])
+        self.queue_page_creation_tasks(insertion_point, self._read_list_task,
+            flipbook_names_out, args)
 
     def _handle_dropped_files(self, fpaths, dst_row, dst_column, dst_parent):
-        freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
-        if freeimage is None:
+        if self.freeimage is None:
             return False
-        select_idx = len(self.pages)
-        self.add_image_files(fpaths)
-        if select_idx != len(self.pages):
-            self.focused_page_idx = select_idx
+        if dst_row in (-1, None):
+            dst_row = len(self.pages)
+        self.add_image_files(fpaths, dst_row)
+        if dst_row < len(self.pages):
+            self.focused_page_idx = dst_row
         return True
 
-    def event(self, event):
-        if event.type() == _X_THREAD_ADD_IMAGE_FILES_EVENT:
-            assert isinstance(event, _XThreadAddImageFilesEvent)
-            self._add_image_files(event.image_fpaths, event.completion_callback)
-            return True
-        elif event.type() == _DELAYED_CALLBACKS_EVENT:
-            for callback in event.callbacks:
-                callback()
-            return True
-        return super().event(event)
+    def _read_list_task(self, image_stack_paths, image_names):
+        images = []
+        for image_fpath, name in zip(image_stack_paths, image_names):
+            data = self.freeimage.read(str(image_fpath))
+            images.append(Image(data, name=name))
+        return images
+
+    @staticmethod
+    def _do_task(image_list, task, *args):
+        image_list.extend(task(*args))
+        image_list.on_removal = None
+
+    @staticmethod
+    def _on_task_error(image_list):
+        image_list.name += ' (ERROR)'
+
+    def queue_page_creation_tasks(self, insertion_point, task, names, args_list):
+        if not hasattr(self, 'thread_pool'):
+            self.thread_pool = progress_thread_pool.ProgressThreadPool(self._cancel_page_creation_tasks, self._delete_thread_pool, self.layout())
+        new_pages = []
+        # make sure the thread pool doesn't decide to retire before dealing with
+        # all of the present submissions. Otherwise there is a race condition
+        # if jobs complete (or error) faster than they can be submitted...
+        self.thread_pool.about_to_submit(len(names))
+        for name, args in zip(names, args_list):
+            image_list = ImageList()
+            image_list.name = name
+            future = self.thread_pool.submit(self._do_task, image_list, task, *args,
+                on_error=self._on_task_error, on_error_args=[image_list])
+            image_list.on_removal = future.cancel
+            new_pages.append(image_list)
+        self.pages[insertion_point:insertion_point] = new_pages
+        self.ensure_page_focused()
+
+    def _cancel_page_creation_tasks(self):
+        for i, image_list in reversed(list(enumerate(self.pages))):
+            if len(image_list) == 0:
+                # page removal calls the on_removal function, which as above is the future's cancel()
+                self.pages_model.removeRows(i, 1)
+
+    def _delete_thread_pool(self):
+        self.thread_pool.remove()
+        del self.thread_pool
 
     def contextMenuEvent(self, event):
         menu = Qt.QMenu(self)
@@ -311,73 +348,42 @@ class Flipbook(Qt.QWidget):
     def delete_selected(self):
         sm = self.pages_view.selectionModel()
         m = self.pages_model
-        if None in (m, sm):
+        if sm is None or m is None:
             return
-        midxs = sorted(sm.selectedRows(), key=lambda midx: midx.row())
+        selected_rows = self.selected_page_idxs[::-1]
         # "run" as in consecutive indexes specified as range rather than individually
-        runs = []
-        run_start_idx = None
-        run_end_idx = None
-        for midx in midxs:
-            if midx.isValid():
-                idx = midx.row()
-                if run_start_idx is None:
-                    run_end_idx = run_start_idx = idx
-                elif idx - run_end_idx == 1:
-                    run_end_idx = idx
-                else:
-                    runs.append((run_start_idx, run_end_idx))
-                    run_end_idx = run_start_idx = idx
-        if run_start_idx is not None:
-            runs.append((run_start_idx, run_end_idx))
-        for run_start_idx, run_end_idx in reversed(runs):
-            m.removeRows(run_start_idx, run_end_idx - run_start_idx + 1)
+        run_start_idx = selected_rows[0]
+        run_length = 1
+        for idx in selected_rows[1:]:
+            if idx == run_start_idx - 1:
+                # if the previous selected row is adjacent to the current "start"
+                # of the run, extend the run one back
+                run_start_idx = idx
+                run_length += 1
+            else:
+                # delete one run and start recording the next
+                m.removeRows(run_start_idx, run_length)
+                run_start_idx = idx
+                run_length = 1
+        m.removeRows(run_start_idx, run_length)
 
     def merge_selected(self):
         """The contents of the currently selected pages (by ascending index order in .pages
-        and excluding the target page) are appended to the target page.  The target page is
-        the selected page with the lowest index.  After their contents are appended to target,
-        the non-target selected pages are removed from .pages.  Any page still loading (e.g.
-        added by .add_image_files() and not yet complete) is ignored.  If the target page
-        is still loading, .merge_selected() is a no-op."""
-        sm = self.pages_view.selectionModel()
-        m = self.pages_model
-        if None in (m, sm):
+        and excluding the target page) are appended to the target page. The target page is
+        the selected page with the lowest index. Pages with zero images are ignored."""
+
+        mergeable_rows = [row for row in self.selected_page_idxs if len(self.pages[row]) > 0]
+        if len(mergeable_rows) < 2:
             return
-        midxs = sm.selectedRows()
-        midxs = sorted(
-            (midx for midx in midxs if midx.isValid() and not isinstance(midx.data(), Task)),
-            key=lambda _midx: _midx.row())
-        if len(midxs) < 2:
-            return
-        target_midx = midxs.pop(0)
-        pages = self.pages
-        target_page = pages[target_midx.row()]
-        extension = []
-        runs = []
-        run_start_idx = None
-        run_end_idx = None
-        for midx in midxs:
-            if midx.isValid():
-                idx = midx.row()
-                if not isinstance(self.pages[idx], ImageList):
-                    if run_start_idx is not None:
-                        runs.append((run_start_idx, run_end_idx))
-                        run_end_idx = run_start_idx = None
-                    continue
-                if run_start_idx is None:
-                    run_end_idx = run_start_idx = idx
-                elif idx - run_end_idx == 1:
-                    run_end_idx = idx
-                else:
-                    runs.append((run_start_idx, run_end_idx))
-                    run_end_idx = run_start_idx = idx
-                extension.extend(pages[idx])
-        if run_start_idx is not None:
-            runs.append((run_start_idx, run_end_idx))
-        for run_start_idx, run_end_idx in reversed(runs):
-            m.removeRows(run_start_idx, run_end_idx - run_start_idx + 1)
-        target_page.extend(extension)
+        target_row = mergeable_rows.pop(0)
+        target_page = self.pages[target_row]
+        to_add = [self.pages[row] for row in mergeable_rows]
+        midx = self.pages_model.createIndex(target_row, 0)
+        self.pages_view.selectionModel().select(midx, Qt.QItemSelectionModel.Deselect)
+        self.delete_selected()
+        for image_list in to_add:
+            target_page.extend(image_list)
+        self.pages_view.selectionModel().select(midx, Qt.QItemSelectionModel.Select)
         self.apply()
 
     def _on_page_selection_changed(self, newly_selected_midxs=None, newly_deselected_midxs=None):
@@ -446,14 +452,14 @@ class Flipbook(Qt.QWidget):
 
     @focused_page_idx.setter
     def focused_page_idx(self, idx):
+        sm = self.pages_view.selectionModel()
         if idx is None:
-            self.pages_view.selectionModel().clear()
+            sm.clear()
         else:
             if not 0 <= idx < len(self.pages):
                 raise IndexError('The value assigned to focused_pages_idx must either be None or a value >= 0 and < page count.')
-            sm = self.pages_view.selectionModel()
             midx = self.pages_model.index(idx, 0)
-            sm.setCurrentIndex(midx, sm.ClearAndSelect)
+            sm.setCurrentIndex(midx, Qt.QItemSelectionModel.ClearAndSelect)
 
     @property
     def focused_page(self):
@@ -471,30 +477,26 @@ class Flipbook(Qt.QWidget):
         if not idxs:
             self.pages_view.selectionModel().clearSelection()
             return
-        m = self.pages_model
-        sm = self.pages_view.selectionModel()
         page_count = len(self.pages)
-        idxs = [idx for idx in idxs if 0 <= idx < page_count]
+        idxs = [idx for idx in sorted(idxs) if 0 <= idx < page_count]
         # "run" as in consecutive indexes specified as range rather than individually
+        run_start_idx = idxs[0]
+        run_end_idx = idxs[0]
         runs = []
-        run_start_idx = None
-        run_end_idx = None
-        for idx in idxs:
-            if run_start_idx is None:
-                run_end_idx = run_start_idx = idx
-            elif idx - run_end_idx == 1:
+        for idx in idxs[1:]:
+            if idx == run_end_idx + 1:
                 run_end_idx = idx
             else:
                 runs.append((run_start_idx, run_end_idx))
                 run_end_idx = run_start_idx = idx
-        if run_start_idx is not None:
-            runs.append((run_start_idx, run_end_idx))
-        focused_idx = self.focused_page_idx
+        runs.append((run_start_idx, run_end_idx))
+        m = self.pages_model
         item_selection = Qt.QItemSelection()
         for run_start_idx, run_end_idx in runs:
             item_selection.append(Qt.QItemSelectionRange(m.index(run_start_idx, 0), m.index(run_end_idx, 0)))
+        sm = self.pages_view.selectionModel()
         sm.select(item_selection, Qt.QItemSelectionModel.ClearAndSelect)
-        if focused_idx not in idxs:
+        if self.focused_page_idx not in idxs:
             sm.setCurrentIndex(m.index(idxs[0], 0), Qt.QItemSelectionModel.Current)
 
     @property
@@ -525,80 +527,6 @@ class Flipbook(Qt.QWidget):
     def _on_content_model_rows_inserted(self):
         self.page_content_view.resizeRowsToContents()
 
-    def _read_stack(self, freeimage, image_fpaths):
-        return [(freeimage.read(str(image_fpath)), str(image_fpath)) for image_fpath in image_fpaths]
-
-    def _add_image_files(self, image_fpaths, completion_callback):
-        assert Qt.QThread.currentThread() is Qt.QApplication.instance().thread()
-        pages = []
-        freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
-        if freeimage:
-            if self.progress_thread_pool is None:
-                self.progress_thread_pool = ProgressThreadPool()
-                self.progress_thread_pool.task_status_changed.connect(self._on_progress_thread_pool_task_status_changed)
-                self.progress_thread_pool.all_tasks_retired.connect(self._on_all_progress_thread_pool_tasks_retired)
-                self.layout().addWidget(self.progress_thread_pool)
-            if completion_callback is not None:
-                self.progress_thread_pool_completion_callbacks.append(completion_callback)
-            for p in image_fpaths:
-                if isinstance(p, (str, Path)):
-                    reader = self.progress_thread_pool.submit(freeimage.read, str(p))
-                    reader.name = str(p)
-                    pages.append(reader)
-                else:
-                    if len(p) == 0:
-                        pages.append(p)
-                    else:
-                        stack_reader = self.progress_thread_pool.submit(self._read_stack, freeimage, p)
-                        stack_reader.name = ', '.join(Path(image_fpath).stem for image_fpath in p)
-                        pages.append(stack_reader)
-            self.pages.extend(pages)
-            self.ensure_page_focused()
-        else:
-            if completion_callback is not None:
-                completion_callback()
-
-    def _on_progress_thread_pool_task_status_changed(self, task, old_status):
-        try:
-            element_inst_count = self.pages_model._instance_counts[task]
-        except KeyError:
-            # We received queued notification informing us that something already removed from Tasks
-            # changed to Completed status before being removed.
-            return
-        if task.status is TaskStatus.Completed:
-            pages = self.pages
-            name = task.name
-            if isinstance(task.result, numpy.ndarray):
-                image_stack = ImageList([Image(task.result, name=name)])
-            else:
-                image_stack = ImageList(Image(image_data, name=image_name) for image_data, image_name in task.result)
-            image_stack.name = name
-            task._progress_thread_pool = None
-            next_idx = 0
-            current_midx = self.pages_view.selectionModel().currentIndex()
-            current_idx = current_midx.row() if current_midx.isValid() else None
-            for _ in range(element_inst_count):
-                idx = pages.index(task, next_idx)
-                next_idx = idx + 1
-                pages[idx] = image_stack
-                if idx == current_idx:
-                    self.apply()
-        else:
-            next_idx = 0
-            pages = self.pages
-            m = self.pages_model
-            for _ in range(element_inst_count):
-                idx = pages.index(task, next_idx)
-                next_idx = idx + 1
-                m.dataChanged.emit(m.createIndex(idx, 0), m.createIndex(idx, 0))
-
-    def _on_all_progress_thread_pool_tasks_retired(self):
-        self.layout().removeWidget(self.progress_thread_pool)
-        self.progress_thread_pool.deleteLater()
-        self.progress_thread_pool = None
-        Qt.QApplication.instance().postEvent(self, _DelayedCallbacksEvent(self.progress_thread_pool_completion_callbacks))
-        self.progress_thread_pool_completion_callbacks = []
-
 class PagesView(Qt.QTableView):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -622,34 +550,84 @@ class PagesModelDragDropBehavior(om.signaling_list.DragDropModelBehavior):
     def can_drop_rows(self, src_model, src_rows, dst_row, dst_column, dst_parent):
         return isinstance(src_model, PagesModel)
 
+class ImageListListener(Qt.QObject):
+    def __init__(self, image_list, pages_model, parent=None):
+        super().__init__(parent)
+        self.image_list = image_list
+        self.pages_model = pages_model
+        self.image_list.inserted.connect(self._on_change)
+        self.image_list.replaced.connect(self._on_change)
+        self.image_list.removed.connect(self._on_change)
+
+    def remove(self):
+        self.image_list.inserted.disconnect(self._on_change)
+        self.image_list.replaced.disconnect(self._on_change)
+        self.image_list.removed.disconnect(self._on_change)
+
+    def _on_change(self, *args, **kws):
+        idx = self.pages_model.signaling_list.index(self.image_list)
+        index = self.pages_model.createIndex(idx, 0)
+        self.pages_model.dataChanged.emit(index, index)
+
 class PagesModel(PagesModelDragDropBehavior, om.signaling_list.PropertyTableModel):
     PROPERTIES = (
         'name',
         )
 
     def __init__(self, signaling_list=None, parent=None):
+        self.listeners = {}
         super().__init__(self.PROPERTIES, signaling_list, parent)
 
     def flags(self, midx):
         if midx.isValid() and midx.column() == self.PROPERTIES.index('name'):
-            element = self.signaling_list[midx.row()]
-            if isinstance(element, Task):
+            image_list = self.signaling_list[midx.row()]
+            if len(image_list) == 0:
                 return super().flags(midx) & ~Qt.Qt.ItemIsEditable
         return super().flags(midx)
 
     def data(self, midx, role=Qt.Qt.DisplayRole):
         if midx.isValid() and midx.column() == self.PROPERTIES.index('name'):
-            element = self.signaling_list[midx.row()]
-            if isinstance(element, map):
-                pass
-            if element is None:
+            image_list = self.signaling_list[midx.row()]
+            if image_list is None:
                 return Qt.QVariant()
-            if isinstance(element, Task):
-                if role == Qt.Qt.DisplayRole:
-                    return Qt.QVariant('{} ({})'.format(element.name, element.status.name))
+            if len(image_list) == 0:
                 if role == Qt.Qt.ForegroundRole:
                     return Qt.QVariant(Qt.QApplication.palette().brush(Qt.QPalette.Disabled, Qt.QPalette.WindowText))
         return super().data(midx, role)
+
+    def removeRows(self, row, count, parent=Qt.QModelIndex()):
+        try:
+            to_remove = self.signaling_list[row:row+count]
+        except IndexError:
+            return False
+        for row_entry in to_remove:
+            # call on-removal callback if present
+            on_removal = getattr(row_entry, 'on_removal', None)
+            if on_removal:
+                on_removal()
+        return super().removeRows(row, count, parent)
+
+    def _add_listeners(self, image_lists):
+        for image_list in image_lists:
+            self.listeners[image_list] = ImageListListener(image_list, self)
+
+    def _remove_listeners(self, image_lists):
+        for image_list in image_lists:
+            listener = self.listeners.pop(image_list)
+            listener.remove()
+
+    def _on_inserted(self, idx, elements):
+        super()._on_inserted(idx, elements)
+        self._add_listeners(elements)
+
+    def _on_replaced(self, idxs, replaced_elements, elements):
+        super()._on_replaced(idxs, replaced_elements, elements)
+        self._add_listeners(elements)
+        self._remove_listeners(replaced_elements)
+
+    def _on_removed(self, idxs, elements):
+        super()._on_removed(idxs, elements)
+        self._remove_listeners(elements)
 
 class PageContentModelDragDropBehavior(om.signaling_list.DragDropModelBehavior):
     def can_drop_rows(self, src_model, src_rows, dst_row, dst_column, dst_parent):

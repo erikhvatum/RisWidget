@@ -264,6 +264,7 @@ class PropertyTableModel(Qt.QAbstractTableModel):
     def _on_inserted(self, idx, elements):
         self.endInsertRows()
         self._attach_elements(elements)
+        self.dataChanged.emit(self.createIndex(idx, 0), self.createIndex(idx + len(elements) - 1, len(self.property_names) - 1))
 
     def _on_replaced(self, idxs, replaced_elements, elements):
         self._detach_elements(replaced_elements)
