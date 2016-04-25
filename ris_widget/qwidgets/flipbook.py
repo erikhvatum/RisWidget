@@ -161,7 +161,6 @@ class Flipbook(Qt.QWidget):
         self.consolidate_selected_action.setShortcutContext(Qt.Qt.WidgetWithChildrenShortcut)
         self.consolidate_selected_action.triggered.connect(self.merge_selected)
         self.addAction(self.consolidate_selected_action)
-        self.pages_view.selectionModel().selectionChanged.connect(self._on_page_selection_changed)
         self._on_page_selection_changed()
         self.freeimage = FREEIMAGE(show_messagebox_on_error=True, error_messagebox_owner=self)
         self.apply()
