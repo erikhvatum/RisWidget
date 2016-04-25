@@ -246,6 +246,9 @@ class Flipbook(Qt.QWidget):
             the desired image name for each loaded image. Optional.
 
         Flipbook.add_image_files(..) is safe to call from any thread.
+
+        Returns list of futures objects corresponding to the page-IO tasks.
+        To wait until read is done, call concurrent.futures.wait() on this list.
         """
         if not self.freeimage:
             return
@@ -277,7 +280,7 @@ class Flipbook(Qt.QWidget):
             assert len(im_names) == len(image_stack_paths)
             flipbook_names_out.append(fl_name)
             args.append([image_stack_paths, im_names])
-        self.queue_page_creation_tasks(insertion_point, self._read_list_task,
+        return self.queue_page_creation_tasks(insertion_point, self._read_list_task,
             flipbook_names_out, args)
 
     def _handle_dropped_files(self, fpaths, dst_row, dst_column, dst_parent):
@@ -310,6 +313,7 @@ class Flipbook(Qt.QWidget):
         if not hasattr(self, 'thread_pool'):
             self.thread_pool = progress_thread_pool.ProgressThreadPool(self.cancel_page_creation_tasks, self.layout)
         new_pages = []
+        page_futures = []
         for name, args in zip(names, args_list):
             image_list = ImageList()
             image_list.name = name
@@ -317,8 +321,10 @@ class Flipbook(Qt.QWidget):
                 on_error=self._on_task_error, on_error_args=[image_list])
             image_list.on_removal = future.cancel
             new_pages.append(image_list)
+            page_futures.append(future)
         self.pages[insertion_point:insertion_point] = new_pages
         self.ensure_page_focused()
+        return page_futures
 
     def cancel_page_creation_tasks(self):
         for i, image_list in reversed(list(enumerate(self.pages))):
