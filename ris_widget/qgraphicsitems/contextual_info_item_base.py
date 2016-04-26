@@ -23,7 +23,6 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from PyQt5 import Qt
-from ..contextual_info import ContextualInfo
 
 class ContextualInfoItemBase(Qt.QGraphicsObject):
     def __init__(self, parent_item):

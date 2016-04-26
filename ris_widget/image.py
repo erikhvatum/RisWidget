@@ -25,8 +25,8 @@
 import ctypes
 import numpy
 from PyQt5 import Qt
+import textwrap
 from .ndimage_statistics import ndimage_statistics
-from . import om
 
 class Image(Qt.QObject):
     """An instance of the Image class is a wrapper around a Numpy ndarray representing a single image, optional mask data, plus some related attributes and
@@ -65,13 +65,10 @@ class Image(Qt.QObject):
             parent=None,
             is_twelve_bit=False,
             imposed_float_range=None,
-            data_shape_is_width_height=True,
-            mask_shape_is_width_height=True,
             name=None):
-        """RisWidget defaults to the convention that the first element of the shape vector of a Numpy
-        array represents width.  If you are supplying image data that does not follow this convention,
-        specify the argument shape_is_width_height=False, and your image will be displayed correctly
-        rather than mirrored over the X/Y axis."""
+        """
+        The shape of image and mask data is interpreted as (x,y) for 2-d arrays and (x,y,c) for 3-d arrays.  If your image or mask was loaded as (y,x),
+        array.T will produce an (x,y)-shaped array.  In case of (y,x,c) image data, array.swapaxes(0,1) is required."""
         super().__init__(parent)
         if data is None:
             raise ValueError('The "data" argument supplied to Image.__init__(..) must not be None.')
@@ -83,9 +80,7 @@ class Image(Qt.QObject):
             mask=mask,
             is_twelve_bit=is_twelve_bit,
             imposed_float_range=imposed_float_range,
-            data_shape_is_width_height=data_shape_is_width_height,
-            mask_shape_is_width_height=mask_shape_is_width_height,
-            name=name,)
+            name=name)
 
     def _onObjectNameChanged(self):
         self.name_changed.emit(self)
@@ -116,7 +111,7 @@ class Image(Qt.QObject):
             if qimage.isGrayscale():
                 # Note: Qt does not support grayscale with alpha channels, so we don't need to worry about that case
                 npyimage=npyimage[...,0]
-            return cls(data=npyimage.copy(), parent=parent, is_twelve_bit=is_twelve_bit, data_shape_is_width_height=False, name=name)
+            return cls(data=npyimage.copy(), parent=parent, is_twelve_bit=is_twelve_bit, name=name)
 
     def __repr__(self):
         num_channels = self.num_channels
@@ -132,7 +127,8 @@ class Image(Qt.QObject):
             self.type)
 
     def refresh(self, data_changed=True, mask_changed=False, is_twelve_bit_changed=False, imposed_float_range_changed=False):
-        """The .refresh method should be called after modifying the contents of .data, .mask, and/or after replacing .is_twelve_bit or .imposed_float_range
+        """
+        The .refresh method should be called after modifying the contents of .data, .mask, and/or after replacing .is_twelve_bit or .imposed_float_range
         by assignment, with True supplied for the respective _changed argument.  It is assumed that only those changes may have occurred, and that
         the shape, strides, and dtype of .data and/or .mask have not been changed (except by the .set method).
 
@@ -169,10 +165,9 @@ class Image(Qt.QObject):
             mask=...,
             is_twelve_bit=...,
             imposed_float_range=...,
-            data_shape_is_width_height=True,
-            mask_shape_is_width_height=True,
             name=...):
-        """In addition to the values __init__ accepts for the data, mask, name, is_twelve_bit, and imposed_float_range arguments, set accepts ...
+        """
+        In addition to the values __init__ accepts for the data, mask, name, is_twelve_bit, and imposed_float_range arguments, set accepts ...
         (Ellipses) for these arguments to indicate No Change.  That is, the contents of i.data, i.name, i.mask, i.is_twelve_bit, and
         i.specified_float_range are left unchanged by i.set(..) if their corresponding arguments are Ellipses (as they are by default)."""
         if data is ...:
@@ -219,8 +214,6 @@ class Image(Qt.QObject):
                         # instead, automatically set .is_twelve_bit to False.
                         is_twelve_bit = False
                         is_twelve_bit_changed = True
-            if not data_shape_is_width_height:
-                data = data.transpose(*(1,0,2)[:data.ndim])
             bpe = data.itemsize
             desired_strides = (bpe, data.shape[0]*bpe) if data.ndim == 2 else (data.shape[2]*bpe, data.shape[0]*data.shape[2]*bpe, bpe)
             if desired_strides != data.strides:
@@ -251,8 +244,6 @@ class Image(Qt.QObject):
                     raise ValueError('mask argument must be None or a 2D iterable.')
                 if mask.dtype != bool:
                     mask = mask.astype(bool)
-                if not mask_shape_is_width_height:
-                    mask = mask.transpose(1, 0)
                 desired_strides = 1, mask.shape[0]
                 if desired_strides != mask.strides:
                     _mask = mask
@@ -292,7 +283,7 @@ class Image(Qt.QObject):
 
         self.refresh(data_changed, mask_changed, is_twelve_bit_changed, imposed_float_range_changed)
 
-    set.__doc__ = __init__.__doc__ + '\n\n' + set.__doc__
+    set.__doc__ = textwrap.dedent(set.__doc__) + '\n' + textwrap.dedent(__init__.__doc__)
 
     def generate_contextual_info_for_pos(self, x, y, include_image_name=True):
         sz = self.size
@@ -332,18 +323,8 @@ class Image(Qt.QObject):
         return self._data
 
     @property
-    def data_T(self):
-        """Image data as numpy array in shape = (height, width, [channels]) convention."""
-        return self._data.transpose(*(1,0,2)[:self._data.ndim])
-
-    @property
     def mask(self):
         return self._mask
-
-    @property
-    def mask_T(self):
-        if self._mask is not None:
-            return self._mask.transpose(1, 0)
 
     @property
     def dtype(self):

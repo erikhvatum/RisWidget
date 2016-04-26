@@ -138,7 +138,7 @@ class Flipbook(Qt.QWidget):
         h.setHighlightSections(False)
         h.setSectionsClickable(False)
         self.page_content_groupbox.layout().addWidget(self.page_content_view)
-        self.page_content_model = PageContentModel(parent=self.page_content_view)
+        self.page_content_model = PageContentModel(layer_stack, self.page_content_view)
         self.page_content_model.rowsInserted.connect(self._on_content_model_rows_inserted, Qt.Qt.QueuedConnection)
         self.page_content_model.modelReset.connect(self._on_content_model_rows_inserted, Qt.Qt.QueuedConnection)
         self.page_content_view.setModel(self.page_content_model)
@@ -297,7 +297,7 @@ class Flipbook(Qt.QWidget):
         images = []
         for image_fpath, name in zip(image_stack_paths, image_names):
             data = self.freeimage.read(str(image_fpath))
-            images.append(Image(data, name=name))
+            images.append(Image(data, name=name, mask=self.layer_stack.imposed_image_mask))
         return images
 
     @staticmethod
@@ -640,7 +640,7 @@ class PageContentModelDragDropBehavior(om.signaling_list.DragDropModelBehavior):
         images = ImageList()
         for fpath in fpaths:
             fpath_str = str(fpath)
-            images.append(Image(freeimage.read(fpath_str), name=fpath_str))
+            images.append(Image(freeimage.read(fpath_str), name=fpath_str, mask=self.layer_stack.imposed_image_mask))
         self.signaling_list[dst_row:dst_row] = images
         return True
 
@@ -649,5 +649,6 @@ class PageContentModel(PageContentModelDragDropBehavior, om.signaling_list.Prope
         'name',
         )
 
-    def __init__(self, signaling_list=None, parent=None):
-        super().__init__(self.PROPERTIES, signaling_list, parent)
+    def __init__(self, layer_stack, parent=None):
+        super().__init__(self.PROPERTIES, layer_stack.layers, parent)
+        self.layer_stack = layer_stack

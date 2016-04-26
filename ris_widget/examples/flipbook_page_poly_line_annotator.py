@@ -22,10 +22,9 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from PyQt5 import Qt
 from ..qwidgets.flipbook_page_annotator import _BaseField, FlipbookPageAnnotator
 from ..qwidgets.point_list_picker_table import PointListPickerTable
-from .poly_line_point_picker import PointList, PolyLinePointPicker
+from .poly_line_point_picker import PolyLinePointPicker
 
 class _PointListField(_BaseField):
     def __init__(self, field_tuple, parent):
@@ -57,7 +56,14 @@ class FlipbookPagePolyLineAnnotator(FlipbookPageAnnotator):
     """Ex:
 
     from ris_widget.ris_widget import RisWidget
-    from ris_widget.examples.flipbook_page_poly_line_annotator import FlipbookPagePolyLineAnnotator
+    from ris_widget.examples.flipbook_page_poly_line_annotator import PolyLinePointPicker, FlipbookPagePolyLineAnnotator
+    import numpy
+    rw = RisWidget()
+    xr = numpy.linspace(0, 2*numpy.pi, 65536, True)
+    xg = xr + 2*numpy.pi/3
+    xb = xr + 4*numpy.pi/3
+    im = (((numpy.dstack(list(map(numpy.sin, (xr, xg, xb)))) + 1) / 2) * 65535).astype(numpy.uint16)
+    rw.flipbook_pages.append(im.swapaxes(0,1).reshape(256,256,3))
     fpa = FlipbookPagePolyLineAnnotator(
         rw.flipbook,
         'annotation',

@@ -56,12 +56,18 @@ rw.flipbook_pages.append(im)
 mask = im > 0
 rw.qt_object.layer_stack.imposed_image_mask = mask[:781,:1000]
 rw.flipbook_pages.append(rw.qt_object.layer_stack.imposed_image_mask)
-# rw.add_image_files_to_flipbook([
-    # [rw_dpath / 'Opteron_6300_die_shot_16_core_mod.jpg']#, rw_dpath / 'top_left_g.png'],
+
+rw.add_image_files_to_flipbook([
+    [rw_dpath / 'Opteron_6300_die_shot_16_core_mod.jpg', rw_dpath / 'top_left_g.png'],
     # ['/Volumes/MrSpinny/14/2015-11-18t0948 focus-03_ffc.png']
-# ])
+])
 
-
+# go_btn = Qt.QPushButton('go')
+# go_btn.show()
+# def on_go():
+#     for i in range(200):
+#         rw.flipbook_pages.append([])
+# go_btn.clicked.connect(on_go)
 
 
 # from ris_widget.qwidgets.layer_stack_painter import LayerStackPainter
