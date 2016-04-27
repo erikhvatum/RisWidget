@@ -8,6 +8,9 @@ from ris_widget.ris_widget import RisWidget
 import freeimage
 import sys
 
+from ris_widget.ndimage_statistics import test_and_benchmark
+sys.exit(0)
+
 argv = sys.argv
 #Qt.QCoreApplication.setAttribute(Qt.Qt.AA_ShareOpenGLContexts)
 app = Qt.QApplication(argv)

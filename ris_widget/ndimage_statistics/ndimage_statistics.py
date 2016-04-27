@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2014-2015 WUSTL ZPLAB
+# Copyright (c) 2014-2016 WUSTL ZPLAB
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -123,20 +123,15 @@ except ImportError:
         return NDImageStatistics(hist, hist.argmax(), min_max)
 
 def extremae(im, mask=None, return_future=False):
-    """Supports only float32 as that's the only image dtype for which we ever do min/max and histogram in two separate steps, for the simple reason that
-    it is sometimes necessary to find the range over which the histogram is to be calculated for float32 images, but never in the case of uint8, 12, or
-    16 images, whose range is that of their data type.  (uint12 being a somewhat special case; a flag indicates that although the stored as uint16, the
-    highest 4 bits of each element remain 0.)
-
-    im: The 2D or 3D float32 ndarray for which min and max values are found.
+    """im: The 2D or 3D ndarray for which min and max values are found.
     mask: None or a 2D bool or uint8 ndarray with neither dimension smaller than the corresponding dimension of im.  If mask is not None, only image
     pixels with non-zero mask counterparts contribute to min_max.  Pixels of mask outside of im have no impact.  If mask is None, all image pixels are
     included.
     return_future: If not False, a concurrent.futures.Future is returned.
 
-    Returns a channel_count x 2 float32 numpy array containing the min and max element values over the masked region or entirety of im."""
-    assert im.dtype == numpy.float32
-    assert im.ndim in (2,3)
+    Returns a channel_count x 2 numpy array containing the min and max element values over the masked region or entirety of im."""
+    assert im.dtype in (numpy.uint8, numpy.bool)
+    assert im.ndim in (2, 3)
     if mask is not None:
         assert mask.ndim == 2
         assert im.shape[0] <= mask.shape[0]
@@ -151,8 +146,8 @@ def extremae(im, mask=None, return_future=False):
         def proc():
             futes = [pool.submit(channel_proc, channel) for channel in range(im.shape[2])]
             ret = numpy.vstack(fute.result() for fute in futes)
-            if ret.dtype != numpy.float32:
-                ret = ret.astype(numpy.float32)
+            if ret.dtype != im.dtype:
+                ret = ret.astype(im.dtype)
             return ret
     return pool.submit(proc) if return_future else proc()
 
@@ -164,12 +159,7 @@ def extremae(im, mask=None, return_future=False):
 # as those we tried in opencl, with the wrinkle that in part 4, the author goes one step further than we did, using nvidia's absurdly good cuda profiler
 # to identify memory bank contention, which he resolves for a huge throughput improvement.
 def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, return_future=False):
-    """Supports only float32 as that's the only image dtype for which we ever do min/max and histogram in two separate steps, for the simple reason that
-    it is sometimes necessary to find the range over which the histogram is to be calculated for float32 images, but never in the case of uint8, 12, or
-    16 images, whose range is that of their data type.  (uint12 being a somewhat special case; a flag indicates that although the stored as uint16, the
-    highest 4 bits of each element remain 0.)
-
-    im: The 2D or 3D float32 ndarray for which histogram is computed.
+    """im: The 2D or 3D ndarray for which histogram is computed.
     range_: An indexable sequence of at least two elements, castable to float32, representing the closed interval which is divided into bin_count number
     of bins comprising the histogram.
     mask: None or a 2D bool or uint8 ndarray with neither dimension smaller than the corresponding dimension of im.  If mask is not None, only image
@@ -179,7 +169,7 @@ def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, return
     return_future: If not False, a concurrent.futures.Future is returned.
 
     Returns a channel_count x bin_count numpy array uint32 values."""
-    assert im.dtype == numpy.float32
+    assert im.dtype in (numpy.uint8, numpy.bool)
     assert im.ndim in (2,3)
     assert range_[0] < range_[1]
     if mask is not None:
@@ -202,56 +192,8 @@ def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, return
             return numpy.vstack(fute.result() for fute in futes)
     return pool.submit(proc) if return_future else proc()
 
-# def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, return_future=False, thread_count=min(int(multiprocessing.cpu_count()/4), 8)):
-#     """Supports only float32 as that's the only image dtype for which we ever do min/max and histogram in two separate steps, for the simple reason that
-#     it is sometimes necessary to find the range over which the histogram is to be calculated for float32 images, but never in the case of uint8, 12, or
-#     16 images, whose range is that of their data type.  (uint12 being a somewhat special case; a flag indicates that although the stored as uint16, the
-#     highest 4 bits of each element remain 0.)
-#
-#     im: The 2D or 3D float32 ndarray for which histogram is computed.
-#     range_: An indexable sequence of at least two elements, castable to float32, representing the closed interval which is divided into bin_count number
-#     of bins comprising the histogram.
-#     mask: None or a 2D bool or uint8 ndarray with neither dimension smaller than the corresponding dimension of im.  If mask is not None, only image
-#     pixels with non-zero mask counterparts contribute to the histogram.  Mask pixels outside of im have no impact.  If mask is None, all image pixels
-#     are included.
-#     with_overfloat_bins: If true, the first and last histogram bins represent the number of image pixels falling below and above range_, respectively.
-#     return_future: If not False, a concurrent.futures.Future is returned.
-#
-#     Returns a channel_count x bin_count numpy array uint32 values."""
-#     assert im.dtype == numpy.float32
-#     assert im.ndim in (2,3)
-#     assert range_[0] < range_[1]
-#     if mask is not None:
-#         assert mask.ndim == 2
-#         assert im.shape[0] <= mask.shape[0]
-#         assert im.shape[1] <= mask.shape[1]
-#         mask = mask[:im.shape[0], :im.shape[1]]
-#     if with_overflow_bins:
-#         assert bin_count >= 4
-#     else:
-#         assert bin_count >= 2
-#
-#     def channel_proc(imc):
-#         imc_slices = [imc[i::thread_count] for i in range(thread_count)]
-#         if mask is None:
-#             futes = [pool.submit(_histogram, imc_slice, bin_count, range_, with_overflow_bins=with_overflow_bins) for imc_slice in imc_slices]
-#         else:
-#             m_slices = [mask[i::thread_count] for i in range(thread_count)]
-#             futes = [pool.submit(_histogram, imc_slice, bin_count, range_, m_slice, with_overflow_bins) for imc_slice, m_slice in zip(imc_slices, m_slices)]
-#         return numpy.sum([fute.result() for fute in futes], axis=0)
-#
-#     if im.ndim == 2:
-#         def proc():
-#             return channel_proc(im)
-#     else:
-#         def proc():
-#             futes = [pool.submit(channel_proc, im[..., channel]) for channel in range(im.shape[2])]
-#             return numpy.vstack(fute.result() for fute in futes)
-#
-#     return pool.submit(proc) if return_future else proc()
-
 def statistics(im, twelve_bit=False, mask=None, return_future=False):
-    assert im.ndim in (2,3)
+    assert im.ndim in (2, 3)
     if im.dtype == numpy.uint8:
         assert twelve_bit == False
     elif im.dtype == numpy.uint16:
