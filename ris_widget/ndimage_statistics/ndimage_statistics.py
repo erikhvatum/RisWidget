@@ -130,7 +130,7 @@ def extremae(im, mask=None, return_future=False):
     return_future: If not False, a concurrent.futures.Future is returned.
 
     Returns a channel_count x 2 numpy array containing the min and max element values over the masked region or entirety of im."""
-    assert im.dtype in (numpy.uint8, numpy.bool)
+    assert mask is None or mask.dtype in (numpy.uint8, numpy.bool)
     assert im.ndim in (2, 3)
     if mask is not None:
         assert mask.ndim == 2
@@ -169,7 +169,7 @@ def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, return
     return_future: If not False, a concurrent.futures.Future is returned.
 
     Returns a channel_count x bin_count numpy array uint32 values."""
-    assert im.dtype in (numpy.uint8, numpy.bool)
+    assert mask is None or mask.dtype in (numpy.uint8, numpy.bool)
     assert im.ndim in (2,3)
     assert range_[0] < range_[1]
     if mask is not None:
@@ -193,6 +193,7 @@ def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, return
     return pool.submit(proc) if return_future else proc()
 
 def statistics(im, twelve_bit=False, mask=None, return_future=False):
+    assert mask is None or mask.dtype in (numpy.uint8, numpy.bool)
     assert im.ndim in (2, 3)
     if im.dtype == numpy.uint8:
         assert twelve_bit == False
