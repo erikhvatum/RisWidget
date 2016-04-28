@@ -53,7 +53,7 @@ print('Generating test images...')
 imfs = {im_dtype : [ndimage_statistics.pool.submit(im_gen) for i in range(im_count)] for (im_dtype, im_gen) in zip(im_dtypes, im_gens)}
 ims = {im_dtype : [fut.result().swapaxes(0,1) for fut in futs] for (im_dtype, futs) in imfs.items()}
 print('Generating test masks...')
-sameshape_masks = [numpy.random.randint(0, 2, im_shape, numpy.bool).T for i in range(im_count)]
+sameshape_masks = [numpy.random.randint(0, 2, im_shape).astype(numpy.bool).T for i in range(im_count)]
 offshape_masks = [m[:2559,:2159] for m in sameshape_masks]
 del imfs
 
