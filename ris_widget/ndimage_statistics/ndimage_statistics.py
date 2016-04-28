@@ -148,9 +148,6 @@ def extremae(im, mask=None, return_future=False):
             return ret
     return pool.submit(proc) if return_future else proc()
 
-# The threaded version is actually slower on heavenly... increasing thread_count from one to any number invariably increases run time.  Careful
-# consideration of caching may help (eg stride by largest possible block size rather than by element).  It is also possible that moving thread histogram
-# reduction to a second ThreadPoolExecutor would help.
 # In the unlikely scenario where float32 histogram performance proves critically important on a scope system, it would be useful to look at
 # http://cuda-programming.blogspot.com/2013/03/optimization-in-histogram-cuda-code.html  The various approaches taken here are generally the same
 # as those we tried in opencl, with the wrinkle that in part 4, the author goes one step further than we did, using nvidia's absurdly good cuda profiler
@@ -166,7 +163,7 @@ def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, return
     return_future: If not False, a concurrent.futures.Future is returned.
 
     Returns a channel_count x bin_count numpy array uint32 values."""
-    assert im.ndim in (2,3)
+    assert im.ndim in (2, 3)
     assert range_[0] < range_[1]
     if mask is not None:
         assert mask.ndim == 2
