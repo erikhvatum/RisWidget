@@ -36,6 +36,7 @@ static inline bool min_max_C(py::buffer_info& im_info, py::buffer_info& min_max_
     bool ret{false};
     if(im_info.format == py::format_descriptor<C>::value())
     {
+        py::gil_scoped_release releaseGil;
         min_max(
            reinterpret_cast<C*>(im_info.ptr),
            im_info.shape.data(),
@@ -81,6 +82,7 @@ static inline bool masked_min_max_C(py::buffer_info& im_info, py::buffer_info& m
     bool ret{false};
     if(im_info.format == py::format_descriptor<C>::value())
     {
+        py::gil_scoped_release releaseGil;
         masked_min_max(
            reinterpret_cast<C*>(im_info.ptr),
            im_info.shape.data(),
@@ -129,6 +131,7 @@ static inline bool ranged_hist_C(py::buffer_info& im_info, py::buffer_info& rang
     bool ret{false};
     if(im_info.format == py::format_descriptor<C>::value())
     {
+        py::gil_scoped_release releaseGil;
         ranged_hist<C, with_overflow_bins>(
            reinterpret_cast<C*>(im_info.ptr),
            im_info.shape.data(),
@@ -196,6 +199,7 @@ static inline bool masked_ranged_hist_C(py::buffer_info& im_info, py::buffer_inf
     bool ret{false};
     if(im_info.format == py::format_descriptor<C>::value())
     {
+        py::gil_scoped_release releaseGil;
         masked_ranged_hist<C, with_overflow_bins>(
            reinterpret_cast<C*>(im_info.ptr),
            im_info.shape.data(),
@@ -276,6 +280,7 @@ static inline bool hist_min_max_C(py::buffer_info& im_info, py::buffer_info& his
             o << "hist argument must contain " << bin_count<C>() << " elements for " << py::format_descriptor<C>::value() << " im.";
             throw std::invalid_argument(o.str());
         }
+        py::gil_scoped_release releaseGil;
         hist_min_max<C, is_twelve_bit>(
            reinterpret_cast<C*>(im_info.ptr),
            im_info.shape.data(),
@@ -337,6 +342,7 @@ static inline bool masked_hist_min_max_C(py::buffer_info& im_info, py::buffer_in
             o << "hist argument must contain " << bin_count<C>() << " elements for " << py::format_descriptor<C>::value() << " im.";
             throw std::invalid_argument(o.str());
         }
+        py::gil_scoped_release releaseGil;
         masked_hist_min_max<C, is_twelve_bit>(
            reinterpret_cast<C*>(im_info.ptr),
            im_info.shape.data(),
