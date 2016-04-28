@@ -47,7 +47,7 @@ def genu16():
 def genfloat32():
     return numpy.random.normal(size=im_shape).astype(numpy.float32)
 im_gens = [genu8, genu16, genfloat32]
-im_count = 40
+im_count = 20
 
 print('Generating test images...')
 imfs = {im_dtype : [ndimage_statistics.pool.submit(im_gen) for i in range(im_count)] for (im_dtype, im_gen) in zip(im_dtypes, im_gens)}
@@ -60,15 +60,22 @@ del imfs
 class Inapplicable(Exception):
     pass
 
-def run_mark(im_dtype, mark_name, mark, masks=None):
+def run_mark(im_dtype, mark_name, mark, masks=None, threaded=False):
     t0 = time.time()
     try:
-        if masks is None:
-            for im in ims[im_dtype]:
-                mark(im)
+        if threaded:
+            if masks is None:
+                tasks = [ndimage_statistics.pool.submit(mark, im) for im in ims[im_dtype]]
+            else:
+                tasks = [ndimage_statistics.pool.submit(mark, im, mask=mask) for (im, mask) in zip(ims[im_dtype], masks)]
+            [task.result() for task in tasks]
         else:
-            for im, mask in zip(ims[im_dtype], masks):
-                mark(im, mask=mask)
+            if masks is None:
+                for im in ims[im_dtype]:
+                    mark(im)
+            else:
+                for im, mask in zip(ims[im_dtype], masks):
+                    mark(im, mask=mask)
     except Inapplicable:
         return
     t1 = time.time()
@@ -96,11 +103,23 @@ def benchmark():
     # Masked
     for mark, mark_name in marks_and_names:
         for im_dtype in im_dtypes:
-            run_mark(im_dtype, 'masked_' + mark_name, mark, sameshape_masks)
+            run_mark(im_dtype, 'masked_' + mark_name, mark, masks=sameshape_masks)
     # Stretched mask
     for mark, mark_name in marks_and_names:
         for im_dtype in im_dtypes:
-            run_mark(im_dtype, 'stretchedmasked_' + mark_name, mark, offshape_masks)
+            run_mark(im_dtype, 'stretchedmasked_' + mark_name, mark, masks=offshape_masks)
+    # SMP Unmasked
+    for mark, mark_name in marks_and_names:
+        for im_dtype in im_dtypes:
+            run_mark(im_dtype, 'threaded_' + mark_name, mark, threaded=True)
+    # SMP Masked
+    for mark, mark_name in marks_and_names:
+        for im_dtype in im_dtypes:
+            run_mark(im_dtype, 'threaded_masked_' + mark_name, mark, masks=sameshape_masks, threaded=True)
+    # SMP Stretched mask
+    for mark, mark_name in marks_and_names:
+        for im_dtype in im_dtypes:
+            run_mark(im_dtype, 'threaded_stretchedmasked_' + mark_name, mark, masks=offshape_masks, threaded=True)
 def test():
     print('running tests...')
     print('tests passed')
