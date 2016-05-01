@@ -238,13 +238,16 @@
             </Folder>
             <Folder Name="ndimage_statistics">
                 <F N="ris_widget/ndimage_statistics/__init__.py"/>
+                <F N="ris_widget/ndimage_statistics/_common.py"/>
+                <F N="ris_widget/ndimage_statistics/_measures_fast.py"/>
+                <F N="ris_widget/ndimage_statistics/_measures_slow.py"/>
                 <F N="ris_widget/ndimage_statistics/_ndimage_statistics.cpp"/>
                 <F N="ris_widget/ndimage_statistics/_ndimage_statistics.h"/>
-                <F N="ris_widget/ndimage_statistics/_ndimage_statistics.pyx"/>
                 <F N="ris_widget/ndimage_statistics/_ndimage_statistics_module.cpp"/>
                 <F N="ris_widget/ndimage_statistics/ndimage_statistics.py"/>
                 <F N="ris_widget/ndimage_statistics/resampling_lut.cpp"/>
                 <F N="ris_widget/ndimage_statistics/resampling_lut.h"/>
+                <F N="ris_widget/ndimage_statistics/test_and_benchmark.py"/>
             </Folder>
             <Folder Name="om">
                 <Folder Name="signaling_list">

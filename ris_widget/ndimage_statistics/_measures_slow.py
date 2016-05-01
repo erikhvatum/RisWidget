@@ -26,8 +26,8 @@ from ._common import *
 
 def _stretch_mask(im, mask):
     if im.shape != mask.shape:
-        x_lut = numpy.linspace(0, im.shape[0] - 1, im.shape[0], dtype=numpy.uint32)
-        y_lut = numpy.linspace(0, im.shape[1] - 1, im.shape[1], dtype=numpy.uint32)
+        x_lut = numpy.linspace(0, mask.shape[0] - 1, im.shape[0], dtype=numpy.uint32)
+        y_lut = numpy.linspace(0, mask.shape[1] - 1, im.shape[1], dtype=numpy.uint32)
         xx_lut, yy_lut = numpy.meshgrid(x_lut, y_lut, indexing='ij')
         mask = mask[xx_lut, yy_lut]
     return mask

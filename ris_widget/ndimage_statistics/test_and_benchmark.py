@@ -47,7 +47,7 @@ def genu16():
 def genfloat32():
     return numpy.random.normal(size=im_shape).astype(numpy.float32)
 im_gens = [genu8, genu16, genfloat32]
-im_count = 20
+im_count = 1
 
 print('Generating {} test image{}...'.format(im_count, 's' if im_count > 1 else ''))
 imfs = {im_dtype : [ndimage_statistics.pool.submit(im_gen) for i in range(im_count)] for (im_dtype, im_gen) in zip(im_dtypes, im_gens)}
@@ -103,23 +103,23 @@ def benchmark():
     # Masked
     for mark, mark_name in marks_and_names:
         for im_dtype in im_dtypes:
-            run_mark(im_dtype, 'masked_' + mark_name, mark, masks=sameshape_masks)
+            run_mark(im_dtype, 'masked ' + mark_name, mark, masks=sameshape_masks)
     # Stretched mask
     for mark, mark_name in marks_and_names:
         for im_dtype in im_dtypes:
-            run_mark(im_dtype, 'stretchedmasked_' + mark_name, mark, masks=offshape_masks)
+            run_mark(im_dtype, 'stretchedmasked ' + mark_name, mark, masks=offshape_masks)
     # SMP Unmasked
     for mark, mark_name in marks_and_names:
         for im_dtype in im_dtypes:
-            run_mark(im_dtype, 'threaded_' + mark_name, mark, threaded=True)
+            run_mark(im_dtype, 'threaded ' + mark_name, mark, threaded=True)
     # SMP Masked
     for mark, mark_name in marks_and_names:
         for im_dtype in im_dtypes:
-            run_mark(im_dtype, 'threaded_masked_' + mark_name, mark, masks=sameshape_masks, threaded=True)
+            run_mark(im_dtype, 'threaded masked ' + mark_name, mark, masks=sameshape_masks, threaded=True)
     # SMP Stretched mask
     for mark, mark_name in marks_and_names:
         for im_dtype in im_dtypes:
-            run_mark(im_dtype, 'threaded_stretchedmasked_' + mark_name, mark, masks=offshape_masks, threaded=True)
+            run_mark(im_dtype, 'threaded stretchedmasked ' + mark_name, mark, masks=offshape_masks, threaded=True)
 
 class TestFailed(Exception):
     pass
@@ -131,7 +131,8 @@ class TestFates:
         self.failed=0
 
 def run_test(test_fates, im_dtype, test_name, test, masks=None, threaded=False):
-    print('{}...'.format(test_name))
+    test_desc = '{}({})'.format(test_name, im_dtype_names[im_dtype])
+    print('{}...'.format(test_desc))
     try:
         if masks is None:
             tasks = [ndimage_statistics.pool.submit(test, im) for im in ims[im_dtype]]
@@ -139,29 +140,59 @@ def run_test(test_fates, im_dtype, test_name, test, masks=None, threaded=False):
             tasks = [ndimage_statistics.pool.submit(test, im, mask=mask) for (im, mask) in zip(ims[im_dtype], masks)]
         [task.result() for task in tasks]
         test_fates.passed += 1
-        print('\t... {} passed'.format(test_name))
+        print('\t... {} passed'.format(test_desc))
     except Inapplicable:
         test_fates.skipped += 1
-        print('\t... {} skipped'.format(test_name))
+        print('\t... {} skipped'.format(test_desc))
     except TestFailed:
         test_fates.failed += 1
-        print('\t... {} failed'.format(test_name))
+        print('\t... {} failed'.format(test_desc))
 
 def test_ndimage_statistics_statistics(im, mask=None):
     if numpy.issubdtype(im.dtype, numpy.floating):
         raise Inapplicable
-    ndimage_statistics.statistics(im, mask=mask)
+    from ._measures_fast import _statistics as _fast_statistics
+    from ._measures_slow import _statistics as _slow_statistics
+    fast = _fast_statistics(im, False, mask)
+    slow = _slow_statistics(im, False, mask)
+    passed = True
+    if fast.min_max_intensity[0] != slow.min_max_intensity[0]:
+        print("!! fast.min != slow.min")
+        passed = False
+    if fast.min_max_intensity[1] != slow.min_max_intensity[1]:
+        print("!! fast.max != slow.max")
+        passed = False
+    if not (fast.histogram == slow.histogram).all():
+        print("!! fast.histogram != slow.histogram")
+        passed = False
+    if fast.max_bin != slow.max_bin:
+        print("!! fast.max_bin != slow.max_bin")
+        passed = False
+    if not passed:
+        raise TestFailed
 
 def test():
     test_fates = TestFates()
     print('Running tests...')
     if ndimage_statistics.USING_FAST_MEASURES:
         tests_and_names = [
-            [test_ndimage_statistics_statistics, '']
+            [test_ndimage_statistics_statistics, '_ndimage_statistics']
         ]
+        # Unmasked
+        for test, test_name in tests_and_names:
+            for im_dtype in im_dtypes:
+                run_test(test_fates, im_dtype, test_name, test)
+        # Masked
+        for test, test_name in tests_and_names:
+            for im_dtype in im_dtypes:
+                run_test(test_fates, im_dtype, 'masked ' + test_name, test, masks=sameshape_masks)
+        # Stretched mask
+        for test, test_name in tests_and_names:
+            for im_dtype in im_dtypes:
+                run_test(test_fates, im_dtype, 'stretchedmasked ' + test_name, test, masks=offshape_masks)
     else:
         print('Running tests requires optional binary module built by setup.py.')
-    print('passed: {}\tfailed: {}\tskipped: {}'.format(test_fates.passed, test_fates.failed, test_fates.skipped))
+    print('passed: {}\tfailed: {}\tskipped: {}\n'.format(test_fates.passed, test_fates.failed, test_fates.skipped))
     return True
 
 if __name__ == '__main__':
