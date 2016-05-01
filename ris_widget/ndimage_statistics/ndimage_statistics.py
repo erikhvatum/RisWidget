@@ -29,6 +29,7 @@ import concurrent.futures as futures
 import multiprocessing
 
 pool = futures.ThreadPoolExecutor(max_workers=multiprocessing.cpu_count() + 1)
+inner_pool = futures.ThreadPoolExecutor(max_workers=multiprocessing.cpu_count() + 1)
 
 NDImageStatistics = namedtuple('NDImageStatistics', ('histogram', 'max_bin', 'min_max_intensity'))
 
@@ -51,22 +52,11 @@ try:
             _ndimage_statistics.masked_ranged_hist(im, mask, range_, hist, with_overflow_bins)
         return hist
 
-    def _statistics(im, twelve_bit, mask=None):
-        if im.dtype == numpy.uint8:
-            hist = numpy.zeros((256,), dtype=numpy.uint32)
-            min_max = numpy.zeros((2,), dtype=numpy.uint8)
-            if mask is None:
-                _ndimage_statistics.hist_min_max(im, hist, min_max, twelve_bit)
-            else:
-                _ndimage_statistics.masked_hist_min_max(im, mask, hist, min_max, twelve_bit)
+    def _statistics(im, is_twelve_bit, hist, min_max, mask=None):
+        if mask is None:
+            _ndimage_statistics.hist_min_max(im, hist, min_max, is_twelve_bit)
         else:
-            hist = numpy.zeros((1024,), dtype=numpy.uint32)
-            min_max = numpy.zeros((2,), dtype=im.dtype)
-            if mask is None:
-                _ndimage_statistics.hist_min_max(im, hist, min_max, twelve_bit)
-            else:
-                _ndimage_statistics.masked_hist_min_max(im, mask, hist, min_max, twelve_bit)
-        return NDImageStatistics(hist, hist.argmax(), min_max)
+            _ndimage_statistics.masked_hist_min_max(im, mask, hist, min_max, is_twelve_bit)
 
 except ImportError:
     import warnings
@@ -122,7 +112,7 @@ except ImportError:
         min_max[1] = im.max()
         return NDImageStatistics(hist, hist.argmax(), min_max)
 
-def extremae(im, mask=None, return_future=False):
+def extremae(im, mask=None, per_channel_thread_count=2, return_future=False):
     """im: The 2D or 3D ndarray for which min and max values are found.
     mask: None or a 2D bool or uint8 ndarray with neither dimension smaller than the corresponding dimension of im.  If mask is not None, only image
     pixels with non-zero mask counterparts contribute to min_max.  Pixels of mask outside of im have no impact.  If mask is None, all image pixels are
@@ -152,7 +142,7 @@ def extremae(im, mask=None, return_future=False):
 # http://cuda-programming.blogspot.com/2013/03/optimization-in-histogram-cuda-code.html  The various approaches taken here are generally the same
 # as those we tried in opencl, with the wrinkle that in part 4, the author goes one step further than we did, using nvidia's absurdly good cuda profiler
 # to identify memory bank contention, which he resolves for a huge throughput improvement.
-def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, return_future=False):
+def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, per_channel_thread_count=2, return_future=False):
     """im: The 2D or 3D ndarray for which histogram is computed.
     range_: An indexable sequence of at least two elements, castable to float32, representing the closed interval which is divided into bin_count number
     of bins comprising the histogram.
@@ -183,20 +173,14 @@ def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, return
             return numpy.vstack(fute.result() for fute in futes)
     return pool.submit(proc) if return_future else proc()
 
-def statistics(im, twelve_bit=False, mask=None, return_future=False):
+def statistics(im, is_twelve_bit=False, mask=None, per_channel_thread_count=2, return_future=False):
     assert im.ndim in (2, 3)
-    if im.dtype == numpy.uint8:
-        assert twelve_bit == False
-    elif im.dtype == numpy.uint16:
-        pass
-    else:
-        raise NotImplementedError('Support for dtype of supplied im argument not implemented.')
-    if mask is not None:
-        assert mask.ndim == 2
-        assert mask.dtype in (numpy.uint8, numpy.bool)
     if im.ndim == 2:
+        # NB: we very much want to avoid
+        thread_hists = numpy.array()
         def proc():
-            return _statistics(im, twelve_bit, mask)
+
+            return _statistics(im, is_twelve_bit, mask)
     else:
         def channel_proc(channel):
             return _statistics(im[..., channel], twelve_bit, mask)

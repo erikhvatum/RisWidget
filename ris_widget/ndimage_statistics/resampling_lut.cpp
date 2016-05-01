@@ -32,8 +32,9 @@ Lut::Lut(const std::uint32_t& fromSampleCount, const std::uint32_t& toSampleCoun
 {
     LutData& data{const_cast<LutData&>(m_data)};
     std::uint32_t* toSampleIt{data.data()};
+    const double f{((double)(m_toSampleCount)) / (m_fromSampleCount-1)};
     for(std::uint32_t fromSampleNum=0; fromSampleNum < m_fromSampleCount; ++fromSampleNum, ++toSampleIt)
-        *toSampleIt = fromSampleNum * (((double)(m_toSampleCount)) / (m_fromSampleCount-1));
+        *toSampleIt = fromSampleNum * f;
     if(data.back() == toSampleCount)
         *data.rbegin() = toSampleCount - 1;
 }
