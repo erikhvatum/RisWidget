@@ -74,13 +74,9 @@ void min_max(const C* im, const std::size_t* im_shape, const std::size_t* im_str
         {
             const C& v = *reinterpret_cast<const C*>(inner);
             if(v < min)
-            {
                 min = v;
-            }
             else if(v > max)
-            {
                 max = v;
-            }
         }
     }
 }
@@ -96,6 +92,7 @@ void masked_min_max(const C* im, const std::size_t* im_shape, const std::size_t*
 
     C& min{min_max[0]};
     C& max{*reinterpret_cast<C*>(reinterpret_cast<std::uint8_t*>(min_max) + min_max_stride)};
+    max = min = 0;
 
     bool seen_unmasked = false;
     const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im);
@@ -121,13 +118,9 @@ void masked_min_max(const C* im, const std::size_t* im_shape, const std::size_t*
                     if(seen_unmasked)
                     {
                         if(v < min)
-                        {
                             min = v;
-                        }
                         else if(v > max)
-                        {
                             max = v;
-                        }
                     }
                     else
                     {
@@ -160,13 +153,9 @@ void masked_min_max(const C* im, const std::size_t* im_shape, const std::size_t*
                     if(seen_unmasked)
                     {
                         if(v < min)
-                        {
                             min = v;
-                        }
                         else if(v > max)
-                        {
                             max = v;
-                        }
                     }
                     else
                     {
@@ -185,18 +174,21 @@ void ranged_hist(const C* im, const std::size_t* im_shape, const std::size_t* im
                  const std::size_t& bin_count,
                  std::uint32_t* hist, const std::size_t& hist_stride)
 {
-    std::size_t shape[2], strides[2];
-    reorder_to_inner_outer(im_shape, im_strides, shape, strides);
-
     const C& range_min{range[0]};
     const C& range_max{*reinterpret_cast<const C*>(reinterpret_cast<const std::uint8_t*>(range) + range_stride)};
     const C range_width{static_cast<C>(range_max - range_min)};
+    if(range_width < 0)
+        throw std::invalid_argument("The value of the second element of the range argument must not be less than that of the first element.");
 
     std::uint8_t* hist8{reinterpret_cast<std::uint8_t*>(hist)};
     for(std::uint8_t *hist8It{hist8}, *const hist8EndIt{hist8 + bin_count * hist_stride}; hist8It != hist8EndIt; hist8It += hist_stride)
-    {
         *reinterpret_cast<std::uint32_t*>(hist8It) = 0;
-    }
+
+    if(range_width == 0 && !with_overflow_bins)
+        return;
+
+    std::size_t shape[2], strides[2];
+    reorder_to_inner_outer(im_shape, im_strides, shape, strides);
 
     const std::size_t non_overflow_bin_count = with_overflow_bins ? bin_count - 2 : bin_count;
     const double bin_factor = static_cast<double>(non_overflow_bin_count - 1) / range_width;
@@ -216,24 +208,16 @@ void ranged_hist(const C* im, const std::size_t* im_shape, const std::size_t* im
             if(with_overflow_bins)
             {
                 if(v < range_min)
-                {
                     ++*hist;
-                }
                 else if(v > range_max)
-                {
                     ++*last_bin;
-                }
                 else
-                {
                     ++*reinterpret_cast<std::uint32_t*>(hist8 + ( 1 + static_cast<std::ptrdiff_t>(bin_factor * (v - range_min)) ) * hist_stride);
-                }
             }
             else
             {
                 if(v >= range_min && v <= range_max)
-                {
                     ++*reinterpret_cast<std::uint32_t*>(hist8 + static_cast<std::ptrdiff_t>(bin_factor * (v - range_min)) * hist_stride);
-                }
             }
         }
     }
@@ -246,19 +230,23 @@ void masked_ranged_hist(const C* im, const std::size_t* im_shape, const std::siz
                         const std::size_t& bin_count,
                         std::uint32_t* hist, const std::size_t& hist_stride)
 {
-    std::size_t shape[2], strides[2], mshape[2], mstrides[2];
-    reorder_to_inner_outer(im_shape, im_strides, shape, strides,
-                           mask_shape, mask_strides, mshape, mstrides);
-
     const C& range_min{range[0]};
     const C& range_max{*reinterpret_cast<const C*>(reinterpret_cast<const std::uint8_t*>(range) + range_stride)};
     const C range_width{static_cast<C>(range_max - range_min)};
+    if(range_width < 0)
+        throw std::invalid_argument("The value of the second element of the range argument must not be less than that of the first element.");
 
     std::uint8_t* hist8{reinterpret_cast<std::uint8_t*>(hist)};
     for(std::uint8_t *hist8It{hist8}, *const hist8EndIt{hist8 + bin_count * hist_stride}; hist8It != hist8EndIt; hist8It += hist_stride)
-    {
         *reinterpret_cast<std::uint32_t*>(hist8It) = 0;
-    }
+
+    if(range_width == 0 && !with_overflow_bins)
+        return;
+
+    std::size_t shape[2], strides[2], mshape[2], mstrides[2];
+    reorder_to_inner_outer(
+        im_shape, im_strides, shape, strides,
+        mask_shape, mask_strides, mshape, mstrides);
 
     const std::size_t non_overflow_bin_count = with_overflow_bins ? bin_count - 2 : bin_count;
     const float bin_factor = static_cast<float>(non_overflow_bin_count - 1) / range_width;
@@ -285,24 +273,16 @@ void masked_ranged_hist(const C* im, const std::size_t* im_shape, const std::siz
                     if(with_overflow_bins)
                     {
                         if(v < range_min)
-                        {
                             ++*hist;
-                        }
                         else if(v > range_max)
-                        {
                             ++*last_bin;
-                        }
                         else
-                        {
                             ++*reinterpret_cast<std::uint32_t*>(hist8 + ( 1 + static_cast<std::ptrdiff_t>(bin_factor * (v - range_min)) ) * hist_stride);
-                        }
                     }
                     else
                     {
                         if(v >= range_min && v <= range_max)
-                        {
                             ++*reinterpret_cast<std::uint32_t*>(hist8 + static_cast<std::ptrdiff_t>(bin_factor * (v - range_min)) * hist_stride);
-                        }
                     }
                 }
             }
@@ -330,24 +310,16 @@ void masked_ranged_hist(const C* im, const std::size_t* im_shape, const std::siz
                     if(with_overflow_bins)
                     {
                         if(v < range_min)
-                        {
                             ++*hist;
-                        }
                         else if(v > range_max)
-                        {
                             ++*last_bin;
-                        }
                         else
-                        {
                             ++*reinterpret_cast<std::uint32_t*>(hist8 + ( 1 + static_cast<std::ptrdiff_t>(bin_factor * (v - range_min)) ) * hist_stride);
-                        }
                     }
                     else
                     {
                         if(v >= range_min && v <= range_max)
-                        {
                             ++*reinterpret_cast<std::uint32_t*>(hist8 + static_cast<std::ptrdiff_t>(bin_factor * (v - range_min)) * hist_stride);
-                        }
                     }
                 }
             }
@@ -412,9 +384,7 @@ void hist_min_max(const C* im, const std::size_t* im_shape, const std::size_t* i
 
     std::uint8_t* hist8{reinterpret_cast<std::uint8_t*>(hist)};
     for(std::uint8_t *hist8It{hist8}, *const hist8EndIt{hist8 + bin_count<C>() * hist_stride}; hist8It != hist8EndIt; hist8It += hist_stride)
-    {
         *reinterpret_cast<std::uint32_t*>(hist8It) = 0;
-    }
 
     C& min{min_max[0]};
     C& max{*reinterpret_cast<C*>(reinterpret_cast<std::uint8_t*>(min_max) + min_max_stride)};
@@ -434,13 +404,9 @@ void hist_min_max(const C* im, const std::size_t* im_shape, const std::size_t* i
             const C& v = *reinterpret_cast<const C*>(inner);
             ++*reinterpret_cast<std::uint32_t*>(hist8 + hist_stride*apply_bin_shift<C, is_twelve_bit>(v));
             if(v < min)
-            {
                 min = v;
-            }
             else if(v > max)
-            {
                 max = v;
-            }
         }
     }
 }
@@ -452,14 +418,13 @@ void masked_hist_min_max(const C* im, const std::size_t* im_shape, const std::si
                          C* min_max, const std::size_t& min_max_stride)
 {
     std::size_t shape[2], strides[2], mshape[2], mstrides[2];
-    reorder_to_inner_outer(im_shape, im_strides, shape, strides,
-                           mask_shape, mask_strides, mshape, mstrides);
+    reorder_to_inner_outer(
+        im_shape, im_strides, shape, strides,
+        mask_shape, mask_strides, mshape, mstrides);
 
     std::uint8_t* hist8{reinterpret_cast<std::uint8_t*>(hist)};
     for(std::uint8_t *hist8It{hist8}, *const hist8EndIt{hist8 + bin_count<C>() * hist_stride}; hist8It != hist8EndIt; hist8It += hist_stride)
-    {
         *reinterpret_cast<std::uint32_t*>(hist8It) = 0;
-    }
 
     C& min{min_max[0]};
     C& max{*reinterpret_cast<C*>(reinterpret_cast<std::uint8_t*>(min_max) + min_max_stride)};
@@ -490,13 +455,9 @@ void masked_hist_min_max(const C* im, const std::size_t* im_shape, const std::si
                     if(seen_unmasked)
                     {
                         if(v < min)
-                        {
                             min = v;
-                        }
                         else if(v > max)
-                        {
                             max = v;
-                        }
                     }
                     else
                     {
@@ -530,13 +491,9 @@ void masked_hist_min_max(const C* im, const std::size_t* im_shape, const std::si
                     if(seen_unmasked)
                     {
                         if(v < min)
-                        {
                             min = v;
-                        }
                         else if(v > max)
-                        {
                             max = v;
-                        }
                     }
                     else
                     {

@@ -49,7 +49,7 @@ def genfloat32():
 im_gens = [genu8, genu16, genfloat32]
 im_count = 20
 
-print('Generating test images...')
+print('Generating {} test image{}...'.format(im_count, 's' if im_count > 1 else ''))
 imfs = {im_dtype : [ndimage_statistics.pool.submit(im_gen) for i in range(im_count)] for (im_dtype, im_gen) in zip(im_dtypes, im_gens)}
 ims = {im_dtype : [fut.result().swapaxes(0,1) for fut in futs] for (im_dtype, futs) in imfs.items()}
 print('Generating test masks...')
@@ -90,7 +90,7 @@ def mark_ndimage_statistics_histogram(im, mask=None):
     ndimage_statistics.histogram(im, 1024, im_dtype_ranges[im.dtype.type], mask)
 
 def benchmark():
-    print("All results are mean of {} runs, in milliseconds.  Benchmarking...".format(im_count))
+    print("All results are mean of {} runs, in milliseconds.  Running benchmarks...".format(im_count))
     marks_and_names = [
         [ndimage_statistics.extremae, 'extremae'],
         [mark_ndimage_statistics_histogram, 'histogram'],
@@ -120,9 +120,48 @@ def benchmark():
     for mark, mark_name in marks_and_names:
         for im_dtype in im_dtypes:
             run_mark(im_dtype, 'threaded_stretchedmasked_' + mark_name, mark, masks=offshape_masks, threaded=True)
+
+class TestFailed(Exception):
+    pass
+
+class TestFates:
+    def __init__(self):
+        self.skipped=0
+        self.passed=0
+        self.failed=0
+
+def run_test(test_fates, im_dtype, test_name, test, masks=None, threaded=False):
+    print('{}...'.format(test_name))
+    try:
+        if masks is None:
+            tasks = [ndimage_statistics.pool.submit(test, im) for im in ims[im_dtype]]
+        else:
+            tasks = [ndimage_statistics.pool.submit(test, im, mask=mask) for (im, mask) in zip(ims[im_dtype], masks)]
+        [task.result() for task in tasks]
+        test_fates.passed += 1
+        print('\t... {} passed'.format(test_name))
+    except Inapplicable:
+        test_fates.skipped += 1
+        print('\t... {} skipped'.format(test_name))
+    except TestFailed:
+        test_fates.failed += 1
+        print('\t... {} failed'.format(test_name))
+
+def test_ndimage_statistics_statistics(im, mask=None):
+    if numpy.issubdtype(im.dtype, numpy.floating):
+        raise Inapplicable
+    ndimage_statistics.statistics(im, mask=mask)
+
 def test():
-    print('running tests...')
-    print('tests passed')
+    test_fates = TestFates()
+    print('Running tests...')
+    if ndimage_statistics.USING_FAST_MEASURES:
+        tests_and_names = [
+            [test_ndimage_statistics_statistics, '']
+        ]
+    else:
+        print('Running tests requires optional binary module built by setup.py.')
+    print('passed: {}\tfailed: {}\tskipped: {}'.format(test_fates.passed, test_fates.failed, test_fates.skipped))
     return True
 
 if __name__ == '__main__':

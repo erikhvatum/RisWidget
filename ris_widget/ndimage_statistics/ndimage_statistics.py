@@ -22,95 +22,21 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>, Zach Pincus
 
-import numpy
-import numpy.ma
-from collections import namedtuple
-import concurrent.futures as futures
-import multiprocessing
+from ._common import *
 
-pool = futures.ThreadPoolExecutor(max_workers=multiprocessing.cpu_count() + 1)
-inner_pool = futures.ThreadPoolExecutor(max_workers=multiprocessing.cpu_count() + 1)
-
-NDImageStatistics = namedtuple('NDImageStatistics', ('histogram', 'max_bin', 'min_max_intensity'))
+# In general, we try to avoid page write contention between threads by allocating write targets
+# (such as min/max and histogram arrays) in the worker threads.  Allocating all thread write targets
+# as a single numpy array into which individual threads are given views may seem tempting but
+# would cause massive contention, and it is therefore avoided.
 
 try:
-    from . import _ndimage_statistics
-
-    def _min_max(im, mask=None):
-        min_max = numpy.zeros((2,), dtype=im.dtype)
-        if mask is None:
-            _ndimage_statistics.min_max(im, min_max)
-        else:
-            _ndimage_statistics.masked_min_max(im, mask, min_max)
-        return min_max
-
-    def _histogram(im, bin_count, range_, mask=None, with_overflow_bins=False):
-        hist = numpy.zeros((bin_count,), dtype=numpy.uint32)
-        if mask is None:
-            _ndimage_statistics.ranged_hist(im, range_, hist, with_overflow_bins)
-        else:
-            _ndimage_statistics.masked_ranged_hist(im, mask, range_, hist, with_overflow_bins)
-        return hist
-
-    def _statistics(im, is_twelve_bit, hist, min_max, mask=None):
-        if mask is None:
-            _ndimage_statistics.hist_min_max(im, hist, min_max, is_twelve_bit)
-        else:
-            _ndimage_statistics.masked_hist_min_max(im, mask, hist, min_max, is_twelve_bit)
-
+    from ._measures_fast import _min_max, _histogram, _statistics
+    USING_FAST_MEASURES = True
 except ImportError:
     import warnings
     warnings.warn('warning: Failed to load _ndimage_statistics binary module; using slow histogram and extrema computation methods.')
-
-    def _stretch_mask(im, mask):
-        if im.shape != mask.shape:
-            x_lut = numpy.linspace(0, im.shape[0]-1, im.shape[0], dtype=numpy.uint32)
-            y_lut = numpy.linspace(0, im.shape[1]-1, im.shape[1], dtype=numpy.uint32)
-            xx_lut, yy_lut = numpy.meshgrid(x_lut, y_lut, indexing='ij')
-            mask = mask[xx_lut, yy_lut]
-        return mask
-
-    def _min_max(im, mask=None):
-        if mask is not None:
-            mask = _stretch_mask(im, mask)
-            im = numpy.ma.array(im, dtype=im.dtype, copy=False, mask=~mask)
-        return numpy.array((im.min(), im.max()), dtype=im.dtype)
-
-    def _histogram(im, bin_count, range_, mask=None, with_overflow_bins=False):
-        if mask is not None:
-            mask = _stretch_mask(im, mask)
-        if with_overflow_bins:
-            assert bin_count >= 3
-            hist = numpy.zeros((bin_count,), dtype=numpy.uint32)
-            hist[1:-1] = numpy.histogram(im, bins=bin_count-2, range=range_, density=False, weights=mask)[0].astype(numpy.uint32)
-            if mask is not None:
-                im = numpy.ma.array(im, dtype=im.dtype, copy=False, mask=~mask)
-            hist[0] = (im < range_[0]).sum()
-            hist[-1] = (im > range_[1]).sum()
-            return hist
-        else:
-            assert bin_count >= 1
-            return numpy.histogram(im, bins=bin_count, range=range_, density=False, weights=mask)[0].astype(numpy.uint32)
-
-    def _statistics(im, twelve_bit, mask=None):
-        if im.dtype == numpy.uint8:
-            min_max = numpy.zeros((2,), dtype=numpy.uint8)
-            bin_count = 256
-            range_ = (0,255)
-        elif im.dtype == numpy.uint16:
-            min_max = numpy.zeros((2,), dtype=numpy.uint16)
-            bin_count = 1024
-            range_ = (0,4095) if twelve_bit else (0,65535)
-        else:
-            raise NotImplementedError('Support for dtype of supplied im argument not implemented.')
-        if mask is not None:
-            mask = _stretch_mask(im, mask)
-        hist = numpy.histogram(im, bins=bin_count, range=range_, density=False, weights=mask)[0].astype(numpy.uint32)
-        if mask is not None:
-            im = numpy.ma.array(im, dtype=im.dtype, copy=False, mask=~mask)
-        min_max[0] = im.min()
-        min_max[1] = im.max()
-        return NDImageStatistics(hist, hist.argmax(), min_max)
+    from ._measures_slow import _min_max, _histogram, _statistics
+    USING_FAST_MEASURES = False
 
 def extremae(im, mask=None, per_channel_thread_count=2, return_future=False):
     """im: The 2D or 3D ndarray for which min and max values are found.
@@ -176,14 +102,11 @@ def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, per_ch
 def statistics(im, is_twelve_bit=False, mask=None, per_channel_thread_count=2, return_future=False):
     assert im.ndim in (2, 3)
     if im.ndim == 2:
-        # NB: we very much want to avoid
-        thread_hists = numpy.array()
         def proc():
-
             return _statistics(im, is_twelve_bit, mask)
     else:
         def channel_proc(channel):
-            return _statistics(im[..., channel], twelve_bit, mask)
+            return _statistics(im[..., channel], is_twelve_bit, mask)
         def proc():
             results = [channel_proc(channel) for channel in range(im.shape[2])]
             return NDImageStatistics(
