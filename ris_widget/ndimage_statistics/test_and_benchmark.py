@@ -157,16 +157,16 @@ def test_ndimage_statistics_statistics(im, mask=None):
     slow = _slow_statistics(im, False, mask)
     passed = True
     if fast.min_max_intensity[0] != slow.min_max_intensity[0]:
-        print("!! fast.min != slow.min")
+        print("  failure: fast.min != slow.min")
         passed = False
     if fast.min_max_intensity[1] != slow.min_max_intensity[1]:
-        print("!! fast.max != slow.max")
+        print("  failure: fast.max != slow.max")
         passed = False
     if not (fast.histogram == slow.histogram).all():
-        print("!! fast.histogram != slow.histogram")
+        print("  failure: fast.histogram != slow.histogram")
         passed = False
     if fast.max_bin != slow.max_bin:
-        print("!! fast.max_bin != slow.max_bin")
+        print("  failure: fast.max_bin != slow.max_bin")
         passed = False
     if not passed:
         raise TestFailed
@@ -192,7 +192,7 @@ def test():
                 run_test(test_fates, im_dtype, 'stretchedmasked ' + test_name, test, masks=offshape_masks)
     else:
         print('Running tests requires optional binary module built by setup.py.')
-    print('passed: {}\tfailed: {}\tskipped: {}\n'.format(test_fates.passed, test_fates.failed, test_fates.skipped))
+    print('passed: {}\tfailed: {}\tskipped: {}'.format(test_fates.passed, test_fates.failed, test_fates.skipped))
     return True
 
 if __name__ == '__main__':
@@ -201,9 +201,13 @@ if __name__ == '__main__':
         print("Defaulting to running tests.  Supply benchmark or test_and_benchmark as an argument to do otherwise.")
         if not test():
             sys.exit(-1)
+    elif sys.argv[1] == 'test':
+        if not test():
+            sys.exit(-1)
     elif sys.argv[1] == 'benchmark':
         benchmark()
     elif sys.argv[1] == 'test_and_benchmark':
         if not test():
             sys.exit(-1)
+        print('')
         benchmark()
