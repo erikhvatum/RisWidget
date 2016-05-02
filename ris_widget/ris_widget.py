@@ -31,6 +31,7 @@ from .layer import Layer
 from .layer_stack import LayerList, LayerStack
 from .point_list_picker import PointListPicker
 from .qwidgets.flipbook import Flipbook
+from .qwidgets.fps_display import FPSDisplay
 from .qwidgets.layer_table import InvertingProxyModel, LayerTableModel, LayerTableView
 from .qwidgets.layer_stack_painter import LayerStackPainter
 from .qwidgets.point_list_picker_table import PointListPickerTable
@@ -197,8 +198,18 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.layer_stack.selection_model = self.layer_table_selection_model
         self.layer_table_dock_widget.setWidget(self.layer_table_view)
         self.layer_table_dock_widget.setAllowedAreas(Qt.Qt.AllDockWidgetAreas)
-        self.layer_table_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
+        self.layer_table_dock_widget.setFeatures(
+            Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
         self.addDockWidget(Qt.Qt.TopDockWidgetArea, self.layer_table_dock_widget)
+        self.fps_display_dock_widget = Qt.QDockWidget('FPS', self)
+        self.fps_display = FPSDisplay()
+        self.main_scene.layer_stack_item.painted.connect(self.fps_display.notify)
+        self.fps_display_dock_widget.setWidget(self.fps_display)
+        self.fps_display_dock_widget.setAllowedAreas(Qt.Qt.AllDockWidgetAreas)
+        self.fps_display_dock_widget.setFeatures(
+            Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
+        self.addDockWidget(Qt.Qt.RightDockWidgetArea, self.fps_display_dock_widget)
+        self.fps_display_dock_widget.hide()
 
     def _init_flipbook(self):
         self.flipbook = fb = Flipbook(self.layer_stack, self)
@@ -262,6 +273,7 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.dock_widget_visibility_toolbar.addAction(self.layer_stack_painter_dock_widget.toggleViewAction())
         self.dock_widget_visibility_toolbar.addAction(self.histogram_dock_widget.toggleViewAction())
         self.dock_widget_visibility_toolbar.addAction(self.flipbook_dock_widget.toggleViewAction())
+        self.dock_widget_visibility_toolbar.addAction(self.fps_display_dock_widget.toggleViewAction())
 
     def _init_menus(self):
         mb = self.menuBar()

@@ -1,17 +1,17 @@
 #!/usr/bin/env python
 
-import sys
-import numpy
+# import sys
+# import numpy
 # from ris_widget.ndimage_statistics.test_and_benchmark import test
 # test()
 #
 
 # im = numpy.array(list(range(65536)), dtype=numpy.uint8).reshape((256,256),order='F')
 
-from ris_widget.ndimage_statistics.test_and_benchmark import test
-test()
+# from ris_widget.ndimage_statistics.test_and_benchmark import test
+# test()
 
-sys.exit(0)
+# sys.exit(0)
 
 import numpy
 import os.path
@@ -36,16 +36,16 @@ rw = RisWidget()
 # rw.image = numpy.zeros((100,100), dtype=numpy.uint8)
 
 # im = freeimage.read('/Volumes/MrSpinny/14/2015-11-18t0948 focus-03_ffc.png')
-# rw_dpath = Path(os.path.expanduser('~')) / 'zplrepo' / 'ris_widget'
+rw_dpath = Path(os.path.expanduser('~')) / 'zplrepo' / 'ris_widget'
 # rw.flipbook_pages.append(im)
 # mask = im > 0
 # rw.qt_object.layer_stack.imposed_image_mask = mask[:781,:1000]
 # rw.flipbook_pages.append(rw.qt_object.layer_stack.imposed_image_mask)
 #
-# rw.add_image_files_to_flipbook([
-#     [rw_dpath / 'Opteron_6300_die_shot_16_core_mod.jpg', rw_dpath / 'top_left_g.png'],
+rw.add_image_files_to_flipbook([
+    [rw_dpath / 'Opteron_6300_die_shot_16_core_mod.jpg', rw_dpath / 'top_left_g.png'],
 #     # ['/Volumes/MrSpinny/14/2015-11-18t0948 focus-03_ffc.png']
-# ])
+])
 
 #rw.histogram_view.gl_widget.start_logging()
 

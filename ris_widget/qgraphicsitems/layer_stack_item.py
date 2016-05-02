@@ -103,6 +103,7 @@ class LayerStackItem(ShaderItem):
     TEXTURE_BORDER_COLOR = Qt.QColor(0, 0, 0, 0)
 
     bounding_rect_changed = Qt.pyqtSignal()
+    painted = Qt.pyqtSignal()
 
     def __init__(self, layer_stack, parent_item=None):
         super().__init__(parent_item)
@@ -455,6 +456,7 @@ class LayerStackItem(ShaderItem):
             self.set_blend(estack)
             GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
             GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
+        self.painted.emit()
 
     @staticmethod
     def _normalize_for_gl(v, image):
