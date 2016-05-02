@@ -195,11 +195,8 @@ def test_ndimage_statistics_histogram(im, mask=None):
     from ._measures_slow import _histogram as _slow_histogram
     bin_count = int(numpy.random.randint(1, 256))
     fh = _fast_histogram(im, bin_count, im_dtype_ranges[im.dtype.type], mask)
-    # print(fh)
     sh = _slow_histogram(im, bin_count, im_dtype_ranges[im.dtype.type], mask)
-    # print(sh)
-    # A little slop is necessary
-    # print(numpy.abs(fh - sh))
+    # TODO: determine why this fudge factor is needed and remove it if possible
     if not (numpy.abs(fh.astype(numpy.int64) - sh.astype(numpy.int64)) <= 50).all():
         raise TestFailed
 
