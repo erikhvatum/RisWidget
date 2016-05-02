@@ -54,7 +54,7 @@ imfs = {im_dtype : [ndimage_statistics.pool.submit(im_gen) for i in range(im_cou
 ims = {im_dtype : [fut.result().swapaxes(0,1) for fut in futs] for (im_dtype, futs) in imfs.items()}
 print('Generating test masks...')
 sameshape_masks = [numpy.random.randint(0, 2, im_shape).astype(numpy.bool).T for i in range(im_count)]
-offshape_masks = [numpy.random.randint(0, 2, (im_shape[0]-1,im_shape[1]-1)).astype(numpy.bool).T for i in range(im_count)]
+offshape_masks = [numpy.random.randint(0, 2, (im_shape[0]-i,im_shape[1]-i)).astype(numpy.bool).T for i in range(im_count)]
 del imfs
 
 class Inapplicable(Exception):
