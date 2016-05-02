@@ -26,10 +26,12 @@ from ._common import *
 
 def _stretch_mask(im, mask):
     if im.shape != mask.shape:
-        x_lut = numpy.linspace(0, mask.shape[0] - 1, im.shape[0], dtype=numpy.uint32)
-        y_lut = numpy.linspace(0, mask.shape[1] - 1, im.shape[1], dtype=numpy.uint32)
-        xx_lut, yy_lut = numpy.meshgrid(x_lut, y_lut, indexing='ij')
-        mask = mask[xx_lut, yy_lut]
+        x_lut = numpy.linspace(0, mask.shape[0], im.shape[0], endpoint=False, dtype=numpy.uint32)
+        y_lut = numpy.linspace(0, mask.shape[1], im.shape[1], endpoint=False, dtype=numpy.uint32)
+        xx_lut, yy_lut = numpy.meshgrid(x_lut, y_lut, indexing='xy')
+        # print("sxl: [{}]".format(', '.join([str(x) for x in x_lut])))
+        # print("syl: [{}]".format(', '.join([str(y) for y in y_lut])))
+        mask = mask[xx_lut, yy_lut].T
     return mask
 
 def _min_max(im, mask=None):
@@ -67,9 +69,8 @@ def _statistics(im, twelve_bit, mask=None):
         raise NotImplementedError('Support for dtype of supplied im argument not implemented.')
     if mask is not None:
         mask = _stretch_mask(im, mask)
-    hist = numpy.histogram(im, bins=bin_count, range=range_, density=False, weights=mask)[0].astype(numpy.uint32)
-    if mask is not None:
-        im = numpy.ma.array(im, dtype=im.dtype, copy=False, mask=~mask)
+        im = im[mask]
+    hist = numpy.histogram(im, bins=bin_count, range=range_, density=False)[0].astype(numpy.uint32)
     min_max[0] = im.min()
     min_max[1] = im.max()
     return NDImageStatistics(hist, hist.argmax(), min_max)

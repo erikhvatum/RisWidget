@@ -32,11 +32,9 @@ Lut::Lut(const std::uint32_t& fromSampleCount, const std::uint32_t& toSampleCoun
 {
     LutData& data{const_cast<LutData&>(m_data)};
     std::uint32_t* toSampleIt{data.data()};
-    const double f{((double)(m_toSampleCount)) / (m_fromSampleCount-1)};
+    const double f{((double)(m_toSampleCount)) / m_fromSampleCount};
     for(std::uint32_t fromSampleNum=0; fromSampleNum < m_fromSampleCount; ++fromSampleNum, ++toSampleIt)
         *toSampleIt = fromSampleNum * f;
-    if(data.back() == toSampleCount)
-        *data.rbegin() = toSampleCount - 1;
 }
 
 Luts::Luts(const std::size_t& maxCachedLuts)

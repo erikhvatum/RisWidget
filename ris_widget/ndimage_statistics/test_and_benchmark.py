@@ -54,7 +54,7 @@ imfs = {im_dtype : [ndimage_statistics.pool.submit(im_gen) for i in range(im_cou
 ims = {im_dtype : [fut.result().swapaxes(0,1) for fut in futs] for (im_dtype, futs) in imfs.items()}
 print('Generating test masks...')
 sameshape_masks = [numpy.random.randint(0, 2, im_shape).astype(numpy.bool).T for i in range(im_count)]
-offshape_masks = [m[:2559,:2159] for m in sameshape_masks]
+offshape_masks = [numpy.random.randint(0, 2, (im_shape[0]-1,im_shape[1]-1)).astype(numpy.bool).T for i in range(im_count)]
 del imfs
 
 class Inapplicable(Exception):
@@ -156,18 +156,29 @@ def test_ndimage_statistics_statistics(im, mask=None):
     fast = _fast_statistics(im, False, mask)
     slow = _slow_statistics(im, False, mask)
     passed = True
-    if fast.min_max_intensity[0] != slow.min_max_intensity[0]:
-        print("  failure: fast.min != slow.min")
-        passed = False
-    if fast.min_max_intensity[1] != slow.min_max_intensity[1]:
-        print("  failure: fast.max != slow.max")
-        passed = False
     if not (fast.histogram == slow.histogram).all():
         print("  failure: fast.histogram != slow.histogram")
         passed = False
-    if fast.max_bin != slow.max_bin:
-        print("  failure: fast.max_bin != slow.max_bin")
+    if fast.min_max_intensity[0] != slow.min_max_intensity[0]:
+        print("  failure: fast.min != slow.min ({} vs {})".format(fast.min_max_intensity[0], slow.min_max_intensity[0]))
         passed = False
+    if fast.min_max_intensity[1] != slow.min_max_intensity[1]:
+        print("  failure: fast.max != slow.max ({} vs {})".format(fast.min_max_intensity[1], slow.min_max_intensity[1]))
+        passed = False
+    if mask is None:
+        pix_count = im.shape[0] * im.shape[1]
+    else:
+        pix_count = mask.sum()
+    if mask is None or im.shape == mask.shape:
+        if fast.histogram.sum() != pix_count:
+            print("  failure: fast.histogram.sum() != pix_count ({} vs {})".format(fast.histogram.sum(), pix_count))
+            passed = False
+        if slow.histogram.sum() != pix_count:
+            print("  failure: slow.histogram.sum() != pix_count ({} vs {})".format(slow.histogram.sum(), pix_count))
+            passed = False
+        if fast.max_bin != slow.max_bin:
+            print("  failure: fast.max_bin != slow.max_bin ({} vs {})".format(fast.max_bin, slow.max_bin))
+            passed = False
     if not passed:
         raise TestFailed
 
@@ -190,10 +201,11 @@ def test():
         for test, test_name in tests_and_names:
             for im_dtype in im_dtypes:
                 run_test(test_fates, im_dtype, 'stretchedmasked ' + test_name, test, masks=offshape_masks)
+        print('passed: {}\tfailed: {}\tskipped: {}'.format(test_fates.passed, test_fates.failed, test_fates.skipped))
+        return test_fates.failed == 0
     else:
         print('Running tests requires optional binary module built by setup.py.')
-    print('passed: {}\tfailed: {}\tskipped: {}'.format(test_fates.passed, test_fates.failed, test_fates.skipped))
-    return True
+        return False
 
 if __name__ == '__main__':
     import sys
