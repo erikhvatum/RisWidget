@@ -47,7 +47,7 @@ def genu16():
 def genfloat32():
     return numpy.random.normal(size=im_shape).astype(numpy.float32)
 im_gens = [genu8, genu16, genfloat32]
-im_count = 1
+im_count = 20
 
 print('Generating {} test image{}...'.format(im_count, 's' if im_count > 1 else ''))
 imfs = {im_dtype : [ndimage_statistics.pool.submit(im_gen) for i in range(im_count)] for (im_dtype, im_gen) in zip(im_dtypes, im_gens)}
