@@ -47,7 +47,7 @@ def genu16():
 def genfloat32():
     return numpy.random.normal(size=im_shape).astype(numpy.float32)
 im_gens = [genu8, genu16, genfloat32]
-im_count = 20
+im_count = 3
 
 print('Generating {} test image{}...'.format(im_count, 's' if im_count > 1 else ''))
 imfs = {im_dtype : [ndimage_statistics.pool.submit(im_gen) for i in range(im_count)] for (im_dtype, im_gen) in zip(im_dtypes, im_gens)}
@@ -134,11 +134,19 @@ def run_test(test_fates, im_dtype, test_name, test, masks=None, threaded=False):
     test_desc = '{}({})'.format(test_name, im_dtype_names[im_dtype])
     print('{}...'.format(test_desc))
     try:
-        if masks is None:
-            tasks = [ndimage_statistics.pool.submit(test, im) for im in ims[im_dtype]]
+        if threaded:
+            if masks is None:
+                tasks = [ndimage_statistics.pool.submit(test, im) for im in ims[im_dtype]]
+            else:
+                tasks = [ndimage_statistics.pool.submit(test, im, mask=mask) for (im, mask) in zip(ims[im_dtype], masks)]
+            [task.result() for task in tasks]
         else:
-            tasks = [ndimage_statistics.pool.submit(test, im, mask=mask) for (im, mask) in zip(ims[im_dtype], masks)]
-        [task.result() for task in tasks]
+            if masks is None:
+                for im in ims[im_dtype]:
+                    test(im)
+            else:
+                for im, mask in zip(ims[im_dtype], masks):
+                    test(im, mask=mask)
         test_fates.passed += 1
         print('\t... {} passed'.format(test_desc))
     except Inapplicable:
@@ -182,12 +190,35 @@ def test_ndimage_statistics_statistics(im, mask=None):
     if not passed:
         raise TestFailed
 
+def test_ndimage_statistics_histogram(im, mask=None):
+    from ._measures_fast import _histogram as _fast_histogram
+    from ._measures_slow import _histogram as _slow_histogram
+    bin_count = int(numpy.random.randint(1, 256))
+    fh = _fast_histogram(im, bin_count, im_dtype_ranges[im.dtype.type], mask)
+    # print(fh)
+    sh = _slow_histogram(im, bin_count, im_dtype_ranges[im.dtype.type], mask)
+    # print(sh)
+    # A little slop is necessary
+    # print(numpy.abs(fh - sh))
+    if not (numpy.abs(fh.astype(numpy.int64) - sh.astype(numpy.int64)) <= 50).all():
+        raise TestFailed
+
+def test_ndimage_statistics_min_max(im, mask=None):
+    from ._measures_fast import _min_max as _fast_min_max
+    from ._measures_slow import _min_max as _slow_min_max
+    fmm = _fast_min_max(im, mask)
+    smm = _slow_min_max(im, mask)
+    if not (fmm==smm).all():
+        raise TestFailed
+
 def test():
     test_fates = TestFates()
     print('Running tests...')
     if ndimage_statistics.USING_FAST_MEASURES:
         tests_and_names = [
-            [test_ndimage_statistics_statistics, '_ndimage_statistics']
+            [test_ndimage_statistics_statistics, '_ndimage_statistics'],
+            [test_ndimage_statistics_histogram, '_histogram'],
+            [test_ndimage_statistics_min_max, '_min_max']
         ]
         # Unmasked
         for test, test_name in tests_and_names:

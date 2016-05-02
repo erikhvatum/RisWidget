@@ -29,8 +29,6 @@ def _stretch_mask(im, mask):
         x_lut = numpy.linspace(0, mask.shape[0], im.shape[0], endpoint=False, dtype=numpy.uint32)
         y_lut = numpy.linspace(0, mask.shape[1], im.shape[1], endpoint=False, dtype=numpy.uint32)
         xx_lut, yy_lut = numpy.meshgrid(x_lut, y_lut, indexing='xy')
-        # print("sxl: [{}]".format(', '.join([str(x) for x in x_lut])))
-        # print("syl: [{}]".format(', '.join([str(y) for y in y_lut])))
         mask = mask[xx_lut, yy_lut].T
     return mask
 
@@ -43,18 +41,17 @@ def _min_max(im, mask=None):
 def _histogram(im, bin_count, range_, mask=None, with_overflow_bins=False):
     if mask is not None:
         mask = _stretch_mask(im, mask)
+        im = im[mask]
     if with_overflow_bins:
         assert bin_count >= 3
         hist = numpy.zeros((bin_count,), dtype=numpy.uint32)
-        hist[1:-1] = numpy.histogram(im, bins=bin_count - 2, range=range_, density=False, weights=mask)[0].astype(numpy.uint32)
-        if mask is not None:
-            im = numpy.ma.array(im, dtype=im.dtype, copy=False, mask=~mask)
+        hist[1:-1] = numpy.histogram(im, bins=bin_count - 2, range=range_, density=False)[0].astype(numpy.uint32)
         hist[0] = (im < range_[0]).sum()
         hist[-1] = (im > range_[1]).sum()
         return hist
     else:
         assert bin_count >= 1
-        return numpy.histogram(im, bins=bin_count, range=range_, density=False, weights=mask)[0].astype(numpy.uint32)
+        return numpy.histogram(im, bins=bin_count, range=range_, density=False)[0].astype(numpy.uint32)
 
 def _statistics(im, twelve_bit, mask=None):
     if im.dtype == numpy.uint8:

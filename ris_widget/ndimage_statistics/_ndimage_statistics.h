@@ -191,7 +191,7 @@ void ranged_hist(const C* im, const std::size_t* im_shape, const std::size_t* im
     reorder_to_inner_outer(im_shape, im_strides, shape, strides);
 
     const std::size_t non_overflow_bin_count = with_overflow_bins ? bin_count - 2 : bin_count;
-    const double bin_factor = static_cast<double>(non_overflow_bin_count - 1) / range_width;
+    const float bin_factor = static_cast<float>(non_overflow_bin_count) / range_width;
     std::uint32_t*const last_bin = reinterpret_cast<std::uint32_t*>(hist8 + (bin_count-1) * hist_stride);
     const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im);
     const std::uint8_t*const outer_end = outer + shape[0] * strides[0];
@@ -249,7 +249,7 @@ void masked_ranged_hist(const C* im, const std::size_t* im_shape, const std::siz
         mask_shape, mask_strides, mshape, mstrides);
 
     const std::size_t non_overflow_bin_count = with_overflow_bins ? bin_count - 2 : bin_count;
-    const float bin_factor = static_cast<float>(non_overflow_bin_count - 1) / range_width;
+    const float bin_factor = static_cast<float>(non_overflow_bin_count) / range_width;
     std::uint32_t*const last_bin = reinterpret_cast<std::uint32_t*>(hist8 + (bin_count-1) * hist_stride);
     const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im);
     const std::uint8_t* mouter = mask;

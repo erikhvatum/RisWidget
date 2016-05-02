@@ -7,21 +7,9 @@ import numpy
 #
 
 # im = numpy.array(list(range(65536)), dtype=numpy.uint8).reshape((256,256),order='F')
-im = numpy.random.randint(0,255,(256,511),numpy.uint8).T
 
-mask = numpy.zeros((510,256),order='F',dtype=numpy.bool)
-mask[-1,0] = 1
-
-from ris_widget.ndimage_statistics import _measures_fast as _fast_statistics
-from ris_widget.ndimage_statistics import _measures_slow as _slow_statistics
-
-fast_stats = _fast_statistics._statistics(im, False, mask)
-slow_stats = _slow_statistics._statistics(im, False, mask)
-
-print(im.shape, im.strides, mask.shape, mask.strides)
-print((fast_stats.histogram == slow_stats.histogram).all())
-print(fast_stats.min_max_intensity)
-print(slow_stats.min_max_intensity)
+from ris_widget.ndimage_statistics.test_and_benchmark import test
+test()
 
 sys.exit(0)
 
