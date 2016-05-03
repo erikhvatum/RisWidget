@@ -123,14 +123,20 @@ class Flipbook(Qt.QWidget):
         self.pages_view = PagesView()
         l.addWidget(self.pages_view)
         ll = Qt.QHBoxLayout()
-        self.is_playing = False
-        self.play_pause_button = Qt.QPushButton('\N{BLACK RIGHT-POINTING POINTER}')
-        self.play_pause_button.setCheckable(True)
-        self.play_pause_button.setEnabled(False)
-        self.play_pause_button.clicked.connect(self.toggle_playing)
+        self.toggle_playing_action = Qt.QAction(self)
+        self.toggle_playing_action.setText('Play')
+        self.toggle_playing_action.setShortcut(Qt.Qt.Key_P)
+        self.toggle_playing_action.setCheckable(True)
+        self.toggle_playing_action.setChecked(False)
+        self.toggle_playing_action.setEnabled(False)
+        self.toggle_playing_action.toggled.connect(self._on_toggle_play_action_toggled)
+        self.toggle_playing_button = Qt.QPushButton('\N{BLACK RIGHT-POINTING POINTER}')
+        self.toggle_playing_button.setCheckable(True)
+        self.toggle_playing_button.setEnabled(False)
+        self.toggle_playing_button.clicked.connect(self._on_toggle_play_button_toggled)
         self._play_advance_frame.connect(self._on_play_advance_frame, Qt.Qt.QueuedConnection)
         ll.addSpacerItem(Qt.QSpacerItem(0, 0, Qt.QSizePolicy.Expanding, Qt.QSizePolicy.Minimum))
-        ll.addWidget(self.play_pause_button)
+        ll.addWidget(self.toggle_playing_button)
         ll.addSpacerItem(Qt.QSpacerItem(0, 0, Qt.QSizePolicy.Expanding, Qt.QSizePolicy.Minimum))
         l.addLayout(ll)
         self.pages_model = PagesModel(PageList(), self.pages_view)
@@ -380,7 +386,6 @@ class Flipbook(Qt.QWidget):
         """The contents of the currently selected pages (by ascending index order in .pages
         and excluding the target page) are appended to the target page. The target page is
         the selected page with the lowest index."""
-
         mergeable_rows = list(self.selected_page_idxs)
         if len(mergeable_rows) < 2:
             return
@@ -530,13 +535,16 @@ class Flipbook(Qt.QWidget):
                 Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
 
     def _on_model_rows_inserted(self):
-        self.play_pause_button.setEnabled(len(self.pages) >= 2)
+        e = len(self.pages) >= 2
+        self.toggle_playing_action.setEnabled(e)
+        self.toggle_playing_button.setEnabled(e)
 
     def _on_model_reset_or_rows_removed(self):
         if len(self.pages) < 2:
-            self.play_pause_button.setEnabled(False)
-            self.is_playing = False
-            self.play_pause_button.setChecked(False)
+            a = self.toggle_playing_action
+            a.setChecked(False)
+            a.setEnabled(False)
+            self.toggle_playing_button.setEnabled(False)
 
     def _on_model_rows_inserted_indirect(self):
         self.pages_view.resizeRowsToContents()
@@ -545,22 +553,32 @@ class Flipbook(Qt.QWidget):
     def _on_content_model_rows_inserted(self):
         self.page_content_view.resizeRowsToContents()
 
+    @property
+    def is_playing(self):
+        return self.toggle_playing_action.isEnabled() and self.toggle_playing_action.isChecked()
+
+    @is_playing.setter
+    def is_playing(self, v):
+        if self.toggle_playing_action.isEnabled():
+            self.toggle_playing_action.setChecked(v)
+
     def play(self):
         if self.is_playing or len(self.pages) < 2:
             return
         self.is_playing = True
-        self.play_pause_button.setChecked(True)
+        self.toggle_playing_button.setChecked(True)
         self._on_play_advance_frame()
 
     def pause(self):
         self.is_playing = False
-        self.play_pause_button.setChecked(False)
+        self.toggle_playing_button.setChecked(False)
 
-    def toggle_playing(self):
-        if self.is_playing:
-            self.pause()
-        else:
-            self.play()
+    def _on_toggle_play_button_toggled(self, v):
+        self.toggle_playing_action.setChecked(v)
+
+    def _on_toggle_play_action_toggled(self, v):
+        self.toggle_playing_button.setChecked(v)
+        self._on_play_advance_frame()
 
     def _on_play_advance_frame(self):
         if not self.is_playing:
