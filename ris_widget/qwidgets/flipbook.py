@@ -109,6 +109,7 @@ class Flipbook(Qt.QWidget):
 
     page_focus_changed = Qt.pyqtSignal(object)
     page_selection_changed = Qt.pyqtSignal(object)
+    _play_advance_frame = Qt.pyqtSignal()
 
     def __init__(self, layer_stack, parent=None):
         super().__init__(parent)
@@ -117,12 +118,27 @@ class Flipbook(Qt.QWidget):
         self.views_splitter = Qt.QSplitter(Qt.Qt.Vertical)
         self.layout().addWidget(self.views_splitter)
         self.pages_groupbox = Qt.QGroupBox('Pages')
-        self.pages_groupbox.setLayout(Qt.QHBoxLayout())
+        l = Qt.QVBoxLayout()
+        self.pages_groupbox.setLayout(l)
         self.pages_view = PagesView()
-        self.pages_groupbox.layout().addWidget(self.pages_view)
+        l.addWidget(self.pages_view)
+        ll = Qt.QHBoxLayout()
+        self.is_playing = False
+        self.play_pause_button = Qt.QPushButton('\N{BLACK RIGHT-POINTING POINTER}')
+        self.play_pause_button.setCheckable(True)
+        self.play_pause_button.setEnabled(False)
+        self.play_pause_button.clicked.connect(self.toggle_playing)
+        self._play_advance_frame.connect(self._on_play_advance_frame, Qt.Qt.QueuedConnection)
+        ll.addSpacerItem(Qt.QSpacerItem(0, 0, Qt.QSizePolicy.Expanding, Qt.QSizePolicy.Minimum))
+        ll.addWidget(self.play_pause_button)
+        ll.addSpacerItem(Qt.QSpacerItem(0, 0, Qt.QSizePolicy.Expanding, Qt.QSizePolicy.Minimum))
+        l.addLayout(ll)
         self.pages_model = PagesModel(PageList(), self.pages_view)
         self.pages_model.handle_dropped_files = self._handle_dropped_files
-        self.pages_model.rowsInserted.connect(self._on_model_rows_inserted, Qt.Qt.QueuedConnection)
+        self.pages_model.rowsInserted.connect(self._on_model_rows_inserted)
+        self.pages_model.rowsRemoved.connect(self._on_model_reset_or_rows_removed)
+        self.pages_model.modelReset.connect(self._on_model_reset_or_rows_removed)
+        self.pages_model.rowsInserted.connect(self._on_model_rows_inserted_indirect, Qt.Qt.QueuedConnection)
         self.pages_view.setModel(self.pages_model)
         self.pages_view.selectionModel().currentRowChanged.connect(self.apply)
         self.pages_view.selectionModel().selectionChanged.connect(self._on_page_selection_changed)
@@ -506,19 +522,58 @@ class Flipbook(Qt.QWidget):
         sm = self.pages_view.selectionModel()
         if not sm.currentIndex().isValid():
             sm.setCurrentIndex(
-                    self.pages_model.index(0, 0),
-                    Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
+                self.pages_model.index(0, 0),
+                Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
         if len(sm.selectedRows()) == 0:
             sm.select(
                 sm.currentIndex(),
                 Qt.QItemSelectionModel.SelectCurrent | Qt.QItemSelectionModel.Rows)
 
     def _on_model_rows_inserted(self):
+        self.play_pause_button.setEnabled(len(self.pages) >= 2)
+
+    def _on_model_reset_or_rows_removed(self):
+        if len(self.pages) < 2:
+            self.play_pause_button.setEnabled(False)
+            self.is_playing = False
+            self.play_pause_button.setChecked(False)
+
+    def _on_model_rows_inserted_indirect(self):
         self.pages_view.resizeRowsToContents()
         self.ensure_page_focused()
 
     def _on_content_model_rows_inserted(self):
         self.page_content_view.resizeRowsToContents()
+
+    def play(self):
+        if self.is_playing or len(self.pages) < 2:
+            return
+        self.is_playing = True
+        self.play_pause_button.setChecked(True)
+        self._on_play_advance_frame()
+
+    def pause(self):
+        self.is_playing = False
+        self.play_pause_button.setChecked(False)
+
+    def toggle_playing(self):
+        if self.is_playing:
+            self.pause()
+        else:
+            self.play()
+
+    def _on_play_advance_frame(self):
+        if not self.is_playing:
+            return
+        page_count = len(self.pages)
+        if page_count == 0:
+            return
+        focused_page_idx = self.focused_page_idx
+        if focused_page_idx + 1 == page_count:
+            self.focused_page_idx = 0
+        else:
+            self.focused_page_idx = focused_page_idx + 1
+        self._play_advance_frame.emit()
 
 class PagesView(Qt.QTableView):
     def __init__(self, parent=None):
