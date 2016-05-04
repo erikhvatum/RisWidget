@@ -112,18 +112,24 @@ class FPSDisplay(Qt.QWidget):
             for stddev_widget in self.stddev_widgets:
                 stddev_widget.setVisible(show_stddev)
 
-    def notify(self):
+    def notify(self, end_interval=False):
         if not self.isVisible():
             return
         t = time.time()
-        if self.acquired_sample_count > 0:
-            assert self.prev_t is not None
+        if self.prev_t is None:
+            if not end_interval:
+                self.prev_t = t
+                self.acquired_sample_count += 1
+        else:
             wrap_idx = (self.acquired_sample_count-1) % self.intervals.shape[0]
             self.intervals[wrap_idx] = v = t - self.prev_t
             self.fpss[wrap_idx] = 0 if v == 0 else 1 / v
-        self.acquired_sample_count += 1
-        self.prev_t = t
-        self._refresh()
+            if end_interval:
+                self.prev_t = None
+            else:
+                self.acquired_sample_count += 1
+                self.prev_t = t
+            self._refresh()
 
     def clear(self):
         self.acquired_sample_count = 0
