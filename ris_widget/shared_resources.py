@@ -28,6 +28,25 @@ from pathlib import Path
 from PyQt5 import Qt
 import sys
 
+NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
+    numpy.bool8: Qt.QOpenGLTexture.UInt8,
+    numpy.uint8: Qt.QOpenGLTexture.UInt8,
+    numpy.uint16: Qt.QOpenGLTexture.UInt16,
+    numpy.float32: Qt.QOpenGLTexture.Float32
+}
+IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT = {
+    'G': Qt.QOpenGLTexture.R32F,
+    'Ga': Qt.QOpenGLTexture.RG32F,
+    'rgb': Qt.QOpenGLTexture.RGB32F,
+    'rgba': Qt.QOpenGLTexture.RGBA32F
+}
+IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT = {
+    'G': Qt.QOpenGLTexture.Red,
+    'Ga': Qt.QOpenGLTexture.RG,
+    'rgb': Qt.QOpenGLTexture.RGB,
+    'rgba': Qt.QOpenGLTexture.RGBA
+}
+
 def qtransform_to_ndarray(t):
     return numpy.array([
         [t.m11(), t.m21(), t.m31()],

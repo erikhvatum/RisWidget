@@ -26,6 +26,7 @@ import ctypes
 import numpy
 from PyQt5 import Qt
 import textwrap
+from .async_texture import AsyncTexture
 from .ndimage_statistics import ndimage_statistics
 
 class Image(Qt.QObject):
@@ -65,7 +66,8 @@ class Image(Qt.QObject):
             parent=None,
             is_twelve_bit=False,
             imposed_float_range=None,
-            name=None):
+            name=None,
+            early_texture_upload=True):
         """
         The shape of image and mask data is interpreted as (x,y) for 2-d arrays and (x,y,c) for 3-d arrays.  If your image or mask was loaded as (y,x),
         array.T will produce an (x,y)-shaped array.  In case of (y,x,c) image data, array.swapaxes(0,1) is required."""
@@ -80,7 +82,8 @@ class Image(Qt.QObject):
             mask=mask,
             is_twelve_bit=is_twelve_bit,
             imposed_float_range=imposed_float_range,
-            name=name)
+            name=name,
+            early_texture_upload=early_texture_upload)
 
     def _onObjectNameChanged(self):
         self.name_changed.emit(self)
@@ -126,7 +129,13 @@ class Image(Qt.QObject):
             '' if num_channels == 1 else 's',
             self.type)
 
-    def refresh(self, data_changed=True, mask_changed=False, is_twelve_bit_changed=False, imposed_float_range_changed=False):
+    def refresh(
+            self,
+            data_changed=True,
+            mask_changed=False,
+            is_twelve_bit_changed=False,
+            imposed_float_range_changed=False,
+            early_texture_upload=True):
         """
         The .refresh method should be called after modifying the contents of .data, .mask, and/or after replacing .is_twelve_bit or .imposed_float_range
         by assignment, with True supplied for the respective _changed argument.  It is assumed that only those changes may have occurred, and that
