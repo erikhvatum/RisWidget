@@ -26,6 +26,7 @@ argv = sys.argv
 app = Qt.QApplication(argv)
 
 rw = RisWidget()
+
 # rw.main_view.zoom_preset_idx = 27
 
 # rw.flipbook.pages.append(numpy.array(list(range(10000)),numpy.uint16).reshape((100,100)))
