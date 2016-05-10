@@ -90,6 +90,8 @@ class LayerStack(Qt.QObject):
         self._selection_model = None
         self.selection_model = selection_model
         self._layer_instance_counts = {}
+        self._imposed_image_mask = None
+        self._ignore_layer_image_mask_change = False
         self.layer_name_in_contextual_info_action = Qt.QAction(self)
         self.layer_name_in_contextual_info_action.setText('Include Layer.name in Contextual Info')
         self.layer_name_in_contextual_info_action.setCheckable(True)
@@ -98,20 +100,20 @@ class LayerStack(Qt.QObject):
         self.image_name_in_contextual_info_action.setText('Include Image.name in Contextual Info')
         self.image_name_in_contextual_info_action.setCheckable(True)
         self.image_name_in_contextual_info_action.setChecked(False)
-        self.master_enable_auto_min_max_action = Qt.QAction(self)
-        self.master_enable_auto_min_max_action.setText('Auto Min/Max Master On')
-        self.master_enable_auto_min_max_action.setCheckable(True)
-        self.master_enable_auto_min_max_action.setChecked(False)
-        self.master_enable_auto_min_max_action.toggled.connect(self._on_master_enable_auto_min_max_toggled)
+        self.auto_min_max_master_on_enabled_action = Qt.QAction(self)
+        self.auto_min_max_master_on_enabled_action.setText('Auto Min/Max Master On')
+        self.auto_min_max_master_on_enabled_action.setCheckable(True)
+        self.auto_min_max_master_on_enabled_action.setChecked(False)
+        self.auto_min_max_master_on_enabled_action.toggled.connect(self._on_master_enable_auto_min_max_toggled)
         self.examine_layer_mode_action = Qt.QAction(self)
         self.examine_layer_mode_action.setText('Examine Current Layer')
         self.examine_layer_mode_action.setCheckable(True)
         self.examine_layer_mode_action.setChecked(False)
         self.examine_layer_mode_action.setToolTip(textwrap.dedent("""\
-                In "Examine Layer Mode", a layer's .visible property does not control whether that
-                layer is visible in the main view.  Instead, the layer represented by the row currently
-                selected in the layer table is treated as if the value of its .visible property were
-                True and all others as if theirs were false."""))
+            In "Examine Layer Mode", a layer's .visible property does not control whether that
+            layer is visible in the main view.  Instead, the layer represented by the row currently
+            selected in the layer table is treated as if the value of its .visible property were
+            True and all others as if theirs were false."""))
         self.histogram_alternate_column_shading_action = Qt.QAction(self)
         self.histogram_alternate_column_shading_action.setText('Alternate Histogram Bin Shading')
         self.histogram_alternate_column_shading_action.setCheckable(True)
@@ -134,6 +136,7 @@ class LayerStack(Qt.QObject):
             v_o.replaced.disconnect(self._on_replaced_in_layers)
             v_o.inserted.disconnect(self._delayed_on_inserted_into_layers)
             v_o.removed.disconnect(self._delayed_on_removed_from_layers)
+            self._detach_layers(v_o)
         self._layers = v
         if v is not None:
             v.inserted.connect(self._on_inserted_into_layers)
@@ -144,6 +147,7 @@ class LayerStack(Qt.QObject):
             # models are even aware that a row has been inserted.
             v.inserted.connect(self._delayed_on_inserted_into_layers, Qt.Qt.QueuedConnection)
             v.removed.connect(self._delayed_on_removed_from_layers, Qt.Qt.QueuedConnection)
+            self._attach_layers(v)
         self.layers_replaced.emit(self, v_o, v)
         if v:
             self.ensure_layer_focused()
@@ -253,29 +257,68 @@ class LayerStack(Qt.QObject):
         self.histogram_alternate_column_shading_action.setChecked(v)
 
     @property
-    def master_enable_auto_min_max_is_active(self):
-        return self.master_enable_auto_min_max_action.isChecked()
+    def auto_min_max_master_on_enabled(self):
+        return self.auto_min_max_master_on_enabled_action.isChecked()
 
-    @master_enable_auto_min_max_is_active.setter
-    def master_enable_auto_min_max_is_active(self, v):
-        self.examine_layer_mode_action.setChecked(v)
+    @auto_min_max_master_on_enabled.setter
+    def auto_min_max_master_on_enabled(self, v):
+        self.auto_min_max_master_on_enabled_action.setChecked(v)
+
+    @property
+    def imposed_image_mask(self):
+        return self._imposed_image_mask
+
+    @imposed_image_mask.setter
+    def imposed_image_mask(self, v):
+        if v is not self._imposed_image_mask:
+            if v is not None:
+                v = numpy.asarray(v)
+                if v.ndim != 2:
+                    raise ValueError('imposed_image_mask must be None or a 2D iterable.')
+                if v.dtype != bool:
+                    v = v.astype(bool)
+                desired_strides = 1, v.shape[0]
+                if desired_strides != v.strides:
+                    _mask = v
+                    v = numpy.ndarray(v.shape, strides=desired_strides, dtype=v.dtype)
+                    v.flat = _mask.flat
+            self._imposed_image_mask = v
+            if self._layers:
+                self._ignore_layer_image_mask_change = True
+                try:
+                    for layer in self._layers:
+                        image = layer.image
+                        if image and (v is not None or image.mask is not None):
+                            image.set(mask=v)
+                finally:
+                    self._ignore_layer_image_mask_change = False
 
     def _attach_layers(self, layers):
-        for layer in layers:
-            instance_count = self._layer_instance_counts.get(layer, 0) + 1
-            assert instance_count > 0
-            self._layer_instance_counts[layer] = instance_count
-            if instance_count == 1:
-                layer.min_changed.connect(self._on_layer_min_or_max_changed)
-                layer.max_changed.connect(self._on_layer_min_or_max_changed)
+        self._ignore_layer_image_mask_change = True
+        try:
+            auto_min_max_master_on_enabled = self.auto_min_max_master_on_enabled
+            for layer in layers:
+                instance_count = self._layer_instance_counts.get(layer, 0) + 1
+                image = layer.image
+                if image and (self._imposed_image_mask is not None or image.mask is not None):
+                    image.set(mask=self._imposed_image_mask)
+                assert instance_count > 0
+                self._layer_instance_counts[layer] = instance_count
+                if instance_count == 1:
+                    if auto_min_max_master_on_enabled:
+                        layer.auto_min_max_enabled = True
+                    layer.auto_min_max_enabled_changed.connect(self._on_layer_auto_min_max_enabled_changed)
+                    layer.image_changed.connect(self._on_layer_image_changed)
+        finally:
+            self._ignore_layer_image_mask_change = False
 
     def _detach_layers(self, layers):
         for layer in layers:
             instance_count = self._layer_instance_counts[layer] - 1
             assert instance_count >= 0
             if instance_count == 0:
-                layer.min_changed.disconnect(self._on_layer_min_or_max_changed)
-                layer.max_changed.disconnect(self._on_layer_min_or_max_changed)
+                layer.auto_min_max_enabled_changed.disconnect(self._on_layer_auto_min_max_enabled_changed)
+                layer.image_changed.disconnect(self._on_layer_image_changed)
                 del self._layer_instance_counts[layer]
             else:
                 self._layer_instance_counts[layer] = instance_count
@@ -330,9 +373,20 @@ class LayerStack(Qt.QObject):
             self.layer_focus_changed.emit(self, ol, l)
 
     def _on_master_enable_auto_min_max_toggled(self, checked):
-        if checked:
+        if checked and self._layers:
             for layer in self._layers:
-                pass
+                layer.auto_min_max_enabled = True
 
-    def _on_layer_min_or_max_changed(self, layer):
-        pass
+    def _on_layer_auto_min_max_enabled_changed(self, layer):
+        if self.auto_min_max_master_on_enabled and not layer.auto_min_max_enabled:
+            self.auto_min_max_master_on_enabled = False
+
+    def _on_layer_image_changed(self, layer):
+        if not self._ignore_layer_image_mask_change:
+            image = layer.image
+            if image and (self._imposed_image_mask is not None or image.mask is not None):
+                self._ignore_layer_image_mask_change = True
+                try:
+                    image.set(mask=self._imposed_image_mask)
+                finally:
+                    self._ignore_layer_image_mask_change = False

@@ -77,7 +77,7 @@ class LayerTableView(Qt.QTableView):
         # The text 'image.size' is typically somewhat shorter than '2160x2560', so we widen that column
         # by an arbitrary fudge factor...
         col = layer_table_model.property_columns['image.size']
-        self.horizontalHeader().resizeSection(col, self.horizontalHeader().sectionSize(col) + 6)
+        self.horizontalHeader().resizeSection(col, self.horizontalHeader().sectionSize(col) * 1.5)
         # Making the opacity column exactly 100 pixels wide gives 1:1 mapping between horizontal
         # position within the column and opacity slider integer % values
         col = layer_table_model.property_columns['opacity']

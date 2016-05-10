@@ -30,7 +30,7 @@ class BaseScene(Qt.QGraphicsScene):
 
     Although the Qt Graphics View Framework supports multiple views into a single scene, we don't
     have a need for this capability, and we do not go out of our way to make it work correctly (which
-    would entail signficant additional code complexity).
+    would entail significant additional code complexity).
 
     In the past, multiple views into a single scene were supported, and BaseScene had more complexity.
     All that remains is the call to create the contextual info item and a pair of member functions
@@ -74,19 +74,6 @@ class BaseScene(Qt.QGraphicsScene):
         super().__init__(parent)
         self.viewport_rect_item = ViewportRectItem()
         self.addItem(self.viewport_rect_item)
-        self._requester_of_current_nonempty_mouseover_info = None
         from ..qgraphicsitems.contextual_info_item import ContextualInfoItem
         self.contextual_info_item = ContextualInfoItem(self.viewport_rect_item)
         self.contextual_info_item.setPos(10, 5)
-
-    def clear_contextual_info(self, requester):
-        self.update_contextual_info(None, requester)
-
-    def update_contextual_info(self, text, requester):
-        if text:
-            self._requester_of_current_nonempty_mouseover_info = requester
-            self.contextual_info_item.text = text
-        else:
-            if self._requester_of_current_nonempty_mouseover_info is None or self._requester_of_current_nonempty_mouseover_info is requester:
-                self._requester_of_current_nonempty_mouseover_info = None
-                self.contextual_info_item.text = None

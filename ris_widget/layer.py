@@ -167,7 +167,7 @@ class Layer(Qt.QObject):
         assert image is self.image
         for property in self.properties:
             property.update_default(self)
-        self._find_auto_min_max()
+        self._auto_min_max_values = None
         if image is not None:
             if self.auto_min_max_enabled:
                 self.do_auto_min_max()
@@ -224,6 +224,8 @@ class Layer(Qt.QObject):
             self._auto_min_max_values = max(self._auto_min_max_values[0], self.histogram_min), min(self._auto_min_max_values[1], self.histogram_max)
 
     def do_auto_min_max(self):
+        if self._auto_min_max_values is None:
+            self._find_auto_min_max()
         self._retain_auto_min_max_enabled_on_min_max_change = True
         try:
             self.min, self.max = self._auto_min_max_values
@@ -310,7 +312,7 @@ class Layer(Qt.QObject):
         if image is None:
             return 65535.0 if is_max else 0.0
         else:
-            return float(image.range[is_max])
+            return float(image.range[int(is_max)])
     def _histogram_min_max_pre_set(self, v, is_max):
         r = (0, 65535.0) if self.image is None else self.image.range
         if not r[0] <= v <= r[1]:

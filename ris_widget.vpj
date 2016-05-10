@@ -203,6 +203,25 @@
     </Config>
     <CustomFolders></CustomFolders>
     <Files AutoFolders="DirectoryView">
+        <Folder Name="pybind11">
+            <Folder Name="include">
+                <Folder Name="pybind11">
+                    <F N="pybind11/include/pybind11/attr.h"/>
+                    <F N="pybind11/include/pybind11/cast.h"/>
+                    <F N="pybind11/include/pybind11/common.h"/>
+                    <F N="pybind11/include/pybind11/complex.h"/>
+                    <F N="pybind11/include/pybind11/descr.h"/>
+                    <F N="pybind11/include/pybind11/functional.h"/>
+                    <F N="pybind11/include/pybind11/numpy.h"/>
+                    <F N="pybind11/include/pybind11/operators.h"/>
+                    <F N="pybind11/include/pybind11/origin.txt"/>
+                    <F N="pybind11/include/pybind11/pybind11.h"/>
+                    <F N="pybind11/include/pybind11/pytypes.h"/>
+                    <F N="pybind11/include/pybind11/stl.h"/>
+                    <F N="pybind11/include/pybind11/typeid.h"/>
+                </Folder>
+            </Folder>
+        </Folder>
         <Folder Name="ris_widget">
             <Folder Name="examples">
                 <F N="ris_widget/examples/__init__.py"/>
@@ -227,10 +246,17 @@
             </Folder>
             <Folder Name="ndimage_statistics">
                 <F N="ris_widget/ndimage_statistics/__init__.py"/>
-                <F N="ris_widget/ndimage_statistics/_ndimage_statistics.pyx"/>
-                <F N="ris_widget/ndimage_statistics/_ndimage_statistics_impl.cpp"/>
-                <F N="ris_widget/ndimage_statistics/_ndimage_statistics_impl.h"/>
+                <F N="ris_widget/ndimage_statistics/__init__.py"/>
+                <F N="ris_widget/ndimage_statistics/_common.py"/>
+                <F N="ris_widget/ndimage_statistics/_measures_fast.py"/>
+                <F N="ris_widget/ndimage_statistics/_measures_slow.py"/>
+                <F N="ris_widget/ndimage_statistics/_ndimage_statistics.cpp"/>
+                <F N="ris_widget/ndimage_statistics/_ndimage_statistics.h"/>
+                <F N="ris_widget/ndimage_statistics/_ndimage_statistics_module.cpp"/>
                 <F N="ris_widget/ndimage_statistics/ndimage_statistics.py"/>
+                <F N="ris_widget/ndimage_statistics/resampling_lut.cpp"/>
+                <F N="ris_widget/ndimage_statistics/resampling_lut.h"/>
+                <F N="ris_widget/ndimage_statistics/test_and_benchmark.py"/>
             </Folder>
             <Folder Name="om">
                 <Folder Name="signaling_list">

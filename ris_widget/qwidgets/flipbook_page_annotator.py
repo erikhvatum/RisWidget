@@ -165,6 +165,7 @@ class FlipbookPageAnnotator(Qt.QWidget):
         flipbook.page_selection_changed.connect(self._on_page_selection_changed)
         self.page_metadata_attribute_name = page_metadata_attribute_name
         layout = Qt.QFormLayout()
+        layout.setFieldGrowthPolicy(layout.ExpandingFieldsGrow)
         self.setLayout(layout)
         self.fields = {}
         self._ignore_gui_change = False

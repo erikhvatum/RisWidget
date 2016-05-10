@@ -26,6 +26,7 @@ from contextlib import ExitStack
 import math
 import numpy
 from PyQt5 import Qt
+from ..contextual_info import ContextualInfo
 from .shader_item import ShaderItem, ShaderTexture
 from ..shared_resources import QGL, UNIQUE_QGRAPHICSITEM_TYPE
 
@@ -35,6 +36,7 @@ class HistogramItem(ShaderItem):
     def __init__(self, layer_stack, graphics_item_parent=None):
         super().__init__(graphics_item_parent)
         self.layer_stack = layer_stack
+        self.contextual_info = ContextualInfo(self)
         layer_stack.layer_focus_changed.connect(self._on_layer_focus_changed)
         layer_stack.histogram_alternate_column_shading_action.toggled.connect(self.update)
         self.layer = None
@@ -211,45 +213,51 @@ class HistogramItem(ShaderItem):
                 GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
 
     def hoverMoveEvent(self, event):
-        layer = self.layer
-        if layer is None:
-            return
-        image = layer.image
-        if image is None:
-            return
-        x = event.pos().x()
-        if x >= 0 and x <= 1:
-            image_type = image.type
-            histogram = image.histogram
-            h_r = layer.histogram_min, layer.histogram_max
-            h_w = h_r[1] - h_r[0]
-            r = image.range
-            w = r[1] - r[0]
-            bin_width = w / histogram.shape[-1]
-            bin_count = h_w / bin_width
-            bin_idx_offset = int((h_r[0] - r[0]) / bin_width)
-            if image.dtype != numpy.float32:
-                bin_count = round(bin_count)
-            bin = bin_idx_offset + int(x * bin_count)
-            if image.dtype == numpy.float32:
-                mst = '[{},{}{} '.format(h_r[0] + bin*bin_width, h_r[0] + (bin+1)*bin_width, ']' if bin == bin_count - 1 else ')')
-            else:
-                l, r = math.ceil((bin_idx_offset + bin)*bin_width), math.floor((bin_idx_offset + bin + 1)*bin_width)
-                mst = '{} '.format(l) if image.dtype == numpy.uint8 else '[{},{}] '.format(l, r)
-            vt = '(' + ' '.join((c + ':{}' for c in image_type)) + ')'
-            if image.num_channels > 1:
-                vt = vt.format(*histogram[..., bin])
-            else:
-                vt = vt.format(histogram[bin])
-            self.scene().update_contextual_info(mst + vt, self)
+        self.contextual_info.pos = event.pos()
+        self.scene().contextual_info_item.set_contextual_info(self.contextual_info)
+        self._update_contextual_info()
 
     def hoverLeaveEvent(self, event):
-        self.scene().clear_contextual_info(self)
+        self.contextual_info.pos = None
+        self.scene().contextual_info_item.clear_contextual_info(self)
+
+    def _update_contextual_info(self):
+        pos = self.contextual_info.pos
+        text = ''
+        if pos is not None:
+            layer = self.layer
+            if layer is not None:
+                image = layer.image
+                if image is not None:
+                    histogram = image.histogram
+                    h_r = layer.histogram_min, layer.histogram_max
+                    h_w = h_r[1] - h_r[0]
+                    r = image.range
+                    w = r[1] - r[0]
+                    bin_width = w / histogram.shape[-1]
+                    bin_count = h_w / bin_width
+                    bin_idx_offset = int((h_r[0] - r[0]) / bin_width)
+                    if image.dtype != numpy.float32:
+                        bin_count = round(bin_count)
+                    bin = bin_idx_offset + int(pos.x() * bin_count)
+                    if image.dtype == numpy.float32:
+                        mst = '[{},{}{} '.format(h_r[0] + bin * bin_width, h_r[0] + (bin + 1) * bin_width, ']' if bin == bin_count - 1 else ')')
+                    else:
+                        l, r = math.ceil((bin_idx_offset + bin) * bin_width), math.floor((bin_idx_offset + bin + 1) * bin_width)
+                        mst = '{} '.format(l) if image.dtype == numpy.uint8 else '[{},{}] '.format(l, r)
+                    vt = '(' + ' '.join((c + ':{}' for c in image.type)) + ')'
+                    if image.num_channels > 1:
+                        vt = vt.format(*histogram[..., bin])
+                    else:
+                        vt = vt.format(histogram[bin])
+                    text = vt + mst
+        self.contextual_info.value = text
 
     def _on_layer_image_changed(self):
         self._layer_data_serial += 1
         self.min_item.arrow_item._on_value_changed()
         self.max_item.arrow_item._on_value_changed()
+        self._update_contextual_info()
         self.update()
 
     def _on_gl_widget_context_about_to_change(self, gl_widget):
@@ -290,6 +298,7 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
         self.name = name
         self._path = Qt.QPainterPath()
         self._min_max_item = min_max_item
+        self.contextual_info = ContextualInfo(self)
         if self.name.startswith('min'):
             polygonf = Qt.QPolygonF((Qt.QPointF(0.5, -12), Qt.QPointF(8, 0), Qt.QPointF(0.5, 12)))
         else:
@@ -330,11 +339,13 @@ class MinMaxArrowItem(Qt.QGraphicsObject):
 
     def mouseMoveEvent(self, event):
         super().mouseMoveEvent(event)
-        self.scene().update_contextual_info('{}: {}'.format(self.name, getattr(self.parentItem().layer, self.name)), self)
+        self.contextual_info.value = '{}: {}'.format(self.name, getattr(self.parentItem().layer, self.name))
+        self.scene().contextual_info_item.set_contextual_info(self.contextual_info)
 
     def mousePressEvent(self, event):
         super().mousePressEvent(event)
-        self.scene().update_contextual_info('{}: {}'.format(self.name, getattr(self.parentItem().layer, self.name)), self)
+        self.contextual_info.value = '{}: {}'.format(self.name, getattr(self.parentItem().layer, self.name))
+        self.scene().contextual_info_item.set_contextual_info(self.contextual_info)
 
     def _on_x_changed(self):
         x = self.x()
@@ -370,6 +381,7 @@ class GammaItem(Qt.QGraphicsObject):
     def __init__(self, histogram_item, min_item, max_item):
         super().__init__(histogram_item)
         self._bounding_rect = Qt.QRectF(0, 0, 1, 1)
+        self.contextual_info = ContextualInfo(self)
         self.min_item = min_item
         self.min_item.xChanged.connect(self._on_min_or_max_x_changed)
         self.max_item = max_item
@@ -408,15 +420,18 @@ class GammaItem(Qt.QGraphicsObject):
 
     def mousePressEvent(self, event):
         super().mousePressEvent(event)
-        self.scene().update_contextual_info('gamma: {}'.format(self.parentItem().layer.gamma), self)
+        self.contextual_info.value = 'gamma: {}'.format(self.parentItem().layer.gamma)
+        self.scene().contextual_info_item.set_contextual_info(self.contextual_info)
 
     def mouseMoveEvent(self, event):
-        current_x, current_y = map(lambda v: min(max(v, 0.001), 0.999),
-                                   (event.pos().x(), event.pos().y()))
+        current_x, current_y = map(
+            lambda v: min(max(v, 0.001), 0.999),
+            (event.pos().x(), event.pos().y()))
         current_y = 1-current_y
         layer = self.parentItem().layer
         layer.gamma = gamma = min(max(math.log(current_y, current_x), layer.GAMMA_RANGE[0]), layer.GAMMA_RANGE[1])
-        self.scene().update_contextual_info('gamma: {}'.format(gamma), self)
+        self.contextual_info.value = 'gamma: {}'.format(gamma)
+        self.scene().contextual_info_item.set_contextual_info(self.contextual_info)
 
     def _on_min_or_max_x_changed(self):
         min_x = self.min_item.x()

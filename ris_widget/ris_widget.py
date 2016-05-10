@@ -31,6 +31,7 @@ from .layer import Layer
 from .layer_stack import LayerList, LayerStack
 from .point_list_picker import PointListPicker
 from .qwidgets.flipbook import Flipbook
+from .qwidgets.fps_display import FPSDisplay
 from .qwidgets.layer_table import InvertingProxyModel, LayerTableModel, LayerTableView
 from .qwidgets.layer_stack_painter import LayerStackPainter
 from .qwidgets.point_list_picker_table import PointListPickerTable
@@ -105,38 +106,38 @@ class RisWidgetQtObject(Qt.QMainWindow):
     #     self.histogram_view.gl_widget.setAttribute(Qt.Qt.WA_AlwaysStackOnTop)
 
     def _init_actions(self):
-        self.flipbook_focus_prev_page = Qt.QAction(self)
-        self.flipbook_focus_prev_page.setText('Previous Page')
-        self.flipbook_focus_prev_page.setShortcut(Qt.Qt.Key_PageUp)
-        self.flipbook_focus_prev_page.triggered.connect(self.flipbook.focus_prev_page)
-        self.flipbook_focus_prev_page.setShortcutContext(Qt.Qt.ApplicationShortcut)
-        self.flipbook_focus_next_page = Qt.QAction(self)
-        self.flipbook_focus_next_page.setText('Next Page')
-        self.flipbook_focus_next_page.setShortcut(Qt.Qt.Key_PageDown)
-        self.flipbook_focus_next_page.triggered.connect(self.flipbook.focus_next_page)
-        self.flipbook_focus_next_page.setShortcutContext(Qt.Qt.ApplicationShortcut)
-        self.layer_stack_reset_curr_min_max = Qt.QAction(self)
-        self.layer_stack_reset_curr_min_max.setText('Reset Min/Max')
-        self.layer_stack_reset_curr_min_max.setShortcut(Qt.Qt.Key_M)
-        self.layer_stack_reset_curr_min_max.setShortcutContext(Qt.Qt.ApplicationShortcut)
-        self.layer_stack_reset_curr_min_max.triggered.connect(self._on_reset_min_max)
-        self.layer_stack_toggle_curr_auto_min_max = Qt.QAction(self)
-        self.layer_stack_toggle_curr_auto_min_max.setText('Toggle Auto Min/Max')
-        self.layer_stack_toggle_curr_auto_min_max.setShortcut(Qt.Qt.Key_A)
-        self.layer_stack_toggle_curr_auto_min_max.setShortcutContext(Qt.Qt.ApplicationShortcut)
-        self.layer_stack_toggle_curr_auto_min_max.triggered.connect(self._on_toggle_auto_min_max)
-        self.addAction(self.layer_stack_toggle_curr_auto_min_max) # Necessary for shortcut to work as this action does not appear in a menu or toolbar
-        self.layer_stack_reset_curr_gamma = Qt.QAction(self)
-        self.layer_stack_reset_curr_gamma.setText('Reset \u03b3')
-        self.layer_stack_reset_curr_gamma.setShortcut(Qt.Qt.Key_G)
-        self.layer_stack_reset_curr_gamma.setShortcutContext(Qt.Qt.ApplicationShortcut)
-        self.layer_stack_reset_curr_gamma.triggered.connect(self._on_reset_gamma)
-        self.layer_property_stack_save = Qt.QAction(self)
-        self.layer_property_stack_save.setText('Save layer property stack as...')
-        self.layer_property_stack_save.triggered.connect(self._on_save_layer_property_stack)
-        self.layer_property_stack_load = Qt.QAction(self)
-        self.layer_property_stack_load.setText('Load layer property stack from file...')
-        self.layer_property_stack_load.triggered.connect(self._on_load_layer_property_stack)
+        self.flipbook_focus_prev_page_action = Qt.QAction(self)
+        self.flipbook_focus_prev_page_action.setText('Previous Page')
+        self.flipbook_focus_prev_page_action.setShortcut(Qt.Qt.Key_PageUp)
+        self.flipbook_focus_prev_page_action.triggered.connect(self.flipbook.focus_prev_page)
+        self.flipbook_focus_prev_page_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
+        self.flipbook_focus_next_page_action = Qt.QAction(self)
+        self.flipbook_focus_next_page_action.setText('Next Page')
+        self.flipbook_focus_next_page_action.setShortcut(Qt.Qt.Key_PageDown)
+        self.flipbook_focus_next_page_action.triggered.connect(self.flipbook.focus_next_page)
+        self.flipbook_focus_next_page_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
+        self.layer_stack_reset_curr_min_max_action = Qt.QAction(self)
+        self.layer_stack_reset_curr_min_max_action.setText('Reset Min/Max')
+        self.layer_stack_reset_curr_min_max_action.setShortcut(Qt.Qt.Key_M)
+        self.layer_stack_reset_curr_min_max_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
+        self.layer_stack_reset_curr_min_max_action.triggered.connect(self._on_reset_min_max)
+        self.layer_stack_toggle_curr_auto_min_max_action = Qt.QAction(self)
+        self.layer_stack_toggle_curr_auto_min_max_action.setText('Toggle Auto Min/Max')
+        self.layer_stack_toggle_curr_auto_min_max_action.setShortcut(Qt.Qt.Key_A)
+        self.layer_stack_toggle_curr_auto_min_max_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
+        self.layer_stack_toggle_curr_auto_min_max_action.triggered.connect(self._on_toggle_auto_min_max)
+        self.addAction(self.layer_stack_toggle_curr_auto_min_max_action) # Necessary for shortcut to work as this action does not appear in a menu or toolbar
+        self.layer_stack_reset_curr_gamma_action = Qt.QAction(self)
+        self.layer_stack_reset_curr_gamma_action.setText('Reset \u03b3')
+        self.layer_stack_reset_curr_gamma_action.setShortcut(Qt.Qt.Key_G)
+        self.layer_stack_reset_curr_gamma_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
+        self.layer_stack_reset_curr_gamma_action.triggered.connect(self._on_reset_gamma)
+        self.layer_property_stack_save_action = Qt.QAction(self)
+        self.layer_property_stack_save_action.setText('Save layer property stack as...')
+        self.layer_property_stack_save_action.triggered.connect(self._on_save_layer_property_stack)
+        self.layer_property_stack_load_action = Qt.QAction(self)
+        self.layer_property_stack_load_action.setText('Load layer property stack from file...')
+        self.layer_property_stack_load_action.triggered.connect(self._on_load_layer_property_stack)
         if sys.platform == 'darwin':
             self.exit_fullscreen_action = Qt.QAction(self)
             # If self.exit_fullscreen_action's text were "Exit Full Screen Mode" as we desire,
@@ -152,8 +153,8 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.main_view.zoom_one_to_one_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
         self.layer_stack.examine_layer_mode_action.setShortcut(Qt.Qt.Key_E)
         self.layer_stack.examine_layer_mode_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
-        self.layer_stack.master_enable_auto_min_max_action.setShortcut(Qt.Qt.Key_F)
-        self.layer_stack.master_enable_auto_min_max_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
+        self.layer_stack.auto_min_max_master_on_enabled_action.setShortcut(Qt.Qt.Key_F)
+        self.layer_stack.auto_min_max_master_on_enabled_action.setShortcutContext(Qt.Qt.ApplicationShortcut)
         self.main_view_snapshot_action = Qt.QAction(self)
         self.main_view_snapshot_action.setText('Main View Snapshot')
         self.main_view_snapshot_action.setShortcut(Qt.Qt.Key_S)
@@ -197,8 +198,18 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.layer_stack.selection_model = self.layer_table_selection_model
         self.layer_table_dock_widget.setWidget(self.layer_table_view)
         self.layer_table_dock_widget.setAllowedAreas(Qt.Qt.AllDockWidgetAreas)
-        self.layer_table_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
+        self.layer_table_dock_widget.setFeatures(
+            Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
         self.addDockWidget(Qt.Qt.TopDockWidgetArea, self.layer_table_dock_widget)
+        self.fps_display_dock_widget = Qt.QDockWidget('FPS', self)
+        self.fps_display = FPSDisplay()
+        self.main_scene.layer_stack_item.painted.connect(self.fps_display.notify)
+        self.fps_display_dock_widget.setWidget(self.fps_display)
+        self.fps_display_dock_widget.setAllowedAreas(Qt.Qt.AllDockWidgetAreas)
+        self.fps_display_dock_widget.setFeatures(
+            Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
+        self.addDockWidget(Qt.Qt.RightDockWidgetArea, self.fps_display_dock_widget)
+        self.fps_display_dock_widget.hide()
 
     def _init_flipbook(self):
         self.flipbook = fb = Flipbook(self.layer_stack, self)
@@ -250,8 +261,9 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.main_view_zoom_combo.lineEdit().returnPressed.connect(self._main_view_zoom_combo_custom_value_entered)
         self.main_view.zoom_changed.connect(self._main_view_zoom_changed)
         self.main_view_toolbar.addAction(self.main_view.zoom_to_fit_action)
-        self.main_view_toolbar.addAction(self.layer_stack_reset_curr_min_max)
-        self.main_view_toolbar.addAction(self.layer_stack_reset_curr_gamma)
+        self.main_view_toolbar.addAction(self.layer_stack_reset_curr_min_max_action)
+        self.main_view_toolbar.addAction(self.layer_stack_reset_curr_gamma_action)
+        self.main_view_toolbar.addAction(self.layer_stack.auto_min_max_master_on_enabled_action)
         self.main_view_toolbar.addAction(self.layer_stack.examine_layer_mode_action)
         self.main_view_toolbar.addAction(self.main_view_snapshot_action)
         self.main_view_toolbar.addAction(self.flipbook.consolidate_selected_action)
@@ -261,12 +273,13 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.dock_widget_visibility_toolbar.addAction(self.layer_stack_painter_dock_widget.toggleViewAction())
         self.dock_widget_visibility_toolbar.addAction(self.histogram_dock_widget.toggleViewAction())
         self.dock_widget_visibility_toolbar.addAction(self.flipbook_dock_widget.toggleViewAction())
+        self.dock_widget_visibility_toolbar.addAction(self.fps_display_dock_widget.toggleViewAction())
 
     def _init_menus(self):
         mb = self.menuBar()
         m = mb.addMenu('File')
-        m.addAction(self.layer_property_stack_save)
-        m.addAction(self.layer_property_stack_load)
+        m.addAction(self.layer_property_stack_save_action)
+        m.addAction(self.layer_property_stack_load_action)
         m = mb.addMenu('View')
         if sys.platform == 'darwin':
             m.addAction(self.exit_fullscreen_action)
@@ -274,12 +287,13 @@ class RisWidgetQtObject(Qt.QMainWindow):
         m.addAction(self.main_view.zoom_to_fit_action)
         m.addAction(self.main_view.zoom_one_to_one_action)
         m.addSeparator()
-        m.addAction(self.flipbook_focus_prev_page)
-        m.addAction(self.flipbook_focus_next_page)
+        m.addAction(self.flipbook_focus_prev_page_action)
+        m.addAction(self.flipbook_focus_next_page_action)
+        m.addAction(self.flipbook.toggle_playing_action)
         m.addSeparator()
-        m.addAction(self.layer_stack_reset_curr_min_max)
-        m.addAction(self.layer_stack_reset_curr_gamma)
-        m.addAction(self.layer_stack.master_enable_auto_min_max_action)
+        m.addAction(self.layer_stack_reset_curr_min_max_action)
+        m.addAction(self.layer_stack_reset_curr_gamma_action)
+        m.addAction(self.layer_stack.auto_min_max_master_on_enabled_action)
         m.addAction(self.layer_stack.examine_layer_mode_action)
         m.addSeparator()
         m.addAction(self.layer_stack.layer_name_in_contextual_info_action)
@@ -364,6 +378,14 @@ class RisWidgetQtObject(Qt.QMainWindow):
     @image.setter
     def image(self, v):
         self.layer.image = v
+
+    @property
+    def mask(self):
+        return self.layer_stack.imposed_image_mask
+
+    @mask.setter
+    def mask(self, v):
+        self.layer_stack.imposed_image_mask = v
 
     def _on_flipbook_pages_inserted(self, parent, first_idx, last_idx):
         self._update_flipbook_visibility()
@@ -541,6 +563,8 @@ class RisWidget:
         'flipbook',
         'main_scene',
         'main_view',
+        ('main_scene.viewport_rect_item', 'main_viewport_rect_item'),
+        ('main_scene.layer_stack_item', 'layer_stack_item'),
         'show',
         'hide',
         'close'
@@ -570,8 +594,16 @@ class RisWidget:
             layer_selection_model,
             **kw)
         self.main_view_change_signal = self.qt_object.main_view_change_signal
-        for refname in self.COPY_REFS:
-            setattr(self, refname, getattr(self.qt_object, refname))
+        for refdesc in self.COPY_REFS:
+            if isinstance(refdesc, str):
+                path, name = refdesc, refdesc
+            else:
+                path, name = refdesc
+                obj = self.qt_object
+            obj = self.qt_object
+            for element in path.split('.'):
+                obj = getattr(obj, element)
+            setattr(self, name, obj)
         self.add_image_files_to_flipbook = self.flipbook.add_image_files
         self.snapshot = self.qt_object.main_view.snapshot
         if show:
@@ -581,6 +613,7 @@ class RisWidget:
     layer = ProxyProperty('layer', 'qt_object', RisWidgetQtObject)
     focused_layer = ProxyProperty('focused_layer', 'qt_object', RisWidgetQtObject)
     layers = ProxyProperty('layers', 'qt_object', RisWidgetQtObject)
+    mask = ProxyProperty('mask', 'qt_object', RisWidgetQtObject)
     # It is not easy to spot the pages property of a flipbook amongst the many possibilities visibile in dir(Flipbook).  So,
     # although flipbook_pages saves no characters compared to flipbook.pages, flipbook_pages is nice to have.
     flipbook_pages = ProxyProperty('pages', 'flipbook', Flipbook)
