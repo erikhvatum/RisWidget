@@ -53,7 +53,14 @@ class Image(Qt.QObject):
         * Properties with individual change signals: .name.  It is safe to assign None in addition anything else that str(..) accepts as its argument to
         .name.  When the value of .name or .imposed_float_range is modified, .name_changed is emitted.
 
-    Additionally, emission of .data_changed, .mask_changed, or .name_changed causes emission of .changed."""
+    Additionally, emission of .data_changed, .mask_changed, or .name_changed causes emission of .changed.
+
+    An Image instance should only be manipulated by the thread that owns it.  Imposing this restriction simplifies Image's implementation while improving
+    performance.  For example, the main thread may modify image.data in place while texture upload and ndimage statistic calculations are ongoing in background
+    threads, with the result that the content of image.stats_future.result() - used by image.extremae, image.histogram, and image.max_histogram_bin -  and the
+    texture bound by "with image.texture_binding(n):" become undefined.  However, so long as the main thread calls image.refresh() immediately after modifying
+    the contents of image.data, causing image.stats_future and image.async_texture to be replaced, there is never an opportunity for these undefined results
+    to be used."""
     changed = Qt.pyqtSignal(object)
     data_changed = Qt.pyqtSignal(object)
     mask_changed = Qt.pyqtSignal(object)

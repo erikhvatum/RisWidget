@@ -530,36 +530,6 @@ class LayerStackItem(ShaderItem):
                             self.NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[image.dtype.type],
                             image.data.ctypes.data,
                             pixel_transfer_opts)
-#               else:
-#                   NUMPY_DTYPE_TO_GL_PIXEL_TYPE = {
-#                       numpy.bool8  : GL.GL_UNSIGNED_BYTE,
-#                       numpy.uint8  : GL.GL_UNSIGNED_BYTE,
-#                       numpy.uint16 : GL.GL_UNSIGNED_SHORT,
-#                       numpy.float32: GL.GL_FLOAT}
-#                   IMAGE_TYPE_TO_GL_TEX_FORMAT = {
-#                       'G'   : GL.GL_R32F,
-#                       'Ga'  : GL.GL_RG32F,
-#                       'rgb' : GL.GL_RGB32F,
-#                       'rgba': GL.GL_RGBA32F}
-#                   IMAGE_TYPE_TO_GL_SRC_PIX_FORMAT = {
-#                       'G'   : GL.GL_RED,
-#                       'Ga'  : GL.GL_RG,
-#                       'rgb' : GL.GL_RGB,
-#                       'rgba': GL.GL_RGBA}
-#                   orig_unpack_alignment = GL.glGetIntegerv(GL.GL_UNPACK_ALIGNMENT)
-#                   if orig_unpack_alignment != 1:
-#                       GL.glPixelStorei(GL.GL_UNPACK_ALIGNMENT, 1)
-#                       # QPainter font rendering for OpenGL surfaces will become broken if we do not restore GL_UNPACK_ALIGNMENT
-#                       # to whatever QPainter had it set to (when it prepared the OpenGL context for our use as a result of
-#                       # qpainter.beginNativePainting()).
-#                       estack.callback(lambda oua=orig_unpack_alignment: GL.glPixelStorei(GL.GL_UNPACK_ALIGNMENT, oua))
-#                   GL.glTexSubImage2D(
-#                       GL.GL_TEXTURE_2D, 0, 0, 0, image.size.width(), image.size.height(),
-#                       IMAGE_TYPE_TO_GL_SRC_PIX_FORMAT[image.type],
-#                       NUMPY_DTYPE_TO_GL_PIXEL_TYPE[image.dtype.type],
-#                       memoryview(layer.data_T.flatten()))
-#                   if self._trilinear_filtering_enabled:
-#                       tex.generateMipMaps(0)
                 tex.serial = serial
                 # self._texs[layer] is updated here and not before so that any failure preparing tex results in a retry the next time self._texs[layer]
                 # is needed
