@@ -60,21 +60,6 @@ class LayerStackItem(ShaderItem):
     of layer_stack is in pixel units, making the mapping between scene units and pixel units 1:1 for the layer at the bottom
     of the stack (ie, layer_stack[0])."""
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
-    NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
-        numpy.bool8: Qt.QOpenGLTexture.UInt8,
-        numpy.uint8: Qt.QOpenGLTexture.UInt8,
-        numpy.uint16: Qt.QOpenGLTexture.UInt16,
-        numpy.float32: Qt.QOpenGLTexture.Float32}
-    IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT = {
-        'G': Qt.QOpenGLTexture.R32F,
-        'Ga': Qt.QOpenGLTexture.RG32F,
-        'rgb': Qt.QOpenGLTexture.RGB32F,
-        'rgba': Qt.QOpenGLTexture.RGBA32F}
-    IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT = {
-        'G': Qt.QOpenGLTexture.Red,
-        'Ga': Qt.QOpenGLTexture.RG,
-        'rgb': Qt.QOpenGLTexture.RGB,
-        'rgba': Qt.QOpenGLTexture.RGBA}
     UNIFORM_SECTION_TEMPLATE = Template(textwrap.dedent("""\
         uniform sampler2D tex_${tidx};
         uniform float rescale_min_${tidx};
@@ -113,10 +98,6 @@ class LayerStackItem(ShaderItem):
         layer_stack.layers_replaced.connect(self._on_layerlist_replaced)
         layer_stack.layer_focus_changed.connect(self._on_layer_focus_changed)
         layer_stack.examine_layer_mode_action.toggled.connect(self.update)
-        self._texs = {}
-        self._dead_texs = [] # Textures queued for deletion when an OpenGL context is available
-        self._layer_data_serials = {}
-        self._next_data_serial = 0
         self._layer_instance_counts = {}
 
     def __del__(self):
@@ -168,21 +149,27 @@ class LayerStackItem(ShaderItem):
         self.update()
 
     def _attach_layers(self, layers):
+        layer_stack = self.layer_stack
+        examine_layer_mode_enabled = layer_stack.examine_layer_mode_enabled
+        if examine_layer_mode_enabled:
+            focused_layer = layer_stack.focused_layer
+        layer_instance_counts = self._layer_instance_counts
         for layer in layers:
-            instance_count = self._layer_instance_counts.get(layer, 0) + 1
+            instance_count = layer_instance_counts.get(layer, 0) + 1
             assert instance_count > 0
-            self._layer_instance_counts[layer] = instance_count
+            layer_instance_counts[layer] = instance_count
             if instance_count == 1:
+                # Initiate background texture upload if layer has a visible image; a no-op if image's texture is already uploaded or
+                # queued for uploading.
+                image = layer.image
+                if image is not None and (examine_layer_mode_enabled and layer is focused_layer or not examine_layer_mode_enabled and layer.visible):
+                    image.async_texture.upload()
                 # Any change, including layer data change, may change result of rendering layer and therefore requires refresh
                 layer.changed.connect(self._on_layer_changed)
-                # Only change to layer layer data invalidates a texture.  Texture uploading is deferred until rendering, and rendering is
-                # deferred until the next iteration of the event loop.  When layer emits layer_changed, it will also emit
-                # changed.  In effect, self.update marks the scene as requiring refresh while self._on_layer_changed marks the
-                # associated texture as requiring refresh.  Both marking operations are fast and may be called redundantly multiple
-                # times per frame without significantly impacting performace.
+                # When layer emits layer_changed, it will also emit changed.  In effect, self.update marks the scene as requiring
+                # refresh while self._on_layer_changed initiates a texture upload in the background.  Both operations are fast
+                # and may be called redundantly multiple times per frame without significantly impacting performance.
                 layer.image_changed.connect(self._on_layer_image_changed)
-                self._layer_data_serials[layer] = self._generate_data_serial()
-                self._texs[layer] = None
 
     def _detach_layers(self, layers):
         for layer in layers:
@@ -191,12 +178,6 @@ class LayerStackItem(ShaderItem):
             if instance_count == 0:
                 layer.changed.disconnect(self._on_layer_changed)
                 layer.image_changed.disconnect(self._on_layer_image_changed)
-                del self._layer_instance_counts[layer]
-                del self._layer_data_serials[layer]
-                dead_tex = self._texs[layer]
-                if dead_tex is not None:
-                    self._dead_texs.append(dead_tex)
-                del self._texs[layer]
             else:
                 self._layer_instance_counts[layer] = instance_count
 
@@ -271,12 +252,17 @@ class LayerStackItem(ShaderItem):
         self.update()
 
     def _on_layer_image_changed(self, layer):
-        self._layer_data_serials[layer] = self._generate_data_serial()
         idx = self.layer_stack.layers.index(layer)
         if idx == 0:
             image = layer.image
             current_br = self.boundingRect()
-            new_br = self.DEFAULT_BOUNDING_RECT if image is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(image.size))
+            if image is None:
+                new_br = self.DEFAULT_BOUNDING_RECT
+            else:
+                new_br = Qt.QRectF(Qt.QPointF(), Qt.QSizeF(image.size))
+                examine_layer_mode_enabled = self.layer_stack.examine_layer_mode_enabled
+                if examine_layer_mode_enabled and layer is self.layer_stack.focused_layer or not examine_layer_mode_enabled and layer.visible:
+                    image.async_texture.upload()
             if new_br != current_br:
                 self.prepareGeometryChange()
                 self._bounding_rect = new_br
@@ -337,7 +323,7 @@ class LayerStackItem(ShaderItem):
             # offsets must be discarded only after projecting from lowest-layer pixel coordinates
             # to current layer pixel coordinates.  It is easy to see why in the case of an overlay
             # exactly half the width and height of the base: one base unit is two overlay units,
-            # so dropping base unit fractions would cause overlay units to be rounded to the preceeding
+            # so dropping base unit fractions would cause overlay units to be rounded to the preceding
             # even number in any case where an overlay coordinate component should be odd.
             image = layer.image
             if image is None:
@@ -358,13 +344,10 @@ class LayerStackItem(ShaderItem):
         self.contextual_info.value = '\n'.join(reversed(cis))
 
     def paint(self, qpainter, option, widget):
-        #assert widget is not None, 'LayerStackItem.paint called with widget=None.  Ensure that view caching is disabled.'
         qpainter.beginNativePainting()
         with ExitStack() as estack:
             estack.callback(qpainter.endNativePainting)
-            self._destroy_dead_texs()
-            GL = QGL()
-            visible_idxs = self._get_visible_idxs_and_update_texs(GL, estack)
+            visible_idxs = self._get_visible_idxs_and_update_texs(estack)
             if not visible_idxs:
                 return
             prog_desc = tuple((layer.getcolor_expression,
@@ -410,6 +393,7 @@ class LayerStackItem(ShaderItem):
             estack.callback(view.quad_vao.release)
             vert_coord_loc = prog.attributeLocation('vert_coord')
             prog.enableAttributeArray(vert_coord_loc)
+            GL = QGL()
             prog.setAttributeBuffer(vert_coord_loc, GL.GL_FLOAT, 0, 2, 0)
             prog.setUniformValue('viewport_height', GL.glGetFloatv(GL.GL_VIEWPORT)[3])
             prog.setUniformValue('layer_stack_item_opacity', self.opacity())
@@ -475,70 +459,22 @@ class LayerStackItem(ShaderItem):
             raise NotImplementedError('OpenGL-compatible normalization for {} missing.'.format(image.dtype))
         return v
 
-    def _generate_data_serial(self):
-        r = self._next_data_serial
-        self._next_data_serial += 1
-        return r
-
-    def _get_visible_idxs_and_update_texs(self, GL, estack):
+    def _get_visible_idxs_and_update_texs(self, estack):
         """Meant to be executed between a pair of QPainter.beginNativePainting() QPainter.endNativePainting() calls or,
         at the very least, when an OpenGL context is current, _get_nonmuted_idxs_and_update_texs does whatever is required,
         for every visible layer with non-None .layer in self.layer_stack, in order that self._texs[layer] represents layer, including texture
         object creation and texture data uploading, and it leaves self._texs[layer] bound to texture unit n, where n is
         the associated visible_idx."""
-        if self.layer_stack.examine_layer_mode_enabled:
-            idx = self.layer_stack.focused_layer_idx
-            visible_idxs = [] if idx is None else [idx]
-        elif self.layer_stack.layers:
-            visible_idxs = [idx for idx, layer in enumerate(self.layer_stack.layers) if layer.visible and layer.image is not None]
+        layer_stack = self.layer_stack
+        if layer_stack.examine_layer_mode_enabled:
+            idx = layer_stack.focused_layer_idx
+            visible_idxs = [] if idx is None or layer_stack[idx].image is None else [idx]
+        elif layer_stack.layers:
+            visible_idxs = [idx for idx, layer in enumerate(layer_stack.layers) if layer.visible and layer.image is not None]
         else:
             visible_idxs = []
         for tex_unit, idx in enumerate(visible_idxs):
-            layer = self.layer_stack.layers[idx]
+            layer = layer_stack.layers[idx]
             image = layer.image
-            tex = self._texs[layer]
-            serial = self._layer_data_serials[layer]
-#           even_width = layer.size.width() % 2 == 0
-            desired_texture_format = self.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[image.type]
-            desired_texture_size = image.size #if even_width else Qt.QSize(layer.size.width()+1, layer.size.height())
-            desired_minification_filter = Qt.QOpenGLTexture.LinearMipMapLinear if layer.trilinear_filtering_enabled else Qt.QOpenGLTexture.Linear
-            if tex is not None:
-                if Qt.QSize(tex.width(), tex.height()) != desired_texture_size or tex.format() != desired_texture_format or tex.minificationFilter() != desired_minification_filter:
-                    tex.destroy()
-                    tex = self._texs[layer] = None
-            if tex is None:
-                tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
-                tex.setFormat(desired_texture_format)
-                tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
-                if layer.trilinear_filtering_enabled:
-                    tex.setMipLevels(6)
-                    tex.setAutoMipMapGenerationEnabled(True)
-                else:
-                    tex.setMipLevels(1)
-                    tex.setAutoMipMapGenerationEnabled(False)
-                tex.setSize(desired_texture_size.width(), desired_texture_size.height(), 1)
-                tex.allocateStorage()
-                tex.setMinMagFilters(desired_minification_filter, Qt.QOpenGLTexture.Nearest)
-                tex.serial = -1
-            tex.bind(tex_unit)
-            estack.callback(lambda: tex.release(tex_unit))
-            if tex.serial != serial:
-#               if even_width:
-                pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
-                pixel_transfer_opts.setAlignment(1)
-                tex.setData(self.IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT[image.type],
-                            self.NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[image.dtype.type],
-                            image.data.ctypes.data,
-                            pixel_transfer_opts)
-                tex.serial = serial
-                # self._texs[layer] is updated here and not before so that any failure preparing tex results in a retry the next time self._texs[layer]
-                # is needed
-                self._texs[layer] = tex
+            image.async_texture.bind(tex_unit, estack)
         return visible_idxs
-
-    def _destroy_dead_texs(self):
-        """Meant to be executed between a pair of QPainter.beginNativePainting() QPainter.endNativePainting() calls or,
-        at the very least, when an OpenGL context is current."""
-        while self._dead_texs:
-            dead_tex = self._dead_texs.pop()
-            dead_tex.destroy()

@@ -58,13 +58,29 @@ class Image(Qt.QObject):
     An Image instance should only be manipulated by the thread that owns it.  Imposing this restriction simplifies Image's implementation while improving
     performance.  For example, the main thread may modify image.data in place while texture upload and ndimage statistic calculations are ongoing in background
     threads, with the result that the content of image.stats_future.result() - used by image.extremae, image.histogram, and image.max_histogram_bin -  and the
-    texture bound by "with image.texture_binding(n):" become undefined.  However, so long as the main thread calls image.refresh() immediately after modifying
+    texture bound by "image.bind_texture(n, estack):" become undefined.  However, so long as the main thread calls image.refresh() immediately after modifying
     the contents of image.data, causing image.stats_future and image.async_texture to be replaced, there is never an opportunity for these undefined results
     to be used."""
     changed = Qt.pyqtSignal(object)
     data_changed = Qt.pyqtSignal(object)
     mask_changed = Qt.pyqtSignal(object)
     name_changed = Qt.pyqtSignal(object)
+
+    NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
+        numpy.bool8: Qt.QOpenGLTexture.UInt8,
+        numpy.uint8: Qt.QOpenGLTexture.UInt8,
+        numpy.uint16: Qt.QOpenGLTexture.UInt16,
+        numpy.float32: Qt.QOpenGLTexture.Float32}
+    IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT = {
+        'G': Qt.QOpenGLTexture.R32F,
+        'Ga': Qt.QOpenGLTexture.RG32F,
+        'rgb': Qt.QOpenGLTexture.RGB32F,
+        'rgba': Qt.QOpenGLTexture.RGBA32F}
+    IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT = {
+        'G': Qt.QOpenGLTexture.Red,
+        'Ga': Qt.QOpenGLTexture.RG,
+        'rgb': Qt.QOpenGLTexture.RGB,
+        'rgba': Qt.QOpenGLTexture.RGBA}
 
     def __init__(
             self,
@@ -166,11 +182,19 @@ class Image(Qt.QObject):
             self.stats_future = ndimage_statistics.bundle_float_stats_into_future(histogram, extremae)
         else:
             if data_changed or mask_changed or is_twelve_bit_changed:
-                if self.dtype == bool:
-                    data = self._data.astype(numpy.uint8)
-                else:
-                    data = self._data
-                self.stats_future = ndimage_statistics.statistics(data, self.is_twelve_bit, self.mask, return_future=True)
+                data = self._data
+                t = self.type
+                self.async_texture = AsyncTexture(
+                    data,
+                    Image.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[t],
+                    Image.IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT[t],
+                    Image.NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[self.dtype.type],
+                    immediate_texture_upload)
+                self.stats_future = ndimage_statistics.statistics(
+                    data.astype(numpy.uint8) if self.dtype == bool else data, # TODO: fix ndimage_statistics so that bool => uint8 conversion is not required
+                    self.is_twelve_bit,
+                    self.mask,
+                    return_future=True)
         if data_changed or mask_changed or is_twelve_bit_changed or imposed_float_range_changed:
             self.data_changed.emit(self)
         if mask_changed:
