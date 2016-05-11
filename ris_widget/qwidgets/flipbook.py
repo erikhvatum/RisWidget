@@ -192,12 +192,14 @@ class Flipbook(Qt.QWidget):
         focused flipbook page, creating new layers as required, or clearing the image field of any excess
         layers.  This method is called automatically when focus moves to a different page and when
         the contents of the current page change."""
-        focused_page = self.focused_page
-        if focused_page is None:
+        focused_page_idx = self.focused_page_idx
+        if focused_page_idx is None:
             self.page_content_groupbox.setEnabled(False)
             self.page_content_model.signaling_list = None
             self._detach_page()
             return
+        pages = self.pages
+        focused_page = pages[focused_page_idx]
         if focused_page is not self._attached_page:
             self._detach_page()
             focused_page.inserted.connect(self.apply)
@@ -219,6 +221,14 @@ class Flipbook(Qt.QWidget):
                 layers.append(focused_page[idx])
             else:
                 layers[idx].image = focused_page[idx]
+        hint_pages = []
+        if focused_page_idx > 0:
+            hint_pages.append(pages[focused_page_idx-1])
+        if focused_page_idx < len(pages) - 1:
+            hint_pages.append(pages[focused_page_idx+1])
+        for hint_page in hint_pages:
+            for image in hint_page:
+                image.async_texture.upload()
         self.page_focus_changed.emit(self)
 
     def _detach_page(self):

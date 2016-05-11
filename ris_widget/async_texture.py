@@ -28,6 +28,7 @@ import enum
 from PyQt5 import Qt
 import queue
 import threading
+import warnings
 import weakref
 from . import shared_resources
 
@@ -141,8 +142,11 @@ class _AsyncTextureUploadThread(Qt.QThread):
                 if async_texture is not None:
                     assert async_texture._state == AsyncTextureState.Uploading and async_texture.tex is None
                     if Qt.QThread.currentThread() is not gl_context.thread():
-                        i = 2 + 1
+                        warnings.warn('_AsyncTextureUploadThread somehow managed to have its gl_context migrate to another thread, which makes no sense and should never happen.')
                     try:
+                        # tex = async_texture.tex
+                        # if tex is not None:
+                        #     tex.destroy()
                         async_texture.tex = tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
                         tex.setFormat(async_texture.format)
                         tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
@@ -252,7 +256,9 @@ class _TextureCache(Qt.QObject):
 
     def on_async_texture_finalized(self, async_texture_bottle):
         with self.lru_cache_lock:
-            if async_texture_bottle.tex is not None and (Qt.QOpenGLContext.currentContext() is not None or Qt.QThread.currentThread() is self.gl_context.thread()):
+            if async_texture_bottle.tex is not None:
+                if Qt.QOpenGLContext.currentContext() is None and Qt.QThread.currentThread() is not self.gl_context.thread():
+                    warnings.warn('_TextureCache.on_async_texture_finalized called from wrong thread.')
                 with ExitStack() as estack:
                     if Qt.QOpenGLContext.currentContext() is None:
                         self.gl_context.makeCurrent(self.offscreen_surface)
@@ -266,6 +272,7 @@ class _TextureCache(Qt.QObject):
                             async_texture.state_cv.notify_all()
             try:
                 self.lru_cache.remove(async_texture_bottle)
+                # print('removed')
             except ValueError:
                 pass
 
