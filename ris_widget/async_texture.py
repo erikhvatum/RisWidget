@@ -137,3 +137,5 @@ class TextureCache(QtCore.QObject):
         self.lru_cache.remove(async_texture_wr)
 
     def _on_app_about_to_quit(self):
+        # TODO: destroy all textures in cache
+        pass

@@ -314,9 +314,11 @@
             </Folder>
             <F N="ris_widget/__init__.py"/>
             <F N="ris_widget/_qt_debug.py"/>
+            <F N="ris_widget/async_texture.py"/>
+            <F N="ris_widget/contextual_info.py"/>
             <F N="ris_widget/image.py"/>
             <F N="ris_widget/layer.py"/>
-            <F N="ris_widget/layers.py"/>
+            <F N="ris_widget/layer_stack.py"/>
             <F N="ris_widget/point_list_picker.py"/>
             <F N="ris_widget/ris_widget.py"/>
             <F N="ris_widget/shared_resources.py"/>

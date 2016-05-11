@@ -67,7 +67,7 @@ class Image(Qt.QObject):
             is_twelve_bit=False,
             imposed_float_range=None,
             name=None,
-            early_texture_upload=True):
+            immediate_texture_upload=True):
         """
         The shape of image and mask data is interpreted as (x,y) for 2-d arrays and (x,y,c) for 3-d arrays.  If your image or mask was loaded as (y,x),
         array.T will produce an (x,y)-shaped array.  In case of (y,x,c) image data, array.swapaxes(0,1) is required."""
@@ -83,7 +83,7 @@ class Image(Qt.QObject):
             is_twelve_bit=is_twelve_bit,
             imposed_float_range=imposed_float_range,
             name=name,
-            early_texture_upload=early_texture_upload)
+            immediate_texture_upload=immediate_texture_upload)
 
     def _onObjectNameChanged(self):
         self.name_changed.emit(self)
@@ -135,7 +135,7 @@ class Image(Qt.QObject):
             mask_changed=False,
             is_twelve_bit_changed=False,
             imposed_float_range_changed=False,
-            early_texture_upload=True):
+            immediate_texture_upload=True):
         """
         The .refresh method should be called after modifying the contents of .data, .mask, and/or after replacing .is_twelve_bit or .imposed_float_range
         by assignment, with True supplied for the respective _changed argument.  It is assumed that only those changes may have occurred, and that
@@ -174,7 +174,8 @@ class Image(Qt.QObject):
             mask=...,
             is_twelve_bit=...,
             imposed_float_range=...,
-            name=...):
+            name=...,
+            immediate_texture_upload=True):
         """
         In addition to the values __init__ accepts for the data, mask, name, is_twelve_bit, and imposed_float_range arguments, set accepts ...
         (Ellipses) for these arguments to indicate No Change.  That is, the contents of i.data, i.name, i.mask, i.is_twelve_bit, and

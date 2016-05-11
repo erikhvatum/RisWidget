@@ -60,6 +60,21 @@ class LayerStackItem(ShaderItem):
     of layer_stack is in pixel units, making the mapping between scene units and pixel units 1:1 for the layer at the bottom
     of the stack (ie, layer_stack[0])."""
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
+    NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
+        numpy.bool8: Qt.QOpenGLTexture.UInt8,
+        numpy.uint8: Qt.QOpenGLTexture.UInt8,
+        numpy.uint16: Qt.QOpenGLTexture.UInt16,
+        numpy.float32: Qt.QOpenGLTexture.Float32}
+    IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT = {
+        'G': Qt.QOpenGLTexture.R32F,
+        'Ga': Qt.QOpenGLTexture.RG32F,
+        'rgb': Qt.QOpenGLTexture.RGB32F,
+        'rgba': Qt.QOpenGLTexture.RGBA32F}
+    IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT = {
+        'G': Qt.QOpenGLTexture.Red,
+        'Ga': Qt.QOpenGLTexture.RG,
+        'rgb': Qt.QOpenGLTexture.RGB,
+        'rgba': Qt.QOpenGLTexture.RGBA}
     UNIFORM_SECTION_TEMPLATE = Template(textwrap.dedent("""\
         uniform sampler2D tex_${tidx};
         uniform float rescale_min_${tidx};
