@@ -27,6 +27,7 @@ sip.setdestroyonexit(True)
 
 from PyQt5 import Qt
 import sys
+from . import async_texture
 from .layer import Layer
 from .layer_stack import LayerList, LayerStack
 from .point_list_picker import PointListPicker
@@ -84,6 +85,8 @@ class RisWidgetQtObject(Qt.QMainWindow):
         if window_title is not None:
             self.setWindowTitle(window_title)
         self.setAcceptDrops(True)
+        # Cause _TextureCache to be created on the main thread so that it is not created by the first worker thread that happens to make an Image
+        async_texture._TextureCache.instance()
         self.layer_stack = LayerStack()
         self._init_scenes_and_views()
         # self._apply_deep_color_fix()
