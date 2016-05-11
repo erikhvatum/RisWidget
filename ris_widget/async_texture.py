@@ -121,19 +121,16 @@ class _AsyncTextureBottle:
         self.tex = None
 
 class _AsyncTextureUploadThread(Qt.QThread):
-    def __init__(self, texture_cache):
+    def __init__(self, texture_cache, offscreen_surface):
         super().__init__()
         self.texture_cache = texture_cache
+        self.offscreen_surface = offscreen_surface
 
     def run(self):
         tc = self.texture_cache
-        glsf = shared_resources.GL_QSURFACE_FORMAT()
-        offscreen_surface = Qt.QOffscreenSurface()
-        offscreen_surface.setFormat(glsf)
-        offscreen_surface.create()
         gl_context = Qt.QOpenGLContext()
         gl_context.setShareContext(Qt.QOpenGLContext.globalShareContext())
-        gl_context.setFormat(glsf)
+        gl_context.setFormat(shared_resources.GL_QSURFACE_FORMAT())
         if not gl_context.create():
             raise RuntimeError('Failed to create OpenGL context for background texture upload thread.')
         async_texture_bottle = tc.work_queue.get()
@@ -141,17 +138,17 @@ class _AsyncTextureUploadThread(Qt.QThread):
             async_texture = async_texture_bottle.async_texture_wr()
             if async_texture is not None:
                 assert async_texture._state == AsyncTextureState.Uploading and async_texture.tex is None
-                gl_context.makeCurrent(offscreen_surface)
+                gl_context.makeCurrent(self.offscreen_surface)
                 try:
                     async_texture.tex = tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
-                    data = async_texture.data
+                    tex.setFormat(async_texture.format)
+                    tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
                     tex.setMipLevels(6)
                     tex.setAutoMipMapGenerationEnabled(True)
-                    tex.setFormat(async_texture.format)
-                    tex.setMinMagFilters(Qt.QOpenGLTexture.LinearMipMapLinear, Qt.QOpenGLTexture.Nearest)
-                    tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
+                    data = async_texture.data
                     tex.setSize(data.shape[0], data.shape[1], 1)
                     tex.allocateStorage()
+                    tex.setMinMagFilters(Qt.QOpenGLTexture.LinearMipMapLinear, Qt.QOpenGLTexture.Nearest)
                     tex.setData(
                         async_texture.source_format,
                         async_texture.source_type,
@@ -197,11 +194,17 @@ class _TextureCache(Qt.QObject):
         # and most recently used at lru_cache[-1]).
         self.lru_cache = collections.deque()
         self.lru_cache_lock = threading.Lock()
-        self.async_texture_upload_threads = [
-            _AsyncTextureUploadThread(self) for i in range(_TextureCache.ASYNC_TEXTURE_UPLOAD_THREAD_COUNT)
-        ]
-        for t in self.async_texture_upload_threads:
-            t.start()
+        self.async_texture_upload_threads = []
+        for _ in range(_TextureCache.ASYNC_TEXTURE_UPLOAD_THREAD_COUNT):
+            # Note that Qt docs state: "Note: Due to the fact that QOffscreenSurface is backed by a QWindow on some platforms, cross-platform applications must ensure that create() is only called on
+            # the main (GUI) thread. The QOffscreenSurface is then safe to be used with makeCurrent() on other threads, but the initialization and destruction must always happen on the main (GUI)
+            # thread."
+            offscreen_surface = Qt.QOffscreenSurface()
+            offscreen_surface.setFormat(glsf)
+            offscreen_surface.create()
+            upload_thread = _AsyncTextureUploadThread(self, offscreen_surface)
+            upload_thread.start()
+            self.async_texture_upload_threads.append(upload_thread)
         Qt.QApplication.instance().aboutToQuit.connect(self.shut_down)
 
     def __del__(self):
@@ -266,7 +269,7 @@ class _TextureCache(Qt.QObject):
         # Cancel any unstarted, queued uploads
         with self.work_queue.mutex:
             self.work_queue.queue.clear()
-            self.work_queue.queue.unfinished_tasks = 0
+            self.work_queue.unfinished_tasks = 0
         # Gracefully stop all upload threads
         for thread in self.async_texture_upload_threads:
             self.work_queue.put(None)

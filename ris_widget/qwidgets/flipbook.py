@@ -319,7 +319,7 @@ class Flipbook(Qt.QWidget):
         images = []
         for image_fpath, name in zip(image_stack_paths, image_names):
             data = self.freeimage.read(str(image_fpath))
-            images.append(Image(data, name=name, mask=self.layer_stack.imposed_image_mask))
+            images.append(Image(data, name=name, mask=self.layer_stack.imposed_image_mask, immediate_texture_upload=False))
         return images
 
     @staticmethod
