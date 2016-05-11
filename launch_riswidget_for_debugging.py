@@ -43,10 +43,10 @@ rw_dpath = Path(os.path.expanduser('~')) / 'zplrepo' / 'ris_widget'
 # rw.qt_object.layer_stack.imposed_image_mask = mask[:781,:1000]
 # rw.flipbook_pages.append(rw.qt_object.layer_stack.imposed_image_mask)
 #
-# rw.add_image_files_to_flipbook([
-#     [rw_dpath / 'Opteron_6300_die_shot_16_core_mod.jpg', rw_dpath / 'top_left_g.png'],
-#     # ['/Volumes/MrSpinny/14/2015-11-18t0948 focus-03_ffc.png']
-# ])
+rw.add_image_files_to_flipbook([
+    [rw_dpath / 'Opteron_6300_die_shot_16_core_mod.jpg', rw_dpath / 'top_left_g.png'],
+    ['/Volumes/MrSpinny/14/2015-11-18t0948 focus-03_ffc.png']
+])
 
 #rw.histogram_view.gl_widget.start_logging()
 

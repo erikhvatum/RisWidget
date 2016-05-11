@@ -100,25 +100,6 @@ class LayerStackItem(ShaderItem):
         layer_stack.examine_layer_mode_action.toggled.connect(self.update)
         self._layer_instance_counts = {}
 
-    def __del__(self):
-        scene = self.scene()
-        if scene is None:
-            return
-        views = scene.views()
-        if not views:
-            return
-        view = views[0]
-        gl_widget = view.gl_widget
-        context = gl_widget.context()
-        if not context:
-            return
-        gl_widget.makeCurrent()
-        try:
-            self._dead_texs.extend(self._texs.values())
-            self._destroy_dead_texs()
-        finally:
-            gl_widget.doneCurrent()
-
     def type(self):
         return LayerStackItem.QGRAPHICSITEM_TYPE
 

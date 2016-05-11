@@ -81,7 +81,7 @@ class AsyncTexture:
             self.state_cv.notify_all()
 
     def bind(self, tmu, exit_stack):
-        tc = self.state_cv.notify_all()
+        tc = _TextureCache.instance()
         with self.state_cv:
             assert self._state != AsyncTextureState.Bound and self.bound_tmu is None
             if self._state == AsyncTextureState.UploadFailed:
@@ -135,39 +135,37 @@ class _AsyncTextureUploadThread(Qt.QThread):
         gl_context.setFormat(glsf)
         if not gl_context.create():
             raise RuntimeError('Failed to create OpenGL context for background texture upload thread.')
-        work = tc.work_queue.get()
-        while work is not None:
-            async_texture_bottle = work()
-            if async_texture_bottle is not None:
-                async_texture = async_texture_bottle.async_texture_wr()
-                if async_texture is not None:
-                    assert async_texture._state == AsyncTextureState.Uploading and async_texture.tex is None
-                    gl_context.makeCurrent(offscreen_surface)
-                    try:
-                        async_texture.tex = tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
-                        data = async_texture.data
-                        tex.setMipLevels(6)
-                        tex.setAutoMipMapGenerationEnabled(True)
-                        tex.setFormat(async_texture.format)
-                        tex.setMinMagFilters(Qt.QOpenGLTexture.LinearMipMapLinear, Qt.QOpenGLTexture.Nearest)
-                        tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
-                        tex.setSize(data.shape[0], data.shape[1], 1)
-                        tex.allocateStorage()
-                        tex.setData(
-                            async_texture.source_format,
-                            async_texture.source_type,
-                            data.ctypes.data,
-                            async_texture.pixel_transfer_opts
-                        )
-                        tc.on_upload_completion_in_upload_thread(async_texture)
-                    except Exception as e:
-                        async_texture._upload_exception = e
-                        with async_texture.state_cv:
-                            async_texture._state = AsyncTextureState.UploadFailed
-                            async_texture.state_cv.notify_all()
-                    finally:
-                        gl_context.doneCurrent()
-            work = tc.work_queue.get()
+        async_texture_bottle = tc.work_queue.get()
+        while async_texture_bottle is not None:
+            async_texture = async_texture_bottle.async_texture_wr()
+            if async_texture is not None:
+                assert async_texture._state == AsyncTextureState.Uploading and async_texture.tex is None
+                gl_context.makeCurrent(offscreen_surface)
+                try:
+                    async_texture.tex = tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
+                    data = async_texture.data
+                    tex.setMipLevels(6)
+                    tex.setAutoMipMapGenerationEnabled(True)
+                    tex.setFormat(async_texture.format)
+                    tex.setMinMagFilters(Qt.QOpenGLTexture.LinearMipMapLinear, Qt.QOpenGLTexture.Nearest)
+                    tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
+                    tex.setSize(data.shape[0], data.shape[1], 1)
+                    tex.allocateStorage()
+                    tex.setData(
+                        async_texture.source_format,
+                        async_texture.source_type,
+                        data.ctypes.data,
+                        async_texture.pixel_transfer_opts
+                    )
+                    tc.on_upload_completion_in_upload_thread(async_texture)
+                except Exception as e:
+                    async_texture._upload_exception = e
+                    with async_texture.state_cv:
+                        async_texture._state = AsyncTextureState.UploadFailed
+                        async_texture.state_cv.notify_all()
+                finally:
+                    gl_context.doneCurrent()
+            async_texture_bottle = tc.work_queue.get()
         self.texture_cache = None
 
 class _TextureCache(Qt.QObject):
@@ -198,7 +196,7 @@ class _TextureCache(Qt.QObject):
         self.lru_cache = collections.deque()
         self.lru_cache_lock = threading.Lock()
         self.async_texture_upload_threads = [
-            _AsyncTextureUploadThread(self.work_queue) for i in range(_TextureCache.ASYNC_TEXTURE_UPLOAD_THREAD_COUNT)
+            _AsyncTextureUploadThread(self) for i in range(_TextureCache.ASYNC_TEXTURE_UPLOAD_THREAD_COUNT)
         ]
         for t in self.async_texture_upload_threads:
             t.start()
