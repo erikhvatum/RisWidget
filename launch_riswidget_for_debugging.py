@@ -48,6 +48,6 @@ rw.add_image_files_to_flipbook([
     # ['/Volumes/MrSpinny/14/2015-11-18t0948 focus-03_ffc.png']
 ])
 
-#rw.histogram_view.gl_widget.start_logging()
+# rw.qt_object.main_view.gl_widget.start_logging()
 
 app.exec_()

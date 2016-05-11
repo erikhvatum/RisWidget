@@ -98,7 +98,7 @@ class AsyncTexture:
                         raise self._upload_exception
                     raise RuntimeError('Texture upload failed for unknown reasons.')
                 self.state_cv.wait()
-            self.tex.bind(tmu, Qt.QOpenGLTexture.ResetTextureUnit)
+            self.tex.bind(tmu, Qt.QOpenGLTexture.DontResetTextureUnit)
             exit_stack.callback(self._release)
             self.bound_tmu = tmu
             tc.on_async_texture_bound(self)
