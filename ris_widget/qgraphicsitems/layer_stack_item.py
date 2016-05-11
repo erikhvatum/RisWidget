@@ -449,7 +449,7 @@ class LayerStackItem(ShaderItem):
         layer_stack = self.layer_stack
         if layer_stack.examine_layer_mode_enabled:
             idx = layer_stack.focused_layer_idx
-            visible_idxs = [] if idx is None or layer_stack[idx].image is None else [idx]
+            visible_idxs = [] if idx is None or layer_stack.layers[idx].image is None else [idx]
         elif layer_stack.layers:
             visible_idxs = [idx for idx, layer in enumerate(layer_stack.layers) if layer.visible and layer.image is not None]
         else:

@@ -132,6 +132,7 @@ class _AsyncTextureUploadThread(Qt.QThread):
         offscreen_surface.setFormat(glsf)
         offscreen_surface.create()
         gl_context = Qt.QOpenGLContext()
+        gl_context.setShareContext(Qt.QOpenGLContext.globalShareContext())
         gl_context.setFormat(glsf)
         if not gl_context.create():
             raise RuntimeError('Failed to create OpenGL context for background texture upload thread.')
@@ -187,6 +188,7 @@ class _TextureCache(Qt.QObject):
         self.offscreen_surface.setFormat(glsf)
         self.offscreen_surface.create()
         self.gl_context = Qt.QOpenGLContext()
+        self.gl_context.setShareContext(Qt.QOpenGLContext.globalShareContext())
         self.gl_context.setFormat(glsf)
         if not self.gl_context.create():
             raise RuntimeError('Failed to create OpenGL context for TextureCache.')
