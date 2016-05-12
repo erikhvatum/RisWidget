@@ -24,6 +24,8 @@
 
 import ctypes
 import numpy
+import OpenGL
+import OpenGL.GL as PyGL
 from PyQt5 import Qt
 import textwrap
 from .async_texture import AsyncTexture
@@ -66,21 +68,37 @@ class Image(Qt.QObject):
     mask_changed = Qt.pyqtSignal(object)
     name_changed = Qt.pyqtSignal(object)
 
-    NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
-        numpy.bool8: Qt.QOpenGLTexture.UInt8,
-        numpy.uint8: Qt.QOpenGLTexture.UInt8,
-        numpy.uint16: Qt.QOpenGLTexture.UInt16,
-        numpy.float32: Qt.QOpenGLTexture.Float32}
+#   NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
+#       numpy.bool8: Qt.QOpenGLTexture.UInt8,
+#       numpy.uint8: Qt.QOpenGLTexture.UInt8,
+#       numpy.uint16: Qt.QOpenGLTexture.UInt16,
+#       numpy.float32: Qt.QOpenGLTexture.Float32}
     IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT = {
         'G': Qt.QOpenGLTexture.R32F,
         'Ga': Qt.QOpenGLTexture.RG32F,
         'rgb': Qt.QOpenGLTexture.RGB32F,
         'rgba': Qt.QOpenGLTexture.RGBA32F}
+#   IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT = {
+#       'G': Qt.QOpenGLTexture.Red,
+#       'Ga': Qt.QOpenGLTexture.RG,
+#       'rgb': Qt.QOpenGLTexture.RGB,
+#       'rgba': Qt.QOpenGLTexture.RGBA}
+
+    NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
+        numpy.bool8  : PyGL.GL_UNSIGNED_BYTE,
+        numpy.uint8  : PyGL.GL_UNSIGNED_BYTE,
+        numpy.uint16 : PyGL.GL_UNSIGNED_SHORT,
+        numpy.float32: PyGL.GL_FLOAT}
+#   IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT = {
+#       'G'   : PyGL.GL_R32F,
+#       'Ga'  : PyGL.GL_RG32F,
+#       'rgb' : PyGL.GL_RGB32F,
+#       'rgba': PyGL.GL_RGBA32F}
     IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT = {
-        'G': Qt.QOpenGLTexture.Red,
-        'Ga': Qt.QOpenGLTexture.RG,
-        'rgb': Qt.QOpenGLTexture.RGB,
-        'rgba': Qt.QOpenGLTexture.RGBA}
+        'G'   : PyGL.GL_RED,
+        'Ga'  : PyGL.GL_RG,
+        'rgb' : PyGL.GL_RGB,
+        'rgba': PyGL.GL_RGBA}
 
     def __init__(
             self,

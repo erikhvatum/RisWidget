@@ -25,6 +25,8 @@
 import collections
 from contextlib import ExitStack
 import enum
+import OpenGL
+import OpenGL.GL as PyGL
 from PyQt5 import Qt
 import queue
 import threading
@@ -121,7 +123,7 @@ class _AsyncTextureBottle:
         self.async_texture_wr = weakref.ref(async_texture)
         self.tex = None
 
-class _AsyncTextureUploadThread(Qt.QThread):
+class _AsyncTextureUploadThread(threading.Thread):
     def __init__(self, texture_cache, offscreen_surface):
         super().__init__()
         self.texture_cache = texture_cache
@@ -135,6 +137,7 @@ class _AsyncTextureUploadThread(Qt.QThread):
         if not gl_context.create():
             raise RuntimeError('Failed to create OpenGL context for background texture upload thread.')
         gl_context.makeCurrent(self.offscreen_surface)
+        PyGL.glPixelStorei(PyGL.GL_UNPACK_ALIGNMENT, 1)
         async_texture_bottle = tc.work_queue.get()
         try:
             while async_texture_bottle is not None:
@@ -151,17 +154,27 @@ class _AsyncTextureUploadThread(Qt.QThread):
                         tex.setFormat(async_texture.format)
                         tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
                         tex.setMipLevels(6)
-                        tex.setAutoMipMapGenerationEnabled(True)
+                        tex.setAutoMipMapGenerationEnabled(False)
                         data = async_texture.data
                         tex.setSize(data.shape[0], data.shape[1], 1)
                         tex.allocateStorage()
-                        tex.setMinMagFilters(Qt.QOpenGLTexture.LinearMipMapLinear, Qt.QOpenGLTexture.Nearest)
-                        tex.setData(
-                            async_texture.source_format,
-                            async_texture.source_type,
-                            data.ctypes.data,
-                            async_texture.pixel_transfer_opts
-                        )
+                        tex.setMinMagFilters(Qt.QOpenGLTexture.Linear, Qt.QOpenGLTexture.Nearest)
+#                       tex.setData(
+#                           async_texture.source_format,
+#                           async_texture.source_type,
+#                           data.ctypes.data,
+#                           async_texture.pixel_transfer_opts
+#                       )
+                        tex.bind()
+                        try:
+                            PyGL.glTexSubImage2D(
+                                PyGL.GL_TEXTURE_2D, 0, 0, 0, data.shape[0], data.shape[1],
+                                async_texture.source_format,
+                                async_texture.source_type,
+                                memoryview(data.T.flatten()))
+                        finally:
+                            tex.release()
+#                       tex.generateMipMaps(0)
                         tc.on_upload_completion_in_upload_thread(async_texture)
                     except Exception as e:
                         async_texture._upload_exception = e
@@ -174,7 +187,7 @@ class _AsyncTextureUploadThread(Qt.QThread):
             gl_context.doneCurrent()
 
 class _TextureCache(Qt.QObject):
-    ASYNC_TEXTURE_UPLOAD_THREAD_COUNT = 4
+    ASYNC_TEXTURE_UPLOAD_THREAD_COUNT = 2
     CACHE_SLOTS = 10
     _INSTANCE = None
 
@@ -259,6 +272,7 @@ class _TextureCache(Qt.QObject):
             if async_texture_bottle.tex is not None:
                 if Qt.QOpenGLContext.currentContext() is None and Qt.QThread.currentThread() is not self.gl_context.thread():
                     warnings.warn('_TextureCache.on_async_texture_finalized called from wrong thread.')
+                    return
                 with ExitStack() as estack:
                     if Qt.QOpenGLContext.currentContext() is None:
                         self.gl_context.makeCurrent(self.offscreen_surface)
@@ -284,8 +298,8 @@ class _TextureCache(Qt.QObject):
         # Gracefully stop all upload threads
         for thread in self.async_texture_upload_threads:
             self.work_queue.put(None)
-        for thread in self.async_texture_upload_threads:
-            thread.wait()
+        # for thread in self.async_texture_upload_threads:
+        #     thread.wait()
         self.async_texture_upload_threads = []
         # Destroy any uploaded textures, ensuring that an OpenGL context is current while doing so
         with ExitStack() as estack:
