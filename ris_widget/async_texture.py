@@ -123,7 +123,7 @@ class _AsyncTextureBottle:
         self.async_texture_wr = weakref.ref(async_texture)
         self.tex = None
 
-class _AsyncTextureUploadThread(threading.Thread):
+class _AsyncTextureUploadThread(Qt.QThread):
     def __init__(self, texture_cache, offscreen_surface):
         super().__init__()
         self.texture_cache = texture_cache
@@ -187,7 +187,7 @@ class _AsyncTextureUploadThread(threading.Thread):
 
 class _TextureCache(Qt.QObject):
     ASYNC_TEXTURE_UPLOAD_THREAD_COUNT = 4
-    CACHE_SLOTS = 10
+    CACHE_SLOTS = 20
     _INSTANCE = None
 
     @staticmethod
@@ -297,8 +297,8 @@ class _TextureCache(Qt.QObject):
         # Gracefully stop all upload threads
         for thread in self.async_texture_upload_threads:
             self.work_queue.put(None)
-        # for thread in self.async_texture_upload_threads:
-        #     thread.wait()
+        for thread in self.async_texture_upload_threads:
+            thread.wait()
         self.async_texture_upload_threads = []
         # Destroy any uploaded textures, ensuring that an OpenGL context is current while doing so
         with ExitStack() as estack:

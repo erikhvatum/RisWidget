@@ -221,8 +221,9 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.flipbook_dock_widget.setAllowedAreas(Qt.Qt.RightDockWidgetArea | Qt.Qt.LeftDockWidgetArea)
         self.flipbook_dock_widget.setFeatures(Qt.QDockWidget.DockWidgetClosable | Qt.QDockWidget.DockWidgetFloatable | Qt.QDockWidget.DockWidgetMovable)
         self.addDockWidget(Qt.Qt.RightDockWidgetArea, self.flipbook_dock_widget)
-        fb.pages_model.rowsInserted.connect(self._on_flipbook_pages_inserted)
-        fb.pages_model.rowsRemoved.connect(self._on_flipbook_pages_removed)
+        fb.pages_model.rowsInserted.connect(self._update_flipbook_visibility)
+        fb.pages_model.rowsRemoved.connect(self._update_flipbook_visibility)
+        fb.pages_model.modelReset.connect(self._update_flipbook_visibility)
         self.flipbook_dock_widget.hide()
         # Make the flipbook deal with drop events
         self.dragEnterEvent = self.flipbook.pages_view.dragEnterEvent
@@ -394,6 +395,9 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self._update_flipbook_visibility()
 
     def _on_flipbook_pages_removed(self, parent, first_idx, last_idx):
+        self._update_flipbook_visibility()
+
+    def _on_flipbook_pages_list_replaced(self):
         self._update_flipbook_visibility()
 
     def _update_flipbook_visibility(self):

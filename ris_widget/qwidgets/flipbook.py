@@ -144,7 +144,8 @@ class Flipbook(Qt.QWidget):
         self.pages_model.rowsInserted.connect(self._on_model_rows_inserted)
         self.pages_model.rowsRemoved.connect(self._on_model_reset_or_rows_removed)
         self.pages_model.modelReset.connect(self._on_model_reset_or_rows_removed)
-        self.pages_model.rowsInserted.connect(self._on_model_rows_inserted_indirect, Qt.Qt.QueuedConnection)
+        self.pages_model.rowsInserted.connect(self._on_model_reset_or_rows_inserted_indirect, Qt.Qt.QueuedConnection)
+        self.pages_model.modelReset.connect(self._on_model_reset_or_rows_inserted_indirect, Qt.Qt.QueuedConnection)
         self.pages_view.setModel(self.pages_model)
         self.pages_view.selectionModel().currentRowChanged.connect(self.apply)
         self.pages_view.selectionModel().selectionChanged.connect(self._on_page_selection_changed)
@@ -555,8 +556,11 @@ class Flipbook(Qt.QWidget):
             a.setChecked(False)
             a.setEnabled(False)
             self.toggle_playing_button.setEnabled(False)
+        else:
+            self.toggle_playing_action.setEnabled(True)
+            self.toggle_playing_button.setEnabled(True)
 
-    def _on_model_rows_inserted_indirect(self):
+    def _on_model_reset_or_rows_inserted_indirect(self):
         self.pages_view.resizeRowsToContents()
         self.ensure_page_focused()
 
@@ -653,6 +657,8 @@ class PagesModel(PagesModelDragDropBehavior, om.signaling_list.PropertyTableMode
     def __init__(self, signaling_list=None, parent=None):
         self.listeners = {}
         super().__init__(self.PROPERTIES, signaling_list, parent)
+        self.modelAboutToBeReset.connect(self._on_model_about_to_be_reset)
+        self.modelReset.connect(self._on_model_reset)
 
     def flags(self, midx):
         if midx.isValid() and midx.column() == self.PROPERTIES.index('name'):
@@ -704,6 +710,12 @@ class PagesModel(PagesModelDragDropBehavior, om.signaling_list.PropertyTableMode
     def _on_removed(self, idxs, elements):
         super()._on_removed(idxs, elements)
         self._remove_listeners(elements)
+
+    def _on_model_about_to_be_reset(self):
+        self._remove_listeners(self.signaling_list)
+
+    def _on_model_reset(self):
+        self._add_listeners(self.signaling_list)
 
 class PageContentModelDragDropBehavior(om.signaling_list.DragDropModelBehavior):
     def can_drop_rows(self, src_model, src_rows, dst_row, dst_column, dst_parent):

@@ -52,15 +52,22 @@ rw_dpath = Path(os.path.expanduser('~')) / 'zplrepo' / 'ris_widget'
 # rw.qt_object.main_view.gl_widget.start_logging()
 
 pool = ThreadPoolExecutor(4)
-ims = list(pool.map(freeimage.read, list(Path('/mnt/iscopearray/experiment02/0002').glob('ex*.png'))[:200]))
-#imses = list(zip(ims[100:], ims[:100]))
+ims = list(pool.map(freeimage.read, sorted(Path('/mnt/iscopearray/experiment02/0002').glob('ex*.png'))[:200]))
+pagesize = 10
+ims = list(ims[i*pagesize:(i+1)*pagesize] for i in range(int(len(ims)/pagesize)))
+
+rw.flipbook.pages = ims
 
 btn = Qt.QPushButton('go')
+btn.setWindowTitle('go button')
 btn.show()
 def on_btn_clicked():
     for i in range(100):
-        for im in ims:
-            rw.image = im
+        for page in ims:
+            if isinstance(page, numpy.ndarray):
+                rw.image = page
+            else:
+                rw.layers = page
             Qt.QApplication.processEvents()
             if not btn.isVisible():
                 return

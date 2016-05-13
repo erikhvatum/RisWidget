@@ -51,10 +51,6 @@ class HistogramItem(ShaderItem):
         self.gamma_item = GammaItem(self, self.min_item, self.max_item)
         self.gamma_gamma = 1.0
         self.hide()
-        from ris_widget.qwidgets.fps_display import FPSDisplay
-        self.fpsd = FPSDisplay()
-        self.fpsd.sample_count = 50
-        self.fpsd.show()
 
     def _do_update(self):
         self.update()
@@ -94,135 +90,131 @@ class HistogramItem(ShaderItem):
         return self._bounding_rect
 
     def paint(self, qpainter, option, widget):
-        self.fpsd.notify()
-        try:
-            assert widget is not None, 'histogram_scene.HistogramItem.paint called with widget=None.  Ensure that view caching is disabled.'
-            if self._gl_widget is None:
-                self._gl_widget = widget
-                widget.context_about_to_change.connect(self._on_gl_widget_context_about_to_change, Qt.Qt.DirectConnection)
-            else:
-                assert self._gl_widget is widget
+        assert widget is not None, 'histogram_scene.HistogramItem.paint called with widget=None.  Ensure that view caching is disabled.'
+        if self._gl_widget is None:
+            self._gl_widget = widget
+            widget.context_about_to_change.connect(self._on_gl_widget_context_about_to_change, Qt.Qt.DirectConnection)
+        else:
+            assert self._gl_widget is widget
+        layer = self.layer
+        if layer is None or layer.image is None:
+            if self._tex is not None:
+                self._tex.destroy()
+                self._tex = None
+        else:
+            image = layer.image
+            view = widget.view
             layer = self.layer
-            if layer is None or layer.image is None:
-                if self._tex is not None:
-                    self._tex.destroy()
-                    self._tex = None
-            else:
-                image = layer.image
-                view = widget.view
-                layer = self.layer
-                scene = self.scene()
-                widget_size = widget.size()
-                histogram = image.histogram
-                histogram = image.histogram
-                h_r = layer.histogram_min, layer.histogram_max
-                h_w = h_r[1] - h_r[0]
-                r = image.range
-                w = r[1] - r[0]
-                bin_width = w / histogram.shape[-1]
-                bin_count = h_w / bin_width
-                bin_idx_offset = int((h_r[0] - r[0]) / bin_width)
-                with ExitStack() as estack:
-                    qpainter.beginNativePainting()
-                    estack.callback(qpainter.endNativePainting)
-                    GL = QGL()
-                    histogram_alternate_column_shading_enabled = (
-                        self.layer_stack.histogram_alternate_column_shading_enabled
-                        and widget_size.width() >= bin_count)
-                    desired_shader_type = ('G', histogram_alternate_column_shading_enabled)
-                    if desired_shader_type in self.progs:
-                        prog = self.progs[desired_shader_type]
-                        if not GL.glIsProgram(prog.programId()):
-                            # The current GL context is in a state of flux, likely because a histogram view is in a dock widget that is in
-                            # the process of being floated or docked.
-                            return
-                    else:
-                        fs_fn = (
-                            'histogram_item_fragment_shader__alternate_column_colored.glsl'
-                            if histogram_alternate_column_shading_enabled else
-                            'histogram_item_fragment_shader.glsl')
-                        prog = self.build_shader_prog(desired_shader_type,
-                                                      'planar_quad_vertex_shader.glsl',
-                                                      fs_fn)
-                    desired_tex_width = image.histogram.shape[-1]
-                    tex = self._tex
-                    if tex is not None:
-                        if tex.width != desired_tex_width:
-                            tex.destroy()
-                            tex = self._tex = None
-                    if tex is None:
-                        tex = ShaderTexture(GL.GL_TEXTURE_1D)
-                        tex.bind()
-                        estack.callback(tex.release)
-                        GL.glTexParameteri(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_WRAP_S, GL.GL_CLAMP_TO_EDGE)
-                        GL.glTexParameteri(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_WRAP_T, GL.GL_CLAMP_TO_EDGE)
-                        # tex stores histogram bin counts - values that are intended to be addressed by element without
-                        # interpolation.  Thus, nearest neighbor for texture filtering.
-                        GL.glTexParameteri(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_NEAREST)
-                        GL.glTexParameteri(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_NEAREST)
-                        tex.serial = -1
-                    else:
-                        tex.bind()
-                        estack.callback(tex.release)
-                    if image.num_channels == 1:
-                        pass
-                    elif image.num_channels == 2:
-                        histogram = histogram[0,:]
-                    elif image.num_channels >= 3:
-                        histogram = 0.2126 * histogram[0,:] + 0.7152 * histogram[1,:] + 0.0722 * histogram[2,:]
-                    # print(bin_count, bin_idx_offset, bin_idx_offset + bin_count, histogram[bin_idx_offset:bin_idx_offset + bin_count].max())
-                    max_bin_val = histogram[bin_idx_offset:bin_idx_offset + math.ceil(bin_count)].max()
-                    if tex.serial != self._layer_data_serial:
-                        orig_unpack_alignment = GL.glGetIntegerv(GL.GL_UNPACK_ALIGNMENT)
-                        if orig_unpack_alignment != 1:
-                            GL.glPixelStorei(GL.GL_UNPACK_ALIGNMENT, 1)
-                            # QPainter font rendering for OpenGL surfaces will become broken if we do not restore GL_UNPACK_ALIGNMENT
-                            # to whatever QPainter had it set to (when it prepared the OpenGL context for our use as a result of
-                            # qpainter.beginNativePainting()).
-                            estack.callback(lambda oua=orig_unpack_alignment: GL.glPixelStorei(GL.GL_UNPACK_ALIGNMENT, oua))
-                        PyGL.glTexImage1D(
-                            PyGL.GL_TEXTURE_1D, 0,
-                            GL.GL_LUMINANCE32UI_EXT, desired_tex_width, 0,
-                            GL.GL_LUMINANCE_INTEGER_EXT, PyGL.GL_UNSIGNED_INT,
-                            memoryview(histogram)
-                        )
-                        tex.serial = self._layer_data_serial
-                        tex.width = desired_tex_width
-                        self._tex = tex
-                    if not view.quad_buffer.bind():
-                        Qt.qDebug('view.quad_buffer.bind() failed')
+            scene = self.scene()
+            widget_size = widget.size()
+            histogram = image.histogram
+            histogram = image.histogram
+            h_r = layer.histogram_min, layer.histogram_max
+            h_w = h_r[1] - h_r[0]
+            r = image.range
+            w = r[1] - r[0]
+            bin_width = w / histogram.shape[-1]
+            bin_count = h_w / bin_width
+            bin_idx_offset = int((h_r[0] - r[0]) / bin_width)
+            with ExitStack() as estack:
+                qpainter.beginNativePainting()
+                estack.callback(qpainter.endNativePainting)
+                GL = QGL()
+                histogram_alternate_column_shading_enabled = (
+                    self.layer_stack.histogram_alternate_column_shading_enabled
+                    and widget_size.width() >= bin_count)
+                desired_shader_type = ('G', histogram_alternate_column_shading_enabled)
+                if desired_shader_type in self.progs:
+                    prog = self.progs[desired_shader_type]
+                    if not GL.glIsProgram(prog.programId()):
+                        # The current GL context is in a state of flux, likely because a histogram view is in a dock widget that is in
+                        # the process of being floated or docked.
                         return
-                    estack.callback(view.quad_buffer.release)
-                    if view.quad_vao is None:
-                        pass
-                    view.quad_vao.bind()
-                    estack.callback(view.quad_vao.release)
-                    if not prog.bind():
-                        Qt.qDebug('prog.bind() failed')
-                        return
-                    estack.callback(prog.release)
-                    vert_coord_loc = prog.attributeLocation('vert_coord')
-                    if vert_coord_loc < 0:
-                        Qt.qDebug('vert_coord_loc < 0')
-                        return
-                    prog.enableAttributeArray(vert_coord_loc)
-                    prog.setAttributeBuffer(vert_coord_loc, GL.GL_FLOAT, 0, 2, 0)
-                    prog.setUniformValue('tex', 0)
-                    dpi_ratio = widget.devicePixelRatio()
-                    prog.setUniformValue('inv_view_size', 1/(dpi_ratio * widget_size.width()), 1/(dpi_ratio * widget_size.height()))
-                    prog.setUniformValue('x_offset', (h_r[0] - r[0]) / w)
-                    prog.setUniformValue('x_factor', h_w / w)
-                    inv_max_transformed_bin_val = max_bin_val**-self.gamma_gamma
-                    prog.setUniformValue('inv_max_transformed_bin_val', inv_max_transformed_bin_val)
-                    prog.setUniformValue('gamma_gamma', self.gamma_gamma)
-                    prog.setUniformValue('opacity', self.opacity())
-                    if histogram_alternate_column_shading_enabled:
-                        prog.setUniformValue('bin_count', int(histogram.shape[-1]))
-                    self.set_blend(estack)
-                    GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
-                    GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
-        finally:
-            self.fpsd.notify(True)
+                else:
+                    fs_fn = (
+                        'histogram_item_fragment_shader__alternate_column_colored.glsl'
+                        if histogram_alternate_column_shading_enabled else
+                        'histogram_item_fragment_shader.glsl')
+                    prog = self.build_shader_prog(desired_shader_type,
+                                                  'planar_quad_vertex_shader.glsl',
+                                                  fs_fn)
+                desired_tex_width = image.histogram.shape[-1]
+                tex = self._tex
+                if tex is not None:
+                    if tex.width != desired_tex_width:
+                        tex.destroy()
+                        tex = self._tex = None
+                if tex is None:
+                    tex = ShaderTexture(GL.GL_TEXTURE_1D)
+                    tex.bind()
+                    estack.callback(tex.release)
+                    GL.glTexParameteri(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_WRAP_S, GL.GL_CLAMP_TO_EDGE)
+                    GL.glTexParameteri(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_WRAP_T, GL.GL_CLAMP_TO_EDGE)
+                    # tex stores histogram bin counts - values that are intended to be addressed by element without
+                    # interpolation.  Thus, nearest neighbor for texture filtering.
+                    GL.glTexParameteri(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_NEAREST)
+                    GL.glTexParameteri(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_NEAREST)
+                    tex.serial = -1
+                else:
+                    tex.bind()
+                    estack.callback(tex.release)
+                if image.num_channels == 1:
+                    pass
+                elif image.num_channels == 2:
+                    histogram = histogram[0,:]
+                elif image.num_channels >= 3:
+                    histogram = 0.2126 * histogram[0,:] + 0.7152 * histogram[1,:] + 0.0722 * histogram[2,:]
+                # print(bin_count, bin_idx_offset, bin_idx_offset + bin_count, histogram[bin_idx_offset:bin_idx_offset + bin_count].max())
+                max_bin_val = histogram[bin_idx_offset:bin_idx_offset + math.ceil(bin_count)].max()
+                if tex.serial != self._layer_data_serial:
+                    orig_unpack_alignment = GL.glGetIntegerv(GL.GL_UNPACK_ALIGNMENT)
+                    if orig_unpack_alignment != 1:
+                        GL.glPixelStorei(GL.GL_UNPACK_ALIGNMENT, 1)
+                        # QPainter font rendering for OpenGL surfaces will become broken if we do not restore GL_UNPACK_ALIGNMENT
+                        # to whatever QPainter had it set to (when it prepared the OpenGL context for our use as a result of
+                        # qpainter.beginNativePainting()).
+                        estack.callback(lambda oua=orig_unpack_alignment: GL.glPixelStorei(GL.GL_UNPACK_ALIGNMENT, oua))
+                    PyGL.glTexImage1D(
+                        PyGL.GL_TEXTURE_1D, 0,
+                        GL.GL_LUMINANCE32UI_EXT, desired_tex_width, 0,
+                        GL.GL_LUMINANCE_INTEGER_EXT, PyGL.GL_UNSIGNED_INT,
+                        memoryview(histogram)
+                    )
+                    tex.serial = self._layer_data_serial
+                    tex.width = desired_tex_width
+                    self._tex = tex
+                if not view.quad_buffer.bind():
+                    Qt.qDebug('view.quad_buffer.bind() failed')
+                    return
+                estack.callback(view.quad_buffer.release)
+                if view.quad_vao is None:
+                    pass
+                view.quad_vao.bind()
+                estack.callback(view.quad_vao.release)
+                if not prog.bind():
+                    Qt.qDebug('prog.bind() failed')
+                    return
+                estack.callback(prog.release)
+                vert_coord_loc = prog.attributeLocation('vert_coord')
+                if vert_coord_loc < 0:
+                    Qt.qDebug('vert_coord_loc < 0')
+                    return
+                prog.enableAttributeArray(vert_coord_loc)
+                prog.setAttributeBuffer(vert_coord_loc, GL.GL_FLOAT, 0, 2, 0)
+                prog.setUniformValue('tex', 0)
+                dpi_ratio = widget.devicePixelRatio()
+                prog.setUniformValue('inv_view_size', 1/(dpi_ratio * widget_size.width()), 1/(dpi_ratio * widget_size.height()))
+                prog.setUniformValue('x_offset', (h_r[0] - r[0]) / w)
+                prog.setUniformValue('x_factor', h_w / w)
+                inv_max_transformed_bin_val = max_bin_val**-self.gamma_gamma
+                prog.setUniformValue('inv_max_transformed_bin_val', inv_max_transformed_bin_val)
+                prog.setUniformValue('gamma_gamma', self.gamma_gamma)
+                prog.setUniformValue('opacity', self.opacity())
+                if histogram_alternate_column_shading_enabled:
+                    prog.setUniformValue('bin_count', int(histogram.shape[-1]))
+                self.set_blend(estack)
+                GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
+                GL.glDrawArrays(GL.GL_TRIANGLE_FAN, 0, 4)
 
     def hoverMoveEvent(self, event):
         self.contextual_info.pos = event.pos()
