@@ -219,7 +219,7 @@ class _TextureCache(Qt.QObject):
     def __del__(self):
         try:
             self.shut_down()
-        except (RuntimeError, TypeError):
+        except (AttributeError, RuntimeError, TypeError):
             pass
 
     def append_async_texture_to_lru_cache(self, async_texture):
@@ -283,12 +283,6 @@ class _TextureCache(Qt.QObject):
         with self.work_queue.mutex:
             self.work_queue.queue.clear()
             self.work_queue.unfinished_tasks = 0
-        # Gracefully stop all upload threads
-        for thread in self.async_texture_upload_threads:
-            self.work_queue.put(None)
-        for thread in self.async_texture_upload_threads:
-            thread.wait()
-        self.async_texture_upload_threads = []
         # Destroy any uploaded textures, ensuring that an OpenGL context is current while doing so
         with ExitStack() as estack:
             if Qt.QOpenGLContext.currentContext() is None:
@@ -301,3 +295,9 @@ class _TextureCache(Qt.QObject):
                 if async_texture is not None:
                     async_texture._state = AsyncTextureState.NotUploaded
         self.lru_cache.clear()
+        # Gracefully stop all upload threads
+        for thread in self.async_texture_upload_threads:
+            self.work_queue.put(None)
+        for thread in self.async_texture_upload_threads:
+            thread.wait()
+        self.async_texture_upload_threads = []
