@@ -52,15 +52,15 @@ rw_dpath = Path(os.path.expanduser('~')) / 'zplrepo' / 'ris_widget'
 # rw.qt_object.main_view.gl_widget.start_logging()
 
 pool = ThreadPoolExecutor(4)
-ims = list(pool.map(freeimage.read, list(Path('/mnt/bulkhelium/ehvatum/20160209_N2Acquisition_autofocus_analysis/10x/06').glob('2*.tiff'))[:200]))
-imses = list(zip(ims[100:], ims[:100]))
+ims = list(pool.map(freeimage.read, list(Path('/mnt/iscopearray/experiment02/0002').glob('ex*.png'))[:200]))
+#imses = list(zip(ims[100:], ims[:100]))
 
 btn = Qt.QPushButton('go')
 btn.show()
 def on_btn_clicked():
     for i in range(100):
-        for imse in imses:
-            rw.layers = imse
+        for im in ims:
+            rw.image = im
             Qt.QApplication.processEvents()
             if not btn.isVisible():
                 return

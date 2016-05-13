@@ -154,11 +154,11 @@ class _AsyncTextureUploadThread(threading.Thread):
                         tex.setFormat(async_texture.format)
                         tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
                         tex.setMipLevels(6)
-                        tex.setAutoMipMapGenerationEnabled(False)
+                        tex.setAutoMipMapGenerationEnabled(True)
                         data = async_texture.data
                         tex.setSize(data.shape[0], data.shape[1], 1)
                         tex.allocateStorage()
-                        tex.setMinMagFilters(Qt.QOpenGLTexture.Linear, Qt.QOpenGLTexture.Nearest)
+                        tex.setMinMagFilters(Qt.QOpenGLTexture.LinearMipMapLinear, Qt.QOpenGLTexture.Nearest)
 #                       tex.setData(
 #                           async_texture.source_format,
 #                           async_texture.source_type,
@@ -174,7 +174,6 @@ class _AsyncTextureUploadThread(threading.Thread):
                                 memoryview(data.T.flatten()))
                         finally:
                             tex.release()
-#                       tex.generateMipMaps(0)
                         tc.on_upload_completion_in_upload_thread(async_texture)
                     except Exception as e:
                         async_texture._upload_exception = e
@@ -187,7 +186,7 @@ class _AsyncTextureUploadThread(threading.Thread):
             gl_context.doneCurrent()
 
 class _TextureCache(Qt.QObject):
-    ASYNC_TEXTURE_UPLOAD_THREAD_COUNT = 2
+    ASYNC_TEXTURE_UPLOAD_THREAD_COUNT = 4
     CACHE_SLOTS = 10
     _INSTANCE = None
 
