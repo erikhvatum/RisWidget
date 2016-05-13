@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2015 WUSTL ZPLAB
+# Copyright (c) 2016 WUSTL ZPLAB
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -21,10 +21,3 @@
 # SOFTWARE.
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
-
-from ..shared_resources import NV_PATH_RENDERING_AVAILABLE
-
-if NV_PATH_RENDERING_AVAILABLE:
-    from .contextual_info_item_nv import ContextualInfoItemNV as ContextualInfoItem
-else:
-    from .contextual_info_item_plain import ContextualInfoItemPlain as ContextualInfoItem

@@ -26,7 +26,7 @@ from contextlib import ExitStack
 import numpy
 from pathlib import Path
 from PyQt5 import Qt
-import sys
+import warnings
 
 NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
     numpy.bool8: Qt.QOpenGLTexture.UInt8,
@@ -210,46 +210,50 @@ def _on_gl_logger_message(message):
 def _on_destroyed_context_with_gl_logger(context):
     del _GL_LOGGERS[context]
 
-_NV_PATH_RENDERING_AVAILABLE = None
+_GL_EXTS_QUERIED = False
+NV_PATH_RENDERING_AVAILABLE = False
+NVX_GPU_MEMORY_INFO_AVAILABLE = False
 
-def NV_PATH_RENDERING_AVAILABLE():
-    global _NV_PATH_RENDERING_AVAILABLE
-    if _NV_PATH_RENDERING_AVAILABLE is None:
-        try:
-            with ExitStack() as estack:
-                glw = Qt.QOpenGLWidget()
-                estack.callback(glw.deleteLater)
-                glf = Qt.QSurfaceFormat()
-                glf.setRenderableType(Qt.QSurfaceFormat.OpenGL)
-                glf.setVersion(2, 1)
-                glf.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
-                glf.setSwapBehavior(Qt.QSurfaceFormat.SingleBuffer)
-                glf.setStereo(False)
-                glf.setSwapInterval(1)
-                glw.setFormat(glf)
-                glw.show()
-                estack.callback(glw.hide)
-                if glw.context().hasExtension('GL_NV_path_rendering'.encode('utf-8')):
-                    # print('Detected GL_NV_path_rendering support...')
-                    try:
-                        import OpenGL
-                        import OpenGL.GL.NV.path_rendering as PR
-                        if not PR.glInitPathRenderingNV():
-                            # print('Failed to initialize GL_NV_path_rendering extension.  No GL_NV_path_rendering support...')
-                            _NV_PATH_RENDERING_AVAILABLE = False
-                        else:
-                            # print('Successfully initialized GL_NV_path_rendering.')
-                            _NV_PATH_RENDERING_AVAILABLE = True
-                    except:
-                        # print('Failed to import PyOpenGL or PyOpenGL NV.path_rendering extension.  No GL_NV_path_rendering support...')
-                        _NV_PATH_RENDERING_AVAILABLE = False
-                else:
-                    # print('No GL_NV_path_rendering support...')
-                    _NV_PATH_RENDERING_AVAILABLE = False
-        except:
-            # print('An error occurred while attempting to determine whether the GL_NV_path_rendering extension is supported.', sys.stderr)
-            _NV_PATH_RENDERING_AVAILABLE = False
-    return _NV_PATH_RENDERING_AVAILABLE
+def query_gl_exts():
+    global NV_PATH_RENDERING_AVAILABLE
+    global NVX_GPU_MEMORY_INFO_AVAILABLE
+    if _GL_EXTS_QUERIED:
+        return
+    try:
+        with ExitStack() as estack:
+            glw = Qt.QOpenGLWidget()
+            estack.callback(glw.deleteLater)
+            glf = Qt.QSurfaceFormat()
+            glf.setRenderableType(Qt.QSurfaceFormat.OpenGL)
+            glf.setVersion(2, 1)
+            glf.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
+            glf.setSwapBehavior(Qt.QSurfaceFormat.SingleBuffer)
+            glf.setStereo(False)
+            glf.setSwapInterval(1)
+            glw.setFormat(glf)
+            glw.show()
+            estack.callback(glw.hide)
+
+            if glw.context().hasExtension('GL_NV_path_rendering'.encode('utf-8')):
+                try:
+                    import OpenGL
+                    import OpenGL.GL.NV.path_rendering as PR
+                    if PR.glInitPathRenderingNV():
+                        NV_PATH_RENDERING_AVAILABLE = True
+                except:
+                    pass
+
+            if glw.context().hasExtension('GL_NVX_gpu_memory_info'.encode('utf-8')):
+                try:
+                    import OpenGL
+                    import OpenGL.GL.NVX.gpu_memory_info as GMI
+                    import OpenGL.GL.NV.path_rendering as PR
+                    if GMI.glInitGpuMemoryInfoNVX():
+                        NVX_GPU_MEMORY_INFO_AVAILABLE = True
+                except:
+                    pass
+    except:
+        warnings.warn('An error occurred while querying OpenGL extension availability.')
 
 _GL_QSURFACE_FORMAT = None
 
@@ -265,7 +269,7 @@ def GL_QSURFACE_FORMAT(msaa_sample_count=None):
         _GL_QSURFACE_FORMAT.setSwapInterval(1)
         if msaa_sample_count is not None:
             _GL_QSURFACE_FORMAT.setSamples(msaa_sample_count)
-        if NV_PATH_RENDERING_AVAILABLE():
+        if NV_PATH_RENDERING_AVAILABLE:
             _GL_QSURFACE_FORMAT.setStencilBufferSize(4)
         _GL_QSURFACE_FORMAT.setRedBufferSize(8)
         _GL_QSURFACE_FORMAT.setGreenBufferSize(8)

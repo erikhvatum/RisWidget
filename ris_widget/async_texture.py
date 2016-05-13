@@ -50,15 +50,14 @@ class AsyncTexture:
         self.format = format
         self.source_format = source_format
         self.source_type = source_type
-        tc = _TextureCache.instance()
         self.bottle = _AsyncTextureBottle(self)
-        weakref.finalize(self, tc.on_async_texture_finalized, self.bottle)
+        weakref.finalize(self, _texture_cache.on_async_texture_finalized, self.bottle)
         self.lock = threading.Lock()
         self.state_cv = threading.Condition(self.lock)
         self.bound_tmu = None
         if upload_immediately:
             self._state = AsyncTextureState.Uploading
-            tc.upload(self)
+            _texture_cache.upload(self)
         else:
             self._state = AsyncTextureState.NotUploaded
 
@@ -80,11 +79,10 @@ class AsyncTexture:
             if self._state not in (AsyncTextureState.NotUploaded, AsyncTextureState.UploadFailed):
                 return
             self._state = AsyncTextureState.Uploading
-            _TextureCache.instance().upload(self)
+            _texture_cache.upload(self)
             self.state_cv.notify_all()
 
     def bind(self, tmu, exit_stack):
-        tc = _TextureCache.instance()
         with self.state_cv:
             assert self._state != AsyncTextureState.Bound and self.bound_tmu is None
             if self._state == AsyncTextureState.UploadFailed:
@@ -93,7 +91,7 @@ class AsyncTexture:
             while self._state != AsyncTextureState.Uploaded:
                 if self._state == AsyncTextureState.NotUploaded:
                     self._state = AsyncTextureState.Uploading
-                    tc.upload(self)
+                    _texture_cache.upload(self)
                     self.state_cv.notify_all()
                 elif self._state == AsyncTextureState.UploadFailed:
                     if hasattr(self, '_upload_exception'):
@@ -103,7 +101,7 @@ class AsyncTexture:
             self.tex.bind(tmu, Qt.QOpenGLTexture.DontResetTextureUnit)
             exit_stack.callback(self._release)
             self.bound_tmu = tmu
-            tc.on_async_texture_bound(self)
+            _texture_cache.on_async_texture_bound(self)
             self._state = AsyncTextureState.Bound
             self.state_cv.notify_all()
 
@@ -114,7 +112,7 @@ class AsyncTexture:
             assert self._state == AsyncTextureState.Bound and self.bound_tmu is not None
             self.tex.release(self.bound_tmu)
             self.bound_tmu = None
-            _TextureCache.instance().on_async_texture_released(self)
+            _texture_cache.on_async_texture_released(self)
             self._state = AsyncTextureState.Uploaded
             self.state_cv.notify_all()
 
@@ -130,7 +128,6 @@ class _AsyncTextureUploadThread(Qt.QThread):
         self.offscreen_surface = offscreen_surface
 
     def run(self):
-        tc = self.texture_cache
         gl_context = Qt.QOpenGLContext()
         gl_context.setShareContext(Qt.QOpenGLContext.globalShareContext())
         gl_context.setFormat(shared_resources.GL_QSURFACE_FORMAT())
@@ -138,7 +135,8 @@ class _AsyncTextureUploadThread(Qt.QThread):
             raise RuntimeError('Failed to create OpenGL context for background texture upload thread.')
         gl_context.makeCurrent(self.offscreen_surface)
         PyGL.glPixelStorei(PyGL.GL_UNPACK_ALIGNMENT, 1)
-        async_texture_bottle = tc.work_queue.get()
+        texture_cache = self.texture_cache
+        async_texture_bottle = texture_cache.work_queue.get()
         try:
             while async_texture_bottle is not None:
                 async_texture = async_texture_bottle.async_texture_wr()
@@ -147,9 +145,6 @@ class _AsyncTextureUploadThread(Qt.QThread):
                     if Qt.QThread.currentThread() is not gl_context.thread():
                         warnings.warn('_AsyncTextureUploadThread somehow managed to have its gl_context migrate to another thread, which makes no sense and should never happen.')
                     try:
-                        # tex = async_texture.tex
-                        # if tex is not None:
-                        #     tex.destroy()
                         async_texture.tex = tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
                         tex.setFormat(async_texture.format)
                         tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
@@ -159,12 +154,6 @@ class _AsyncTextureUploadThread(Qt.QThread):
                         tex.setSize(data.shape[0], data.shape[1], 1)
                         tex.allocateStorage()
                         tex.setMinMagFilters(Qt.QOpenGLTexture.LinearMipMapLinear, Qt.QOpenGLTexture.Nearest)
-#                       tex.setData(
-#                           async_texture.source_format,
-#                           async_texture.source_type,
-#                           data.ctypes.data,
-#                           async_texture.pixel_transfer_opts
-#                       )
                         tex.bind()
                         try:
                             PyGL.glTexSubImage2D(
@@ -174,16 +163,18 @@ class _AsyncTextureUploadThread(Qt.QThread):
                                 memoryview(data.T.flatten()))
                         finally:
                             tex.release()
-                        tc.on_upload_completion_in_upload_thread(async_texture)
+                        texture_cache.on_upload_completion_in_upload_thread(async_texture)
                     except Exception as e:
                         async_texture._upload_exception = e
                         with async_texture.state_cv:
                             async_texture._state = AsyncTextureState.UploadFailed
                             async_texture.state_cv.notify_all()
-                async_texture_bottle = tc.work_queue.get()
+                async_texture_bottle = texture_cache.work_queue.get()
             self.texture_cache = None
         finally:
             gl_context.doneCurrent()
+
+_texture_cache = None
 
 class _TextureCache(Qt.QObject):
     ASYNC_TEXTURE_UPLOAD_THREAD_COUNT = 4
@@ -191,11 +182,10 @@ class _TextureCache(Qt.QObject):
     _INSTANCE = None
 
     @staticmethod
-    def instance():
-        tmi = _TextureCache._INSTANCE
-        if tmi is None:
-            tmi = _TextureCache._INSTANCE = _TextureCache()
-        return tmi
+    def init():
+        global _texture_cache
+        if _texture_cache is None:
+            _texture_cache = _TextureCache()
 
     def __init__(self):
         super().__init__()
@@ -229,7 +219,7 @@ class _TextureCache(Qt.QObject):
     def __del__(self):
         try:
             self.shut_down()
-        except RuntimeError:
+        except (RuntimeError, TypeError):
             pass
 
     def append_async_texture_to_lru_cache(self, async_texture):
@@ -285,7 +275,6 @@ class _TextureCache(Qt.QObject):
                             async_texture.state_cv.notify_all()
             try:
                 self.lru_cache.remove(async_texture_bottle)
-                # print('removed')
             except ValueError:
                 pass
 

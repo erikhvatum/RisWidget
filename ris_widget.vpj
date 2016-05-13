@@ -236,6 +236,12 @@
                 <F N="ris_widget/examples/simple_poly_line_point_picker.py"/>
                 <F N="ris_widget/examples/very_simple_poly_line_picker.py"/>
             </Folder>
+            <Folder Name="free_mem_watcher">
+                <F N="ris_widget/free_mem_watcher/__init__.py"/>
+                <F N="ris_widget/free_mem_watcher/free_mem_watcher.py"/>
+                <F N="ris_widget/free_mem_watcher/free_mem_watcher_base.py"/>
+                <F N="ris_widget/free_mem_watcher/free_mem_watcher_nv.py"/>
+            </Folder>
             <Folder Name="ndimage_statistics">
                 <F N="ris_widget/ndimage_statistics/__init__.py"/>
                 <F N="ris_widget/ndimage_statistics/_common.py"/>

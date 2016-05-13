@@ -40,7 +40,7 @@ from .qgraphicsscenes.general_scene import GeneralScene
 from .qgraphicsviews.general_view import GeneralView
 from .qgraphicsscenes.histogram_scene import HistogramScene
 from .qgraphicsviews.histogram_view import HistogramView
-from .shared_resources import GL_QSURFACE_FORMAT, FREEIMAGE
+from .shared_resources import GL_QSURFACE_FORMAT, FREEIMAGE, query_gl_exts
 
 def _atexit():
     #TODO: find a better way to do this or a way to avoid the need
@@ -81,12 +81,12 @@ class RisWidgetQtObject(Qt.QMainWindow):
         if sys.platform == 'darwin':
             style = Qt.QApplication.style()
             Qt.QApplication.setStyle(NonTransientScrollbarsStyle(style))
-        GL_QSURFACE_FORMAT(msaa_sample_count)
         if window_title is not None:
             self.setWindowTitle(window_title)
         self.setAcceptDrops(True)
-        # Cause _TextureCache to be created on the main thread so that it is not created by the first worker thread that happens to make an Image
-        async_texture._TextureCache.instance()
+        query_gl_exts()
+        GL_QSURFACE_FORMAT(msaa_sample_count)
+        async_texture._TextureCache.init()
         self.layer_stack = LayerStack()
         self._init_scenes_and_views()
         # self._apply_deep_color_fix()
