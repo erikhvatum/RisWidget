@@ -22,11 +22,7 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from ..shared_resources import NVX_GPU_MEMORY_INFO_AVAILABLE
+from .free_mem_watcher_base import FreeMemWatcherBase
 
-free_mem_watcher = None
-
-if NVX_GPU_MEMORY_INFO_AVAILABLE:
-    from .free_mem_watcher_nv import FreeMemWatcherNV as FreeMemWatcher
-else:
-    from .free_mem_watcher_fixed_max import FreeMemWatcherFixedMax as FreeMemWatcher
+class FreeMemWatcherFixedMax(FreeMemWatcherBase):
+    pass

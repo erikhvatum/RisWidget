@@ -21,3 +21,8 @@
 # SOFTWARE.
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
+
+from .free_mem_watcher_base import FreeMemWatcherBase
+
+class FreeMemWatcherNV(FreeMemWatcherBase):
+    pass

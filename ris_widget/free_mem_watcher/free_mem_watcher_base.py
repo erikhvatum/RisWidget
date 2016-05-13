@@ -21,3 +21,17 @@
 # SOFTWARE.
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
+
+from PyQt5 import Qt
+
+class FreeMemWatcherBase(Qt.QObject):
+    @classmethod
+    def init(cls):
+        from . import free_mem_watcher
+        free_mem_watcher.free_mem_watcher = cls()
+
+_free_mem_watcher_thread_controller = None
+
+class _FreeMemWatcherThreadController(Qt.QObject):
+    def __init__(self):
+        pass

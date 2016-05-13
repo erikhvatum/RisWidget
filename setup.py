@@ -101,6 +101,11 @@ ext_modules = [
 ]
 
 setuptools.setup(
+    requires = [
+        'numpy',
+        'OpenGL',
+        'PyQt5'
+    ],
     classifiers = [
         'Environment :: MacOS X',
         'Environment :: Win32 (MS Windows)',
@@ -143,6 +148,7 @@ setuptools.setup(
     name = 'ris_widget',
     packages = [
         'ris_widget',
+        'ris_widget.free_mem_watcher',
         'ris_widget.ndimage_statistics',
         'ris_widget.om',
         'ris_widget.om.signaling_list',
@@ -153,4 +159,4 @@ setuptools.setup(
         'ris_widget.qwidgets'
     ],
     cmdclass={'build_ext': BuildExt},
-    version = '1.3')
+    version = '1.4')
