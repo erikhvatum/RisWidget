@@ -86,8 +86,6 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.setAcceptDrops(True)
         query_gl_exts()
         GL_QSURFACE_FORMAT(msaa_sample_count)
-        from .free_mem_watcher.free_mem_watcher import FreeMemWatcher
-        FreeMemWatcher.init()
         async_texture._TextureCache.init()
         self.layer_stack = LayerStack()
         self._init_scenes_and_views()

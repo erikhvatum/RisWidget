@@ -148,7 +148,6 @@ setuptools.setup(
     name = 'ris_widget',
     packages = [
         'ris_widget',
-        'ris_widget.free_mem_watcher',
         'ris_widget.ndimage_statistics',
         'ris_widget.om',
         'ris_widget.om.signaling_list',
