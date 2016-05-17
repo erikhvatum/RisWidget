@@ -289,7 +289,7 @@ class _TextureCache(Qt.QObject):
             atb.tex.destroy()
             atb.tex = None
         else:
-            locked = at.lock.acquire(blocking=False, timeout=-1)
+            lock_acquired = at.lock.acquire(blocking=False, timeout=-1)
             # If the left-most texture in the LRU cache is locked at this juncture, there can be only one reason: the left-most texture
             # is currently being bound.  This can happen in two situations, the second of which is a generalization of the first:
             #   1) Calling async_texture_instance.bind(..) prompted uploading of a not-uploaded, not-uploading texture, and the texture
@@ -302,10 +302,10 @@ class _TextureCache(Qt.QObject):
             # the line "self.append_async_texture_to_lru_cache(async_texture)" in _TextureCache.on_upload_completion_in_upload_thread
             # outside of the lock would result in the currently-binding texture being destroyed and then erroneously marked as uploaded.
             # The proper course of action is to not destroy the texture currently being bound.  This makes sense: if an AsyncTexture is
-            # being bound, we really do want to remove it from the texture cache without destroying it.  So, we simply skip doing so,
-            # relying on the eventual AsyncTexture._release call paired with the ongoing AsyncTexture.bind call to re-add the AsyncTexture
-            # to the cache, at which time it really does become subject to destruction upon expiration from the cache.
-            if locked:
+            # being bound, we really do want to remove it from the texture cache without destroying it.  In fact, AsyncTexture.bind does
+            # just that.  So, if we could not acquire the lock, it's because binding is in progress, and we can allow on that ongoing
+            # bind call to do the appropriate cache maintenance.
+            if lock_acquired:
                 self.lru_cache.popleft()
                 try:
                     atb.tex.destroy()
