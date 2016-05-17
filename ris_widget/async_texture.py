@@ -181,11 +181,11 @@ _texture_cache = None
 class _TextureCache(Qt.QObject):
     ASYNC_TEXTURE_UPLOAD_THREAD_COUNT = 4
     # Whenever the .apply_cache_constraint() method is called or an entry is appended to .lru_cache, the oldest entries in
-    # .lru_cache are destroyed until either .lru_cache contains only one texture or an additional condition is met.  Which
-    # additional condition applies depends on the the host environment:
+    # .lru_cache are destroyed until either .lru_cache is empty or an additional constraint is met.  Which additional constraint
+    # applies depends on the the host environment:
     # MIN_FREE_GPU_MEMORY_PORTION has an effect if the GL_NVX_gpu_memory_info extension is available
     MIN_FREE_GPU_MEMORY_PORTION = 0.25
-    # MAX_LRU_CACHE_KIBIBYTES has an effect if the GL_NVX_gpu_memory_info extension is not available.  Defaults to 128MiB.
+    # MAX_LRU_CACHE_KIBIBYTES has an effect if the GL_NVX_gpu_memory_info extension is not available, and defaults to 128MiB.
     # Actual memory used is typically a multiple of this value - thus the conservative default.
     MAX_LRU_CACHE_KIBIBYTES = 128 << 10
 
@@ -290,6 +290,21 @@ class _TextureCache(Qt.QObject):
             atb.tex = None
         else:
             locked = at.lock.acquire(blocking=False, timeout=-1)
+            # If the left-most texture in the LRU cache is locked at this juncture, there can be only one reason: the left-most texture
+            # is currently being bound.  This can happen in two situations, the second of which is a generalization of the first:
+            #   1) Calling async_texture_instance.bind(..) prompted uploading of a not-uploaded, not-uploading texture, and the texture
+            #      cache was constrained such that it could not even nominally hold async_texture_instance.  So, adding
+            #      async_texture_instance to the cache prompted attempted removal of async_texture_instance from the cache.
+            #   2) While an AsyncTexture.bind(..) call was in progress, a texture upload completed, causing the uploaded texture to be
+            #      added to the texture cache.  However, doing so caused the texture cache to exceed a constraint, in turn causing the
+            #      AsyncTexture instance currently being bound to be targeted for destruction.
+            # In both cases, a blocking lock acquisition with no timeout would result in a deadlock, and the obvious fix of moving
+            # the line "self.append_async_texture_to_lru_cache(async_texture)" in _TextureCache.on_upload_completion_in_upload_thread
+            # outside of the lock would result in the currently-binding texture being destroyed and then erroneously marked as uploaded.
+            # The proper course of action is to not destroy the texture currently being bound.  This makes sense: if an AsyncTexture is
+            # being bound, we really do want to remove it from the texture cache without destroying it.  So, we simply skip doing so,
+            # relying on the eventual AsyncTexture._release call paired with the ongoing AsyncTexture.bind call to re-add the AsyncTexture
+            # to the cache, at which time it really does become subject to destruction upon expiration from the cache.
             if locked:
                 self.lru_cache.popleft()
                 try:
