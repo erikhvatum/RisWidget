@@ -34,7 +34,7 @@ from . import progress_thread_pool
 
 class ImageList(om.UniformSignalingList):
     def take_input_element(self, obj):
-        return obj if isinstance(obj, Image) else Image(obj)
+        return obj if isinstance(obj, Image) else Image(obj, immediate_texture_upload=False)
 
 class PageList(om.UniformSignalingList):
     def take_input_element(self, obj):
@@ -735,7 +735,7 @@ class PageContentModelDragDropBehavior(om.signaling_list.DragDropModelBehavior):
         images = ImageList()
         for fpath in fpaths:
             fpath_str = str(fpath)
-            images.append(Image(freeimage.read(fpath_str), name=fpath_str, mask=self.layer_stack.imposed_image_mask))
+            images.append(Image(freeimage.read(fpath_str), name=fpath_str, mask=self.layer_stack.imposed_image_mask, immediate_texture_upload=False))
         self.signaling_list[dst_row:dst_row] = images
         return True
 

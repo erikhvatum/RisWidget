@@ -530,7 +530,9 @@ class RisWidgetQtObject(Qt.QMainWindow):
                     self, self.windowTitle() + ' File Error', type(e).__name__ + ': ' + str(e))
                 return
             try:
-                self.layers = LayerList.from_json(f.read())
+                l = LayerList.from_json(f.read(), show_error_messagebox=True)
+                if l is not None:
+                    self.layers = l
             finally:
                 f.close()
 

@@ -39,7 +39,7 @@ class LayerList(om.UniformSignalingList):
             for props in prop_stackd:
                 layers.append(Layer.from_savable_properties_dict(props))
             return layers
-        except (FileNotFoundError, ValueError, TypeError) as e:
+        except (FileNotFoundError, KeyError, ValueError, TypeError) as e:
             if show_error_messagebox:
                 Qt.QMessageBox.information(None, 'JSON Error', '{} : {}'.format(type(e).__name__, e))
 
@@ -104,6 +104,12 @@ class LayerStack(Qt.QObject):
         self.auto_min_max_master_on_enabled_action.setText('Auto Min/Max Master On')
         self.auto_min_max_master_on_enabled_action.setCheckable(True)
         self.auto_min_max_master_on_enabled_action.setChecked(False)
+        # From the Qt docs: The triggered signal is emitted when an action is activated by the user; for example, when the user clicks a menu option,
+        # toolbar button, or presses an action's shortcut key combination, or when trigger() was called. Notably, it is not emitted when setChecked()
+        # or toggle() is called.
+        self.auto_min_max_master_on_enabled_action.triggered.connect(self._on_master_enable_auto_min_max_triggered)
+        # From the Qt docs: The toggled signal is emitted whenever a checkable action changes its isChecked() status. This can be the result of a user
+        # interaction, or because setChecked() was called.
         self.auto_min_max_master_on_enabled_action.toggled.connect(self._on_master_enable_auto_min_max_toggled)
         self.examine_layer_mode_action = Qt.QAction(self)
         self.examine_layer_mode_action.setText('Examine Current Layer')
@@ -371,6 +377,13 @@ class LayerStack(Qt.QObject):
         l = ls[midx.row()] if midx.isValid() else None
         if l is not ol:
             self.layer_focus_changed.emit(self, ol, l)
+
+    def _on_master_enable_auto_min_max_triggered(self, checked):
+        # Disable auto min/max for all Layers in this LayerStack when auto min/max is explicitly deactivated but not when auto min/max is deactivated as
+        # a result of assignment to a constituent Layer's min or max properties.
+        if not checked:
+            for layer in self.layers:
+                layer.auto_min_max_enabled = False
 
     def _on_master_enable_auto_min_max_toggled(self, checked):
         if checked and self._layers:

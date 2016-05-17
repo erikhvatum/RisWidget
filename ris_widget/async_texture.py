@@ -127,7 +127,6 @@ class _AsyncTextureUploadThread(Qt.QThread):
         self.texture_cache = texture_cache
         self.offscreen_surface = offscreen_surface
 
-    # TODO: avoid deadlocking when dealing with very small constraints and very large image stacks
     def run(self):
         gl_context = Qt.QOpenGLContext()
         gl_context.setShareContext(Qt.QOpenGLContext.globalShareContext())
@@ -144,7 +143,9 @@ class _AsyncTextureUploadThread(Qt.QThread):
                 if async_texture is not None:
                     assert async_texture._state == AsyncTextureState.Uploading and async_texture.tex is None
                     if Qt.QThread.currentThread() is not gl_context.thread():
-                        warnings.warn('_AsyncTextureUploadThread somehow managed to have its gl_context migrate to another thread, which makes no sense and should never happen.')
+                        warnings.warn(
+                            '_AsyncTextureUploadThread somehow managed to have its gl_context migrate to another thread, which '
+                            'makes no sense and should never happen.')
                     try:
                         async_texture.tex = tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target2D)
                         tex.setFormat(async_texture.format)
@@ -179,10 +180,14 @@ _texture_cache = None
 
 class _TextureCache(Qt.QObject):
     ASYNC_TEXTURE_UPLOAD_THREAD_COUNT = 4
-    # Whenever the .apply_cache_constraint() method is called or an entry is appended to .lru_cache, the oldest entries in .lru_cache are destroyed until either .lru_cache contains only one texture
-    # or an additional condition is met.  Which additional condition applies depends on the the host environment:
-    MIN_FREE_GPU_MEMORY_PORTION = 0.25 # Has an effect if the GL_NVX_gpu_memory_info extension is available
-    MAX_LRU_CACHE_KIBIBYTES = 1024*1024 # Has an effect if the GL_NVX_gpu_memory_info extension is not available
+    # Whenever the .apply_cache_constraint() method is called or an entry is appended to .lru_cache, the oldest entries in
+    # .lru_cache are destroyed until either .lru_cache contains only one texture or an additional condition is met.  Which
+    # additional condition applies depends on the the host environment:
+    # MIN_FREE_GPU_MEMORY_PORTION has an effect if the GL_NVX_gpu_memory_info extension is available
+    MIN_FREE_GPU_MEMORY_PORTION = 0.25
+    # MAX_LRU_CACHE_KIBIBYTES has an effect if the GL_NVX_gpu_memory_info extension is not available.  Defaults to 128MiB.
+    # Actual memory used is typically a multiple of this value - thus the conservative default.
+    MAX_LRU_CACHE_KIBIBYTES = 128 << 10
 
     @staticmethod
     def init():
@@ -193,7 +198,10 @@ class _TextureCache(Qt.QObject):
     def __init__(self):
         super().__init__()
         glsf = shared_resources.GL_QSURFACE_FORMAT()
-        self._apply_constraint = self._apply_constraint_NV if shared_resources.NVX_GPU_MEMORY_INFO_AVAILABLE else self._apply_constraint_plain
+        if shared_resources.NVX_GPU_MEMORY_INFO_AVAILABLE:
+            self._apply_constraint = self._apply_constraint_NV
+        else:
+            self._apply_constraint = self._apply_constraint_plain
         self.offscreen_surface = Qt.QOffscreenSurface()
         self.offscreen_surface.setFormat(glsf)
         self.offscreen_surface.create()
@@ -203,15 +211,16 @@ class _TextureCache(Qt.QObject):
         if not self.gl_context.create():
             raise RuntimeError('Failed to create OpenGL context for TextureCache.')
         self.work_queue = queue.Queue()
-        # lru_cache: _AsyncTextureBottles of currently uploaded, non-bound textures in descending order of time since last use (least recently used at lru_cache[0]
-        # and most recently used at lru_cache[-1]).
+        # lru_cache: _AsyncTextureBottles of currently uploaded, non-bound textures in descending order of time since last
+        # use (least recently used at lru_cache[0] and most recently used at lru_cache[-1]).
         self.lru_cache = collections.deque()
         self.lru_cache_lock = threading.Lock()
         self.async_texture_upload_threads = []
         for _ in range(_TextureCache.ASYNC_TEXTURE_UPLOAD_THREAD_COUNT):
-            # Note that Qt docs state: "Note: Due to the fact that QOffscreenSurface is backed by a QWindow on some platforms, cross-platform applications must ensure that create() is only called on
-            # the main (GUI) thread. The QOffscreenSurface is then safe to be used with makeCurrent() on other threads, but the initialization and destruction must always happen on the main (GUI)
-            # thread."
+            # Note that Qt docs state: "Note: Due to the fact that QOffscreenSurface is backed by a QWindow on some platforms,
+            # cross-platform applications must ensure that create() is only called on the main (GUI) thread. The
+            # QOffscreenSurface is then safe to be used with makeCurrent() on other threads, but the initialization and
+            # destruction must always happen on the main (GUI) thread."
             offscreen_surface = Qt.QOffscreenSurface()
             offscreen_surface.setFormat(glsf)
             offscreen_surface.create()
@@ -232,9 +241,9 @@ class _TextureCache(Qt.QObject):
             self._apply_constraint()
 
     def on_upload_completion_in_upload_thread(self, async_texture):
-        # Called from async texture upload thread with the precondition that a GL context is current in that thread
-        self.append_async_texture_to_lru_cache(async_texture)
+        # Called from async texture upload thread with the requirement that a GL context is current in that thread
         with async_texture.state_cv:
+            self.append_async_texture_to_lru_cache(async_texture)
             async_texture._state = AsyncTextureState.Uploaded
             async_texture.state_cv.notify_all()
 
@@ -272,14 +281,23 @@ class _TextureCache(Qt.QObject):
                 self._pop_left()
 
     def _pop_left(self):
-        atb = self.lru_cache.popleft()
-        atb.tex.destroy()
-        atb.tex = None
+        # Requirement: self.lru_cache_lock is held
+        atb = self.lru_cache[0]
         at = atb.async_texture_wr()
-        if at is not None:
-            with at.state_cv:
-                at._state = AsyncTextureState.NotUploaded
-                at.state_cv.notify_all()
+        if at is None:
+            self.lru_cache.popleft()
+            atb.tex.destroy()
+            atb.tex = None
+        else:
+            locked = at.lock.acquire(blocking=False, timeout=-1)
+            if locked:
+                self.lru_cache.popleft()
+                try:
+                    atb.tex.destroy()
+                    atb.tex = None
+                    at._state = AsyncTextureState.NotUploaded
+                finally:
+                    at.lock.release()
 
     def on_async_texture_finalized(self, async_texture_bottle):
         with self.lru_cache_lock:
@@ -323,6 +341,6 @@ class _TextureCache(Qt.QObject):
         # Gracefully stop all upload threads
         for thread in self.async_texture_upload_threads:
             self.work_queue.put(None)
-        # for thread in self.async_texture_upload_threads:
-        #     thread.wait()
+        for thread in self.async_texture_upload_threads:
+            thread.wait()
         self.async_texture_upload_threads = []

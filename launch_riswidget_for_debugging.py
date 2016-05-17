@@ -19,58 +19,49 @@ import os.path
 from pathlib import Path
 from PyQt5 import Qt
 from ris_widget.ris_widget import RisWidget
+import ris_widget.async_texture
 import freeimage
+import re
 import sys
+import socket
+
+# if socket.gethostname() == 'pincuslab-2.wucon.wustl.edu':
+#     ris_widget.async_texture._TextureCache.MAX_LRU_CACHE_KIBIBYTES = 1
 
 argv = sys.argv
-#Qt.QCoreApplication.setAttribute(Qt.Qt.AA_ShareOpenGLContexts)
 app = Qt.QApplication(argv)
-
 rw = RisWidget()
 
-# rw.main_view.zoom_preset_idx = 27
+image_dpath = Path(
+    {
+        'pincuslab-2.wucon.wustl.edu' : '/Volumes/MrSpinny/14',
+    }.get(socket.gethostname(), '/mnt/iscopearray/experiment02/0002')
+)
 
-# rw.flipbook.pages.append(numpy.array(list(range(10000)),numpy.uint16).reshape((100,100)))
-# rw.flipbook.pages[0][0].name = 'image'
-# rw.flipbook.pages[0].append(numpy.zeros((100,10), numpy.bool))
-# rw.flipbook.pages[0][1].name = 'mask'
+im_fpaths = sorted(im_fpath for im_fpath in image_dpath.glob('*') if re.match('''[^.].*\.(png|tiff|tif)''', str(im_fpath)))[:200]
+pagesize = 2
+im_fpath_pages = list(im_fpaths[i*pagesize:(i+1)*pagesize] for i in range(int(len(im_fpaths)/pagesize)))
+rw.flipbook.add_image_files(im_fpath_pages)
 
-# rw.image = numpy.zeros((100,100), dtype=numpy.uint8)
-
-# im = freeimage.read('/Volumes/MrSpinny/14/2015-11-18t0948 focus-03_ffc.png')
-rw_dpath = Path(os.path.expanduser('~')) / 'zplrepo' / 'ris_widget'
-# rw.flipbook_pages.append(im)
-# mask = im > 0
-# rw.qt_object.layer_stack.imposed_image_mask = mask[:781,:1000]
-# rw.flipbook_pages.append(rw.qt_object.layer_stack.imposed_image_mask)
+# pool = ThreadPoolExecutor(4)
+# ims = list(pool.map(freeimage.read, sorted(Path('/mnt/iscopearray/experiment02/0002').glob('*'))[:200]))
+# ims = list(ims[i*pagesize:(i+1)*pagesize] for i in range(int(len(ims)/pagesize)))
 #
-# rw.add_image_files_to_flipbook([
-#     [rw_dpath / 'Opteron_6300_die_shot_16_core_mod.jpg', rw_dpath / 'top_left_g.png'],
-    # ['/Volumes/MrSpinny/14/2015-11-18t0948 focus-03_ffc.png']
-# ])
-
-# rw.qt_object.main_view.gl_widget.start_logging()
-
-pool = ThreadPoolExecutor(4)
-ims = list(pool.map(freeimage.read, sorted(Path('/mnt/iscopearray/experiment02/0002').glob('ex*.png'))[:200]))
-pagesize = 10
-ims = list(ims[i*pagesize:(i+1)*pagesize] for i in range(int(len(ims)/pagesize)))
-
-rw.flipbook.pages = ims
-
-btn = Qt.QPushButton('go')
-btn.setWindowTitle('go button')
-btn.show()
-def on_btn_clicked():
-    for i in range(100):
-        for page in ims:
-            if isinstance(page, numpy.ndarray):
-                rw.image = page
-            else:
-                rw.layers = page
-            Qt.QApplication.processEvents()
-            if not btn.isVisible():
-                return
-btn.clicked.connect(on_btn_clicked)
+# rw.flipbook.pages = ims
+#
+# btn = Qt.QPushButton('go')
+# btn.setWindowTitle('go button')
+# btn.show()
+# def on_btn_clicked():
+#     for i in range(100):
+#         for page in ims:
+#             if isinstance(page, numpy.ndarray):
+#                 rw.image = page
+#             else:
+#                 rw.layers = page
+#             Qt.QApplication.processEvents()
+#             if not btn.isVisible():
+#                 return
+# btn.clicked.connect(on_btn_clicked)
 
 app.exec_()

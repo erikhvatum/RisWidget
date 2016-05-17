@@ -208,6 +208,7 @@ class Image(Qt.QObject):
                     Image.IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT[t],
                     Image.NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[self.dtype.type],
                     immediate_texture_upload)
+                self.async_texture.name = self.name
                 self.stats_future = ndimage_statistics.statistics(
                     data.astype(numpy.uint8) if self.dtype == bool else data, # TODO: fix ndimage_statistics so that bool => uint8 conversion is not required
                     self.is_twelve_bit,
@@ -340,7 +341,7 @@ class Image(Qt.QObject):
         if name_changed:
             self.name = name
 
-        self.refresh(data_changed, mask_changed, is_twelve_bit_changed, imposed_float_range_changed)
+        self.refresh(data_changed, mask_changed, is_twelve_bit_changed, imposed_float_range_changed, immediate_texture_upload)
 
     set.__doc__ = textwrap.dedent(set.__doc__) + '\n' + textwrap.dedent(__init__.__doc__)
 
