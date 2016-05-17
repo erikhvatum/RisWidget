@@ -303,8 +303,8 @@ class _TextureCache(Qt.QObject):
             # outside of the lock would result in the currently-binding texture being destroyed and then erroneously marked as uploaded.
             # The proper course of action is to not destroy the texture currently being bound.  This makes sense: if an AsyncTexture is
             # being bound, we really do want to remove it from the texture cache without destroying it.  In fact, AsyncTexture.bind does
-            # just that.  So, if we could not acquire the lock, it's because binding is in progress, and we can allow that ongoing bind
-            # call to do the appropriate cache maintenance.
+            # just that.  So, if we could not acquire the lock, it's because binding is in progress, and we allow that ongoing bind call
+            # to do the appropriate cache maintenance.
             if lock_acquired:
                 self.lru_cache.popleft()
                 try:
