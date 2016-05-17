@@ -68,33 +68,17 @@ class Image(Qt.QObject):
     mask_changed = Qt.pyqtSignal(object)
     name_changed = Qt.pyqtSignal(object)
 
-#   NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
-#       numpy.bool8: Qt.QOpenGLTexture.UInt8,
-#       numpy.uint8: Qt.QOpenGLTexture.UInt8,
-#       numpy.uint16: Qt.QOpenGLTexture.UInt16,
-#       numpy.float32: Qt.QOpenGLTexture.Float32}
-    IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT = {
-        'G': Qt.QOpenGLTexture.R32F,
-        'Ga': Qt.QOpenGLTexture.RG32F,
+    IMAGE_TYPE_TO_GL_TEX_FORMAT = {
+        'G': Qt.QOpenGLTexture.R32F, # PyGL.GL_R32F is not always available, but Qt.QOpenGLTexture.R32F is and has the same value
+        'Ga': Qt.QOpenGLTexture.RG32F, # Likewise for the rest of these
         'rgb': Qt.QOpenGLTexture.RGB32F,
         'rgba': Qt.QOpenGLTexture.RGBA32F}
-#   IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT = {
-#       'G': Qt.QOpenGLTexture.Red,
-#       'Ga': Qt.QOpenGLTexture.RG,
-#       'rgb': Qt.QOpenGLTexture.RGB,
-#       'rgba': Qt.QOpenGLTexture.RGBA}
-
-    NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE = {
+    NUMPY_DTYPE_TO_GL_PIXEL_TYPE = {
         numpy.bool8  : PyGL.GL_UNSIGNED_BYTE,
         numpy.uint8  : PyGL.GL_UNSIGNED_BYTE,
         numpy.uint16 : PyGL.GL_UNSIGNED_SHORT,
         numpy.float32: PyGL.GL_FLOAT}
-#   IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT = {
-#       'G'   : PyGL.GL_R32F,
-#       'Ga'  : PyGL.GL_RG32F,
-#       'rgb' : PyGL.GL_RGB32F,
-#       'rgba': PyGL.GL_RGBA32F}
-    IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT = {
+    IMAGE_TYPE_TO_GL_PIX_FORMAT = {
         'G'   : PyGL.GL_RED,
         'Ga'  : PyGL.GL_RG,
         'rgb' : PyGL.GL_RGB,
@@ -204,9 +188,9 @@ class Image(Qt.QObject):
                 t = self.type
                 self.async_texture = AsyncTexture(
                     data,
-                    Image.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[t],
-                    Image.IMAGE_TYPE_TO_QOGLTEX_SRC_PIX_FORMAT[t],
-                    Image.NUMPY_DTYPE_TO_QOGLTEX_PIXEL_TYPE[self.dtype.type],
+                    Image.IMAGE_TYPE_TO_GL_TEX_FORMAT[t],
+                    Image.IMAGE_TYPE_TO_GL_PIX_FORMAT[t],
+                    Image.NUMPY_DTYPE_TO_GL_PIXEL_TYPE[self.dtype.type],
                     immediate_texture_upload)
                 self.async_texture.name = self.name
                 self.stats_future = ndimage_statistics.statistics(

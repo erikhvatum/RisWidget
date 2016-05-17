@@ -229,11 +229,11 @@ class _TextureCache(Qt.QObject):
             self.async_texture_upload_threads.append(upload_thread)
         Qt.QApplication.instance().aboutToQuit.connect(self.shut_down)
 
-    def __del__(self):
-        try:
-            self.shut_down()
-        except (AttributeError, RuntimeError, TypeError):
-            pass
+    # def __del__(self):
+    #     try:
+    #         self.shut_down()
+    #     except (AttributeError, RuntimeError, TypeError):
+    #         pass
 
     def append_async_texture_to_lru_cache(self, async_texture):
         with self.lru_cache_lock:
