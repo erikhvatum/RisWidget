@@ -68,9 +68,9 @@ class Image(Qt.QObject):
     mask_changed = Qt.pyqtSignal(object)
     name_changed = Qt.pyqtSignal(object)
 
-    IMAGE_TYPE_TO_GL_TEX_FORMAT = {
-        'G': Qt.QOpenGLTexture.R32F, # PyGL.GL_R32F is not always available, but Qt.QOpenGLTexture.R32F is and has the same value
-        'Ga': Qt.QOpenGLTexture.RG32F, # Likewise for the rest of these
+    IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT = {
+        'G': Qt.QOpenGLTexture.R32F,
+        'Ga': Qt.QOpenGLTexture.RG32F,
         'rgb': Qt.QOpenGLTexture.RGB32F,
         'rgba': Qt.QOpenGLTexture.RGBA32F}
     NUMPY_DTYPE_TO_GL_PIXEL_TYPE = {
@@ -188,7 +188,7 @@ class Image(Qt.QObject):
                 t = self.type
                 self.async_texture = AsyncTexture(
                     data,
-                    Image.IMAGE_TYPE_TO_GL_TEX_FORMAT[t],
+                    Image.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[t],
                     Image.IMAGE_TYPE_TO_GL_PIX_FORMAT[t],
                     Image.NUMPY_DTYPE_TO_GL_PIXEL_TYPE[self.dtype.type],
                     immediate_texture_upload)

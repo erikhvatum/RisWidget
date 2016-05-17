@@ -163,7 +163,7 @@ class HistogramItem(ShaderItem):
                 elif image.num_channels == 2:
                     histogram = histogram[0,:]
                 elif image.num_channels >= 3:
-                    histogram = 0.2126 * histogram[0,:] + 0.7152 * histogram[1,:] + 0.0722 * histogram[2,:]
+                    histogram = (0.2126 * histogram[0,:] + 0.7152 * histogram[1,:] + 0.0722 * histogram[2,:]).astype(numpy.uint32)
                 # print(bin_count, bin_idx_offset, bin_idx_offset + bin_count, histogram[bin_idx_offset:bin_idx_offset + bin_count].max())
                 max_bin_val = histogram[bin_idx_offset:bin_idx_offset + math.ceil(bin_count)].max()
                 if tex.serial != self._layer_data_serial:
