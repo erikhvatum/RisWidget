@@ -42,9 +42,6 @@ class AsyncTextureState(enum.Enum):
     Bound = 4
 
 class AsyncTexture:
-    pixel_transfer_opts = Qt.QOpenGLPixelTransferOptions()
-    pixel_transfer_opts.setAlignment(1)
-
     def __init__(self, data, format, source_format, source_type, upload_immediately):
         self.data = data
         self.format = format
@@ -162,7 +159,7 @@ class _AsyncTextureUploadThread(Qt.QThread):
                                 PyGL.GL_TEXTURE_2D, 0, 0, 0, data.shape[0], data.shape[1],
                                 async_texture.source_format,
                                 async_texture.source_type,
-                                memoryview(data.T.flatten()))
+                                memoryview(data.swapaxes(0,1).flatten()))
                         finally:
                             tex.release()
                         texture_cache.on_upload_completion_in_upload_thread(async_texture)

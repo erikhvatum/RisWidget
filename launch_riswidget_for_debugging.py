@@ -38,7 +38,7 @@ image_dpath = Path(
     }.get(socket.gethostname(), '/mnt/iscopearray/experiment02/0002')
 )
 
-im_fpaths = sorted(im_fpath for im_fpath in image_dpath.glob('*') if re.match('''[^.].*\.(png|tiff|tif)''', str(im_fpath)))[:200]
+im_fpaths = sorted(im_fpath for im_fpath in image_dpath.glob('*') if re.match('''[^.].*\.(png|tiff|tif)''', str(im_fpath)))[:10]
 pagesize = 2
 im_fpath_pages = list(im_fpaths[i*pagesize:(i+1)*pagesize] for i in range(int(len(im_fpaths)/pagesize)))
 rw.flipbook.add_image_files(im_fpath_pages)
