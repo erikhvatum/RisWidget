@@ -108,7 +108,6 @@ class HistogramItem(ShaderItem):
             scene = self.scene()
             widget_size = widget.size()
             histogram = image.histogram
-            histogram = image.histogram
             h_r = layer.histogram_min, layer.histogram_max
             h_w = h_r[1] - h_r[0]
             r = image.range
@@ -135,9 +134,10 @@ class HistogramItem(ShaderItem):
                         'histogram_item_fragment_shader__alternate_column_colored.glsl'
                         if histogram_alternate_column_shading_enabled else
                         'histogram_item_fragment_shader.glsl')
-                    prog = self.build_shader_prog(desired_shader_type,
-                                                  'planar_quad_vertex_shader.glsl',
-                                                  fs_fn)
+                    prog = self.build_shader_prog(
+                        desired_shader_type,
+                        'planar_quad_vertex_shader.glsl',
+                        fs_fn)
                 desired_tex_width = image.histogram.shape[-1]
                 tex = self._tex
                 if tex is not None:
