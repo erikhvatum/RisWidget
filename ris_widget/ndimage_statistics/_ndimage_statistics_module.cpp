@@ -34,7 +34,7 @@ template<typename C>
 static inline bool min_max_C(py::buffer_info& im_info, py::buffer_info& min_max_info)
 {
     bool ret{false};
-    if(im_info.format == py::format_descriptor<C>::value())
+    if(im_info.format == py::format_descriptor<C>::value)
     {
         py::gil_scoped_release releaseGil;
         min_max(
@@ -80,7 +80,7 @@ template<typename C>
 static inline bool masked_min_max_C(py::buffer_info& im_info, py::buffer_info& mask_info, py::buffer_info& min_max_info)
 {
     bool ret{false};
-    if(im_info.format == py::format_descriptor<C>::value())
+    if(im_info.format == py::format_descriptor<C>::value)
     {
         py::gil_scoped_release releaseGil;
         masked_min_max(
@@ -104,7 +104,7 @@ void py_masked_min_max(py::buffer im, py::buffer mask, py::buffer min_max)
         throw std::invalid_argument("im argument must be a 2 dimensional buffer object (such as a numpy array).");
     if(mask_info.ndim != 2)
         throw std::invalid_argument("mask argument must be a 2 dimensionsal buffer object (such as a numpy array).");
-    if(mask_info.format != py::format_descriptor<std::uint8_t>::value() && mask_info.format != py::format_descriptor<bool>::value())
+    if(mask_info.format != py::format_descriptor<std::uint8_t>::value && mask_info.format != py::format_descriptor<bool>::value)
         throw std::invalid_argument("mask argument format must be uint8 or bool.");
     if(min_max_info.ndim != 1)
         throw std::invalid_argument("min_max arugment must be a 1 dimensional buffer object (such as a numpy array).");
@@ -129,7 +129,7 @@ template<typename C, bool with_overflow_bins>
 static inline bool ranged_hist_C(py::buffer_info& im_info, py::buffer_info& range_info, py::buffer_info& hist_info)
 {
     bool ret{false};
-    if(im_info.format == py::format_descriptor<C>::value())
+    if(im_info.format == py::format_descriptor<C>::value)
     {
         py::gil_scoped_release releaseGil;
         ranged_hist<C, with_overflow_bins>(
@@ -156,7 +156,7 @@ void py_ranged_hist(py::buffer im, py::buffer range, py::buffer hist, bool with_
             "im and range arguments must be the same format (or dtype, in the case where they are numpy arays).");
     if(hist_info.ndim != 1)
         throw std::invalid_argument("hist argument must be a 1 dimensional buffer object (such as a numpy array).");
-    if(hist_info.format != py::format_descriptor<std::uint32_t>::value())
+    if(hist_info.format != py::format_descriptor<std::uint32_t>::value)
         throw std::invalid_argument("hist argument format must be uint32.");
     if
     (
@@ -197,7 +197,7 @@ template<typename C, bool with_overflow_bins>
 static inline bool masked_ranged_hist_C(py::buffer_info& im_info, py::buffer_info& mask_info, py::buffer_info& range_info, py::buffer_info& hist_info)
 {
     bool ret{false};
-    if(im_info.format == py::format_descriptor<C>::value())
+    if(im_info.format == py::format_descriptor<C>::value)
     {
         py::gil_scoped_release releaseGil;
         masked_ranged_hist<C, with_overflow_bins>(
@@ -224,14 +224,14 @@ void py_masked_ranged_hist(py::buffer im, py::buffer mask, py::buffer range, py:
         throw std::invalid_argument("im argument must be a 2 dimensional buffer object (such as a numpy array).");
     if(mask_info.ndim != 2)
         throw std::invalid_argument("mask argument must be a 2 dimensionsal buffer object (such as a numpy array).");
-    if(mask_info.format != py::format_descriptor<std::uint8_t>::value() && mask_info.format != py::format_descriptor<bool>::value())
+    if(mask_info.format != py::format_descriptor<std::uint8_t>::value && mask_info.format != py::format_descriptor<bool>::value)
         throw std::invalid_argument("mask argument format must be uint8 or bool.");
     if(im_info.format != range_info.format)
         throw std::invalid_argument(
             "im and range arguments must be the same format (or dtype, in the case where they are numpy arays).");
     if(hist_info.ndim != 1)
         throw std::invalid_argument("hist argument must be a 1 dimensional buffer object (such as a numpy array).");
-    if(hist_info.format != py::format_descriptor<std::uint32_t>::value())
+    if(hist_info.format != py::format_descriptor<std::uint32_t>::value)
         throw std::invalid_argument("hist argument format must be uint32.");
     if
     (
@@ -272,12 +272,12 @@ template<typename C, bool is_twelve_bit>
 static inline bool hist_min_max_C(py::buffer_info& im_info, py::buffer_info& hist_info, py::buffer_info& min_max_info)
 {
     bool ret{false};
-    if(im_info.format == py::format_descriptor<C>::value())
+    if(im_info.format == py::format_descriptor<C>::value)
     {
         if(hist_info.shape[0] != bin_count<C>())
         {
             std::ostringstream o;
-            o << "hist argument must contain " << bin_count<C>() << " elements for " << py::format_descriptor<C>::value() << " im.";
+            o << "hist argument must contain " << bin_count<C>() << " elements for " << py::format_descriptor<C>::value << " im.";
             throw std::invalid_argument(o.str());
         }
         py::gil_scoped_release releaseGil;
@@ -301,7 +301,7 @@ void py_hist_min_max(py::buffer im, py::buffer hist, py::buffer min_max, bool is
         throw std::invalid_argument("im argument must be a 2 dimensional buffer object (such as a numpy array).");
     if(hist_info.ndim != 1)
         throw std::invalid_argument("hist argument must be a 1 dimensional buffer object (such as a numpy array).");
-    if(hist_info.format != py::format_descriptor<std::uint32_t>::value())
+    if(hist_info.format != py::format_descriptor<std::uint32_t>::value)
         throw std::invalid_argument("hist argument format must be uint32.");
     if(min_max_info.ndim != 1)
         throw std::invalid_argument("min_max arugment must be a 1 dimensional buffer object (such as a numpy array).");
@@ -334,12 +334,12 @@ template<typename C, bool is_twelve_bit>
 static inline bool masked_hist_min_max_C(py::buffer_info& im_info, py::buffer_info& mask_info, py::buffer_info& hist_info, py::buffer_info& min_max_info)
 {
     bool ret{false};
-    if(im_info.format == py::format_descriptor<C>::value())
+    if(im_info.format == py::format_descriptor<C>::value)
     {
         if(hist_info.shape[0] != bin_count<C>())
         {
             std::ostringstream o;
-            o << "hist argument must contain " << bin_count<C>() << " elements for " << py::format_descriptor<C>::value() << " im.";
+            o << "hist argument must contain " << bin_count<C>() << " elements for " << py::format_descriptor<C>::value << " im.";
             throw std::invalid_argument(o.str());
         }
         py::gil_scoped_release releaseGil;
@@ -366,11 +366,11 @@ void py_masked_hist_min_max(py::buffer im, py::buffer mask, py::buffer hist, py:
         throw std::invalid_argument("im argument must be a 2 dimensional buffer object (such as a numpy array).");
     if(mask_info.ndim != 2)
         throw std::invalid_argument("mask argument must be a 2 dimensionsal buffer object (such as a numpy array).");
-    if(mask_info.format != py::format_descriptor<std::uint8_t>::value() && mask_info.format != py::format_descriptor<bool>::value())
+    if(mask_info.format != py::format_descriptor<std::uint8_t>::value && mask_info.format != py::format_descriptor<bool>::value)
         throw std::invalid_argument("mask argument format must be uint8 or bool.");
     if(hist_info.ndim != 1)
         throw std::invalid_argument("hist argument must be a 1 dimensional buffer object (such as a numpy array).");
-    if(hist_info.format != py::format_descriptor<std::uint32_t>::value())
+    if(hist_info.format != py::format_descriptor<std::uint32_t>::value)
         throw std::invalid_argument("hist argument format must be uint32.");
     if(min_max_info.ndim != 1)
         throw std::invalid_argument("min_max arugment must be a 1 dimensional buffer object (such as a numpy array).");
