@@ -185,14 +185,15 @@ class Image(Qt.QObject):
         else:
             if data_changed or mask_changed or is_twelve_bit_changed:
                 data = self._data
-                t = self.type
-                self.async_texture = AsyncTexture(
-                    data,
-                    Image.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[t],
-                    Image.IMAGE_TYPE_TO_GL_PIX_FORMAT[t],
-                    Image.NUMPY_DTYPE_TO_GL_PIXEL_TYPE[self.dtype.type],
-                    immediate_texture_upload)
-                self.async_texture.name = self.name
+                if data_changed:
+                    t = self.type
+                    self.async_texture = AsyncTexture(
+                        data,
+                        Image.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[t],
+                        Image.IMAGE_TYPE_TO_GL_PIX_FORMAT[t],
+                        Image.NUMPY_DTYPE_TO_GL_PIXEL_TYPE[self.dtype.type],
+                        immediate_texture_upload,
+                        self.name)
                 self.stats_future = ndimage_statistics.statistics(
                     data.astype(numpy.uint8) if self.dtype == bool else data, # TODO: fix ndimage_statistics so that bool => uint8 conversion is not required
                     self.is_twelve_bit,

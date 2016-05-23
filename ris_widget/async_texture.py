@@ -42,7 +42,8 @@ class AsyncTextureState(enum.Enum):
     Bound = 4
 
 class AsyncTexture:
-    def __init__(self, data, format, source_format, source_type, upload_immediately):
+    def __init__(self, data, format, source_format, source_type, upload_immediately, name):
+        self.name = name
         self.data = data
         self.format = format
         self.source_format = source_format
@@ -252,7 +253,7 @@ class _TextureCache(Qt.QObject):
         self.append_async_texture_to_lru_cache(async_texture)
 
     def upload(self, async_texture):
-        assert async_texture.bottle not in self.work_queue.queue
+        # assert async_texture.bottle not in self.work_queue.queue
         self.work_queue.put(async_texture.bottle)
 
     def apply_constraint(self):
