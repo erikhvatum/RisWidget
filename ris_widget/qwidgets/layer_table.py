@@ -213,7 +213,7 @@ class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePro
     #             return Qt.Qt.ItemIsEnabled | Qt.Qt.ItemIsSelectable | Qt.Qt.ItemNeverHasChildren | Qt.Qt.ItemIsEditable
     #         return super().flags(midx)
 
-    PROPERTIES = (
+    PROPERTIES = [
         'visible',
         'blend_function',
         'auto_min_max_enabled',
@@ -227,8 +227,8 @@ class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePro
         'image.dtype',
         'image.type',
         'image.size',
-        'image.name',
-        )
+        'image.name'
+    ]
 
     def __init__(
             self,
