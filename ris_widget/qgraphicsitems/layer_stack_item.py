@@ -132,6 +132,7 @@ class LayerStackItem(ShaderItem):
             self._bounding_rect = self.DEFAULT_BOUNDING_RECT if new_sz is None else Qt.QRectF(Qt.QPointF(), Qt.QSizeF(new_sz))
             self.bounding_rect_changed.emit()
         self.update()
+        self._update_contextual_info()
 
     def _attach_layers(self, layers):
         layer_stack = self.layer_stack

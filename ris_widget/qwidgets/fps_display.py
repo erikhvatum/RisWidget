@@ -93,7 +93,7 @@ class FPSDisplay(Qt.QWidget):
             self.interval_stddev_field,
             self.interval_stddev_suffix_label
         )
-        self.sample_count = 2
+        self.sample_count = 20
 
     @property
     def sample_count(self):

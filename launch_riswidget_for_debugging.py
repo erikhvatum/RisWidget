@@ -15,15 +15,15 @@
 
 from concurrent.futures import ThreadPoolExecutor
 import numpy
-import os.path
 from pathlib import Path
 from PyQt5 import Qt
 from ris_widget.ris_widget import RisWidget
-import ris_widget.async_texture
 import freeimage
 import re
 import sys
 import socket
+
+pool = ThreadPoolExecutor()
 
 # if socket.gethostname() == 'pincuslab-2.wucon.wustl.edu':
 #     ris_widget.async_texture._TextureCache.MAX_LRU_CACHE_KIBIBYTES = 1
@@ -38,30 +38,37 @@ image_dpath = Path(
     }.get(socket.gethostname(), '/mnt/iscopearray/experiment02/0002')
 )
 
-im_fpaths = sorted(im_fpath for im_fpath in image_dpath.glob('*') if re.match('''[^.].*\.(png|tiff|tif)''', str(im_fpath)))[:10]
-pagesize = 2
-im_fpath_pages = list(im_fpaths[i*pagesize:(i+1)*pagesize] for i in range(int(len(im_fpaths)/pagesize)))
-rw.flipbook.add_image_files(im_fpath_pages)
+im_fpaths = sorted(im_fpath for im_fpath in image_dpath.glob('*') if re.match('''[^.].*\.(png|tiff|tif)''', str(im_fpath)))[:200]
+pagesize = 1
+pages_im_fpaths = list(im_fpaths[i*pagesize:(i+1)*pagesize] for i in range(int(len(im_fpaths)/pagesize)))
+pages = list(pool.map(lambda im_fpaths: [freeimage.read(im_fpath) for im_fpath in im_fpaths], pages_im_fpaths))
 
-# pool = ThreadPoolExecutor(4)
-# ims = list(pool.map(freeimage.read, sorted(Path('/mnt/iscopearray/experiment02/0002').glob('*'))[:200]))
-# ims = list(ims[i*pagesize:(i+1)*pagesize] for i in range(int(len(ims)/pagesize)))
-#
-# rw.flipbook.pages = ims
-#
-# btn = Qt.QPushButton('go')
-# btn.setWindowTitle('go button')
-# btn.show()
-# def on_btn_clicked():
-#     for i in range(100):
-#         for page in ims:
-#             if isinstance(page, numpy.ndarray):
-#                 rw.image = page
-#             else:
-#                 rw.layers = page
-#             Qt.QApplication.processEvents()
-#             if not btn.isVisible():
-#                 return
-# btn.clicked.connect(on_btn_clicked)
+class RawPlayer(Qt.QObject):
+    show_next_page = Qt.pyqtSignal()
+
+    def __init__(self):
+        super().__init__(rw.qt_object)
+        a = self.play_raw_action = Qt.QAction('\N{BLACK RIGHT-POINTING POINTER}', rw.qt_object)
+        a.setCheckable(True)
+        a.setChecked(False)
+        a.toggled.connect(self.on_play_raw_action_toggled)
+        rw.qt_object.main_view_toolbar.addAction(a)
+        self.next_page_idx = 0
+        self.show_next_page.connect(self.on_show_next_page, Qt.Qt.QueuedConnection)
+
+    def on_play_raw_action_toggled(self, checked):
+        if checked:
+            self.on_show_next_page()
+
+    def on_show_next_page(self):
+        if not self.play_raw_action.isChecked():
+            return
+        rw.layers = pages[self.next_page_idx]
+        self.next_page_idx += 1
+        if self.next_page_idx >= len(pages):
+            self.next_page_idx = 0
+        self.show_next_page.emit()
+
+raw_player = RawPlayer()
 
 app.exec_()
