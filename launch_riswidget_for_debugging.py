@@ -17,13 +17,16 @@ from concurrent.futures import ThreadPoolExecutor
 import numpy
 from pathlib import Path
 from PyQt5 import Qt
+Qt.QApplication.setAttribute(Qt.Qt.AA_ShareOpenGLContexts)
 from ris_widget.ris_widget import RisWidget
 import freeimage
 import re
 import sys
 import socket
 
-pool = ThreadPoolExecutor()
+pool = ThreadPoolExecutor()#max_workers=4)
+
+
 
 # if socket.gethostname() == 'pincuslab-2.wucon.wustl.edu':
 #     ris_widget.async_texture._TextureCache.MAX_LRU_CACHE_KIBIBYTES = 1
@@ -42,6 +45,9 @@ im_fpaths = sorted(im_fpath for im_fpath in image_dpath.glob('*') if re.match(''
 pagesize = 1
 pages_im_fpaths = list(im_fpaths[i*pagesize:(i+1)*pagesize] for i in range(int(len(im_fpaths)/pagesize)))
 pages = list(pool.map(lambda im_fpaths: [freeimage.read(im_fpath) for im_fpath in im_fpaths], pages_im_fpaths))
+del pool
+
+import yappi
 
 class RawPlayer(Qt.QObject):
     show_next_page = Qt.pyqtSignal()
@@ -58,7 +64,12 @@ class RawPlayer(Qt.QObject):
 
     def on_play_raw_action_toggled(self, checked):
         if checked:
+            yappi.start(builtins=False, profile_threads=False)
             self.on_show_next_page()
+        else:
+            yappi.stop()
+            stats = yappi.get_func_stats()
+            stats.save('/home/ehvatum/zplrepo/ris_widget/launch_riswidget_for_debugging.profile.callgrind', type='callgrind')
 
     def on_show_next_page(self):
         if not self.play_raw_action.isChecked():
