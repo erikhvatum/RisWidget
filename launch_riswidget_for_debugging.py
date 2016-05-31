@@ -26,8 +26,6 @@ import socket
 
 pool = ThreadPoolExecutor()#max_workers=4)
 
-
-
 # if socket.gethostname() == 'pincuslab-2.wucon.wustl.edu':
 #     ris_widget.async_texture._TextureCache.MAX_LRU_CACHE_KIBIBYTES = 1
 
@@ -47,7 +45,7 @@ pages_im_fpaths = list(im_fpaths[i*pagesize:(i+1)*pagesize] for i in range(int(l
 pages = list(pool.map(lambda im_fpaths: [freeimage.read(im_fpath) for im_fpath in im_fpaths], pages_im_fpaths))
 del pool
 
-import yappi
+# import yappi
 
 class RawPlayer(Qt.QObject):
     show_next_page = Qt.pyqtSignal()
@@ -64,12 +62,12 @@ class RawPlayer(Qt.QObject):
 
     def on_play_raw_action_toggled(self, checked):
         if checked:
-            yappi.start(builtins=False, profile_threads=False)
+            # yappi.start(builtins=False, profile_threads=False)
             self.on_show_next_page()
-        else:
-            yappi.stop()
-            stats = yappi.get_func_stats()
-            stats.save('/home/ehvatum/zplrepo/ris_widget/launch_riswidget_for_debugging.profile.callgrind', type='callgrind')
+        # else:
+            # yappi.stop()
+            # stats = yappi.get_func_stats()
+            # stats.save('/home/ehvatum/zplrepo/ris_widget/launch_riswidget_for_debugging.profile.callgrind', type='callgrind')
 
     def on_show_next_page(self):
         if not self.play_raw_action.isChecked():

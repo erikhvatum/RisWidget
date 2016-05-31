@@ -335,3 +335,12 @@ def ICONS():
             fpath = Path(__file__).parent / 'icons' / fn
             _icons[fpath.stem] = Qt.QIcon(str(fpath))
     return _icons
+
+_FPSD = None
+def FPSD():
+    global _FPSD
+    if _FPSD is None:
+        from .qwidgets.fps_display import FPSDisplay
+        _FPSD = FPSDisplay()
+        _FPSD.show()
+    return _FPSD
