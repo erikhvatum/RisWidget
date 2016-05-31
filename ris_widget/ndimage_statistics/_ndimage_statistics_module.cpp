@@ -331,7 +331,7 @@ void py_hist_min_max(py::buffer im, py::buffer hist, py::buffer min_max, bool is
 }
 
 template<typename C, bool is_twelve_bit>
-static inline bool masked_hist_min_max_C(py::buffer_info& im_info, py::buffer_info& mask_info, py::buffer_info& hist_info, py::buffer_info& min_max_info)
+static inline bool masked_hist_min_max_C(py::buffer_info& im_info, py::buffer_info& mask_info, py::buffer_info& hist_info, py::buffer_info& min_max_info, bool use_open_mp)
 {
     bool ret{false};
     if(im_info.format == py::format_descriptor<C>::value)
@@ -343,6 +343,36 @@ static inline bool masked_hist_min_max_C(py::buffer_info& im_info, py::buffer_in
             throw std::invalid_argument(o.str());
         }
         py::gil_scoped_release releaseGil;
+        #ifdef _OPENMP
+        if(use_open_mp)
+        {
+            masked_hist_min_max_omp<C, is_twelve_bit>(
+               reinterpret_cast<C*>(im_info.ptr),
+               im_info.shape.data(),
+               im_info.strides.data(),
+               reinterpret_cast<std::uint8_t*>(mask_info.ptr),
+               mask_info.shape.data(),
+               mask_info.strides.data(),
+               reinterpret_cast<std::uint32_t*>(hist_info.ptr),
+               hist_info.strides[0],
+               reinterpret_cast<C*>(min_max_info.ptr),
+               min_max_info.strides[0]);
+        }
+        else
+        {
+            masked_hist_min_max<C, is_twelve_bit>(
+               reinterpret_cast<C*>(im_info.ptr),
+               im_info.shape.data(),
+               im_info.strides.data(),
+               reinterpret_cast<std::uint8_t*>(mask_info.ptr),
+               mask_info.shape.data(),
+               mask_info.strides.data(),
+               reinterpret_cast<std::uint32_t*>(hist_info.ptr),
+               hist_info.strides[0],
+               reinterpret_cast<C*>(min_max_info.ptr),
+               min_max_info.strides[0]);
+        }
+        #else
         masked_hist_min_max<C, is_twelve_bit>(
            reinterpret_cast<C*>(im_info.ptr),
            im_info.shape.data(),
@@ -354,12 +384,13 @@ static inline bool masked_hist_min_max_C(py::buffer_info& im_info, py::buffer_in
            hist_info.strides[0],
            reinterpret_cast<C*>(min_max_info.ptr),
            min_max_info.strides[0]);
+        #endif
         ret = true;
     }
     return ret;
 }
 
-void py_masked_hist_min_max(py::buffer im, py::buffer mask, py::buffer hist, py::buffer min_max, bool is_twelve_bit)
+void py_masked_hist_min_max(py::buffer im, py::buffer mask, py::buffer hist, py::buffer min_max, bool is_twelve_bit, bool use_open_mp)
 {
     py::buffer_info im_info{im.request()}, mask_info{mask.request()}, hist_info{hist.request()}, min_max_info{min_max.request()};
     if(im_info.ndim != 2)
@@ -381,7 +412,7 @@ void py_masked_hist_min_max(py::buffer im, py::buffer mask, py::buffer hist, py:
             "im and min_max arguments must be the same format (or dtype, in the case where they are numpy arays).");
     if(is_twelve_bit)
     {
-        if(!masked_hist_min_max_C<std::uint16_t, true>(im_info, mask_info, hist_info, min_max_info))
+        if(!masked_hist_min_max_C<std::uint16_t, true>(im_info, mask_info, hist_info, min_max_info, use_open_mp))
         {
             throw std::invalid_argument("is_twelve_bit may be True only if im is uint16.");
         }
@@ -389,10 +420,10 @@ void py_masked_hist_min_max(py::buffer im, py::buffer mask, py::buffer hist, py:
     else
     {
         if ( !(
-            masked_hist_min_max_C<std::uint8_t, false>(im_info, mask_info, hist_info, min_max_info) ||
-            masked_hist_min_max_C<std::uint16_t, false>(im_info, mask_info, hist_info, min_max_info) ||
-            masked_hist_min_max_C<std::uint32_t, false>(im_info, mask_info, hist_info, min_max_info) ||
-            masked_hist_min_max_C<std::uint64_t, false>(im_info, mask_info, hist_info, min_max_info)) )
+            masked_hist_min_max_C<std::uint8_t, false>(im_info, mask_info, hist_info, min_max_info, use_open_mp) ||
+            masked_hist_min_max_C<std::uint16_t, false>(im_info, mask_info, hist_info, min_max_info, use_open_mp) ||
+            masked_hist_min_max_C<std::uint32_t, false>(im_info, mask_info, hist_info, min_max_info, use_open_mp) ||
+            masked_hist_min_max_C<std::uint64_t, false>(im_info, mask_info, hist_info, min_max_info, use_open_mp)) )
         {
             throw std::invalid_argument("Only uint8, uint16, uint32, and uint64 im buffers are supported.");
         }

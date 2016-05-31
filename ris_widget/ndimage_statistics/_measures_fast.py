@@ -41,11 +41,11 @@ def _histogram(im, bin_count, range_, mask=None, with_overflow_bins=False):
         _ndimage_statistics.masked_ranged_hist(im, mask, range_, hist, with_overflow_bins)
     return hist
 
-def _statistics(im, is_twelve_bit, mask=None):
+def _statistics(im, is_twelve_bit, mask=None, use_open_mp=False):
     hist = numpy.empty((256 if im.dtype == numpy.uint8 else 1024,), dtype=numpy.uint32)
     min_max = numpy.empty((2,), dtype=im.dtype)
     if mask is None:
         _ndimage_statistics.hist_min_max(im, hist, min_max, is_twelve_bit)
     else:
-        _ndimage_statistics.masked_hist_min_max(im, mask, hist, min_max, is_twelve_bit)
+        _ndimage_statistics.masked_hist_min_max(im, mask, hist, min_max, is_twelve_bit, use_open_mp)
     return NDImageStatistics(hist, hist.argmax(), min_max)

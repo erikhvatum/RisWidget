@@ -53,7 +53,7 @@ def _histogram(im, bin_count, range_, mask=None, with_overflow_bins=False):
         assert bin_count >= 1
         return numpy.histogram(im, bins=bin_count, range=range_, density=False)[0].astype(numpy.uint32)
 
-def _statistics(im, twelve_bit, mask=None):
+def _statistics(im, twelve_bit, mask=None, use_open_mp=False):
     if im.dtype == numpy.uint8:
         min_max = numpy.zeros((2,), dtype=numpy.uint8)
         bin_count = 256

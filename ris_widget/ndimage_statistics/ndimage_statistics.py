@@ -99,14 +99,14 @@ def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, per_ch
             return numpy.vstack(fute.result() for fute in futes)
     return pool.submit(proc) if return_future else proc()
 
-def statistics(im, is_twelve_bit=False, mask=None, per_channel_thread_count=2, return_future=False):
+def statistics(im, is_twelve_bit=False, mask=None, return_future=False, use_open_mp=False):
     assert im.ndim in (2, 3)
     if im.ndim == 2:
         def proc():
-            return _statistics(im, is_twelve_bit, mask)
+            return _statistics(im, is_twelve_bit, mask, use_open_mp)
     else:
         def channel_proc(channel):
-            return _statistics(im[..., channel], is_twelve_bit, mask)
+            return _statistics(im[..., channel], is_twelve_bit, mask, use_open_mp)
         def proc():
             results = [channel_proc(channel) for channel in range(im.shape[2])]
             return NDImageStatistics(

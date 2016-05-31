@@ -70,12 +70,15 @@ class BuildExt(setuptools.command.build_ext.build_ext):
     def build_extensions(self):
         ct = self.compiler.compiler_type
         opts = self.c_opts.get(ct, [])
+#       ld_opts = self.ld_opts.get(ct, [])
         if ct == 'unix':
             opts.append(cpp_flag(self.compiler))
             if has_flag(self.compiler, '-fvisibility=hidden'):
                 opts.append('-fvisibility=hidden')
             if has_flag(self.compiler, '-mtune=native'):
                 opts.append('-mtune=native')
+#           if has_flag(self.compiler, '-fopenmp'):
+#               opts.append('-fopenmp')
         for ext in self.extensions:
             ext.extra_compile_args = opts
             setuptools.command.build_ext.build_ext.build_extensions(self)

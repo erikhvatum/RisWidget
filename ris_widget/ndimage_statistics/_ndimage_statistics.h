@@ -505,3 +505,98 @@ void masked_hist_min_max(const C* im, const std::size_t* im_shape, const std::si
         }
     }
 }
+
+#ifdef _OPENMP
+template<typename C, bool is_twelve_bit>
+void masked_hist_min_max_omp(const C* im, const std::size_t* im_shape, const std::size_t* im_strides,
+                             const std::uint8_t* mask, const std::size_t* mask_shape, const std::size_t* mask_strides,
+                             std::uint32_t* hist, const std::size_t& hist_stride,
+                             C* min_max, const std::size_t& min_max_stride)
+{
+    std::size_t shape[2], strides[2], mshape[2], mstrides[2];
+    reorder_to_inner_outer(
+        im_shape, im_strides, shape, strides,
+        mask_shape, mask_strides, mshape, mstrides);
+
+    std::uint8_t* hist8{reinterpret_cast<std::uint8_t*>(hist)};
+    std::uint8_t *const hist8EndIt{hist8 + bin_count<C>() * hist_stride};
+    for(std::uint8_t *hist8It{hist8}; hist8It != hist8EndIt; hist8It += hist_stride)
+        *reinterpret_cast<std::uint32_t*>(hist8It) = 0;
+
+    C& min{min_max[0]};
+    C& max{*reinterpret_cast<C*>(reinterpret_cast<std::uint8_t*>(min_max) + min_max_stride)};
+    max = min = 0;
+
+    const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
+    LutPtr mouter_lut_obj{luts.getLut(shape[0], mshape[0])};
+    const std::uint32_t*const mouter_lut_store{mouter_lut_obj->m_data.data()};
+    LutPtr minner_lut_obj{luts.getLut(shape[1], mshape[1])};
+    const std::uint32_t*const minner_lut_store{minner_lut_obj->m_data.data()};
+    bool seen_unmasked = false;
+
+    #pragma omp parallel
+    {
+        bool l_seen_unmasked = false;
+        C l_min, l_max;
+        std::uint32_t* l_hist{new std::uint32_t[bin_count<C>()]};
+        std::unique_ptr<std::uint32_t[]> l_hist_holder{l_hist};
+        memset(l_hist, 0, sizeof(std::uint32_t) * bin_count<C>());
+
+        const std::uint8_t* inner;
+        const std::uint8_t* inner_end;
+        const std::uint8_t* mouter;
+        const std::uint8_t* minner;
+        const std::uint32_t* minner_lut;
+
+        #pragma omp for
+        for(std::size_t outer_idx = 0; outer_idx < shape[0]; outer_idx++)
+        {
+            inner = reinterpret_cast<const std::uint8_t*>(im) + outer_idx * strides[0];
+            inner_end = inner + inner_end_offset;
+            mouter = mask + mstrides[0] * mouter_lut_store[outer_idx];
+            minner_lut = minner_lut_store;
+            for(; inner != inner_end; inner += strides[1], ++minner_lut)
+            {
+                minner = mouter + mstrides[1] * *minner_lut;
+                if(*minner != 0)
+                {
+                    const C& v = *reinterpret_cast<const C*>(inner);
+                    ++l_hist[apply_bin_shift<C, is_twelve_bit>(v)];
+                    if(l_seen_unmasked)
+                    {
+                        if(v < l_min)
+                            l_min = v;
+                        else if(v > l_max)
+                            l_max = v;
+                    }
+                    else
+                    {
+                        l_seen_unmasked = true;
+                        l_max = l_min = v;
+                    }
+                }
+            }
+        }
+
+        if(l_seen_unmasked)
+        {
+            #pragma omp critical
+            {
+                if(seen_unmasked)
+                {
+                    if(l_min < min) min = l_min;
+                    if(l_max > max) max = l_max;
+                }
+                else
+                {
+                    seen_unmasked = true;
+                    min = l_min;
+                    max = l_max;
+                }
+                for(std::uint8_t *hist8It{hist8}; hist8It != hist8EndIt; hist8It += hist_stride, ++l_hist)
+                    *reinterpret_cast<std::uint32_t*>(hist8It) += *l_hist;
+            }
+        }
+    }
+}
+#endif
