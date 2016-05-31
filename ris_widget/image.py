@@ -92,7 +92,8 @@ class Image(Qt.QObject):
             is_twelve_bit=False,
             imposed_float_range=None,
             name=None,
-            immediate_texture_upload=True):
+            immediate_texture_upload=True,
+            use_open_mp=False):
         """
         The shape of image and mask data is interpreted as (x,y) for 2-d arrays and (x,y,c) for 3-d arrays.  If your image or mask was loaded as (y,x),
         array.T will produce an (x,y)-shaped array.  In case of (y,x,c) image data, array.swapaxes(0,1) is required."""
@@ -108,13 +109,14 @@ class Image(Qt.QObject):
             is_twelve_bit=is_twelve_bit,
             imposed_float_range=imposed_float_range,
             name=name,
-            immediate_texture_upload=immediate_texture_upload)
+            immediate_texture_upload=immediate_texture_upload,
+            use_open_mp=use_open_mp)
 
     def _onObjectNameChanged(self):
         self.name_changed.emit(self)
 
     @classmethod
-    def from_qimage(cls, qimage, parent=None, is_twelve_bit=False, name=None):
+    def from_qimage(cls, qimage, parent=None, is_twelve_bit=False, name=None, use_open_mp=False):
         if not qimage.isNull() and qimage.format() != Qt.QImage.Format_Invalid:
             if qimage.hasAlphaChannel():
                 desired_format = Qt.QImage.Format_RGBA8888
@@ -139,7 +141,7 @@ class Image(Qt.QObject):
             if qimage.isGrayscale():
                 # Note: Qt does not support grayscale with alpha channels, so we don't need to worry about that case
                 npyimage=npyimage[...,0]
-            return cls(data=npyimage.copy(), parent=parent, is_twelve_bit=is_twelve_bit, name=name)
+            return cls(data=npyimage.copy(), parent=parent, is_twelve_bit=is_twelve_bit, name=name, use_open_mp=use_open_mp)
 
     def __repr__(self):
         num_channels = self.num_channels
@@ -160,7 +162,8 @@ class Image(Qt.QObject):
             mask_changed=False,
             is_twelve_bit_changed=False,
             imposed_float_range_changed=False,
-            immediate_texture_upload=True):
+            immediate_texture_upload=True,
+            use_open_mp=False):
         """
         The .refresh method should be called after modifying the contents of .data, .mask, and/or after replacing .is_twelve_bit or .imposed_float_range
         by assignment, with True supplied for the respective _changed argument.  It is assumed that only those changes may have occurred, and that
@@ -198,7 +201,8 @@ class Image(Qt.QObject):
                     data.astype(numpy.uint8) if self.dtype == bool else data, # TODO: fix ndimage_statistics so that bool => uint8 conversion is not required
                     self.is_twelve_bit,
                     self.mask,
-                    return_future=True)
+                    return_future=True,
+                    use_open_mp=use_open_mp)
         if data_changed or mask_changed or is_twelve_bit_changed or imposed_float_range_changed:
             self.data_changed.emit(self)
         if mask_changed:
@@ -210,7 +214,8 @@ class Image(Qt.QObject):
             is_twelve_bit=...,
             imposed_float_range=...,
             name=...,
-            immediate_texture_upload=True):
+            immediate_texture_upload=True,
+            use_open_mp=False):
         """
         In addition to the values __init__ accepts for the data, mask, name, is_twelve_bit, and imposed_float_range arguments, set accepts ...
         (Ellipses) for these arguments to indicate No Change.  That is, the contents of i.data, i.name, i.mask, i.is_twelve_bit, and
@@ -326,7 +331,7 @@ class Image(Qt.QObject):
         if name_changed:
             self.name = name
 
-        self.refresh(data_changed, mask_changed, is_twelve_bit_changed, imposed_float_range_changed, immediate_texture_upload)
+        self.refresh(data_changed, mask_changed, is_twelve_bit_changed, imposed_float_range_changed, immediate_texture_upload, use_open_mp)
 
     set.__doc__ = textwrap.dedent(set.__doc__) + '\n' + textwrap.dedent(__init__.__doc__)
 

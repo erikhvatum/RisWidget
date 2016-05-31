@@ -86,6 +86,11 @@ def mark_ndimage_statistics_statistics(im, mask=None):
         raise Inapplicable
     ndimage_statistics.statistics(im, mask=mask)
 
+def mark_ndimage_statistics_statistics_omp(im, mask=None):
+    if numpy.issubdtype(im.dtype, numpy.floating):
+        raise Inapplicable
+    ndimage_statistics.statistics(im, mask=mask, use_open_mp=True)
+
 def mark_ndimage_statistics_histogram(im, mask=None):
     ndimage_statistics.histogram(im, 1024, im_dtype_ranges[im.dtype.type], mask)
 
@@ -94,7 +99,8 @@ def benchmark():
     marks_and_names = [
         [ndimage_statistics.extremae, 'extremae'],
         [mark_ndimage_statistics_histogram, 'histogram'],
-        [mark_ndimage_statistics_statistics, 'statistics']
+        [mark_ndimage_statistics_statistics, 'statistics'],
+        [mark_ndimage_statistics_statistics_omp, 'statistics_omp']
     ]
     # Unmasked
     for mark, mark_name in marks_and_names:
