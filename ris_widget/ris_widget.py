@@ -85,7 +85,7 @@ class RisWidgetQtObject(Qt.QMainWindow):
             self.setWindowTitle(window_title)
         self.setAcceptDrops(True)
         query_gl_exts()
-        GL_QSURFACE_FORMAT(msaa_sample_count)
+        Qt.QSurfaceFormat.setDefaultFormat(GL_QSURFACE_FORMAT(msaa_sample_count))
         async_texture._TextureCache.init()
         self.layer_stack = LayerStack()
         self._init_scenes_and_views()
