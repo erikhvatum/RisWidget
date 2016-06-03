@@ -266,7 +266,7 @@ def GL_QSURFACE_FORMAT(msaa_sample_count=None):
         _GL_QSURFACE_FORMAT.setProfile(Qt.QSurfaceFormat.CompatibilityProfile)
         _GL_QSURFACE_FORMAT.setSwapBehavior(Qt.QSurfaceFormat.DoubleBuffer)
         _GL_QSURFACE_FORMAT.setStereo(False)
-        _GL_QSURFACE_FORMAT.setSwapInterval(1)
+        _GL_QSURFACE_FORMAT.setSwapInterval(0)
         if msaa_sample_count is not None:
             _GL_QSURFACE_FORMAT.setSamples(msaa_sample_count)
         if NV_PATH_RENDERING_AVAILABLE:
