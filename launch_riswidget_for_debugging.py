@@ -42,16 +42,16 @@ pagesize = 1
 pages_im_fpaths = list(im_fpaths[i*pagesize:(i+1)*pagesize] for i in range(int(len(im_fpaths)/pagesize)))
 rw.flipbook.add_image_files(pages_im_fpaths)
 
-import yappi
-def on_flipbook_playing_toggled(is_playing):
-    if is_playing:
-        yappi.start(builtins=False, profile_threads=False)
-    else:
-        yappi.stop()
-        stats = yappi.get_func_stats()
-        stats.print_all()
-
-rw.flipbook.toggle_playing_action.toggled.connect(on_flipbook_playing_toggled)
+# import yappi
+# def on_flipbook_playing_toggled(is_playing):
+#     if is_playing:
+#         yappi.start(builtins=False, profile_threads=False)
+#     else:
+#         yappi.stop()
+#         stats = yappi.get_func_stats()
+#         stats.print_all()
+#
+# rw.flipbook.toggle_playing_action.toggled.connect(on_flipbook_playing_toggled)
 
 # pool = ThreadPoolExecutor()#max_workers=4)
 # pages = list(pool.map(lambda im_fpaths: [freeimage.read(im_fpath) for im_fpath in im_fpaths], pages_im_fpaths))

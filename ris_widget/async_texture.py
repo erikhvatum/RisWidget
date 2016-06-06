@@ -357,3 +357,4 @@ class _TextureCache(Qt.QObject):
         for thread in self.async_texture_upload_threads:
             thread.wait()
         self.async_texture_upload_threads = []
+        self.gl_context.deleteLater()
