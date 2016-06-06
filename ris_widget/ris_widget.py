@@ -70,8 +70,7 @@ class RisWidgetQtObject(Qt.QMainWindow):
             parent=None,
             window_flags=Qt.Qt.WindowFlags(0),
             msaa_sample_count=2,
-            layers = tuple(),
-            layer_selection_model=None):
+            layers = tuple()):
         super().__init__(parent, window_flags)
         self.app_prefs_name = app_prefs_name
         self.app_prefs_version = app_prefs_version
@@ -588,7 +587,6 @@ class RisWidget:
             msaa_sample_count=2,
             show=True,
             layers = tuple(),
-            layer_selection_model=None,
             **kw):
         if Qt.QApplication.instance() is None:
             app = Qt.QApplication(sys.argv)
@@ -600,7 +598,6 @@ class RisWidget:
             window_flags,
             msaa_sample_count,
             layers,
-            layer_selection_model,
             **kw)
         self.main_view_change_signal = self.qt_object.main_view_change_signal
         for refdesc in self.COPY_REFS:

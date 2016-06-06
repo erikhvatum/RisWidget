@@ -24,8 +24,6 @@ import re
 import sys
 import socket
 
-pool = ThreadPoolExecutor()#max_workers=4)
-
 # if socket.gethostname() == 'pincuslab-2.wucon.wustl.edu':
 #     ris_widget.async_texture._TextureCache.MAX_LRU_CACHE_KIBIBYTES = 1
 
@@ -42,42 +40,56 @@ image_dpath = Path(
 im_fpaths = sorted(im_fpath for im_fpath in image_dpath.glob('*') if re.match('''[^.].*\.(png|tiff|tif)''', str(im_fpath)))[:200]
 pagesize = 1
 pages_im_fpaths = list(im_fpaths[i*pagesize:(i+1)*pagesize] for i in range(int(len(im_fpaths)/pagesize)))
-pages = list(pool.map(lambda im_fpaths: [freeimage.read(im_fpath) for im_fpath in im_fpaths], pages_im_fpaths))
-del pool
+rw.flipbook.add_image_files(pages_im_fpaths)
 
-# import yappi
+import yappi
+def on_flipbook_playing_toggled(is_playing):
+    if is_playing:
+        yappi.start(builtins=False, profile_threads=False)
+    else:
+        yappi.stop()
+        stats = yappi.get_func_stats()
+        stats.print_all()
 
-class RawPlayer(Qt.QObject):
-    show_next_page = Qt.pyqtSignal()
+rw.flipbook.toggle_playing_action.toggled.connect(on_flipbook_playing_toggled)
 
-    def __init__(self):
-        super().__init__(rw.qt_object)
-        a = self.play_raw_action = Qt.QAction('\N{BLACK RIGHT-POINTING POINTER}', rw.qt_object)
-        a.setCheckable(True)
-        a.setChecked(False)
-        a.toggled.connect(self.on_play_raw_action_toggled)
-        rw.qt_object.main_view_toolbar.addAction(a)
-        self.next_page_idx = 0
-        self.show_next_page.connect(self.on_show_next_page, Qt.Qt.QueuedConnection)
-
-    def on_play_raw_action_toggled(self, checked):
-        if checked:
-            # yappi.start(builtins=False, profile_threads=False)
-            self.on_show_next_page()
-        # else:
-            # yappi.stop()
-            # stats = yappi.get_func_stats()
-            # stats.save('/home/ehvatum/zplrepo/ris_widget/launch_riswidget_for_debugging.profile.callgrind', type='callgrind')
-
-    def on_show_next_page(self):
-        if not self.play_raw_action.isChecked():
-            return
-        rw.layers = pages[self.next_page_idx]
-        self.next_page_idx += 1
-        if self.next_page_idx >= len(pages):
-            self.next_page_idx = 0
-        self.show_next_page.emit()
-
-raw_player = RawPlayer()
+# pool = ThreadPoolExecutor()#max_workers=4)
+# pages = list(pool.map(lambda im_fpaths: [freeimage.read(im_fpath) for im_fpath in im_fpaths], pages_im_fpaths))
+# del pool
+#
+# # import yappi
+#
+# class RawPlayer(Qt.QObject):
+#     show_next_page = Qt.pyqtSignal()
+#
+#     def __init__(self):
+#         super().__init__(rw.qt_object)
+#         a = self.play_raw_action = Qt.QAction('\N{BLACK RIGHT-POINTING POINTER}', rw.qt_object)
+#         a.setCheckable(True)
+#         a.setChecked(False)
+#         a.toggled.connect(self.on_play_raw_action_toggled)
+#         rw.qt_object.main_view_toolbar.addAction(a)
+#         self.next_page_idx = 0
+#         self.show_next_page.connect(self.on_show_next_page, Qt.Qt.QueuedConnection)
+#
+#     def on_play_raw_action_toggled(self, checked):
+#         if checked:
+#             # yappi.start(builtins=False, profile_threads=False)
+#             self.on_show_next_page()
+#         # else:
+#             # yappi.stop()
+#             # stats = yappi.get_func_stats()
+#             # stats.save('/home/ehvatum/zplrepo/ris_widget/launch_riswidget_for_debugging.profile.callgrind', type='callgrind')
+#
+#     def on_show_next_page(self):
+#         if not self.play_raw_action.isChecked():
+#             return
+#         rw.layers = pages[self.next_page_idx]
+#         self.next_page_idx += 1
+#         if self.next_page_idx >= len(pages):
+#             self.next_page_idx = 0
+#         self.show_next_page.emit()
+#
+# raw_player = RawPlayer()
 
 app.exec_()
