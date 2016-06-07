@@ -77,7 +77,7 @@ class BuildExt(setuptools.command.build_ext.build_ext):
                 cflags.append('-fvisibility=hidden')
             if has_flag(self.compiler, '-mtune=native'):
                 cflags.append('-mtune=native')
-        if has_flag(self.compiler, '-fopenmp'):
+        if has_flag(self.compiler, '-fopenmp') and sys.platform != 'darwin': # TODO: re-enable openmp support on darwin/OS X when a version of XCode supporting openmp is released
             cflags.append('-fopenmp')
             ldflags.append('-fopenmp')
         for ext in self.extensions:
