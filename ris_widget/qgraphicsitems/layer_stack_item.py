@@ -369,9 +369,6 @@ class LayerStackItem(ShaderItem):
                     main='\n'.join(main))
             prog.bind()
             estack.callback(prog.release)
-            if widget is None:
-                # We are being called as a result of a BaseView.snapshot(..) invocation
-                widget = self.scene().views()[0].gl_widget
             glQuad = GL_QUAD()
             glQuad.buffer.bind()
             estack.callback(glQuad.buffer.release)
@@ -402,7 +399,7 @@ class LayerStackItem(ShaderItem):
             # ratio of the unit square's projection onto the view.  Any subsequent layers in the stack use this same projection,
             # with the result that they are stretched to fill the LayerStackItem.
             frag_to_tex = Qt.QTransform()
-            frame = Qt.QPolygonF(widget.view.mapFromScene(Qt.QPolygonF(self.sceneTransform().mapToPolygon(self.boundingRect().toRect()))))
+            frame = Qt.QPolygonF(self.scene().views()[0].mapFromScene(Qt.QPolygonF(self.sceneTransform().mapToPolygon(self.boundingRect().toRect()))))
             dpi_ratio = widget.devicePixelRatio()
             if dpi_ratio != 1:
                 dpi_transform = Qt.QTransform()

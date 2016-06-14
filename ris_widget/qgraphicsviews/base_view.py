@@ -23,7 +23,6 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from contextlib import ExitStack
-import numpy
 from PyQt5 import Qt
 from ..shared_resources import QGL, GL_LOGGER, GL_QSURFACE_FORMAT
 from ..image import Image
@@ -44,12 +43,12 @@ class BaseView(Qt.QGraphicsView):
         super().__init__(base_scene, parent)
         self.setMouseTracking(True)
         self._background_color = (0.0, 0.0, 0.0, 1.0)
-        gl_widget = _ShaderViewGLViewport(self)
+        self.gl_window = _GLWindow()
         # It seems necessary to retain this reference.  It is available via self.viewport() after
         # the setViewport call completes, suggesting that PyQt keeps a reference to it, but this 
         # reference is evidentally weak or perhaps just a pointer.
-        self.gl_widget = gl_widget
-        self.setViewport(gl_widget)
+        self.gl_widget = Qt.QWidget.createWindowContainer(self.gl_window)
+        self.setViewport(self.gl_widget)
         if GL_QSURFACE_FORMAT().samples() > 0:
             self.setRenderHint(Qt.QPainter.Antialiasing)
         self._update_viewport_rect_item()
@@ -92,13 +91,18 @@ class BaseView(Qt.QGraphicsView):
         if i.pos() != p:
             i.setPos(p)
 
-    def drawBackground(self, p, rect):
-        p.beginNativePainting()
-        GL = QGL()
-        GL.glClearColor(*self._background_color)
-        GL.glClearDepth(1)
-        GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
-        p.endNativePainting()
+    # def drawBackground(self, p, rect):
+    #     print(p.paintEngine().type() in (Qt.QPaintEngine.OpenGL, Qt.QPaintEngine.OpenGL2))
+    #     with ExitStack() as estack:
+    #         if Qt.QOpenGLContext.currentContext() is None:
+    #             self.gl_window.makeCurrent()
+    #             estack.callback(self.gl_window.doneCurrent)
+    #         p.beginNativePainting()
+    #         GL = QGL()
+    #         GL.glClearColor(*self._background_color)
+    #         GL.glClearDepth(1)
+    #         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
+    #         p.endNativePainting()
 
     # def paintEvent(self, event):
     #     print('paintEvent')
@@ -165,17 +169,11 @@ class BaseView(Qt.QGraphicsView):
             qimage = fbo.toImage()
         return Image.from_qimage(qimage).data
 
-# class _ShaderViewGLViewport(Qt.QOpenGLWindow):
-
-
-class _ShaderViewGLViewport(Qt.QOpenGLWidget):
-    context_about_to_change = Qt.pyqtSignal(Qt.QOpenGLWidget)
-    context_changed = Qt.pyqtSignal(Qt.QOpenGLWidget)
-
-    def __init__(self, view):
+class _GLWindow(Qt.QOpenGLWindow):
+    def __init__(self):
         super().__init__()
         self.setFormat(GL_QSURFACE_FORMAT())
-        self.view = view
+        self.create()
 
     def _check_current(self, estack):
         if Qt.QOpenGLContext.currentContext() is not self.context():
@@ -232,11 +230,11 @@ class _ShaderViewGLViewport(Qt.QOpenGLWidget):
             return r
         return super().event(e)
 
-    def paintGL(self):
-        raise NotImplementedError(_ShaderViewGLViewport._DONT_CALL_ME_ERROR)
+    # def paintGL(self):
+    #     raise NotImplementedError(_ShaderViewGLViewport._DONT_CALL_ME_ERROR)
 
-    def resizeGL(self, w, h):
-        raise NotImplementedError(_ShaderViewGLViewport._DONT_CALL_ME_ERROR)
+    # def resizeGL(self, w, h):
+    #     raise NotImplementedError(_ShaderViewGLViewport._DONT_CALL_ME_ERROR)
 
     _DONT_CALL_ME_ERROR =\
         'This method should not be called; any event or signal that ' \
