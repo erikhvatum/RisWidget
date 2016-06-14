@@ -28,7 +28,7 @@ from PyQt5 import Qt
 from string import Template
 import textwrap
 from ..contextual_info import ContextualInfo
-from ..shared_resources import QGL, UNIQUE_QGRAPHICSITEM_TYPE
+from ..shared_resources import GL_QUAD, QGL, UNIQUE_QGRAPHICSITEM_TYPE
 from .shader_item import ShaderItem
 
 class LayerStackItem(ShaderItem):
@@ -372,11 +372,11 @@ class LayerStackItem(ShaderItem):
             if widget is None:
                 # We are being called as a result of a BaseView.snapshot(..) invocation
                 widget = self.scene().views()[0].gl_widget
-            view = widget.view
-            view.quad_buffer.bind()
-            estack.callback(view.quad_buffer.release)
-            view.quad_vao.bind()
-            estack.callback(view.quad_vao.release)
+            glQuad = GL_QUAD()
+            glQuad.buffer.bind()
+            estack.callback(glQuad.buffer.release)
+            glQuad.vao.bind()
+            estack.callback(glQuad.vao.release)
             vert_coord_loc = prog.attributeLocation('vert_coord')
             prog.enableAttributeArray(vert_coord_loc)
             GL = QGL()
@@ -402,7 +402,7 @@ class LayerStackItem(ShaderItem):
             # ratio of the unit square's projection onto the view.  Any subsequent layers in the stack use this same projection,
             # with the result that they are stretched to fill the LayerStackItem.
             frag_to_tex = Qt.QTransform()
-            frame = Qt.QPolygonF(view.mapFromScene(Qt.QPolygonF(self.sceneTransform().mapToPolygon(self.boundingRect().toRect()))))
+            frame = Qt.QPolygonF(widget.view.mapFromScene(Qt.QPolygonF(self.sceneTransform().mapToPolygon(self.boundingRect().toRect()))))
             dpi_ratio = widget.devicePixelRatio()
             if dpi_ratio != 1:
                 dpi_transform = Qt.QTransform()

@@ -50,42 +50,9 @@ class BaseView(Qt.QGraphicsView):
         # reference is evidentally weak or perhaps just a pointer.
         self.gl_widget = gl_widget
         self.setViewport(gl_widget)
-        gl_widget.context_about_to_change.connect(self._on_context_about_to_change, Qt.Qt.DirectConnection)
-        gl_widget.context_changed.connect(self._on_context_changed, Qt.Qt.DirectConnection)
         if GL_QSURFACE_FORMAT().samples() > 0:
             self.setRenderHint(Qt.QPainter.Antialiasing)
         self._update_viewport_rect_item()
-
-    def _on_gl_initializing(self):
-        self._make_quad_vao()
-
-    def _on_context_about_to_change(self, gl_widget):
-        self.quad_vao.destroy()
-        self.quad_vao = None
-        self.quad_buffer.destroy()
-        self.quad_buffer = None
-
-    def _on_context_changed(self, gl_widget):
-        self._on_gl_initializing()
-
-    def _make_quad_vao(self):
-        self.quad_vao = Qt.QOpenGLVertexArrayObject()
-        self.quad_vao.create()
-        quad_vao_binder = Qt.QOpenGLVertexArrayObject.Binder(self.quad_vao)
-        quad = numpy.array([1.1, -1.1,
-                            -1.1, -1.1,
-                            -1.1, 1.1,
-                            1.1, 1.1], dtype=numpy.float32)
-        self.quad_buffer = Qt.QOpenGLBuffer(Qt.QOpenGLBuffer.VertexBuffer)
-        self.quad_buffer.create()
-        self.quad_buffer.bind()
-        try:
-            self.quad_buffer.setUsagePattern(Qt.QOpenGLBuffer.StaticDraw)
-            self.quad_buffer.allocate(quad.ctypes.data, quad.nbytes)
-        finally:
-            # Note: the following release call is essential.  Without it, QPainter will never work for
-            # this widget again!
-            self.quad_buffer.release()
 
     def scrollContentsBy(self, dx, dy):
         """This function is never actually called for HistogramView as HistogramView always displays
@@ -198,28 +165,10 @@ class BaseView(Qt.QGraphicsView):
             qimage = fbo.toImage()
         return Image.from_qimage(qimage).data
 
+# class _ShaderViewGLViewport(Qt.QOpenGLWindow):
+
+
 class _ShaderViewGLViewport(Qt.QOpenGLWidget):
-    """In order to obtain a QGraphicsView instance that renders into an OpenGL 2.1
-    compatibility context (OS X does not support OpenGL 3.0+ compatibility profile,
-    and Qt 5.4.1 QPainter support relies upon legacy calls, limiting us to 2.1 on
-    OS X - and everywhere else as a practicality), I know of two supported methods:
-
-    * Call the static method Qt.QSurfaceFormat.setDefaultFormat(our_format).  All
-    widgets created thereafter will render into OpenGL 2.1 compat contexts.  That can
-    possibly be avoided, by attempting to stash and restore the value of
-    Qt.QSurfaceFormat.defaultFormat(), but this should must be done with care.  On
-    your particular platform, when does QGraphicsView read
-    Qt.QSurfaceFormat.defaultFormat()?  When you show() the widget?  During the next
-    iteration of the event loop after you show() the widget?  Also, you don't want
-    to interfere with intervening instantiation of a 3rd party widget (eg a,
-    matplotlib chart, which may want the software rasterizer).
-
-    * Make a QGLWidget (old-school) or QOpenGLWidget (new school) and feed it to
-    QGraphicsView's setViewport method.  _ShaderViewGLViewport is that QOpenGLWidget.
-    _ShaderViewGLViewport doesn't really do anything except set up an OpenGL context.
-    All relevant QEvents are filtered by the QGraphicsView-derived instance.
-    _ShaderViewGLViewport has paintGL and resizeGL methods only so that we can
-    detect their being called."""
     context_about_to_change = Qt.pyqtSignal(Qt.QOpenGLWidget)
     context_changed = Qt.pyqtSignal(Qt.QOpenGLWidget)
 
@@ -227,9 +176,6 @@ class _ShaderViewGLViewport(Qt.QOpenGLWidget):
         super().__init__()
         self.setFormat(GL_QSURFACE_FORMAT())
         self.view = view
-
-    def initializeGL(self):
-        self.view._on_gl_initializing()
 
     def _check_current(self, estack):
         if Qt.QOpenGLContext.currentContext() is not self.context():

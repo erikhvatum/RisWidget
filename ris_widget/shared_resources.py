@@ -247,7 +247,6 @@ def query_gl_exts():
                 try:
                     import OpenGL
                     import OpenGL.GL.NVX.gpu_memory_info as GMI
-                    import OpenGL.GL.NV.path_rendering as PR
                     if GMI.glInitGpuMemoryInfoNVX():
                         NVX_GPU_MEMORY_INFO_AVAILABLE = True
                 except:
@@ -345,3 +344,52 @@ def FPSD():
         _FPSD = FPSDisplay()
         _FPSD.show()
     return _FPSD
+
+class _GlQuad:
+    def __init__(self):
+        if Qt.QOpenGLContext.currentContext() is None:
+            raise RuntimeError("A QOpenGLContext must be current when a _GlQuad is instantiated.")
+        self.vao = Qt.QOpenGLVertexArrayObject()
+        self.vao.create()
+        vao_binder = Qt.QOpenGLVertexArrayObject.Binder(self.vao)
+        quad = numpy.array([1.1, -1.1,
+                            -1.1, -1.1,
+                            -1.1, 1.1,
+                            1.1, 1.1], dtype=numpy.float32)
+        self.buffer = Qt.QOpenGLBuffer(Qt.QOpenGLBuffer.VertexBuffer)
+        self.buffer.create()
+        self.buffer.bind()
+        try:
+            self.buffer.setUsagePattern(Qt.QOpenGLBuffer.StaticDraw)
+            self.buffer.allocate(quad.ctypes.data, quad.nbytes)
+        finally:
+            # Note: the following release call is essential.  Without it, if a QPainter is active, QPainter will never work for
+            # again for the widget with the active painter!
+            self.buffer.release()
+        Qt.QApplication.instance().aboutToQuit.connect(self._on_qapplication_about_to_quit)
+
+    def _on_qapplication_about_to_quit(self):
+        # Unlike __init__, _on_qapplication_about_to_quit is not called directly by us, and we can not guarantee that
+        # an OpenGL context is current
+        with ExitStack() as estack:
+            if Qt.QOpenGLContext.currentContext() is None:
+                offscreen_surface = Qt.QOffscreenSurface()
+                offscreen_surface.setFormat(GL_QSURFACE_FORMAT())
+                offscreen_surface.create()
+                gl_context = Qt.QOpenGLContext()
+                gl_context.setShareContext(Qt.QOpenGLContext.globalShareContext())
+                gl_context.setFormat(GL_QSURFACE_FORMAT())
+                gl_context.create()
+                gl_context.makeCurrent(offscreen_surface)
+                estack.callback(gl_context.doneCurrent)
+            self.vao.destroy()
+            self.vao = None
+            self.buffer.destroy()
+            self.buffer = None
+
+_GL_QUAD = None
+def GL_QUAD():
+    global _GL_QUAD
+    if _GL_QUAD is None:
+        _GL_QUAD = _GlQuad()
+    return _GL_QUAD

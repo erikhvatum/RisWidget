@@ -30,7 +30,7 @@ import numpy
 from PyQt5 import Qt
 from ..contextual_info import ContextualInfo
 from .shader_item import ShaderItem, ShaderTexture
-from ..shared_resources import QGL, UNIQUE_QGRAPHICSITEM_TYPE
+from ..shared_resources import GL_QUAD, QGL, UNIQUE_QGRAPHICSITEM_TYPE
 
 class HistogramItem(ShaderItem):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()
@@ -93,7 +93,6 @@ class HistogramItem(ShaderItem):
         assert widget is not None, 'histogram_scene.HistogramItem.paint called with widget=None.  Ensure that view caching is disabled.'
         if self._gl_widget is None:
             self._gl_widget = widget
-            widget.context_about_to_change.connect(self._on_gl_widget_context_about_to_change, Qt.Qt.DirectConnection)
         else:
             assert self._gl_widget is widget
         layer = self.layer
@@ -103,9 +102,7 @@ class HistogramItem(ShaderItem):
                 self._tex = None
         else:
             image = layer.image
-            view = widget.view
             layer = self.layer
-            scene = self.scene()
             widget_size = widget.size()
             histogram = image.histogram
             h_r = layer.histogram_min, layer.histogram_max
@@ -183,14 +180,13 @@ class HistogramItem(ShaderItem):
                     tex.serial = self._layer_data_serial
                     tex.width = desired_tex_width
                     self._tex = tex
-                if not view.quad_buffer.bind():
-                    Qt.qDebug('view.quad_buffer.bind() failed')
+                glQuad = GL_QUAD()
+                if not glQuad.buffer.bind():
+                    Qt.qDebug('GL_QUAD.buffer.bind() failed')
                     return
-                estack.callback(view.quad_buffer.release)
-                if view.quad_vao is None:
-                    pass
-                view.quad_vao.bind()
-                estack.callback(view.quad_vao.release)
+                estack.callback(glQuad.buffer.release)
+                glQuad.vao.bind()
+                estack.callback(glQuad.vao.release)
                 if not prog.bind():
                     Qt.qDebug('prog.bind() failed')
                     return
@@ -263,13 +259,6 @@ class HistogramItem(ShaderItem):
         self.max_item.arrow_item._on_value_changed()
         self._update_contextual_info()
         self.update()
-
-    def _on_gl_widget_context_about_to_change(self, gl_widget):
-        assert gl_widget is self._gl_widget
-        self.progs = {}
-        if self._tex is not None:
-            self._tex.destroy()
-            self._tex = None
 
 class MinMaxItem(Qt.QGraphicsObject):
     QGRAPHICSITEM_TYPE = UNIQUE_QGRAPHICSITEM_TYPE()

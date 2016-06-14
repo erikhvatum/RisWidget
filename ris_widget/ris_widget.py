@@ -599,6 +599,7 @@ class RisWidget:
             parent,
             window_flags,
             msaa_sample_count,
+            swap_interval,
             layers,
             **kw)
         self.main_view_change_signal = self.qt_object.main_view_change_signal
