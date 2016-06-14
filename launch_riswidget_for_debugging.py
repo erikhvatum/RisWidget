@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+import OpenGL
+
+OpenGL.ERROR_CHECKING = False
+
 # import sys
 # import numpy
 # from ris_widget.ndimage_statistics.test_and_benchmark import test
@@ -37,7 +41,7 @@ image_dpath = Path(
     }.get(socket.gethostname(), '/mnt/iscopearray/experiment02/0002')
 )
 
-im_fpaths = sorted(im_fpath for im_fpath in image_dpath.glob('*') if re.match('''[^.].*\.(png|tiff|tif)''', str(im_fpath)))[:200]
+im_fpaths = sorted(im_fpath for im_fpath in image_dpath.glob('*') if re.match('''[^.].*\.(png|tiff|tif)''', str(im_fpath)))[:20]
 pagesize = 1
 pages_im_fpaths = list(im_fpaths[i*pagesize:(i+1)*pagesize] for i in range(int(len(im_fpaths)/pagesize)))
 rw.flipbook.add_image_files(pages_im_fpaths)

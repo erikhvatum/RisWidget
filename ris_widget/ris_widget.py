@@ -70,7 +70,8 @@ class RisWidgetQtObject(Qt.QMainWindow):
             parent=None,
             window_flags=Qt.Qt.WindowFlags(0),
             msaa_sample_count=2,
-            layers = tuple()):
+            swap_interval=1,
+            layers=tuple()):
         super().__init__(parent, window_flags)
         self.app_prefs_name = app_prefs_name
         self.app_prefs_version = app_prefs_version
@@ -84,7 +85,7 @@ class RisWidgetQtObject(Qt.QMainWindow):
             self.setWindowTitle(window_title)
         self.setAcceptDrops(True)
         query_gl_exts()
-        Qt.QSurfaceFormat.setDefaultFormat(GL_QSURFACE_FORMAT(msaa_sample_count))
+        Qt.QSurfaceFormat.setDefaultFormat(GL_QSURFACE_FORMAT(msaa_sample_count, swap_interval))
         async_texture._TextureCache.init()
         self.layer_stack = LayerStack()
         self._init_scenes_and_views()
@@ -585,6 +586,7 @@ class RisWidget:
             parent=None,
             window_flags=Qt.Qt.WindowFlags(0),
             msaa_sample_count=2,
+            swap_interval=1,
             show=True,
             layers = tuple(),
             **kw):
