@@ -25,6 +25,7 @@
 import numpy
 from pathlib import Path
 from PyQt5 import Qt
+from scipy.optimize.slsqp import _minimize_slsqp
 
 from .. import om
 from ..image import Image
@@ -46,6 +47,16 @@ class PageList(om.UniformSignalingList):
                 ret.name = obj.name
             return ret
         return ImageList(obj)
+
+class _ReadPageTaskDoneEvent(Qt.QEvent):
+    TYPE = Qt.QEvent.registerEventType()
+    def __init__(self, task_page, error=False):
+        super().__init__(self.TYPE)
+        self.task_page = task_page
+        self.error = error
+
+class _ReadPageTaskPage:
+    __slots__ = ["page", "im_fpaths", "im_names", "ims"]
 
 _FLIPBOOK_PAGES_DOCSTRING = ("""
     The list of pages represented by a Flipbook instance's list view is available via a that
@@ -239,7 +250,7 @@ class Flipbook(Qt.QWidget):
             self._attached_page.replaced.disconnect(self.apply)
             self._attached_page = None
 
-    def add_image_files(self, image_fpaths, flipbook_names=None, image_names=None, insertion_point=-1):
+    def add_image_files(self, image_fpaths, page_names=None, image_names=None, insertion_point=-1):
         """image_fpaths: An iterable of filenames and/or iterables of filenames, with
         a filename being either a pathlib.Path object or a string.  For example, the
         following would append 7 pages to the flipbook, with 1 image in the first
@@ -272,49 +283,45 @@ class Flipbook(Qt.QWidget):
             '/home/me/allfish_nocontrol.png'
         ])
 
-        flipbook_names: iterable of same length as image_fpaths, containing
+        page_names: iterable of same length as image_fpaths, containing
             names for each entry to display in the flipbook. Optional.
 
         image_names: iterable of same structure as image_fpaths, containing
             the desired image name for each loaded image. Optional.
-
-        Flipbook.add_image_files(..) is safe to call from any thread.
 
         Returns list of futures objects corresponding to the page-IO tasks.
         To wait until read is done, call concurrent.futures.wait() on this list.
         """
         if not self.freeimage:
             return
-        num_pages = len(self.pages)
-        flipbook_names_out = []
-        args = []
+        task_pages = []
         for i, p in enumerate(image_fpaths):
-            if flipbook_names is not None:
-                fl_name = flipbook_names[i]
+            task_page = _ReadPageTaskPage()
+            task_page.page = page = ImageList()
+            if page_names is not None:
+                page.name = page_names[i]
             if isinstance(p, (str, Path)):
-                if flipbook_names is None:
-                    fl_name = str(p)
+                if page_names is None:
+                    page.name = str(p)
                 if image_names is None:
-                    im_names = [str(p)]
+                    task_page.im_names = [str(p)]
                 else:
-                    im_names = [image_names[i]]
-                image_stack_paths = [Path(p)]
+                    task_page.im_names = [image_names[i]]
+                task_page.im_fpaths = [Path(p)]
             else:
-                image_stack_paths = []
-                for j, image_path in enumerate(p):
-                    assert(isinstance(image_path, (str, Path)))
-                    image_stack_paths.append(Path(image_path))
-                if flipbook_names is None:
-                    fl_name = ', '.join(image_path.stem for image_path in image_stack_paths)
+                task_page.im_fpaths = []
+                for j, im_fpaths in enumerate(p):
+                    assert(isinstance(im_fpaths, (str, Path)))
+                    task_page.im_fpaths.append(Path(im_fpaths))
+                if page_names is None:
+                    page.name = ', '.join(image_fpath.stem for image_fpath in task_page.im_fpaths)
                 if image_names is None:
-                    im_names = [str(image_path) for image_path in image_stack_paths]
+                    task_page.im_names = [str(image_fpath) for image_fpath in task_page.im_fpaths]
                 else:
-                    im_names = image_names[i]
-            assert len(im_names) == len(image_stack_paths)
-            flipbook_names_out.append(fl_name)
-            args.append([image_stack_paths, im_names])
-        return self.queue_page_creation_tasks(insertion_point, self._read_list_task,
-            flipbook_names_out, args)
+                    task_page.im_names = image_names[i]
+            assert len(task_page.im_names) == len(task_page.im_fpaths)
+            task_pages.append(task_page)
+        return self.queue_page_creation_tasks(insertion_point, task_pages)
 
     def _handle_dropped_files(self, fpaths, dst_row, dst_column, dst_parent):
         if self.freeimage is None:
@@ -326,34 +333,32 @@ class Flipbook(Qt.QWidget):
             self.focused_page_idx = dst_row
         return True
 
-    def _read_list_task(self, image_stack_paths, image_names):
-        images = []
-        for image_fpath, name in zip(image_stack_paths, image_names):
-            data = self.freeimage.read(str(image_fpath))
-            images.append(Image(data, name=name, mask=self.layer_stack.imposed_image_mask, immediate_texture_upload=False))
-        return images
+    def event(self, e):
+        if e.type() == _ReadPageTaskDoneEvent.TYPE:
+            if e.error:
+                e.task_page.page.name += ' (ERROR)'
+            else:
+                e.task_page.page.extend(Image(im, name=im_name, mask=self.layer_stack.imposed_image_mask, immediate_texture_upload=False) for
+                                        (im, im_name) in zip(e.task_page.ims, e.task_page.im_names))
+            return True
+        return super().event(e)
 
-    @staticmethod
-    def _do_task(image_list, task, *args):
-        image_list.extend(task(*args))
-        image_list.on_removal = None
+    def _read_page_task(self, task_page):
+        task_page.ims = [self.freeimage.read(str(image_fpath)) for image_fpath in task_page.im_fpaths]
+        Qt.QApplication.instance().postEvent(self, _ReadPageTaskDoneEvent(task_page))
 
-    @staticmethod
-    def _on_task_error(image_list):
-        image_list.name += ' (ERROR)'
+    def _on_task_error(self, task_page):
+        Qt.QApplication.instance().postEvent(self, _ReadPageTaskDoneEvent(task_page, error=True))
 
-    def queue_page_creation_tasks(self, insertion_point, task, names, args_list):
+    def queue_page_creation_tasks(self, insertion_point, task_pages):
         if not hasattr(self, 'thread_pool'):
             self.thread_pool = progress_thread_pool.ProgressThreadPool(self.cancel_page_creation_tasks, self.layout)
         new_pages = []
         page_futures = []
-        for name, args in zip(names, args_list):
-            image_list = ImageList()
-            image_list.name = name
-            future = self.thread_pool.submit(self._do_task, image_list, task, *args,
-                on_error=self._on_task_error, on_error_args=[image_list])
-            image_list.on_removal = future.cancel
-            new_pages.append(image_list)
+        for task_page in task_pages:
+            future = self.thread_pool.submit(self._read_page_task, task_page, on_error=self._on_task_error, on_error_args=task_page)
+            task_page.page.on_removal = future.cancel
+            new_pages.append(task_page.page)
             page_futures.append(future)
         self.pages[insertion_point:insertion_point] = new_pages
         self.ensure_page_focused()

@@ -36,8 +36,8 @@ class UpdateEvent(Qt.QEvent):
     def __init__(self):
         super().__init__(self.TYPE)
 
-    def post(self, sender):
-        Qt.QApplication.instance().postEvent(sender, self)
+    def post(self, receiver):
+        Qt.QApplication.instance().postEvent(receiver, self)
 
 class ProgressThreadPool(Qt.QWidget):
     def __init__(self, cancel_jobs, attached_layout, parent=None):
