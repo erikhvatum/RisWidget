@@ -321,6 +321,7 @@
             <F N="ris_widget/layer_stack.py"/>
             <F N="ris_widget/point_list_picker.py"/>
             <F N="ris_widget/ris_widget.py"/>
+            <F N="ris_widget/ris_widget_test.py"/>
             <F N="ris_widget/shared_resources.py"/>
         </Folder>
         <F N="launch_riswidget_for_debugging.py"/>
