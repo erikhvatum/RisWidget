@@ -27,15 +27,19 @@ from PyQt5 import Qt
 import sys
 import unittest
 
-from .ris_widget import RisWidget
+if Qt.qVersion() == '5.7.0': # TODO: remove this once the Qt 5.7 dev tree code stops leaving the GL context with a pending, useless error
+    import OpenGL
+    OpenGL.ERROR_CHECKING = False
 
 app = Qt.QApplication(sys.argv)
+Qt.QApplication.setAttribute(Qt.Qt.AA_ShareOpenGLContexts)
+
+from .ris_widget import RisWidget
 
 class RisWidgetTestCase(unittest.TestCase):
     def setUp(self):
         self.rw = RisWidget()
 
-    def test_float32_checkerboard(self):
-
-        self.rw.image = numpy.linspace(1, 100, 10000, dtype=numpy.float32).reshape((100,100)).T
+    def test_float32(self):
+        self.rw.image = numpy.linspace(1, 100, 10000, dtype=numpy.float32).reshape((100,100), order='F')
         Qt.QApplication.processEvents()
