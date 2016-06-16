@@ -172,6 +172,13 @@ class Image(Qt.QObject):
         The .refresh method is primarily useful to cause a user interface to update in response to data changes caused by manipulation of .data.data or
         another numpy view of the same memory.  (You probably want to use the .set method in most cases.)"""
         if self.dtype == numpy.float32:
+            self.async_texture = AsyncTexture(
+                self._data,
+                Image.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[self.type],
+                Image.IMAGE_TYPE_TO_GL_PIX_FORMAT[self.type],
+                Image.NUMPY_DTYPE_TO_GL_PIXEL_TYPE[self.dtype.type],
+                immediate_texture_upload,
+                self.name)
             if data_changed or mask_changed:
                 extremae = ndimage_statistics.extremae(self._data, self._mask)
             else:
