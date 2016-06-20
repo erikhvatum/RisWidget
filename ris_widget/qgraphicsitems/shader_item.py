@@ -55,18 +55,28 @@ class ShaderItemMixin:
         return prog
 
     def set_blend(self, estack):
+        """Blend ShaderItem fragment shader output with framebuffer as usual for RGB channels, blendedRGB = ShaderRGB * ShaderAlpha + BufferRGB * (1 - ShaderAlpha).
+        However, do not blend ShaderAlpha into BlendedAlpha.  Instead, BlendedAlpha = max(ShaderAlpha, BufferAlpha).  We can count on BufferAlpha always being saturated,
+        so this combination of alpha src and dst blend funcs and alpha blend equation results in framebuffer alpha remaining saturated - ie, opaque.  This is desired as
+        any transparency in the viewport framebuffer is taken by Qt to indicate viewport transparency, causing sceen content behind the viewport to be blended in, which
+        we do no want.  We are interested in blending over the scene - not blending the scene over the desktop!  So, it does make sense that we want to discard
+        transparency data immediately after it has been used to blend into the scene.  In fact, this is what Qt does when drawing partially transparent QGraphicsItems:
+        they are blended into the viewport framebuffer, but alpha is discarded and framebuffer alpha remains saturated.  This does require us to clear the framebuffer
+        with saturated alpha at the start of each frame, which we do by default (see ris_widget.qgraphicsviews.base_view.BaseView and its drawBackground method)."""
         GL = QGL()
         if not GL.glIsEnabled(GL.GL_BLEND):
             GL.glEnable(GL.GL_BLEND)
             estack.callback(lambda: GL.glDisable(GL.GL_BLEND))
-        bfs = GL.glGetIntegerv(GL.GL_BLEND_SRC), GL.glGetIntegerv(GL.GL_BLEND_DST)
-        if bfs != (GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA):
-            GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
-            estack.callback(lambda: GL.glBlendFunc(*bfs))
-        be = GL.glGetIntegerv(GL.GL_BLEND_EQUATION)
-        if be != GL.GL_FUNC_ADD:
-            GL.glBlendEquation(GL.GL_FUNC_ADD)
-            estack.callback(lambda: GL.glBlendEquation(be))
+        desired_bfs = GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA, GL.GL_ONE, GL.GL_ONE
+        bfs = GL.glGetIntegerv(GL.GL_BLEND_SRC_RGB), GL.glGetIntegerv(GL.GL_BLEND_DST_RGB), GL.glGetIntegerv(GL.GL_BLEND_SRC_ALPHA), GL.glGetIntegerv(GL.GL_BLEND_DST_ALPHA)
+        if bfs != desired_bfs:
+            GL.glBlendFuncSeparate(*desired_bfs)
+            estack.callback(lambda: GL.glBlendFuncSeparate(*bfs))
+        desired_bes = GL.GL_FUNC_ADD, GL.GL_MAX
+        bes = GL.glGetIntegerv(GL.GL_BLEND_EQUATION_RGB), GL.glGetIntegerv(GL.GL_BLEND_EQUATION_ALPHA)
+        if bes != desired_bes:
+            GL.glBlendEquationSeparate(*desired_bes)
+            estack.callback(lambda: GL.glBlendEquationSeparate(*bes))
 
 class ShaderItem(ShaderItemMixin, Qt.QGraphicsObject):
     def __init__(self, parent_item=None):
