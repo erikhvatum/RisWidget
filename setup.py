@@ -80,6 +80,7 @@ class BuildExt(setuptools.command.build_ext.build_ext):
         if has_flag(self.compiler, '-fopenmp') and sys.platform != 'darwin': # TODO: re-enable openmp support on darwin/OS X when a version of XCode supporting openmp is released
             cflags.append('-fopenmp')
             ldflags.append('-fopenmp')
+#       cflags.append('-O0')
         for ext in self.extensions:
             ext.extra_compile_args = cflags
             ext.extra_link_args = ldflags

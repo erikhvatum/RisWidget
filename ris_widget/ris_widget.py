@@ -89,7 +89,6 @@ class RisWidgetQtObject(Qt.QMainWindow):
         async_texture._TextureCache.init()
         self.layer_stack = LayerStack()
         self._init_scenes_and_views()
-        # self._apply_deep_color_fix()
         self._init_flipbook()
         self._init_layer_stack_painter()
         self._init_actions()
@@ -99,14 +98,6 @@ class RisWidgetQtObject(Qt.QMainWindow):
             self.layer_stack.layers = layers
         import atexit
         atexit.register(_atexit)
-
-    # def _apply_deep_color_fix(self):
-    #     """_apply_deep_color_fix(..) makes QOpenGLWidget contents visible in 30-bit mode.  This comes at the cost of preventing
-    #     other widgets from blending into QOpenGLWidgets, but has the additional benefit of eliminating an indirect drawing step,
-    #     making RisWidget a touch more responsive.  As distributed, RisWidget does not blend other widgets into QOpenGLWidget.
-    #     So, typically, no degradation apparent."""
-    #     self.main_view.gl_widget.setAttribute(Qt.Qt.WA_AlwaysStackOnTop)
-    #     self.histogram_view.gl_widget.setAttribute(Qt.Qt.WA_AlwaysStackOnTop)
 
     def _init_actions(self):
         self.flipbook_focus_prev_page_action = Qt.QAction(self)

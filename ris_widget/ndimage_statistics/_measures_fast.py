@@ -25,27 +25,36 @@
 from ._common import *
 from . import _ndimage_statistics
 
-def _min_max(im, mask=None):
+def _min_max(im, mask=None, roi_center_and_radius=None):
     min_max = numpy.empty((2,), dtype=im.dtype)
-    if mask is None:
-        _ndimage_statistics.min_max(im, min_max)
-    else:
+    if mask is not None:
         _ndimage_statistics.masked_min_max(im, mask, min_max)
+    elif roi_center_and_radius is not None:
+        assert roi_center_and_radius[1] >= 0
+        _ndimage_statistics.roi_min_max(im, roi_center_and_radius[0][0], roi_center_and_radius[0][1], roi_center_and_radius[1], min_max)
+    else:
+        _ndimage_statistics.min_max(im, min_max)
     return min_max
 
-def _histogram(im, bin_count, range_, mask=None, with_overflow_bins=False):
+def _histogram(im, bin_count, range_, mask=None, roi_center_and_radius=None, with_overflow_bins=False):
     hist = numpy.zeros((bin_count,), dtype=numpy.uint32)
-    if mask is None:
-        _ndimage_statistics.ranged_hist(im, range_, hist, with_overflow_bins)
-    else:
+    if mask is not None:
         _ndimage_statistics.masked_ranged_hist(im, mask, range_, hist, with_overflow_bins)
+#   elif roi_center_and_radius is not None:
+#       assert roi_center_and_radius[1] >= 0
+#       _ndimage_statistics.roi_ranged_hist(im, roi_center_and_radius[0], roi_center_and_radius[1], range_, hist, with_overflow_bins)
+    else:
+        _ndimage_statistics.ranged_hist(im, range_, hist, with_overflow_bins)
     return hist
 
-def _statistics(im, is_twelve_bit, mask=None, use_open_mp=False):
+def _statistics(im, is_twelve_bit, mask=None, roi_center_and_radius=None, use_open_mp=False):
     hist = numpy.empty((256 if im.dtype == numpy.uint8 else 1024,), dtype=numpy.uint32)
     min_max = numpy.empty((2,), dtype=im.dtype)
-    if mask is None:
-        _ndimage_statistics.hist_min_max(im, hist, min_max, is_twelve_bit)
-    else:
+    if mask is not None:
         _ndimage_statistics.masked_hist_min_max(im, mask, hist, min_max, is_twelve_bit, use_open_mp)
+#   elif roi_center_and_radius is not None:
+#       assert roi_center_and_radius[1] >= 0
+#       _ndimage_statistics.roi_hist_min_max(im, roi_center_and_radius[0], roi_center_and_radius[1], hist, min_max, is_twelve_bit)
+    else:
+        _ndimage_statistics.hist_min_max(im, hist, min_max, is_twelve_bit)
     return NDImageStatistics(hist, hist.argmax(), min_max)

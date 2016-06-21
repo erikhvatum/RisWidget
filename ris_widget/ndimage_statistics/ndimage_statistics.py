@@ -38,7 +38,7 @@ except ImportError:
     from ._measures_slow import _min_max, _histogram, _statistics
     USING_FAST_MEASURES = False
 
-def extremae(im, mask=None, per_channel_thread_count=2, return_future=False):
+def extremae(im, mask=None, roi_center_and_radius=None, per_channel_thread_count=2, return_future=False):
     """im: The 2D or 3D ndarray for which min and max values are found.
     mask: None or a 2D bool or uint8 ndarray with neither dimension smaller than the corresponding dimension of im.  If mask is not None, only image
     pixels with non-zero mask counterparts contribute to min_max.  Pixels of mask outside of im have no impact.  If mask is None, all image pixels are
@@ -52,10 +52,10 @@ def extremae(im, mask=None, per_channel_thread_count=2, return_future=False):
         assert mask.dtype in (numpy.uint8, numpy.bool)
     if im.ndim == 2:
         def proc():
-            return _min_max(im, mask)
+            return _min_max(im, mask, roi_center_and_radius)
     else:
         def channel_proc(channel):
-            return _min_max(im[..., channel], mask)
+            return _min_max(im[..., channel], mask, roi_center_and_radius)
         def proc():
             futes = [pool.submit(channel_proc, channel) for channel in range(im.shape[2])]
             ret = numpy.vstack(fute.result() for fute in futes)
@@ -68,7 +68,7 @@ def extremae(im, mask=None, per_channel_thread_count=2, return_future=False):
 # http://cuda-programming.blogspot.com/2013/03/optimization-in-histogram-cuda-code.html  The various approaches taken here are generally the same
 # as those we tried in opencl, with the wrinkle that in part 4, the author goes one step further than we did, using nvidia's absurdly good cuda profiler
 # to identify memory bank contention, which he resolves for a huge throughput improvement.
-def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, per_channel_thread_count=2, return_future=False):
+def histogram(im, bin_count, range_, mask=None, roi_center_and_radius=None, with_overflow_bins=False, per_channel_thread_count=2, return_future=False):
     """im: The 2D or 3D ndarray for which histogram is computed.
     range_: An indexable sequence of at least two elements, castable to float32, representing the closed interval which is divided into bin_count number
     of bins comprising the histogram.
@@ -90,23 +90,23 @@ def histogram(im, bin_count, range_, mask=None, with_overflow_bins=False, per_ch
         assert bin_count >= 2
     if im.ndim == 2:
         def proc():
-            return _histogram(im, bin_count, range_, mask, with_overflow_bins)
+            return _histogram(im, bin_count, range_, mask, roi_center_and_radius, with_overflow_bins)
     else:
         def channel_proc(axis):
-            return _histogram(im[..., axis], bin_count, range_, mask, with_overflow_bins)
+            return _histogram(im[..., axis], bin_count, range_, mask, roi_center_and_radius, with_overflow_bins)
         def proc():
             futes = [pool.submit(channel_proc, axis) for axis in range(im.shape[2])]
             return numpy.vstack(fute.result() for fute in futes)
     return pool.submit(proc) if return_future else proc()
 
-def statistics(im, is_twelve_bit=False, mask=None, return_future=False, use_open_mp=False):
+def statistics(im, is_twelve_bit=False, mask=None, roi_center_and_radius=None, return_future=False, use_open_mp=False):
     assert im.ndim in (2, 3)
     if im.ndim == 2:
         def proc():
-            return _statistics(im, is_twelve_bit, mask, use_open_mp)
+            return _statistics(im, is_twelve_bit, mask, roi_center_and_radius, use_open_mp)
     else:
         def channel_proc(channel):
-            return _statistics(im[..., channel], is_twelve_bit, mask, use_open_mp)
+            return _statistics(im[..., channel], is_twelve_bit, mask, roi_center_and_radius, use_open_mp)
         def proc():
             results = [channel_proc(channel) for channel in range(im.shape[2])]
             return NDImageStatistics(

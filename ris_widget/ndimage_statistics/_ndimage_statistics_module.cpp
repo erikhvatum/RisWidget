@@ -125,6 +125,53 @@ void py_masked_min_max(py::buffer im, py::buffer mask, py::buffer min_max)
     }
 }
 
+template<typename C>
+static inline bool roi_min_max_C(py::buffer_info& im_info,
+                                 const float& roi_center_x, const float& roi_center_y, const float& roi_radius,
+                                 py::buffer_info& min_max_info)
+{
+    bool ret{false};
+    if(im_info.format == py::format_descriptor<C>::value)
+    {
+        py::gil_scoped_release releaseGil;
+        roi_min_max(
+           reinterpret_cast<C*>(im_info.ptr),
+           im_info.shape.data(),
+           im_info.strides.data(),
+           roi_center_x,
+           roi_center_y,
+           roi_radius,
+           reinterpret_cast<C*>(min_max_info.ptr),
+           min_max_info.strides[0]);
+        ret = true;
+    }
+    return ret;
+}
+
+void py_roi_min_max(py::buffer im, float roi_center_x, float roi_center_y, float roi_radius, py::buffer min_max)
+{
+    py::buffer_info im_info{im.request()}, min_max_info{min_max.request()};
+    if(im_info.ndim != 2)
+        throw std::invalid_argument("im argument must be a 2 dimensional buffer object (such as a numpy array).");
+    if(min_max_info.ndim != 1)
+        throw std::invalid_argument("min_max arugment must be a 1 dimensional buffer object (such as a numpy array).");
+    if(min_max_info.shape[0] != 2)
+        throw std::invalid_argument("min_max argument must contain exactly 2 elements.");
+    if(im_info.format != min_max_info.format)
+        throw std::invalid_argument(
+            "im and min_max arguments must be the same format (or dtype, in the case where they are numpy arays).");
+    if ( !(
+        roi_min_max_C<float>(im_info, roi_center_x, roi_center_y, roi_radius, min_max_info) ||
+        roi_min_max_C<std::uint8_t>(im_info, roi_center_x, roi_center_y, roi_radius, min_max_info) ||
+        roi_min_max_C<std::uint16_t>(im_info, roi_center_x, roi_center_y, roi_radius, min_max_info) ||
+        roi_min_max_C<std::uint32_t>(im_info, roi_center_x, roi_center_y, roi_radius, min_max_info) ||
+        roi_min_max_C<std::uint64_t>(im_info, roi_center_x, roi_center_y, roi_radius, min_max_info) ||
+        roi_min_max_C<double>(im_info, roi_center_x, roi_center_y, roi_radius, min_max_info)) )
+    {
+       throw std::invalid_argument("Only uint8, uint16, uint32, uint64, float32, and float64 buffers are supported.");
+    }
+}
+
 template<typename C, bool with_overflow_bins>
 static inline bool ranged_hist_C(py::buffer_info& im_info, py::buffer_info& range_info, py::buffer_info& hist_info)
 {
@@ -436,10 +483,15 @@ PYBIND11_PLUGIN(_ndimage_statistics)
 
     m.def("min_max", &py_min_max);
     m.def("masked_min_max", &py_masked_min_max);
+    m.def("roi_min_max", &py_roi_min_max);
+
     m.def("ranged_hist", &py_ranged_hist);
     m.def("masked_ranged_hist", &py_masked_ranged_hist);
+//  m.def("roi_ranged_hist", &py_roi_ranged_hist);
+//  
     m.def("hist_min_max", &py_hist_min_max);
     m.def("masked_hist_min_max", &py_masked_hist_min_max);
+//  m.def("roi_hist_min_max", &py_roi_hist_min_max);
 
 //  py::class_<Luts>(m, "Luts")
 //      .def(py::init<const std::size_t&>())

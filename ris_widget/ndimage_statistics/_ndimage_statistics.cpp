@@ -65,6 +65,27 @@ void reorder_to_inner_outer(const std::size_t* u_shape,       const std::size_t*
     }
 }
 
+void reorder_to_inner_outer(const std::size_t* u_shape, const std::size_t* u_strides,
+                                  std::size_t* o_shape,       std::size_t* o_strides,
+                            const float& u_coord_0,     const float& u_coord_1,
+                                  float& o_coord_0,           float& o_coord_1)
+{
+    if(u_strides[0] >= u_strides[1])
+    {
+        o_strides[0] = u_strides[0]; o_strides[1] = u_strides[1];
+        o_shape[0] = u_shape[0]; o_shape[1] = u_shape[1];
+        o_coord_0 = u_coord_0;
+        o_coord_1 = u_coord_1;
+    }
+    else
+    {
+        o_strides[0] = u_strides[1]; o_strides[1] = u_strides[0];
+        o_shape[0] = u_shape[1]; o_shape[1] = u_shape[0];
+        o_coord_0 = u_coord_1;
+        o_coord_1 = u_coord_0;
+    }
+}
+
 #ifdef min
  #undef min
 #endif
