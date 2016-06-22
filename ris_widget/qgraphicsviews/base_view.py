@@ -43,7 +43,7 @@ class BaseView(Qt.QGraphicsView):
     def __init__(self, base_scene, parent):
         super().__init__(base_scene, parent)
         self.setMouseTracking(True)
-        self._background_color = (0.0, 0.0, 0.0, 1.0)
+        self._background_color = (0.0, 0.0, 0.0)
         gl_widget = _ShaderViewGLViewport(self)
         # It seems necessary to retain this reference.  It is available via self.viewport() after
         # the setViewport call completes, suggesting that PyQt keeps a reference to it, but this 
@@ -95,7 +95,7 @@ class BaseView(Qt.QGraphicsView):
     def drawBackground(self, p, rect):
         p.beginNativePainting()
         GL = QGL()
-        GL.glClearColor(*self._background_color)
+        GL.glClearColor(*self._background_color, 1.0)
         GL.glClearDepth(1)
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         p.endNativePainting()
@@ -110,15 +110,15 @@ class BaseView(Qt.QGraphicsView):
 
     @property
     def background_color(self):
+        """V.background_color = (R, G, B) or (R, G, B, A)
+        where R, G, B, and A are floating point values in the interval [0, 1]."""
         return self._background_color
 
     @background_color.setter
     def background_color(self, v):
         v = tuple(map(float, v))
-        if len(v) not in (3, 4) or not all(map(lambda v_: 0 <= v_ <= 1, v)):
-            raise ValueError('The iteraterable assigned to .background_color must represent 3 or 4 real numbers in the interval [0, 1].')
-        if len(v) == 3:
-            v += (1.0,)
+        if len(v) != 3 or not all(map(lambda v_: 0 <= v_ <= 1, v)):
+            raise ValueError('The iteraterable assigned to .background_color must represent 3 real numbers in the interval [0, 1].')
         self._background_color = v
         s = self.scene()
         if s:

@@ -55,14 +55,18 @@ class ShaderItemMixin:
         return prog
 
     def set_blend(self, estack):
-        """Blend ShaderItem fragment shader output with framebuffer as usual for RGB channels, blendedRGB = ShaderRGB * ShaderAlpha + BufferRGB * (1 - ShaderAlpha).
-        However, do not blend ShaderAlpha into BlendedAlpha.  Instead, BlendedAlpha = max(ShaderAlpha, BufferAlpha).  We can count on BufferAlpha always being saturated,
-        so this combination of alpha src and dst blend funcs and alpha blend equation results in framebuffer alpha remaining saturated - ie, opaque.  This is desired as
-        any transparency in the viewport framebuffer is taken by Qt to indicate viewport transparency, causing sceen content behind the viewport to be blended in, which
-        we do no want.  We are interested in blending over the scene - not blending the scene over the desktop!  So, it does make sense that we want to discard
-        transparency data immediately after it has been used to blend into the scene.  In fact, this is what Qt does when drawing partially transparent QGraphicsItems:
-        they are blended into the viewport framebuffer, but alpha is discarded and framebuffer alpha remains saturated.  This does require us to clear the framebuffer
-        with saturated alpha at the start of each frame, which we do by default (see ris_widget.qgraphicsviews.base_view.BaseView and its drawBackground method)."""
+        """set_blend(estack) sets OpenGL blending mode to the most commonly required state and appends
+        callbacks to estack that eventually return OpenGL blending to the state preceeding the call
+        to set_blend.  Specifically, fragment shader RGB output is source-over alpha blended into the 
+        framebuffer, whereas the alpha channel is max(shader_alpha, framebuffer_alpha)."""
+        # Blend ShaderItem fragment shader output with framebuffer as usual for RGB channels, blendedRGB = ShaderRGB * ShaderAlpha + BufferRGB * (1 - ShaderAlpha).
+        # However, do not blend ShaderAlpha into BlendedAlpha.  Instead, BlendedAlpha = max(ShaderAlpha, BufferAlpha).  We can count on BufferAlpha always being saturated,
+        # so this combination of alpha src and dst blend funcs and alpha blend equation results in framebuffer alpha remaining saturated - ie, opaque.  This is desired as
+        # any transparency in the viewport framebuffer is taken by Qt to indicate viewport transparency, causing sceen content behind the viewport to be blended in, which
+        # we do no want.  We are interested in blending over the scene - not blending the scene over the desktop!  So, it does make sense that we want to discard
+        # transparency data immediately after it has been used to blend into the scene.  In fact, this is what Qt does when drawing partially transparent QGraphicsItems:
+        # they are blended into the viewport framebuffer, but alpha is discarded and framebuffer alpha remains saturated.  This does require us to clear the framebuffer
+        # with saturated alpha at the start of each frame, which we do by default (see ris_widget.qgraphicsviews.base_view.BaseView and its drawBackground method).
         GL = QGL()
         if not GL.glIsEnabled(GL.GL_BLEND):
             GL.glEnable(GL.GL_BLEND)
