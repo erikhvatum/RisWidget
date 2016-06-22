@@ -110,8 +110,8 @@ class BaseView(Qt.QGraphicsView):
 
     @property
     def background_color(self):
-        """V.background_color = (R, G, B) or (R, G, B, A)
-        where R, G, B, and A are floating point values in the interval [0, 1]."""
+        """V.background_color = (R, G, B)
+        where R, G, and B, are floating point values in the interval [0, 1]."""
         return self._background_color
 
     @background_color.setter
