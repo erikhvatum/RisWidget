@@ -99,10 +99,6 @@ class LayerStackItem(ShaderItem):
         layer_stack.layer_focus_changed.connect(self._on_layer_focus_changed)
         layer_stack.examine_layer_mode_action.toggled.connect(self.update)
         self._layer_instance_counts = {}
-        # from ..qwidgets.fps_display import FPSDisplay
-        # self.fpsd = FPSDisplay()
-        # self.fpsd.sample_count = 20
-        # self.fpsd.show()
 
     def type(self):
         return LayerStackItem.QGRAPHICSITEM_TYPE
@@ -463,10 +459,8 @@ class LayerStackItem(ShaderItem):
             layer = layer_stack.layers[idx]
             image = layer.image
             image.async_texture.bind(tex_unit, estack)
-            # self.fpsd.notify()
             # The following generateMipMaps call completes in microseconds as mipmaps were already auto-generated on an _AsyncTextureUploadThread.  In fact, we should not have to call
             # generateMipMaps at this point.  However, OS X needs this call in order to see mipmaps generated on another thread.  Without it, all mip levels aside from base are black
             # on OS X.
             image.async_texture.tex.generateMipMaps()
-            # self.fpsd.notify(True)
         return visible_idxs

@@ -42,16 +42,6 @@ from .qgraphicsscenes.histogram_scene import HistogramScene
 from .qgraphicsviews.histogram_view import HistogramView
 from .shared_resources import GL_QSURFACE_FORMAT, FREEIMAGE, query_gl_exts
 
-def _atexit():
-    #TODO: find a better way to do this or a way to avoid the need
-    try:
-        from IPython import Application
-        Application.instance().shell.del_var('rw')
-    except:
-        pass
-    import gc
-    gc.collect()
-
 if sys.platform == 'darwin':
     class NonTransientScrollbarsStyle(Qt.QProxyStyle):
         def styleHint(self, sh, option=None, widget=None, returnData=None):
@@ -96,8 +86,13 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self._init_menus()
         if layers:
             self.layer_stack.layers = layers
-        import atexit
-        atexit.register(_atexit)
+        # RisWidgetQtObject's C++ personality is the QObject-N-parent of lots of Qt stuff that does not appreciate
+        # being destroyed by Python's last-pass garbage collection or even simply when no QApplication is running.
+        # Therefore, we connect the running QApplication's about to quit signal to our own C++ personality's
+        # deleteLater method (the final thing QApplication does as it quits, after emitting the about to quit signal,
+        # is delete everything queued up for deletion by deleteLater calls).  Thus, all of our QObject offspring
+        # are culled long before the Great Garbage Battle prophesied to occur at The End of The Graceful Shutdown.
+        Qt.QApplication.instance().aboutToQuit.connect(self.deleteLater)
 
     def _init_actions(self):
         self.flipbook_focus_prev_page_action = Qt.QAction(self)
@@ -183,7 +178,12 @@ class RisWidgetQtObject(Qt.QMainWindow):
         self.addDockWidget(Qt.Qt.BottomDockWidgetArea, self.histogram_dock_widget)
         self.layer_table_dock_widget = Qt.QDockWidget('Layer Stack', self)
         self.layer_table_model = LayerTableModel(self.layer_stack)
-        self.layer_table_model_inverter = InvertingProxyModel()
+        # NB: Qt.QAbstractItemView, an ancestor of InvertingProxyModel, attempts to start a QTimer as it is destroyed.  Therefore,
+        # it must be destroyed before the event dispatcher thread local object is destroyed - IE, not by Python's last-pass garbage
+        # collector, which collects in no particular order, often collecting the dispatcher before any stray item models.  To prompt
+        # pre-last-pass destruction, it is sufficient to make all Qt.QAbstractItemView progeny QObject-parented to a QObject that
+        # is definitely destroyed before the last pass.  We are careful to ensure that RisWidget instances meet this criterion.
+        self.layer_table_model_inverter = InvertingProxyModel(self)
         self.layer_table_model_inverter.setSourceModel(self.layer_table_model)
         self.layer_table_view = LayerTableView(self.layer_table_model)
         self.layer_table_view.setModel(self.layer_table_model_inverter)
