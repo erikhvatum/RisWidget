@@ -119,26 +119,11 @@ class _AsyncTextureBottle:
         self.async_texture_wr = weakref.ref(async_texture)
         self.tex = None
 
-# class _AsyncTextureUploadThreadCleanupEventloopQuitter(Qt.QObject):
-#     def __init__(self, thread):
-#         super().__init__()
-#         self.thread = thread
-#         The following two lines and the final line of the method _AsyncTextureUploadThread.run(), being super().run(), serve
-#         to prompt the creation of a QAbstractEventDispatcher derivative of appropriate type that then handles any outstanding
-#         events for the thread. There will be only one: a QThread quit event.  Thus, super().run() will exit gracefully, cleaning
-#         up any Qt stuff associated with the thread as it does so.
-        # self.moveToThread(thread)
-        # thread.started.connect(self.on_cleanup_event_loop_started, Qt.Qt.QueuedConnection)
-    #
-    # def on_cleanup_event_loop_started(self):
-    #     self.thread.quit()
-
 class _AsyncTextureUploadThread(Qt.QThread):
     def __init__(self, texture_cache, offscreen_surface):
         super().__init__()
         self.texture_cache = texture_cache
         self.offscreen_surface = offscreen_surface
-        # self._cleanup_eventloop_quitter = _AsyncTextureUploadThreadCleanupEventloopQuitter(self)
 
     def run(self):
         gl_context = Qt.QOpenGLContext()
@@ -188,10 +173,6 @@ class _AsyncTextureUploadThread(Qt.QThread):
             self.texture_cache = None
         finally:
             gl_context.doneCurrent()
-#           print('running')
-#             super().run()
-#           print('ran')
-
 _texture_cache = None
 
 class _TextureCache(Qt.QObject):
