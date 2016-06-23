@@ -247,7 +247,7 @@
                 <F N="ris_widget/ndimage_statistics/ndimage_statistics.py"/>
                 <F N="ris_widget/ndimage_statistics/resampling_lut.cpp"/>
                 <F N="ris_widget/ndimage_statistics/resampling_lut.h"/>
-                <F N="ris_widget/ndimage_statistics/test_and_benchmark.py"/>
+                <F N="ris_widget/ndimage_statistics/test.py"/>
             </Folder>
             <Folder Name="om">
                 <Folder Name="signaling_list">
@@ -322,7 +322,6 @@
             <F N="ris_widget/point_list_picker.py"/>
             <F N="ris_widget/ris_widget.py"/>
             <F N="ris_widget/shared_resources.py"/>
-            <F N="ris_widget/test.py"/>
         </Folder>
         <F N="launch_riswidget_for_debugging.py"/>
         <F N="README.md"/>
