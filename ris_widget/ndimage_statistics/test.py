@@ -22,8 +22,16 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+from collections import namedtuple
 import numpy
 import unittest
+try:
+    from . import _measures_fast
+except ImportError:
+    import sys
+    print('\n\n*** The ris_widget.ndimage_statistics._ndimage_statistics binary module must be built in order to test ris_widget.ndimage_statistics. ***\n\n', file=sys.stderr)
+    raise
+from . import _measures_slow
 from . import ndimage_statistics
 
 IMAGE_SHAPE = (2560, 2160)
@@ -50,7 +58,7 @@ class ImageFlavor:
 
 IMAGE_FLAVORS = [
     ImageFlavor('uint8', numpy.uint8, (0, 255)),
-    ImageFlavor('uint12', numpy.uint16, (0, 4096)),
+    ImageFlavor('uint12', numpy.uint16, (0, 4095)),
     ImageFlavor('uint16', numpy.uint16, (0, 65535)),
     ImageFlavor('float32', numpy.float32, (-5, 5))
 ]
@@ -93,54 +101,60 @@ print('Generating {0} {1} test mask{2} and {0} random size test mask{2}...'.form
 MASKS_IMAGE_SHAPE = [m.result() for m in MASKS_IMAGE_SHAPE]
 MASKS_RANDOM_SHAPE = [m.result() for m in MASKS_RANDOM_SHAPE]
 
+class NDImageStatisticsTestCase(unittest.TestCase):
+    pass
+
+TargetFuncDesc = namedtuple('TargetFuncDesc', ('name', 'fast_func', 'slow_func', 'validator', 'accepted_dtypes', 'takes_is_12_bit_arg', 'masks', 'kwargs'))
+
+TARGET_FUNC_DESCS = [
+    TargetFuncDesc(
+        name='min_max',
+        fast_func=_measures_fast._min_max,
+        slow_func=_measures_slow._min_max,
+        validator=NDImageStatisticsTestCase.assertSequenceEqual,
+        accepted_dtypes=(numpy.integer, numpy.floating),
+        takes_is_12_bit_arg=False,
+        masks=None,
+        kwargs={}
+    ),
+    TargetFuncDesc(
+        name='min_max__mask_of_same_shape_as_image',
+        fast_func=_measures_fast._min_max,
+        slow_func=_measures_slow._min_max,
+        validator=NDImageStatisticsTestCase.assertSequenceEqual,
+        accepted_dtypes=(numpy.integer, numpy.floating),
+        takes_is_12_bit_arg=False,
+        masks=MASKS_IMAGE_SHAPE,
+        kwargs={}
+    ),
+    TargetFuncDesc(
+        name='min_max__mask_of_random_shape',
+        fast_func=_measures_fast._min_max,
+        slow_func=_measures_slow._min_max,
+        validator=NDImageStatisticsTestCase.assertSequenceEqual,
+        accepted_dtypes=(numpy.integer, numpy.floating),
+        takes_is_12_bit_arg=False,
+        masks=MASKS_RANDOM_SHAPE,
+        kwargs={}
+    ),
+]
+
+# for desc in TARGET_FUNC_DESCS:
+#     for flavor in IMAGE_FLAVORS:
+#         if any(numpy.issubdtype(flavor.dtype, accepted_dtype) for accepted_dtype in desc.accepted_dtypes):
+#             def test(self):
+#                 if desc.
+
+def run_test():
+    pass
+
+def run_benchmark():
+    pass
+
 # TEST_MASKS
 
-# IM_TYPES = [
-#     ImType('uint8', numpy.uint8, (0, 255)),
-#     ImType('uint12', numpy.uint16, (0, 4095)),
-#     ImType('uint16', numpy.uint16, (0, 65535)),
-#     ImType('float32', numpy.float32, (-5, 5))
-# ]
-#
-# IM_TYPES = {
-#     'uint8' :
-# }
-# IM_DTYPES = [numpy.uint8, numpy.uint16, numpy.float32]
-# IM_DTYPE_NAMES = {numpy.uint8: 'uint8', numpy.uint16: 'uint16', numpy.float32: 'float32'}
-# IM_DTYPE_RANGES = {
-#     numpy.uint8: numpy.array((0, 255), dtype=numpy.uint8),
-#     numpy.uint16: numpy.array((0, 65535), dtype=numpy.uint16),
-#     numpy.float32: numpy.array((-5, 5), dtype=numpy.float32)
-# }
-#
-#
-# def _genu8(self):
-#     im = numpy.random.normal(127, 16, self.IM_SHAPE)
-#     im[im > 255] = 255
-#     im[im < 0] = 0
-#     return im.astype(numpy.uint8)
-#
-# def _genu16(self):
-#     im = numpy.random.normal(32767, 1024, self.IM_SHAPE)
-#     im[im > 65535] = 65535
-#     im[im < 0] = 0
-#     return im.astype(numpy.uint16)
-#
-# def _genfloat32(self):
-#     return numpy.random.normal(size=self.IM_SHAPE).astype(numpy.float32)
-#
-# im_gens = [self._genu8, self._genu16, self._genfloat32]
-#
-# imfs = {im_dtype: [ndimage_statistics.pool.submit(im_gen) for i in range(self.IM_COUNT)] for (im_dtype, im_gen) in zip(self.IM_DTYPES, im_gens)}
-# IMS = {im_dtype: [fut.result().swapaxes(0, 1) for fut in futs] for (im_dtype, futs) in imfs.items()}
-# print('Generating test masks...')
-# SAMESHAPE_MASKS = [numpy.random.randint(0, 2, self.IM_SHAPE).astype(numpy.bool).T for i in range(self.IM_COUNT)]
-# OFFSHAPE_MASKS = [numpy.random.randint(0, 2, (self.IM_SHAPE[0] - i, self.IM_SHAPE[1] - i)).astype(numpy.bool).T for i in range(self.IM_COUNT)]
-# del im_gens
-# del imfs
-#
-#
-# class NDImageStatisticsTestCase(unittest.TestCase):
+
+
 #
 #
 #
