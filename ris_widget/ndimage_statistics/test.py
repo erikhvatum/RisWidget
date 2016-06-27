@@ -145,6 +145,15 @@ TARGET_FUNC_DESCS = [
         accepted_dtypes=(numpy.integer, numpy.floating),
         takes_is_12_bit_arg=False,
         masks=None
+    ),
+    TargetFuncDesc(
+        name='min_max__branching_roi',
+        fast_func=functools.partial(_measures_fast._min_max_branching, roi_center_and_radius=_roi_center_and_radius),
+        slow_func=None,  # functools.partial(_measures_slow._min_max, roi_center_and_radius=_roi_center_and_radius),
+        validator=None,
+        accepted_dtypes=(numpy.integer, numpy.floating),
+        takes_is_12_bit_arg=False,
+        masks=None
     )
 ]
 
