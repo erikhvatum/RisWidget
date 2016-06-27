@@ -23,7 +23,9 @@
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 from collections import namedtuple
+import functools
 import numpy
+import time
 import unittest
 try:
     from . import _measures_fast
@@ -35,7 +37,7 @@ from . import _measures_slow
 from . import ndimage_statistics
 
 IMAGE_SHAPE = (2560, 2160)
-IMAGE_COUNT_PER_FLAVOR = 10
+IMAGE_COUNT_PER_FLAVOR = 3
 
 print('Preparing to generate test data...')
 
@@ -89,7 +91,7 @@ print('Generating {} test image{} ({} each for {})...'.format(
 ))
 
 for imflav in IMAGE_FLAVORS:
-    imflav.images = [example.result() for example in imflav.images]
+    imflav.images = [image.result() for image in imflav.images]
 del imflav
 
 print('Generating {0} {1} test mask{2} and {0} random size test mask{2}...'.format(
@@ -139,35 +141,56 @@ TARGET_FUNC_DESCS = [
     ),
 ]
 
-# for desc in TARGET_FUNC_DESCS:
-#     for flavor in IMAGE_FLAVORS:
-#         if any(numpy.issubdtype(flavor.dtype, accepted_dtype) for accepted_dtype in desc.accepted_dtypes):
-#             def test(self):
-#                 if desc.
+def benchmark(desc, flavor, use_fast_version_else_slow=True, **kwargs):
+    func = desc.fast_func if use_fast_version_else_slow else desc.slow_func
+    if not func:
+        return
+    if flavor.name == 'uint12' and desc.takes_is_12_bit_arg and 'is_twelve_bit' not in kwargs:
+        kwargs['is_twelve_bit'] = True
+    calls = []
+    for idx in range(len(flavor.images)):
+        if desc.masks is None:
+            calls.append(functools.partial(func, flavor.images[idx]))
+        else:
+            calls.append(functools.partial(
+                func,
+                flavor.images[idx],
+                desc.masks[idx] if len(desc.masks) > 1 else desc.masks[0]
+            ))
+    t0 = time.time()
+    for call in calls:
+        call(**kwargs)
+    t1 = time.time()
+    print('{}__{}: {}'.format(desc.name, flavor.name, 1000 * ((t1 - t0) / len(calls))))
+
+benchmarks = []
+
+for desc in TARGET_FUNC_DESCS:
+    for flavor in IMAGE_FLAVORS:
+        if any(numpy.issubdtype(flavor.dtype, accepted_dtype) for accepted_dtype in desc.accepted_dtypes):
+            # def test(self):
+            #     if desc.
+            benchmarks.append(functools.partial(benchmark, desc, flavor))
+
 
 def run_test():
     pass
 
-def run_benchmark():
-    pass
-
-# TEST_MASKS
-
-
-
-#
-#
-#
-#
-#     def setUp(self):
-        
-
-# TODO: Identify best or at least reasonably common method of sharing test function cores with benchmark functions.
-# Promising: http://stackoverflow.com/questions/24150016/how-to-benchmark-unit-tests-in-python-without-adding-any-code
-# However, not exactly what we want.  This gives the time required to run each test function once, including the overhead
-# of verifying output, whereas we seek the mean wall clock time required to run the method that the test function
-# tests a number of times.
-# So, we want to refine the scheme seen in _test_and_benchmark such that test verifier and core function to be
-# tested or benchmarked along with name and accepted or excluded input types.  With this, after moving the setUp()
-# contents back to module scope, we can generate test methods for NDImageStatisticsTestCase and implement a simple
-# benchmarker class.
+if __name__ == '__main__':
+    import sys
+    if len(sys.argv) == 1:
+        print("Defaulting to running tests.  Supply benchmark or test_and_benchmark as an argument to do otherwise.")
+        # if not test():
+        #     sys.exit(-1)
+    # elif sys.argv[1] == 'test':
+    #     if not test():
+    #         sys.exit(-1)
+    elif sys.argv[1] == 'benchmark':
+        print("All results in milliseconds.  Running benchmarks...")
+        for benchmark in benchmarks:
+            benchmark()
+    # elif sys.argv[1] == 'test_and_benchmark':
+    #     if not test():
+    #         sys.exit(-1)
+    #     print('')
+    #     benchmark()
