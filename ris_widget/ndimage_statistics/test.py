@@ -106,8 +106,9 @@ MASKS_RANDOM_SHAPE = [m.result() for m in MASKS_RANDOM_SHAPE]
 class NDImageStatisticsTestCase(unittest.TestCase):
     pass
 
-TargetFuncDesc = namedtuple('TargetFuncDesc', ('name', 'fast_func', 'slow_func', 'validator', 'accepted_dtypes', 'takes_is_12_bit_arg', 'masks', 'kwargs'))
+TargetFuncDesc = namedtuple('TargetFuncDesc', ('name', 'fast_func', 'slow_func', 'validator', 'accepted_dtypes', 'takes_is_12_bit_arg', 'masks'))
 
+_roi_center_and_radius = (IMAGE_SHAPE[0]/2, IMAGE_SHAPE[1]/2), IMAGE_SHAPE[0]*1.308
 TARGET_FUNC_DESCS = [
     TargetFuncDesc(
         name='min_max',
@@ -116,8 +117,7 @@ TARGET_FUNC_DESCS = [
         validator=NDImageStatisticsTestCase.assertSequenceEqual,
         accepted_dtypes=(numpy.integer, numpy.floating),
         takes_is_12_bit_arg=False,
-        masks=None,
-        kwargs={}
+        masks=None
     ),
     TargetFuncDesc(
         name='min_max__mask_of_same_shape_as_image',
@@ -126,8 +126,7 @@ TARGET_FUNC_DESCS = [
         validator=NDImageStatisticsTestCase.assertSequenceEqual,
         accepted_dtypes=(numpy.integer, numpy.floating),
         takes_is_12_bit_arg=False,
-        masks=MASKS_IMAGE_SHAPE,
-        kwargs={}
+        masks=MASKS_IMAGE_SHAPE
     ),
     TargetFuncDesc(
         name='min_max__mask_of_random_shape',
@@ -136,17 +135,25 @@ TARGET_FUNC_DESCS = [
         validator=NDImageStatisticsTestCase.assertSequenceEqual,
         accepted_dtypes=(numpy.integer, numpy.floating),
         takes_is_12_bit_arg=False,
-        masks=MASKS_RANDOM_SHAPE,
-        kwargs={}
+        masks=MASKS_RANDOM_SHAPE
     ),
+    TargetFuncDesc(
+        name='min_max__roi',
+        fast_func=functools.partial(_measures_fast._min_max, roi_center_and_radius=_roi_center_and_radius),
+        slow_func=None,#functools.partial(_measures_slow._min_max, roi_center_and_radius=_roi_center_and_radius),
+        validator=None,
+        accepted_dtypes=(numpy.integer, numpy.floating),
+        takes_is_12_bit_arg=False,
+        masks=None
+    )
 ]
 
-def benchmark(desc, flavor, use_fast_version_else_slow=True, **kwargs):
+def _benchmark(desc, flavor, use_fast_version_else_slow=True):
     func = desc.fast_func if use_fast_version_else_slow else desc.slow_func
     if not func:
         return
-    if flavor.name == 'uint12' and desc.takes_is_12_bit_arg and 'is_twelve_bit' not in kwargs:
-        kwargs['is_twelve_bit'] = True
+    if flavor.name == 'uint12' and desc.takes_is_12_bit_arg:
+        func = functools.partial(func, is_twelve_bit=True)
     calls = []
     for idx in range(len(flavor.images)):
         if desc.masks is None:
@@ -159,7 +166,7 @@ def benchmark(desc, flavor, use_fast_version_else_slow=True, **kwargs):
             ))
     t0 = time.time()
     for call in calls:
-        call(**kwargs)
+        call()
     t1 = time.time()
     print('{}__{}: {}'.format(desc.name, flavor.name, 1000 * ((t1 - t0) / len(calls))))
 
@@ -170,7 +177,7 @@ for desc in TARGET_FUNC_DESCS:
         if any(numpy.issubdtype(flavor.dtype, accepted_dtype) for accepted_dtype in desc.accepted_dtypes):
             # def test(self):
             #     if desc.
-            benchmarks.append(functools.partial(benchmark, desc, flavor))
+            benchmarks.append(functools.partial(_benchmark, desc, flavor))
 
 
 def run_test():
