@@ -37,7 +37,7 @@ from . import _measures_slow
 from . import ndimage_statistics
 
 IMAGE_SHAPE = (2560, 2160)
-IMAGE_COUNT_PER_FLAVOR = 3
+IMAGE_COUNT_PER_FLAVOR = 10
 
 print('Preparing to generate test data...')
 
@@ -108,7 +108,7 @@ class NDImageStatisticsTestCase(unittest.TestCase):
 
 TargetFuncDesc = namedtuple('TargetFuncDesc', ('name', 'fast_func', 'slow_func', 'validator', 'accepted_dtypes', 'takes_is_12_bit_arg', 'masks'))
 
-_roi_center_and_radius = (IMAGE_SHAPE[0]/2, IMAGE_SHAPE[1]/2), IMAGE_SHAPE[0]*1.308
+_roi_center_and_radius = (IMAGE_SHAPE[0]/2, IMAGE_SHAPE[1]/2), IMAGE_SHAPE[0]
 TARGET_FUNC_DESCS = [
     TargetFuncDesc(
         name='min_max',
