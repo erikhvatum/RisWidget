@@ -270,13 +270,17 @@ void ranged_hist(const C* im, const std::size_t* im_shape, const std::size_t* im
                     ++*hist;
                 else if(v > range_max)
                     ++*last_bin;
-                else
+                else if(v < range_max)
                     ++*reinterpret_cast<std::uint32_t*>(hist8 + ( 1 + static_cast<std::ptrdiff_t>(bin_factor * (v - range_min)) ) * hist_stride);
+                else if(v == range_max)
+                    ++*reinterpret_cast<std::uint32_t*>(hist8 + (bin_count-2) * hist_stride);
             }
             else
             {
-                if(v >= range_min && v <= range_max)
+                if(v >= range_min && v < range_max)
                     ++*reinterpret_cast<std::uint32_t*>(hist8 + static_cast<std::ptrdiff_t>(bin_factor * (v - range_min)) * hist_stride);
+                else if(v == range_max)
+                    ++*last_bin;
             }
         }
     }
@@ -335,13 +339,17 @@ void masked_ranged_hist(const C* im, const std::size_t* im_shape, const std::siz
                             ++*hist;
                         else if(v > range_max)
                             ++*last_bin;
-                        else
+                        else if(v < range_max)
                             ++*reinterpret_cast<std::uint32_t*>(hist8 + ( 1 + static_cast<std::ptrdiff_t>(bin_factor * (v - range_min)) ) * hist_stride);
+                        else if(v == range_max)
+                            ++*reinterpret_cast<std::uint32_t*>(hist8 + (bin_count-2) * hist_stride);
                     }
                     else
                     {
-                        if(v >= range_min && v <= range_max)
+                        if(v >= range_min && v < range_max)
                             ++*reinterpret_cast<std::uint32_t*>(hist8 + static_cast<std::ptrdiff_t>(bin_factor * (v - range_min)) * hist_stride);
+                        else if(v == range_max)
+                            ++*last_bin;
                     }
                 }
             }
@@ -372,13 +380,17 @@ void masked_ranged_hist(const C* im, const std::size_t* im_shape, const std::siz
                             ++*hist;
                         else if(v > range_max)
                             ++*last_bin;
-                        else
+                        else if(v < range_max)
                             ++*reinterpret_cast<std::uint32_t*>(hist8 + ( 1 + static_cast<std::ptrdiff_t>(bin_factor * (v - range_min)) ) * hist_stride);
+                        else if(v == range_max)
+                            ++*reinterpret_cast<std::uint32_t*>(hist8 + (bin_count-2) * hist_stride);
                     }
                     else
                     {
-                        if(v >= range_min && v <= range_max)
+                        if(v >= range_min && v < range_max)
                             ++*reinterpret_cast<std::uint32_t*>(hist8 + static_cast<std::ptrdiff_t>(bin_factor * (v - range_min)) * hist_stride);
+                        else if(v == range_max)
+                            ++*last_bin;
                     }
                 }
             }
@@ -439,13 +451,17 @@ void roi_ranged_hist(const C* im, const std::size_t* im_shape, const std::size_t
                     ++*hist;
                 else if(v > range_max)
                     ++*last_bin;
-                else
+                else if(v < range_max)
                     ++*reinterpret_cast<std::uint32_t*>(hist8 + ( 1 + static_cast<std::ptrdiff_t>(bin_factor * (v - range_min)) ) * hist_stride);
+                else if(v == range_max)
+                    ++*reinterpret_cast<std::uint32_t*>(hist8 + (bin_count-2) * hist_stride);
             }
             else
             {
-                if(v >= range_min && v <= range_max)
+                if(v >= range_min && v < range_max)
                     ++*reinterpret_cast<std::uint32_t*>(hist8 + static_cast<std::ptrdiff_t>(bin_factor * (v - range_min)) * hist_stride);
+                else if(v == range_max)
+                    ++*last_bin;
             }
         }
     }
