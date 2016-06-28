@@ -46,7 +46,7 @@ class ImageFlavor:
     def __init__(self, name, dtype, interval):
         self.name = name
         self.dtype = dtype
-        self.interval = interval
+        self.interval = numpy.array(interval, dtype=dtype)
         center = (interval[0] + interval[1]) / 2
         stddev = (interval[1] - interval[0]) / 4
         def make_example():
@@ -103,12 +103,13 @@ print('Generating {0} {1} test mask{2} and {0} random size test mask{2}...'.form
 MASKS_IMAGE_SHAPE = [m.result() for m in MASKS_IMAGE_SHAPE]
 MASKS_RANDOM_SHAPE = [m.result() for m in MASKS_RANDOM_SHAPE]
 
+ROI_CENTER_AND_RADIUS = (IMAGE_SHAPE[0] / 2, IMAGE_SHAPE[1] / 2), IMAGE_SHAPE[0] / 2
+
 class NDImageStatisticsTestCase(unittest.TestCase):
     pass
 
-TargetFuncDesc = namedtuple('TargetFuncDesc', ('name', 'fast_func', 'slow_func', 'validator', 'accepted_dtypes', 'takes_is_12_bit_arg', 'masks'))
+TargetFuncDesc = namedtuple('TargetFuncDesc', ('name', 'fast_func', 'slow_func', 'validator', 'accepted_dtypes', 'takes_is_12_bit_arg', 'masks', 'takes_bin_count_and_range'))
 
-_roi_center_and_radius = (IMAGE_SHAPE[0]/2, IMAGE_SHAPE[1]/2), IMAGE_SHAPE[0]/2
 TARGET_FUNC_DESCS = [
     TargetFuncDesc(
         name='min_max',
@@ -117,7 +118,8 @@ TARGET_FUNC_DESCS = [
         validator=NDImageStatisticsTestCase.assertSequenceEqual,
         accepted_dtypes=(numpy.integer, numpy.floating),
         takes_is_12_bit_arg=False,
-        masks=None
+        masks=None,
+        takes_bin_count_and_range=False
     ),
     TargetFuncDesc(
         name='min_max__mask_of_same_shape_as_image',
@@ -126,7 +128,8 @@ TARGET_FUNC_DESCS = [
         validator=NDImageStatisticsTestCase.assertSequenceEqual,
         accepted_dtypes=(numpy.integer, numpy.floating),
         takes_is_12_bit_arg=False,
-        masks=MASKS_IMAGE_SHAPE
+        masks=MASKS_IMAGE_SHAPE,
+        takes_bin_count_and_range=False
     ),
     TargetFuncDesc(
         name='min_max__mask_of_random_shape',
@@ -135,25 +138,58 @@ TARGET_FUNC_DESCS = [
         validator=NDImageStatisticsTestCase.assertSequenceEqual,
         accepted_dtypes=(numpy.integer, numpy.floating),
         takes_is_12_bit_arg=False,
-        masks=MASKS_RANDOM_SHAPE
+        masks=MASKS_RANDOM_SHAPE,
+        takes_bin_count_and_range=False
     ),
     TargetFuncDesc(
         name='min_max__roi',
-        fast_func=functools.partial(_measures_fast._min_max, roi_center_and_radius=_roi_center_and_radius),
-        slow_func=None,#functools.partial(_measures_slow._min_max, roi_center_and_radius=_roi_center_and_radius),
+        fast_func=functools.partial(_measures_fast._min_max, roi_center_and_radius=ROI_CENTER_AND_RADIUS),
+        slow_func=None,#functools.partial(_measures_slow._min_max, roi_center_and_radius=ROI_CENTER_AND_RADIUS),
         validator=None,
         accepted_dtypes=(numpy.integer, numpy.floating),
         takes_is_12_bit_arg=False,
-        masks=None
+        masks=None,
+        takes_bin_count_and_range=False
     ),
     TargetFuncDesc(
-        name='min_max__branching_roi',
-        fast_func=functools.partial(_measures_fast._min_max_branching, roi_center_and_radius=_roi_center_and_radius),
-        slow_func=None,  # functools.partial(_measures_slow._min_max, roi_center_and_radius=_roi_center_and_radius),
+        name='histogram',
+        fast_func=_measures_fast._histogram,
+        slow_func=_measures_slow._histogram,
         validator=None,
         accepted_dtypes=(numpy.integer, numpy.floating),
         takes_is_12_bit_arg=False,
-        masks=None
+        masks=None,
+        takes_bin_count_and_range=True
+    ),
+    TargetFuncDesc(
+        name='histogram__mask_of_same_shape_as_image',
+        fast_func=_measures_fast._histogram,
+        slow_func=_measures_slow._histogram,
+        validator=None,
+        accepted_dtypes=(numpy.integer, numpy.floating),
+        takes_is_12_bit_arg=False,
+        masks=MASKS_IMAGE_SHAPE,
+        takes_bin_count_and_range=True
+    ),
+    TargetFuncDesc(
+        name='histogram__mask_of_random_shape',
+        fast_func=_measures_fast._histogram,
+        slow_func=_measures_slow._histogram,
+        validator=None,
+        accepted_dtypes=(numpy.integer, numpy.floating),
+        takes_is_12_bit_arg=False,
+        masks=MASKS_RANDOM_SHAPE,
+        takes_bin_count_and_range=True
+    ),
+    TargetFuncDesc(
+        name='histogram__roi',
+        fast_func=functools.partial(_measures_fast._histogram, roi_center_and_radius=ROI_CENTER_AND_RADIUS),
+        slow_func=None,
+        validator=None,
+        accepted_dtypes=(numpy.integer, numpy.floating),
+        takes_is_12_bit_arg=False,
+        masks=None,
+        takes_bin_count_and_range=True
     )
 ]
 
@@ -163,15 +199,17 @@ def _benchmark(desc, flavor, use_fast_version_else_slow=True):
         return
     if flavor.name == 'uint12' and desc.takes_is_12_bit_arg:
         func = functools.partial(func, is_twelve_bit=True)
+    if desc.takes_bin_count_and_range:
+        func = functools.partial(func, bin_count=1024, range_=flavor.interval)
     calls = []
     for idx in range(len(flavor.images)):
         if desc.masks is None:
-            calls.append(functools.partial(func, flavor.images[idx]))
+            calls.append(functools.partial(func, im=flavor.images[idx]))
         else:
             calls.append(functools.partial(
                 func,
-                flavor.images[idx],
-                desc.masks[idx] if len(desc.masks) > 1 else desc.masks[0]
+                im=flavor.images[idx],
+                mask=desc.masks[idx] if len(desc.masks) > 1 else desc.masks[0]
             ))
     t0 = time.time()
     for call in calls:

@@ -227,54 +227,6 @@ void roi_min_max(const C* im, const std::size_t* im_shape, const std::size_t* im
     }
 }
 
-template<typename C>
-void roi_branching_min_max(const C* im, const std::size_t* im_shape, const std::size_t* im_strides,
-                           const float& roi_center_x, const float& roi_center_y, const float& roi_radius,
-                           C* min_max, const std::size_t& min_max_stride)
-{
-    std::size_t shape[2], strides[2];
-    const float roi_radius_sq{roi_radius * roi_radius};
-    reorder_to_inner_outer(im_shape, im_strides, shape, strides);
-
-    C& min{min_max[0]};
-    C& max{*reinterpret_cast<C*>(reinterpret_cast<std::uint8_t*>(min_max) + min_max_stride)};
-    max = min = 0;
-
-    bool seen_unmasked = false;
-    const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im);
-    const std::uint8_t*const outer_end = outer + shape[0] * strides[0];
-    const std::uint8_t* inner;
-    const std::ptrdiff_t inner_end_offset = shape[1] * strides[1];
-    const std::uint8_t* inner_end;
-    std::size_t outer_idx=0, outer_idx_sq, inner_idx;
-    for(; outer != outer_end; outer += strides[0], ++outer_idx)
-    {
-        inner = outer;
-        inner_end = inner + inner_end_offset;
-        outer_idx_sq = outer_idx * outer_idx;
-        inner_idx = 0;
-        for(; inner != inner_end; inner += strides[1], ++inner_idx)
-        {
-            if(inner_idx * inner_idx + outer_idx_sq <= roi_radius_sq)
-            {
-                const C& v = *reinterpret_cast<const C*>(inner);
-                if(seen_unmasked)
-                {
-                    if(v < min)
-                        min = v;
-                    else if(v > max)
-                        max = v;
-                }
-                else
-                {
-                    seen_unmasked = true;
-                    min = max = v;
-                }
-            }
-        }
-    }
-}
-
 template<typename C, bool with_overflow_bins>
 void ranged_hist(const C* im, const std::size_t* im_shape, const std::size_t* im_strides,
                  const C* range, const std::size_t& range_stride,
@@ -429,6 +381,71 @@ void masked_ranged_hist(const C* im, const std::size_t* im_shape, const std::siz
                             ++*reinterpret_cast<std::uint32_t*>(hist8 + static_cast<std::ptrdiff_t>(bin_factor * (v - range_min)) * hist_stride);
                     }
                 }
+            }
+        }
+    }
+}
+
+template<typename C, bool with_overflow_bins>
+void roi_ranged_hist(const C* im, const std::size_t* im_shape, const std::size_t* im_strides,
+                     const float& roi_center_x, const float& roi_center_y, const float& roi_radius,
+                     const C* range, const std::size_t& range_stride,
+                     const std::size_t& bin_count,
+                     std::uint32_t* hist, const std::size_t& hist_stride)
+{
+    const C& range_min{range[0]};
+    const C& range_max{*reinterpret_cast<const C*>(reinterpret_cast<const std::uint8_t*>(range) + range_stride)};
+    const C range_width{static_cast<C>(range_max - range_min)};
+    if(range_width < 0)
+        throw std::invalid_argument("The value of the second element of the range argument must not be less than that of the first element.");
+
+    std::uint8_t* hist8{reinterpret_cast<std::uint8_t*>(hist)};
+    for(std::uint8_t *hist8It{hist8}, *const hist8EndIt{hist8 + bin_count * hist_stride}; hist8It != hist8EndIt; hist8It += hist_stride)
+        *reinterpret_cast<std::uint32_t*>(hist8It) = 0;
+
+    if(range_width == 0 && !with_overflow_bins)
+        return;
+
+    std::size_t shape[2], strides[2];
+    float roi_center_outer, roi_center_inner;
+    const float roi_radius_sq{roi_radius * roi_radius};
+    reorder_to_inner_outer(im_shape, im_strides, shape, strides, roi_center_x, roi_center_y, roi_center_outer, roi_center_inner);
+    const long outer_idx_min = std::max(std::lround(roi_center_outer - roi_radius), 0L);
+    const long outer_idx_max = std::min(std::lround(roi_center_outer + roi_radius) + 1, static_cast<long>(shape[0]));
+
+    const std::size_t non_overflow_bin_count = with_overflow_bins ? bin_count - 2 : bin_count;
+    const float bin_factor = static_cast<float>(non_overflow_bin_count) / range_width;
+    std::uint32_t*const last_bin = reinterpret_cast<std::uint32_t*>(hist8 + (bin_count-1) * hist_stride);
+    const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im) + outer_idx_min * strides[0];
+    const std::uint8_t*const outer_end = reinterpret_cast<const std::uint8_t*>(im) + outer_idx_max * strides[0];
+    long outer_idx = outer_idx_min;
+    const std::uint8_t* inner;
+    float inner_offset_part;
+    const std::ptrdiff_t inner_end_limit_offset = shape[1] * strides[1];
+    const std::uint8_t* inner_end;
+    for(; outer < outer_end; outer += strides[0], ++outer_idx)
+    {
+        inner_offset_part = static_cast<float>(outer_idx) - roi_center_outer;
+        inner_offset_part *= inner_offset_part;
+        inner_offset_part = std::sqrt(roi_radius_sq - inner_offset_part);
+        inner = std::max(outer + std::lround(roi_center_inner - inner_offset_part) * strides[1], outer);
+        inner_end = std::min(outer + (std::lround(roi_center_inner + inner_offset_part) + 1) * strides[1], outer + inner_end_limit_offset);
+        for(; inner < inner_end; inner += strides[1])
+        {
+            const C& v = *reinterpret_cast<const C*>(inner);
+            if(with_overflow_bins)
+            {
+                if(v < range_min)
+                    ++*hist;
+                else if(v > range_max)
+                    ++*last_bin;
+                else
+                    ++*reinterpret_cast<std::uint32_t*>(hist8 + ( 1 + static_cast<std::ptrdiff_t>(bin_factor * (v - range_min)) ) * hist_stride);
+            }
+            else
+            {
+                if(v >= range_min && v <= range_max)
+                    ++*reinterpret_cast<std::uint32_t*>(hist8 + static_cast<std::ptrdiff_t>(bin_factor * (v - range_min)) * hist_stride);
             }
         }
     }

@@ -30,19 +30,7 @@ def _min_max(im, mask=None, roi_center_and_radius=None):
     if mask is not None:
         _ndimage_statistics.masked_min_max(im, mask, min_max)
     elif roi_center_and_radius is not None:
-        assert roi_center_and_radius[1] >= 0
         _ndimage_statistics.roi_min_max(im, roi_center_and_radius[0][0], roi_center_and_radius[0][1], roi_center_and_radius[1], min_max)
-    else:
-        _ndimage_statistics.min_max(im, min_max)
-    return min_max
-
-def _min_max_branching(im, mask=None, roi_center_and_radius=None):
-    min_max = numpy.empty((2,), dtype=im.dtype)
-    if mask is not None:
-        _ndimage_statistics.masked_min_max(im, mask, min_max)
-    elif roi_center_and_radius is not None:
-        assert roi_center_and_radius[1] >= 0
-        _ndimage_statistics.roi_branching_min_max(im, roi_center_and_radius[0][0], roi_center_and_radius[0][1], roi_center_and_radius[1], min_max)
     else:
         _ndimage_statistics.min_max(im, min_max)
     return min_max
@@ -51,9 +39,8 @@ def _histogram(im, bin_count, range_, mask=None, roi_center_and_radius=None, wit
     hist = numpy.zeros((bin_count,), dtype=numpy.uint32)
     if mask is not None:
         _ndimage_statistics.masked_ranged_hist(im, mask, range_, hist, with_overflow_bins)
-#   elif roi_center_and_radius is not None:
-#       assert roi_center_and_radius[1] >= 0
-#       _ndimage_statistics.roi_ranged_hist(im, roi_center_and_radius[0], roi_center_and_radius[1], range_, hist, with_overflow_bins)
+    elif roi_center_and_radius is not None:
+        _ndimage_statistics.roi_ranged_hist(im, roi_center_and_radius[0][0], roi_center_and_radius[0][1], roi_center_and_radius[1], range_, hist, with_overflow_bins)
     else:
         _ndimage_statistics.ranged_hist(im, range_, hist, with_overflow_bins)
     return hist
