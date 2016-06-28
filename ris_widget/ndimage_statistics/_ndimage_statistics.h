@@ -185,9 +185,9 @@ void roi_min_max(const C* im, const std::size_t* im_shape, const std::size_t* im
 
     C& min{min_max[0]};
     C& max{*reinterpret_cast<C*>(reinterpret_cast<std::uint8_t*>(min_max) + min_max_stride)};
+    max = min = 0;
     const long outer_idx_min = std::max(std::lround(roi_center_outer - roi_radius), 0L);
     const long outer_idx_max = std::min(std::lround(roi_center_outer + roi_radius) + 1, static_cast<long>(shape[0]));
-    max = min = 0;
     
     const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im) + outer_idx_min * strides[0];
     const std::uint8_t*const outer_end = reinterpret_cast<const std::uint8_t*>(im) + outer_idx_max * strides[0];
@@ -740,3 +740,60 @@ void masked_hist_min_max_omp(const C* im, const std::size_t* im_shape, const std
     }
 }
 #endif
+
+template<typename C, bool is_twelve_bit>
+void roi_hist_min_max(const C* im, const std::size_t* im_shape, const std::size_t* im_strides,
+                      const float& roi_center_x, const float& roi_center_y, const float& roi_radius,
+                      std::uint32_t* hist, const std::size_t& hist_stride,
+                      C* min_max, const std::size_t& min_max_stride)
+{
+    std::size_t shape[2], strides[2];
+    float roi_center_outer, roi_center_inner;
+    const float roi_radius_sq{roi_radius * roi_radius};
+    reorder_to_inner_outer(im_shape, im_strides, shape, strides, roi_center_x, roi_center_y, roi_center_outer, roi_center_inner);
+
+    std::uint8_t* hist8{reinterpret_cast<std::uint8_t*>(hist)};
+    for(std::uint8_t *hist8It{hist8}, *const hist8EndIt{hist8 + bin_count<C>() * hist_stride}; hist8It != hist8EndIt; hist8It += hist_stride)
+        *reinterpret_cast<std::uint32_t*>(hist8It) = 0;
+
+    C& min{min_max[0]};
+    C& max{*reinterpret_cast<C*>(reinterpret_cast<std::uint8_t*>(min_max) + min_max_stride)};
+    max = min = 0;
+    const long outer_idx_min = std::max(std::lround(roi_center_outer - roi_radius), 0L);
+    const long outer_idx_max = std::min(std::lround(roi_center_outer + roi_radius) + 1, static_cast<long>(shape[0]));
+
+    const std::uint8_t* outer = reinterpret_cast<const std::uint8_t*>(im) + outer_idx_min * strides[0];
+    const std::uint8_t*const outer_end = reinterpret_cast<const std::uint8_t*>(im) + outer_idx_max * strides[0];
+    long outer_idx = outer_idx_min;
+    const std::uint8_t* inner;
+    float inner_offset_part;
+    const std::ptrdiff_t inner_end_limit_offset = shape[1] * strides[1];
+    const std::uint8_t* inner_end;
+    if(outer < outer_end)
+    {
+        inner_offset_part = static_cast<float>(outer_idx) - roi_center_outer;
+        inner_offset_part *= inner_offset_part;
+        inner_offset_part = std::sqrt(roi_radius_sq - inner_offset_part);
+        inner = std::max(outer + std::lround(roi_center_inner - inner_offset_part) * strides[1], outer);
+        inner_end = std::min(outer + (std::lround(roi_center_inner + inner_offset_part) + 1) * strides[1], outer + inner_end_limit_offset);
+        if(inner < inner_end)
+            max = min = *reinterpret_cast<const C*>(inner);
+    }
+    for(; outer < outer_end; outer += strides[0], ++outer_idx)
+    {
+        inner_offset_part = static_cast<float>(outer_idx) - roi_center_outer;
+        inner_offset_part *= inner_offset_part;
+        inner_offset_part = std::sqrt(roi_radius_sq - inner_offset_part);
+        inner = std::max(outer + std::lround(roi_center_inner - inner_offset_part) * strides[1], outer);
+        inner_end = std::min(outer + (std::lround(roi_center_inner + inner_offset_part) + 1) * strides[1], outer + inner_end_limit_offset);
+        for(; inner < inner_end; inner += strides[1])
+        {
+            const C& v = *reinterpret_cast<const C*>(inner);
+            ++*reinterpret_cast<std::uint32_t*>(hist8 + hist_stride*apply_bin_shift<C, is_twelve_bit>(v));
+            if(v < min)
+                min = v;
+            else if(v > max)
+                max = v;
+        }
+    }
+}

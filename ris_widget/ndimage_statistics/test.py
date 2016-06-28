@@ -190,6 +190,46 @@ TARGET_FUNC_DESCS = [
         takes_is_12_bit_arg=False,
         masks=None,
         takes_bin_count_and_range=True
+    ),
+    TargetFuncDesc(
+        name="statistics",
+        fast_func=_measures_fast._statistics,
+        slow_func=_measures_slow._statistics,
+        validator=None,
+        accepted_dtypes=(numpy.integer,),
+        takes_is_12_bit_arg=True,
+        masks=None,
+        takes_bin_count_and_range=False
+    ),
+    TargetFuncDesc(
+        name="statistics__mask_of_same_shape_as_image",
+        fast_func=_measures_fast._statistics,
+        slow_func=_measures_slow._statistics,
+        validator=None,
+        accepted_dtypes=(numpy.integer,),
+        takes_is_12_bit_arg=True,
+        masks=MASKS_IMAGE_SHAPE,
+        takes_bin_count_and_range=False
+    ),
+    TargetFuncDesc(
+        name="statistics__mask_of_random_shape",
+        fast_func=_measures_fast._statistics,
+        slow_func=_measures_slow._statistics,
+        validator=None,
+        accepted_dtypes=(numpy.integer,),
+        takes_is_12_bit_arg=True,
+        masks=MASKS_RANDOM_SHAPE,
+        takes_bin_count_and_range=False
+    ),
+    TargetFuncDesc(
+        name="statistics__roi",
+        fast_func=functools.partial(_measures_fast._statistics, roi_center_and_radius=ROI_CENTER_AND_RADIUS),
+        slow_func=functools.partial(_measures_slow._statistics, roi_center_and_radius=ROI_CENTER_AND_RADIUS),
+        validator=None,
+        accepted_dtypes=(numpy.integer,),
+        takes_is_12_bit_arg=True,
+        masks=None,
+        takes_bin_count_and_range=False
     )
 ]
 
@@ -197,8 +237,8 @@ def _benchmark(desc, flavor, use_fast_version_else_slow=True):
     func = desc.fast_func if use_fast_version_else_slow else desc.slow_func
     if not func:
         return
-    if flavor.name == 'uint12' and desc.takes_is_12_bit_arg:
-        func = functools.partial(func, is_twelve_bit=True)
+    if desc.takes_is_12_bit_arg:
+        func = functools.partial(func, is_twelve_bit = flavor.name=='uint12')
     if desc.takes_bin_count_and_range:
         func = functools.partial(func, bin_count=1024, range_=flavor.interval)
     calls = []

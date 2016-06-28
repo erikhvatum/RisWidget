@@ -556,6 +556,80 @@ void py_masked_hist_min_max(py::buffer im, py::buffer mask, py::buffer hist, py:
     }
 }
 
+template<typename C, bool is_twelve_bit>
+static inline bool roi_hist_min_max_C(py::buffer_info& im_info, 
+                                      const float& roi_center_x, const float& roi_center_y, const float& roi_radius, 
+                                      py::buffer_info& hist_info, 
+                                      py::buffer_info& min_max_info)
+{
+    bool ret{false};
+    if(im_info.format == py::format_descriptor<C>::value)
+    {
+        if(hist_info.shape[0] != bin_count<C>())
+        {
+            std::ostringstream o;
+            o << "hist argument must contain " << bin_count<C>() << " elements for " << py::format_descriptor<C>::value << " im.";
+            throw std::invalid_argument(o.str());
+        }
+        py::gil_scoped_release releaseGil;
+        roi_hist_min_max<C, is_twelve_bit>(
+           reinterpret_cast<C*>(im_info.ptr),
+           im_info.shape.data(),
+           im_info.strides.data(),
+           roi_center_x,
+           roi_center_y,
+           roi_radius,
+           reinterpret_cast<std::uint32_t*>(hist_info.ptr),
+           hist_info.strides[0],
+           reinterpret_cast<C*>(min_max_info.ptr),
+           min_max_info.strides[0]);
+        ret = true;
+    }
+    return ret;
+}
+
+void py_roi_hist_min_max(py::buffer im,
+                         float roi_center_x, float roi_center_y, float roi_radius, 
+                         py::buffer hist, 
+                         py::buffer min_max, 
+                         bool is_twelve_bit)
+{
+    py::buffer_info im_info{im.request()}, hist_info{hist.request()}, min_max_info{min_max.request()};
+    if(im_info.ndim != 2)
+        throw std::invalid_argument("im argument must be a 2 dimensional buffer object (such as a numpy array).");
+    if(hist_info.ndim != 1)
+        throw std::invalid_argument("hist argument must be a 1 dimensional buffer object (such as a numpy array).");
+    if(hist_info.format != py::format_descriptor<std::uint32_t>::value)
+        throw std::invalid_argument("hist argument format must be uint32.");
+    if(min_max_info.ndim != 1)
+        throw std::invalid_argument("min_max arugment must be a 1 dimensional buffer object (such as a numpy array).");
+    if(min_max_info.shape[0] != 2)
+        throw std::invalid_argument("min_max argument must contain exactly 2 elements.");
+    if(im_info.format != min_max_info.format)
+        throw std::invalid_argument(
+            "im and min_max arguments must be the same format (or dtype, in the case where they are numpy arays).");
+    if(roi_radius < 0)
+        throw std::invalid_argument("roi_radius argument must be >= 0.");
+    if(is_twelve_bit)
+    {
+        if(!roi_hist_min_max_C<std::uint16_t, true>(im_info, roi_center_x, roi_center_y, roi_radius, hist_info, min_max_info))
+        {
+            throw std::invalid_argument("is_twelve_bit may be True only if im is uint16.");
+        }
+    }
+    else
+    {
+        if ( !(
+            roi_hist_min_max_C<std::uint8_t, false>(im_info, roi_center_x, roi_center_y, roi_radius, hist_info, min_max_info) || 
+            roi_hist_min_max_C<std::uint16_t, false>(im_info, roi_center_x, roi_center_y, roi_radius, hist_info, min_max_info) || 
+            roi_hist_min_max_C<std::uint32_t, false>(im_info, roi_center_x, roi_center_y, roi_radius, hist_info, min_max_info) || 
+            roi_hist_min_max_C<std::uint64_t, false>(im_info, roi_center_x, roi_center_y, roi_radius, hist_info, min_max_info)) )
+        {
+            throw std::invalid_argument("Only uint8, uint16, uint32, and uint64 im buffers are supported.");
+        }
+    }
+}
+
 PYBIND11_PLUGIN(_ndimage_statistics)
 {
     py::module m("_ndimage_statistics", "ris_widget.ndimage_statistics._ndimage_statistics module");
@@ -570,7 +644,7 @@ PYBIND11_PLUGIN(_ndimage_statistics)
 
     m.def("hist_min_max", &py_hist_min_max);
     m.def("masked_hist_min_max", &py_masked_hist_min_max);
-//  m.def("roi_hist_min_max", &py_roi_hist_min_max);
+    m.def("roi_hist_min_max", &py_roi_hist_min_max);
 
 //  py::class_<Luts>(m, "Luts")
 //      .def(py::init<const std::size_t&>())
