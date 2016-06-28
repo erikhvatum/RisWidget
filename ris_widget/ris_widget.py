@@ -584,14 +584,14 @@ class RisWidget:
         if Qt.QApplication.instance() is None:
             app = Qt.QApplication(sys.argv)
         self.qt_object = self.QT_OBJECT_CLASS(
-            self.APP_PREFS_NAME,
-            self.APP_PREFS_VERSION,
-            window_title,
-            parent,
-            window_flags,
-            msaa_sample_count,
-            swap_interval,
-            layers,
+            app_prefs_name=self.APP_PREFS_NAME,
+            app_prefs_version=self.APP_PREFS_VERSION,
+            window_title=window_title,
+            parent=parent,
+            window_flags=window_flags,
+            msaa_sample_count=msaa_sample_count,
+            swap_interval=swap_interval,
+            layers=layers,
             **kw)
         self.main_view_change_signal = self.qt_object.main_view_change_signal
         for refdesc in self.COPY_REFS:
