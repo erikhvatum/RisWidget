@@ -22,7 +22,6 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from collections import namedtuple
 import functools
 import numpy
 import time
@@ -108,160 +107,132 @@ ROI_CENTER_AND_RADIUS = (IMAGE_SHAPE[0] / 2, IMAGE_SHAPE[1] / 2), IMAGE_SHAPE[0]
 class NDImageStatisticsTestCase(unittest.TestCase):
     pass
 
-TargetFuncDesc = namedtuple('TargetFuncDesc', ('name', 'fast_func', 'slow_func', 'validator', 'accepted_dtypes', 'takes_is_12_bit_arg', 'masks', 'takes_bin_count_and_range'))
-
 TARGET_FUNC_DESCS = [
-    TargetFuncDesc(
+    dict(
         name='min_max',
         fast_func=_measures_fast._min_max,
         slow_func=_measures_slow._min_max,
         validator=NDImageStatisticsTestCase.assertSequenceEqual,
-        accepted_dtypes=(numpy.integer, numpy.floating),
-        takes_is_12_bit_arg=False,
-        masks=None,
-        takes_bin_count_and_range=False
     ),
-    TargetFuncDesc(
+    dict(
         name='min_max__mask_of_same_shape_as_image',
         fast_func=_measures_fast._min_max,
         slow_func=_measures_slow._min_max,
         validator=NDImageStatisticsTestCase.assertSequenceEqual,
-        accepted_dtypes=(numpy.integer, numpy.floating),
-        takes_is_12_bit_arg=False,
         masks=MASKS_IMAGE_SHAPE,
-        takes_bin_count_and_range=False
     ),
-    TargetFuncDesc(
+    dict(
         name='min_max__mask_of_random_shape',
         fast_func=_measures_fast._min_max,
         slow_func=_measures_slow._min_max,
         validator=NDImageStatisticsTestCase.assertSequenceEqual,
-        accepted_dtypes=(numpy.integer, numpy.floating),
-        takes_is_12_bit_arg=False,
         masks=MASKS_RANDOM_SHAPE,
-        takes_bin_count_and_range=False
     ),
-    TargetFuncDesc(
+    dict(
         name='min_max__roi',
         fast_func=functools.partial(_measures_fast._min_max, roi_center_and_radius=ROI_CENTER_AND_RADIUS),
-        slow_func=None,#functools.partial(_measures_slow._min_max, roi_center_and_radius=ROI_CENTER_AND_RADIUS),
-        validator=None,
-        accepted_dtypes=(numpy.integer, numpy.floating),
-        takes_is_12_bit_arg=False,
-        masks=None,
-        takes_bin_count_and_range=False
+        #slow_func=functools.partial(_measures_slow._min_max, roi_center_and_radius=ROI_CENTER_AND_RADIUS),
     ),
-    TargetFuncDesc(
+    dict(
         name='histogram',
         fast_func=_measures_fast._histogram,
         slow_func=_measures_slow._histogram,
-        validator=None,
-        accepted_dtypes=(numpy.integer, numpy.floating),
-        takes_is_12_bit_arg=False,
-        masks=None,
-        takes_bin_count_and_range=True
+        takes_bin_count_and_range=True,
     ),
-    TargetFuncDesc(
+    dict(
         name='histogram__mask_of_same_shape_as_image',
         fast_func=_measures_fast._histogram,
         slow_func=_measures_slow._histogram,
-        validator=None,
-        accepted_dtypes=(numpy.integer, numpy.floating),
-        takes_is_12_bit_arg=False,
         masks=MASKS_IMAGE_SHAPE,
-        takes_bin_count_and_range=True
+        takes_bin_count_and_range=True,
     ),
-    TargetFuncDesc(
+    dict(
         name='histogram__mask_of_random_shape',
         fast_func=_measures_fast._histogram,
         slow_func=_measures_slow._histogram,
-        validator=None,
-        accepted_dtypes=(numpy.integer, numpy.floating),
-        takes_is_12_bit_arg=False,
         masks=MASKS_RANDOM_SHAPE,
-        takes_bin_count_and_range=True
+        takes_bin_count_and_range=True,
     ),
-    TargetFuncDesc(
+    dict(
         name='histogram__roi',
         fast_func=functools.partial(_measures_fast._histogram, roi_center_and_radius=ROI_CENTER_AND_RADIUS),
-        slow_func=None,
-        validator=None,
-        accepted_dtypes=(numpy.integer, numpy.floating),
-        takes_is_12_bit_arg=False,
-        masks=None,
-        takes_bin_count_and_range=True
+        takes_bin_count_and_range=True,
     ),
-    TargetFuncDesc(
+    dict(
         name="statistics",
         fast_func=_measures_fast._statistics,
         slow_func=_measures_slow._statistics,
-        validator=None,
         accepted_dtypes=(numpy.integer,),
         takes_is_12_bit_arg=True,
-        masks=None,
-        takes_bin_count_and_range=False
     ),
-    TargetFuncDesc(
+    dict(
         name="statistics__mask_of_same_shape_as_image",
         fast_func=_measures_fast._statistics,
         slow_func=_measures_slow._statistics,
-        validator=None,
         accepted_dtypes=(numpy.integer,),
         takes_is_12_bit_arg=True,
         masks=MASKS_IMAGE_SHAPE,
-        takes_bin_count_and_range=False
     ),
-    TargetFuncDesc(
+    dict(
         name="statistics__mask_of_random_shape",
         fast_func=_measures_fast._statistics,
         slow_func=_measures_slow._statistics,
-        validator=None,
         accepted_dtypes=(numpy.integer,),
         takes_is_12_bit_arg=True,
-        masks=MASKS_RANDOM_SHAPE,
-        takes_bin_count_and_range=False
     ),
-    TargetFuncDesc(
+    dict(
         name="statistics__roi",
         fast_func=functools.partial(_measures_fast._statistics, roi_center_and_radius=ROI_CENTER_AND_RADIUS),
         slow_func=functools.partial(_measures_slow._statistics, roi_center_and_radius=ROI_CENTER_AND_RADIUS),
-        validator=None,
         accepted_dtypes=(numpy.integer,),
         takes_is_12_bit_arg=True,
-        masks=None,
-        takes_bin_count_and_range=False
     )
 ]
 
 def _benchmark(desc, flavor, use_fast_version_else_slow=True):
-    func = desc.fast_func if use_fast_version_else_slow else desc.slow_func
-    if not func:
+    func = None
+    if use_fast_version_else_slow:
+        if 'fast_func' in desc:
+            func = desc['fast_func']
+        else:
+            if 'slow_func' in desc:
+                print('***Fast implementation not available for {}; using slow implementation.***'.format(desc['name']), end='  ')
+                func = desc['slow_func']
+    else:
+        if 'slow_func' in desc:
+            func = desc['slow_func']
+        else:
+            if 'fast_func' in desc:
+                print('***Slow implementation not available for {}; using fast implementation.***'.format(desc['name']), end='  ')
+                func = desc['fast_func']
+    if func is None:
+        print('***No implementation available for {}; skipping.***'.format(desc['name']))
         return
-    if desc.takes_is_12_bit_arg:
+    if desc.get('takes_is_12_bit_arg'):
         func = functools.partial(func, is_twelve_bit = flavor.name=='uint12')
-    if desc.takes_bin_count_and_range:
+    if desc.get('takes_bin_count_and_range'):
         func = functools.partial(func, bin_count=1024, range_=flavor.interval)
     calls = []
     for idx in range(len(flavor.images)):
-        if desc.masks is None:
-            calls.append(functools.partial(func, im=flavor.images[idx]))
-        else:
+        if desc.get('masks'):
             calls.append(functools.partial(
                 func,
                 im=flavor.images[idx],
-                mask=desc.masks[idx] if len(desc.masks) > 1 else desc.masks[0]
+                mask=desc['masks'][idx] if len(desc['masks']) > 1 else desc['masks'][0]
             ))
+        else:
+            calls.append(functools.partial(func, im=flavor.images[idx]))
     t0 = time.time()
     for call in calls:
         call()
     t1 = time.time()
-    print('{}__{}: {}'.format(desc.name, flavor.name, 1000 * ((t1 - t0) / len(calls))))
+    print('{}__{}: {}'.format(desc['name'], flavor.name, 1000 * ((t1 - t0) / len(calls))))
 
 benchmarks = []
 
 for desc in TARGET_FUNC_DESCS:
     for flavor in IMAGE_FLAVORS:
-        if any(numpy.issubdtype(flavor.dtype, accepted_dtype) for accepted_dtype in desc.accepted_dtypes):
+        if 'accepted_dtypes' not in desc or any(numpy.issubdtype(flavor.dtype, accepted_dtype) for accepted_dtype in desc['accepted_dtypes']):
             # def test(self):
             #     if desc.
             benchmarks.append(functools.partial(_benchmark, desc, flavor))
