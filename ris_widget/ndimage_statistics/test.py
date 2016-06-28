@@ -233,6 +233,8 @@ benchmarks = []
 for desc in TARGET_FUNC_DESCS:
     for flavor in IMAGE_FLAVORS:
         if 'accepted_dtypes' not in desc or any(numpy.issubdtype(flavor.dtype, accepted_dtype) for accepted_dtype in desc['accepted_dtypes']):
+            if 'slow_func' in desc and 'fast_func' in desc and 'validator' in desc:
+                pass
             # def test(self):
             #     if desc.
             benchmarks.append(functools.partial(_benchmark, desc, flavor))
