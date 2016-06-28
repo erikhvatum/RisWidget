@@ -1,1 +1,1 @@
-https://github.com/pybind/pybind11.git bd986fe57e2b413666e5f93987d7f44dbbb3ea2a
+https://github.com/pybind/pybind11.git 2353b9b8fa3dfc91b50b8ba9ddaa41fe166c5360
