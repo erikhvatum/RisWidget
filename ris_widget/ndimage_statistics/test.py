@@ -36,7 +36,7 @@ from . import _measures_slow
 from . import ndimage_statistics
 
 IMAGE_SHAPE = (2560, 2160)
-IMAGE_COUNT_PER_FLAVOR = 10
+IMAGE_COUNT_PER_FLAVOR = 1
 
 print('Preparing to generate test data...')
 
@@ -105,27 +105,28 @@ MASKS_RANDOM_SHAPE = [m.result() for m in MASKS_RANDOM_SHAPE]
 ROI_CENTER_AND_RADIUS = (IMAGE_SHAPE[0] / 2, IMAGE_SHAPE[1] / 2), IMAGE_SHAPE[0] / 2
 
 class NDImageStatisticsTestCase(unittest.TestCase):
-    pass
+    def assert_ndarray_equal(self, ndarray_a, ndarray_b):
+        self.assertTrue((ndarray_a == ndarray_b).all())
 
 TARGET_FUNC_DESCS = [
     dict(
         name='min_max',
         fast_func=_measures_fast._min_max,
         slow_func=_measures_slow._min_max,
-        validator=NDImageStatisticsTestCase.assertSequenceEqual,
+        validator=NDImageStatisticsTestCase.assert_ndarray_equal,
     ),
     dict(
         name='min_max__mask_of_same_shape_as_image',
         fast_func=_measures_fast._min_max,
         slow_func=_measures_slow._min_max,
-        validator=NDImageStatisticsTestCase.assertSequenceEqual,
+        validator=NDImageStatisticsTestCase.assert_ndarray_equal,
         masks=MASKS_IMAGE_SHAPE,
     ),
     dict(
         name='min_max__mask_of_random_shape',
         fast_func=_measures_fast._min_max,
         slow_func=_measures_slow._min_max,
-        validator=NDImageStatisticsTestCase.assertSequenceEqual,
+        validator=NDImageStatisticsTestCase.assert_ndarray_equal,
         masks=MASKS_RANDOM_SHAPE,
     ),
     dict(
@@ -226,7 +227,7 @@ def _benchmark(desc, flavor, use_fast_version_else_slow=True):
     for call in calls:
         call()
     t1 = time.time()
-    print('{}__{}: {}'.format(desc['name'], flavor.name, 1000 * ((t1 - t0) / len(calls))))
+    print('{}_{}: {}'.format(desc['name'], flavor.name, 1000 * ((t1 - t0) / len(calls))))
 
 benchmarks = []
 
@@ -246,40 +247,33 @@ def _test(self, desc, flavor):
         else:
             fast_result = fast_func(im=image)
             slow_result = slow_func(im=image)
-
     if desc.get('validator_takes_desc_and_flavor_args'):
-        desc['validator'](fast_result, slow_result, desc=desc, flavor=flavor)
+        desc['validator'](self, fast_result, slow_result, desc=desc, flavor=flavor)
     else:
-        desc['validator'](fast_result, slow_result)
+        desc['validator'](self, fast_result, slow_result)
 
 for desc in TARGET_FUNC_DESCS:
     for flavor in IMAGE_FLAVORS:
         if 'accepted_dtypes' not in desc or any(numpy.issubdtype(flavor.dtype, accepted_dtype) for accepted_dtype in desc['accepted_dtypes']):
             if 'slow_func' in desc and 'fast_func' in desc and 'validator' in desc:
-                
+                 setattr(NDImageStatisticsTestCase, 'test_{}_{}'.format(desc['name'], flavor.name), functools.partialmethod(_test, desc=desc, flavor=flavor))
             # def test(self):
             #     if desc.
             benchmarks.append(functools.partial(_benchmark, desc, flavor))
 
-
-def run_test():
-    pass
-
 if __name__ == '__main__':
     import sys
-    if len(sys.argv) == 1:
-        print("Defaulting to running tests.  Supply benchmark or test_and_benchmark as an argument to do otherwise.")
-        # if not test():
-        #     sys.exit(-1)
-    # elif sys.argv[1] == 'test':
-    #     if not test():
-    #         sys.exit(-1)
+    if len(sys.argv) == 1 or sys.argv[1] not in ('test', 'benchmark', 'test_and_benchmark'):
+        print("***Defaulting to running tests.  Supply benchmark or test_and_benchmark as an argument to do otherwise.***")
+        unittest.main(argv=sys.argv)
+    elif sys.argv[1] == 'test':
+        unittest.main(argv=sys.argv[0:1] + sys.argv[2:])
     elif sys.argv[1] == 'benchmark':
         print("All results in milliseconds.  Running benchmarks...")
         for benchmark in benchmarks:
             benchmark()
-    # elif sys.argv[1] == 'test_and_benchmark':
-    #     if not test():
-    #         sys.exit(-1)
-    #     print('')
-    #     benchmark()
+    elif sys.argv[1] == 'test_and_benchmark':
+        unittest.main(argv=sys.argv[0:1] + sys.argv[2:])
+        print("\nAll results in milliseconds.  Running benchmarks...")
+        for benchmark in benchmarks:
+            benchmark()
