@@ -137,26 +137,26 @@ TARGET_FUNC_DESCS = [
         name='histogram',
         fast_func=_measures_fast._histogram,
         slow_func=_measures_slow._histogram,
-        takes_bin_count_and_range=True,
+        takes_bin_count_and_range_arg=True,
     ),
     dict(
         name='histogram__mask_of_same_shape_as_image',
         fast_func=_measures_fast._histogram,
         slow_func=_measures_slow._histogram,
         masks=MASKS_IMAGE_SHAPE,
-        takes_bin_count_and_range=True,
+        takes_bin_count_and_range_arg=True,
     ),
     dict(
         name='histogram__mask_of_random_shape',
         fast_func=_measures_fast._histogram,
         slow_func=_measures_slow._histogram,
         masks=MASKS_RANDOM_SHAPE,
-        takes_bin_count_and_range=True,
+        takes_bin_count_and_range_arg=True,
     ),
     dict(
         name='histogram__roi',
         fast_func=functools.partial(_measures_fast._histogram, roi_center_and_radius=ROI_CENTER_AND_RADIUS),
-        takes_bin_count_and_range=True,
+        takes_bin_count_and_range_arg=True,
     ),
     dict(
         name="statistics",
@@ -210,18 +210,18 @@ def _benchmark(desc, flavor, use_fast_version_else_slow=True):
         return
     if desc.get('takes_is_12_bit_arg'):
         func = functools.partial(func, is_twelve_bit = flavor.name=='uint12')
-    if desc.get('takes_bin_count_and_range'):
+    if desc.get('takes_bin_count_and_range_arg'):
         func = functools.partial(func, bin_count=1024, range_=flavor.interval)
     calls = []
-    for idx in range(len(flavor.images)):
+    for idx, image in enumerate(flavor.images):
         if desc.get('masks'):
             calls.append(functools.partial(
                 func,
-                im=flavor.images[idx],
+                im=image,
                 mask=desc['masks'][idx] if len(desc['masks']) > 1 else desc['masks'][0]
             ))
         else:
-            calls.append(functools.partial(func, im=flavor.images[idx]))
+            calls.append(functools.partial(func, im=image))
     t0 = time.time()
     for call in calls:
         call()
@@ -230,11 +230,33 @@ def _benchmark(desc, flavor, use_fast_version_else_slow=True):
 
 benchmarks = []
 
+def _test(self, desc, flavor):
+    fast_func = desc['fast_func']
+    slow_func = desc['slow_func']
+    if desc.get('takes_is_12_bit_arg'):
+        fast_func = functools.partial(fast_func, is_twelve_bit = flavor.name=='uint12')
+        slow_func = functools.partial(slow_func, is_twelve_bit = flavor.name=='uint12')
+    if desc.get('takes_bin_count_and_range_arg'):
+        fast_func = functools.partial(fast_func, bin_count=1024, range_=flavor.interval)
+        slow_func = functools.partial(slow_func, bin_count=1024, range_=flavor.interval)
+    for idx, image in enumerate(flavor.images):
+        if desc.get('masks'):
+            fast_result = fast_func(im=image, mask=desc['masks'][idx] if len(desc['masks']) > 1 else desc['masks'][0])
+            slow_result = slow_func(im=image, mask=desc['masks'][idx] if len(desc['masks']) > 1 else desc['masks'][0])
+        else:
+            fast_result = fast_func(im=image)
+            slow_result = slow_func(im=image)
+
+    if desc.get('validator_takes_desc_and_flavor_args'):
+        desc['validator'](fast_result, slow_result, desc=desc, flavor=flavor)
+    else:
+        desc['validator'](fast_result, slow_result)
+
 for desc in TARGET_FUNC_DESCS:
     for flavor in IMAGE_FLAVORS:
         if 'accepted_dtypes' not in desc or any(numpy.issubdtype(flavor.dtype, accepted_dtype) for accepted_dtype in desc['accepted_dtypes']):
             if 'slow_func' in desc and 'fast_func' in desc and 'validator' in desc:
-                pass
+                
             # def test(self):
             #     if desc.
             benchmarks.append(functools.partial(_benchmark, desc, flavor))
