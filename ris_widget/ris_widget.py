@@ -25,6 +25,7 @@
 import sip
 sip.setdestroyonexit(True)
 
+import atexit
 from PyQt5 import Qt
 import sys
 from . import async_texture
@@ -48,6 +49,22 @@ if sys.platform == 'darwin':
             if sh == Qt.QStyle.SH_ScrollBar_Transient:
                 return 0
             return self.baseStyle().styleHint(sh, option, widget, returnData)
+
+def _atexit_cleanup():
+    # With IPython's Qt event loop integration installed, the Qt.QApplication.aboutToQuit signal is not emitted
+    # when the Python interpreter exits.  However, we must do certain things before last-pass garbage collection
+    # at interpreter exit time in order to avoid segfaulting, and these things are done in response to the
+    # Qt.QApplication.aboutToQuit signal.  Fortunately, we can cause Qt.QApplication.aboutToQuit emission
+    # ourselves.  Doing so at exit time prompts our cleanup routines, avoiding the segfault upon exit from
+    # an IPython session owning one or more RisWidgets.
+    app = Qt.QApplication.instance()
+    if app is None:
+        return
+    from . shared_resources import _GL_CACHE, _on_destruction_of_context_with_cached_gl
+    for context in _GL_CACHE.keys():
+        context.destroyed[Qt.QObject].disconnect(_on_destruction_of_context_with_cached_gl)
+    app.aboutToQuit.emit()
+    # app.processEvents()
 
 class RisWidgetQtObject(Qt.QMainWindow):
     main_view_change_signal = Qt.pyqtSignal(Qt.QTransform, Qt.QRectF)
@@ -92,7 +109,12 @@ class RisWidgetQtObject(Qt.QMainWindow):
         # deleteLater method (the final thing QApplication does as it quits, after emitting the about to quit signal,
         # is delete everything queued up for deletion by deleteLater calls).  Thus, all of our QObject offspring
         # are culled long before the Great Garbage Battle prophesied to occur at The End of The Graceful Shutdown.
-        Qt.QApplication.instance().aboutToQuit.connect(self.deleteLater)
+        Qt.QApplication.instance().aboutToQuit.connect(self._on_about_to_quit)
+        atexit.register(_atexit_cleanup)
+
+    def _on_about_to_quit(self):
+        self.deleteLater()
+        atexit.unregister(_atexit_cleanup)
 
     def _init_actions(self):
         self.flipbook_focus_prev_page_action = Qt.QAction(self)
@@ -609,6 +631,36 @@ class RisWidget:
         if show:
             self.show()
 
+    def update(self):
+        """Calling this method on the main thread updates all Qt widgets immediately, without requiring
+        you to return from the current function or exit from the current loop.
+
+        For example, the following code will create and show a RisWidget that appears to be non-responsive
+        for ten seconds, after which a white square is displayed:
+
+        import numpy
+        from ris_widget.ris_widget import RisWidget; rw = RisWidget()
+        import time
+        rw.image = numpy.zeros((100,100), dtype=numpy.uint8)
+        for intensity in numpy.linspace(0,255,100).astype(numpy.uint8):
+            time.sleep(0.1)
+            rw.image.data[:] = intensity
+            rw.image.refresh()
+
+        Adding an rw.update() call to the loop fixes this:
+
+        import numpy
+        from ris_widget.ris_widget import RisWidget; rw = RisWidget()
+        import time
+        rw.image = numpy.zeros((100,100), dtype=numpy.uint8)
+        for intensity in numpy.linspace(0,255,100).astype(numpy.uint8):
+            rw.update()
+            time.sleep(0.1)
+            rw.image.data[:] = intensity
+            rw.image.refresh()
+        """
+        Qt.QApplication.processEvents()
+
     image = ProxyProperty('image', 'qt_object', RisWidgetQtObject)
     layer = ProxyProperty('layer', 'qt_object', RisWidgetQtObject)
     focused_layer = ProxyProperty('focused_layer', 'qt_object', RisWidgetQtObject)
@@ -617,22 +669,6 @@ class RisWidget:
     # It is not easy to spot the pages property of a flipbook amongst the many possibilities visibile in dir(Flipbook).  So,
     # although flipbook_pages saves no characters compared to flipbook.pages, flipbook_pages is nice to have.
     flipbook_pages = ProxyProperty('pages', 'flipbook', Flipbook)
-
-    def make_point_list_picker(self):
-        return PointListPicker(self.main_view, self.main_scene.layer_stack_item)
-
-    def make_point_list_picker_and_table(self):
-        point_list_picker = PointListPicker(self.main_view, self.main_scene.layer_stack_item)
-        point_list_picker_table = PointListPickerTable(point_list_picker)
-        point_list_picker_table.show()
-        return point_list_picker, point_list_picker_table
-
-    def make_poly_line_picker_and_table(self):
-        from .examples.poly_line_point_picker import PolyLinePointPicker
-        point_list_picker = PolyLinePointPicker(self.main_view, self.main_scene.layer_stack_item)
-        point_list_picker_table = PointListPickerTable(point_list_picker)
-        point_list_picker_table.show()
-        return point_list_picker, point_list_picker_table
 
 if __name__ == '__main__':
     import sys

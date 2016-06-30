@@ -30,6 +30,7 @@ import OpenGL
 import OpenGL.GL as PyGL
 import OpenGL.GL.NV.path_rendering as PR
 from PyQt5 import Qt
+import sip
 from .contextual_info_item_base import ContextualInfoItemBase
 from ..shared_resources import UNIQUE_QGRAPHICSITEM_TYPE
 
@@ -66,8 +67,11 @@ class ContextualInfoItemNV(ContextualInfoItemBase):
         # Info text generally should appear over anything else rather than z-fighting
         self.setZValue(10)
         self.hide()
+        Qt.QApplication.instance().aboutToQuit.connect(lambda: self.scene().removeItem(self))
 
     def __del__(self):
+        if sip.isdeleted(self):
+            return
         try:
             scene = self.scene()
         except RuntimeError:

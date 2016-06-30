@@ -22,7 +22,6 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-import ctypes
 from PyQt5 import Qt
 
 class ListModel(Qt.QAbstractListModel):
