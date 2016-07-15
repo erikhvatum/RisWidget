@@ -127,7 +127,8 @@ class _AsyncTextureUploadThread(Qt.QThread):
 
     def run(self):
         gl_context = Qt.QOpenGLContext()
-        gl_context.setShareContext(Qt.QOpenGLContext.globalShareContext())
+        if hasattr(Qt.QOpenGLContext, 'globalShareContext'):
+            gl_context.setShareContext(Qt.QOpenGLContext.globalShareContext())
         gl_context.setFormat(shared_resources.GL_QSURFACE_FORMAT())
         if not gl_context.create():
             raise RuntimeError('Failed to create OpenGL context for background texture upload thread.')

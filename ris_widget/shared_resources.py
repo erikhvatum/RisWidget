@@ -377,7 +377,8 @@ class _GlQuad:
                 offscreen_surface.setFormat(GL_QSURFACE_FORMAT())
                 offscreen_surface.create()
                 gl_context = Qt.QOpenGLContext()
-                gl_context.setShareContext(Qt.QOpenGLContext.globalShareContext())
+                if hasattr(Qt.QOpenGLContext, 'globalShareContext'):
+                    gl_context.setShareContext(Qt.QOpenGLContext.globalShareContext())
                 gl_context.setFormat(GL_QSURFACE_FORMAT())
                 gl_context.create()
                 gl_context.makeCurrent(offscreen_surface)
