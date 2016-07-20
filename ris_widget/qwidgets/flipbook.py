@@ -25,7 +25,6 @@
 import numpy
 from pathlib import Path
 from PyQt5 import Qt
-from scipy.optimize.slsqp import _minimize_slsqp
 
 from .. import om
 from ..image import Image
