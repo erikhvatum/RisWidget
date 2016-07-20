@@ -29,6 +29,7 @@ import OpenGL
 import OpenGL.GL as PyGL
 from PyQt5 import Qt
 import queue
+import sip
 import threading
 import warnings
 import weakref
@@ -174,6 +175,7 @@ class _AsyncTextureUploadThread(Qt.QThread):
             self.texture_cache = None
         finally:
             gl_context.doneCurrent()
+
 _texture_cache = None
 
 class _TextureCache(Qt.QObject):
@@ -315,6 +317,8 @@ class _TextureCache(Qt.QObject):
     def on_async_texture_finalized(self, async_texture_bottle):
         with self.lru_cache_lock:
             if async_texture_bottle.tex is not None:
+                if sip.isdeleted(self.gl_context):
+                    return
                 if Qt.QOpenGLContext.currentContext() is None and Qt.QThread.currentThread() is not self.gl_context.thread():
                     warnings.warn('_TextureCache.on_async_texture_finalized called from wrong thread.')
                     return
