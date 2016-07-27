@@ -348,13 +348,14 @@ class _TextureCache(Qt.QObject):
             if Qt.QOpenGLContext.currentContext() is None:
                 self.gl_context.makeCurrent(self.offscreen_surface)
                 estack.callback(self.gl_context.doneCurrent)
-            for async_texture_bottle in self.lru_cache:
-                async_texture_bottle.tex.destroy()
-                async_texture_bottle.tex = None
-                async_texture = async_texture_bottle.async_texture_wr()
-                if async_texture is not None:
-                    async_texture._state = AsyncTextureState.NotUploaded
-        self.lru_cache.clear()
+            with self.lru_cache_lock:
+                for async_texture_bottle in self.lru_cache:
+                    async_texture_bottle.tex.destroy()
+                    async_texture_bottle.tex = None
+                    async_texture = async_texture_bottle.async_texture_wr()
+                    if async_texture is not None:
+                        async_texture._state = AsyncTextureState.NotUploaded
+                self.lru_cache.clear()
         # Gracefully stop all upload threads
         for thread in self.async_texture_upload_threads:
             self.work_queue.put(None)
