@@ -229,6 +229,8 @@ class _TextureCache(Qt.QObject):
             self.async_texture_upload_threads.append(upload_thread)
         Qt.QApplication.instance().aboutToQuit.connect(self.shut_down)
 
+    # Note: executing shutdown in response to the QApplication.instance().aboutToQuit signal tends to have a better outcome
+    # than doing so in __del__ for a globally shared singleton garbage collected in the final cleanup pass, in random order.
     # def __del__(self):
     #     try:
     #         self.shut_down()
