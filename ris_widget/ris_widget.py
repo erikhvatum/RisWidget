@@ -603,8 +603,9 @@ class RisWidget:
             show=True,
             layers = tuple(),
             **kw):
+        global AUTO_CREATED_QAPPLICATION
         if Qt.QApplication.instance() is None:
-            app = Qt.QApplication(sys.argv)
+            AUTO_CREATED_QAPPLICATION = Qt.QApplication(sys.argv)
         self.qt_object = self.QT_OBJECT_CLASS(
             app_prefs_name=self.APP_PREFS_NAME,
             app_prefs_version=self.APP_PREFS_VERSION,
