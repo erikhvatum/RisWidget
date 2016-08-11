@@ -22,22 +22,31 @@
 //
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-#include "_ndimage_statistics.h"
+#pragma once
+#include "NDImageStatistics_decl.h"
 
-PYBIND11_PLUGIN(_ndimage_statistics)
+template<typename T, typename MASK>
+void NDImageStatistics<T, MASK>::expose_via_pybind11(py::module& m, const std::string& s)
 {
-    py::module m("_ndimage_statistics", "ris_widget.ndimage_statistics._ndimage_statistics module");
+    std::string name("NDImageStatistics");
+    name += "_";
+    name += s;
+    py::class_<NDImageStatistics<T, MASK>, std::shared_ptr<NDImageStatistics<T, MASK>>>(m, name.c_str())
+            .def(py::init<typed_array_t<T>&>())
+            .def_readonly("data", &NDImageStatistics<T, MASK>::m_a);
+    // Add overloaded "constructor" function.  pybind11 does not (yet, at time of writing) support templated class
+    // instantiation via overloaded constructor defs, but plain function overloading is supported, and we take
+    // advantage of this to present a factory function that is semantically similar.
+    m.def("NDImageStatistics", [](typed_array_t<T>& a){return new NDImageStatistics<T, MASK>(a);});
+}
 
-    NDImageStatistics<std::int8_t  >::expose_via_pybind11(m, "int8");
-    NDImageStatistics<std::uint8_t >::expose_via_pybind11(m, "uint8");
-    NDImageStatistics<std::int16_t >::expose_via_pybind11(m, "int16");
-    NDImageStatistics<std::uint16_t>::expose_via_pybind11(m, "uint16");
-    NDImageStatistics<std::int32_t >::expose_via_pybind11(m, "int32");
-    NDImageStatistics<std::uint32_t>::expose_via_pybind11(m, "uint32");
-    NDImageStatistics<std::int64_t >::expose_via_pybind11(m, "int64");
-    NDImageStatistics<std::uint64_t>::expose_via_pybind11(m, "uint64");
-    NDImageStatistics<float        >::expose_via_pybind11(m, "float32");
-    NDImageStatistics<double       >::expose_via_pybind11(m, "float64");
+template<typename T, typename MASK>
+NDImageStatistics<T, MASK>::NDImageStatistics(typed_array_t<T>& a)
+    : m_a(a)
+{
+}
 
-    return m.ptr();
+template<typename T, typename MASK>
+NDImageStatistics<T, MASK>::~NDImageStatistics()
+{
 }

@@ -93,13 +93,15 @@ include_directories(SYSTEM ${PYTHON_INCLUDE_DIRS} ${NUMPY_INCLUDE_DIR})
 include_directories(BEFORE SYSTEM ${PROJECT_SOURCE_DIR}/../../pybind11/include)
 
 SET(SOURCE_FILES
-    _ndimage_statistics.cpp
-    _ndimage_statistics_module.cpp
-    resampling_lut.cpp)
+    NDImageStatistics.cpp
+    ndimage_statistics.cpp
+    Luts.cpp)
 
 SET(HEADER_FILES
-    _ndimage_statistics.h
-    resampling_lut.h)
+    NDImageStatistics.h
+    Luts.h
+    NDImageStatistics_decl.h
+    NDImageStatistics_impl.h)
 
 add_library(_ndimage_statistics SHARED ${SOURCE_FILES} ${HEADER_FILES})
 target_link_libraries(_ndimage_statistics ${PYTHON_LIBRARIES})
@@ -116,6 +118,6 @@ if (WIN32)
 else ()
     add_custom_command(TARGET _ndimage_statistics
                        POST_BUILD
-                       COMMAND cp -fv ${_PYTHON_MODULE_LOCATION} "${PROJECT_SOURCE_DIR}/_ndimage_statistics.so")
+                       COMMAND cp -fv --remove-destination ${_PYTHON_MODULE_LOCATION} "${PROJECT_SOURCE_DIR}/_ndimage_statistics.so")
 endif ()
 unset(_PYTHON_MODULE_LOCATION)

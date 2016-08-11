@@ -22,10 +22,10 @@
 //
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-#pragma once
 #include <Python.h>
 #include <numpy/npy_common.h>
 #define _USE_MATH_DEFINES
+#include <atomic>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -35,61 +35,54 @@
 #include <pybind11/numpy.h>
 #include <stdexcept>
 #include <string>
-#include "resampling_lut.h"
+#include "Luts.h"
 
 namespace py = pybind11;
 
 PYBIND11_DECLARE_HOLDER_TYPE(_T_, std::shared_ptr<_T_>);
 
 // The second template parameter of py::array_t<..> is ExtraFlags, an enum value that defaults to py::array::forecast.
-// py::array::forecast causes array typecasting/conversion in order to satisfy an overloaded c++ function argument when 
-// we instead want the overload not requiring typecasting to be called - or a ValueError exception if there is no 
+// py::array::forecast causes array typecasting/conversion in order to satisfy an overloaded c++ function argument when
+// we instead want the overload not requiring typecasting to be called - or a ValueError exception if there is no
 // matching overload. Specifying 0 for this argument seems to work, even for zp-strided RGB images, although
 // the enum definition suggests 0 is actually equivalent to c_contig.
 template<typename T> using typed_array_t = py::array_t<T, 0>;
+using mask_tuple_t = std::tuple<std::tuple<double, double>, double>;
 
 extern Luts luts;
 
-// Copies u_shape to o_shape and u_strides to o_strides, reversing the elements of each if u_strides[0] < u_strides[1] 
+// Copies u_shape to o_shape and u_strides to o_strides, reversing the elements of each if u_strides[0] < u_strides[1]
 void reorder_to_inner_outer(const std::size_t* u_shape, const std::size_t* u_strides,
-                                  std::size_t* o_shape,       std::size_t* o_strides);
+                            std::size_t* o_shape,       std::size_t* o_strides);
 
-// Copies u_shape to o_shape and u_strides to o_strides, reversing the elements of each if u_strides[0] < u_strides[1]. 
-// Additionally, u_slave_shape is copied to o_slave_shape and u_slave_strides is copied to o_slave_strides, reversing 
-// the elements of each if u_strides[0] < u_strides[1]. 
+// Copies u_shape to o_shape and u_strides to o_strides, reversing the elements of each if u_strides[0] < u_strides[1].
+// Additionally, u_slave_shape is copied to o_slave_shape and u_slave_strides is copied to o_slave_strides, reversing
+// the elements of each if u_strides[0] < u_strides[1].
 void reorder_to_inner_outer(const std::size_t* u_shape,       const std::size_t* u_strides,
-                                  std::size_t* o_shape,             std::size_t* o_strides,
+                            std::size_t* o_shape,             std::size_t* o_strides,
                             const std::size_t* u_slave_shape, const std::size_t* u_slave_strides,
-                                  std::size_t* o_slave_shape,       std::size_t* o_slave_strides);
+                            std::size_t* o_slave_shape,       std::size_t* o_slave_strides);
 
 void reorder_to_inner_outer(const std::size_t* u_shape, const std::size_t* u_strides,
-                                  std::size_t* o_shape,       std::size_t* o_strides,
+                            std::size_t* o_shape,       std::size_t* o_strides,
                             const float& u_coord_0,     const float& u_coord_1,
-                                  float& o_coord_0,           float& o_coord_1);
+                            float& o_coord_0,           float& o_coord_1);
 
-template<typename T>
+template<typename T, typename MASK>
+struct Stats
+{
+    std::atomic_bool cancelled;
+};
+
+template<typename T, typename MASK>
 class NDImageStatistics
-  : public std::enable_shared_from_this<NDImageStatistics<T>>
+        : public std::enable_shared_from_this<NDImageStatistics<T, MASK>>
 {
 public:
-    static void expose_via_pybind11(py::module& m, const std::string& s)
-    {
-        std::string name("NDImageStatistics");
-        name += "_";
-        name += s;
-        py::class_<NDImageStatistics<T>, std::shared_ptr<NDImageStatistics<T>>>(m, name.c_str())
-            .def(py::init<typed_array_t<T>&>())
-            .def_readwrite("a", &NDImageStatistics<T>::m_a);
-        // Add overloaded "constructor" function.  pybind11 does not (yet, at time of writing) support templated class 
-        // instantiation via overloaded constructor defs, but plain function overloading is supported, and we take 
-        // advantage of this to present a factory function that is semantically similar.
-        m.def("NDImageStatistics", [](typed_array_t<T>& a){return new NDImageStatistics<T>(a);});
-    }
+    static void expose_via_pybind11(py::module& m, const std::string& s);
 
-    NDImageStatistics(typed_array_t<T>& a)
-      : m_a(a)
-    {
-    }
+    NDImageStatistics(typed_array_t<T>& a);
+    virtual ~NDImageStatistics();
 
 protected:
     typed_array_t<T> m_a;

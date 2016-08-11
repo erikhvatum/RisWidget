@@ -22,8 +22,7 @@
 //
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-#include "_ndimage_statistics.h"
-#include <string.h>
+#include "NDImageStatistics.h"
 
 Luts luts{200};
 

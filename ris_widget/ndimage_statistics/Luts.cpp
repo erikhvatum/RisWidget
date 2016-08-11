@@ -22,7 +22,7 @@
 //
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-#include "resampling_lut.h"
+#include "Luts.h"
 #include <cmath>
 
 Lut::Lut(const std::uint32_t& fromSampleCount, const std::uint32_t& toSampleCount)
