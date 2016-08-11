@@ -29,12 +29,12 @@ PYBIND11_PLUGIN(_ndimage_statistics)
     py::module m("_ndimage_statistics", "ris_widget.ndimage_statistics._ndimage_statistics module");
 
     NDImageStatistics<std::int8_t  >::expose_via_pybind11(m, "int8");
-    NDImageStatistics<std::int16_t >::expose_via_pybind11(m, "int16");
-    NDImageStatistics<std::int32_t >::expose_via_pybind11(m, "int32");
-    NDImageStatistics<std::int64_t >::expose_via_pybind11(m, "int64");
     NDImageStatistics<std::uint8_t >::expose_via_pybind11(m, "uint8");
+    NDImageStatistics<std::int16_t >::expose_via_pybind11(m, "int16");
     NDImageStatistics<std::uint16_t>::expose_via_pybind11(m, "uint16");
+    NDImageStatistics<std::int32_t >::expose_via_pybind11(m, "int32");
     NDImageStatistics<std::uint32_t>::expose_via_pybind11(m, "uint32");
+    NDImageStatistics<std::int64_t >::expose_via_pybind11(m, "int64");
     NDImageStatistics<std::uint64_t>::expose_via_pybind11(m, "uint64");
     NDImageStatistics<float        >::expose_via_pybind11(m, "float32");
     NDImageStatistics<double       >::expose_via_pybind11(m, "float64");

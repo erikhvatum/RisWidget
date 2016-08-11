@@ -79,22 +79,19 @@ public:
         name += "_";
         name += s;
         py::class_<NDImageStatistics<T>, std::shared_ptr<NDImageStatistics<T>>>(m, name.c_str())
-            .def(py::init<typed_array_t<T>>())
+            .def(py::init<typed_array_t<T>&>())
             .def_readwrite("a", &NDImageStatistics<T>::m_a);
         // Add overloaded "constructor" function.  pybind11 does not (yet, at time of writing) support templated class 
         // instantiation via overloaded constructor defs, but plain function overloading is supported, and we take 
         // advantage of this to present a factory function that is semantically similar.
-        m.def("NDImageStatistics", [](typed_array_t<T> a){return new NDImageStatistics<T>(a);});
+        m.def("NDImageStatistics", [](typed_array_t<T>& a){return new NDImageStatistics<T>(a);});
     }
 
-    NDImageStatistics(typed_array_t<T> a)
+    NDImageStatistics(typed_array_t<T>& a)
+      : m_a(a)
     {
-        m_a = a;
     }
 
-    ~NDImageStatistics()
-    {
-        std::cout << "~NDImageStatistics()\n";
-    }
+protected:
     typed_array_t<T> m_a;
 };
