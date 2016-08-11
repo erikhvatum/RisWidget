@@ -33,10 +33,8 @@
 #include <memory>
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
-#include <sstream>
 #include <stdexcept>
 #include <string>
-#include <vector>
 #include "resampling_lut.h"
 
 namespace py = pybind11;
@@ -46,7 +44,8 @@ PYBIND11_DECLARE_HOLDER_TYPE(_T_, std::shared_ptr<_T_>);
 // The second template parameter of py::array_t<..> is ExtraFlags, an enum value that defaults to py::array::forecast.
 // py::array::forecast causes array typecasting/conversion in order to satisfy an overloaded c++ function argument when 
 // we instead want the overload not requiring typecasting to be called - or a ValueError exception if there is no 
-// matching overload. Specifying 0 for this argument  
+// matching overload. Specifying 0 for this argument seems to work, even for zp-strided RGB images, although
+// the enum definition suggests 0 is actually equivalent to c_contig.
 template<typename T> using typed_array_t = py::array_t<T, 0>;
 
 extern Luts luts;
