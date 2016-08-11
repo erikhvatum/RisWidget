@@ -32,6 +32,7 @@
 
 #define PYBIND11_VERSION_MAJOR 1
 #define PYBIND11_VERSION_MINOR 9
+#define PYBIND11_VERSION_PATCH dev0
 
 /// Include Python header, disable linking to pythonX_d.lib on Windows in debug mode
 #if defined(_MSC_VER)
@@ -48,7 +49,11 @@
 #include <frameobject.h>
 #include <pythread.h>
 
-#ifdef isalnum
+#if defined(_WIN32) && (defined(min) || defined(max))
+#  error Macro clash with min and max -- define NOMINMAX when compiling your program on Windows
+#endif
+
+#if defined(isalnum)
 #  undef isalnum
 #  undef isalpha
 #  undef islower
@@ -66,6 +71,7 @@
 #  pragma warning(pop)
 #endif
 
+#include <forward_list>
 #include <vector>
 #include <string>
 #include <stdexcept>
@@ -239,7 +245,6 @@ inline std::string error_string();
 template <typename type> struct instance_essentials {
     PyObject_HEAD
     type *value;
-    PyObject *parent;
     PyObject *weakrefs;
     bool owned : 1;
     bool constructed : 1;
@@ -260,10 +265,11 @@ struct overload_hash {
 
 /// Internal data struture used to track registered instances and types
 struct internals {
-    std::unordered_map<std::type_index, void*> registered_types_cpp; // std::type_index -> type_info
-    std::unordered_map<const void *, void*> registered_types_py;     // PyTypeObject* -> type_info
-    std::unordered_map<const void *, void*> registered_instances;    // void * -> PyObject*
+    std::unordered_map<std::type_index, void*> registered_types_cpp;   // std::type_index -> type_info
+    std::unordered_map<const void *, void*> registered_types_py;       // PyTypeObject* -> type_info
+    std::unordered_multimap<const void *, void*> registered_instances; // void * -> PyObject*
     std::unordered_set<std::pair<const PyObject *, const char *>, overload_hash> inactive_overload_cache;
+    std::forward_list<void (*) (std::exception_ptr)> registered_exception_translators;
 #if defined(WITH_THREAD)
     decltype(PyThread_create_key()) tstate = 0; // Usually an int but a long on Cygwin64 with Python 3.x
     PyInterpreterState *istate = nullptr;
@@ -310,6 +316,7 @@ PYBIND11_RUNTIME_EXCEPTION(stop_iteration)
 PYBIND11_RUNTIME_EXCEPTION(index_error)
 PYBIND11_RUNTIME_EXCEPTION(value_error)
 PYBIND11_RUNTIME_EXCEPTION(cast_error) /// Thrown when pybind11::cast or handle::call fail due to a type casting error
+PYBIND11_RUNTIME_EXCEPTION(reference_cast_error) /// Used internally
 
 [[noreturn]] PYBIND11_NOINLINE inline void pybind11_fail(const char *reason) { throw std::runtime_error(reason); }
 [[noreturn]] PYBIND11_NOINLINE inline void pybind11_fail(const std::string &reason) { throw std::runtime_error(reason); }

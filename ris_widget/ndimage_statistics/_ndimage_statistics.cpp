@@ -85,28 +85,3 @@ void reorder_to_inner_outer(const std::size_t* u_shape, const std::size_t* u_str
         o_coord_1 = u_coord_0;
     }
 }
-
-#ifdef min
- #undef min
-#endif
-
-#include <algorithm>
-
-#ifdef _WIN32
-template<typename C>
-const std::size_t bin_count()
-{
-    return 1024;
-}
-template<>
-const std::size_t bin_count<std::uint8_t>()
-{
-    return 256;
-}
-#endif
-
-template<>
-const std::uint16_t apply_bin_shift<std::uint16_t, true>(const std::uint16_t& v)
-{
-    return std::min(v, static_cast<const std::uint16_t>(4095)) >> bin_shift<std::uint16_t, true>();
-}

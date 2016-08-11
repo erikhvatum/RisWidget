@@ -31,12 +31,10 @@ import sys
 from . import async_texture
 from .layer import Layer
 from .layer_stack import LayerList, LayerStack
-from .point_list_picker import PointListPicker
 from .qwidgets.flipbook import Flipbook
 from .qwidgets.fps_display import FPSDisplay
 from .qwidgets.layer_table import InvertingProxyModel, LayerTableModel, LayerTableView
 from .qwidgets.layer_stack_painter import LayerStackPainter
-from .qwidgets.point_list_picker_table import PointListPickerTable
 from .qgraphicsscenes.general_scene import GeneralScene
 from .qgraphicsviews.general_view import GeneralView
 from .qgraphicsscenes.histogram_scene import HistogramScene

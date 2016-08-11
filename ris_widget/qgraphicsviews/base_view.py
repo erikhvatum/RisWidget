@@ -25,6 +25,7 @@
 from contextlib import ExitStack
 import numpy
 from PyQt5 import Qt
+import warnings
 from ..shared_resources import QGL, GL_LOGGER, GL_QSURFACE_FORMAT
 from ..image import Image
 
@@ -233,10 +234,10 @@ class _ShaderViewGLViewport(Qt.QOpenGLWidget):
         return super().event(e)
 
     def paintGL(self):
-        raise NotImplementedError(_ShaderViewGLViewport._DONT_CALL_ME_ERROR)
+        warnings.warn(_ShaderViewGLViewport._DONT_CALL_ME_ERROR)
 
     def resizeGL(self, w, h):
-        raise NotImplementedError(_ShaderViewGLViewport._DONT_CALL_ME_ERROR)
+        warnings.warn(_ShaderViewGLViewport._DONT_CALL_ME_ERROR)
 
     _DONT_CALL_ME_ERROR =\
         'This method should not be called; any event or signal that ' \

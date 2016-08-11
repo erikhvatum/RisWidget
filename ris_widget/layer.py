@@ -426,7 +426,8 @@ class Layer(Qt.QObject):
 
     def _blend_function_pre_set(self, v):
         if v not in self.BLEND_FUNCTIONS:
-            raise ValueError('The string assigned to blend_function must be one of:\n' + '\n'.join("'" + s + "'" for s in sorted(self.BLEND_FUNCTIONS.keys())))
+            warnings.warn('The string assigned to blend_function must be one of:\n' + '\n'.join("'" + s + "'" for s in sorted(self.BLEND_FUNCTIONS.keys())))
+            return False
     blend_function = om.Property(
         properties, 'blend_function',
         default_value_callback = lambda layer: 'screen',

@@ -40,6 +40,19 @@ public:
     static constexpr bool value = decltype(test(std::declval<T>()))::value;
 };
 
+// Eigen::Ref<Derived> satisfies is_eigen_dense, but isn't constructible, so it needs a special
+// type_caster to handle argument copying/forwarding.
+template <typename T> class is_eigen_ref {
+private:
+    template<typename Derived> static typename std::enable_if<
+        std::is_same<typename std::remove_const<T>::type, Eigen::Ref<Derived>>::value,
+        Derived>::type test(const Eigen::Ref<Derived> &);
+    static void test(...);
+public:
+    typedef decltype(test(std::declval<T>())) Derived;
+    static constexpr bool value = !std::is_void<Derived>::value;
+};
+
 template <typename T> class is_eigen_sparse {
 private:
     template<typename Derived> static std::true_type test(const Eigen::SparseMatrixBase<Derived> &);
@@ -48,8 +61,21 @@ public:
     static constexpr bool value = decltype(test(std::declval<T>()))::value;
 };
 
+// Test for objects inheriting from EigenBase<Derived> that aren't captured by the above.  This
+// basically covers anything that can be assigned to a dense matrix but that don't have a typical
+// matrix data layout that can be copied from their .data().  For example, DiagonalMatrix and
+// SelfAdjointView fall into this category.
+template <typename T> class is_eigen_base {
+private:
+    template<typename Derived> static std::true_type test(const Eigen::EigenBase<Derived> &);
+    static std::false_type test(...);
+public:
+    static constexpr bool value = !is_eigen_dense<T>::value && !is_eigen_sparse<T>::value &&
+        decltype(test(std::declval<T>()))::value;
+};
+
 template<typename Type>
-struct type_caster<Type, typename std::enable_if<is_eigen_dense<Type>::value>::type> {
+struct type_caster<Type, typename std::enable_if<is_eigen_dense<Type>::value && !is_eigen_ref<Type>::value>::type> {
     typedef typename Type::Scalar Scalar;
     static constexpr bool rowMajor = Type::Flags & Eigen::RowMajorBit;
     static constexpr bool isVector = Type::IsVectorAtCompileTime;
@@ -61,7 +87,7 @@ struct type_caster<Type, typename std::enable_if<is_eigen_dense<Type>::value>::t
 
         buffer_info info = buffer.request();
         if (info.ndim == 1) {
-            typedef Eigen::Stride<Eigen::Dynamic, 0> Strides;
+            typedef Eigen::InnerStride<> Strides;
             if (!isVector &&
                 !(Type::RowsAtCompileTime == Eigen::Dynamic &&
                   Type::ColsAtCompileTime == Eigen::Dynamic))
@@ -71,10 +97,13 @@ struct type_caster<Type, typename std::enable_if<is_eigen_dense<Type>::value>::t
                 info.shape[0] != (size_t) Type::SizeAtCompileTime)
                 return false;
 
-            auto strides = Strides(info.strides[0] / sizeof(Scalar), 0);
+            auto strides = Strides(info.strides[0] / sizeof(Scalar));
+
+            Strides::Index n_elts = (Strides::Index) info.shape[0];
+            Strides::Index unity = 1;
 
             value = Eigen::Map<Type, 0, Strides>(
-                (Scalar *) info.ptr, typename Strides::Index(info.shape[0]), 1, strides);
+                (Scalar *) info.ptr, rowMajor ? unity : n_elts, rowMajor ? n_elts : unity, strides);
         } else if (info.ndim == 2) {
             typedef Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> Strides;
 
@@ -96,10 +125,6 @@ struct type_caster<Type, typename std::enable_if<is_eigen_dense<Type>::value>::t
         return true;
     }
 
-    static handle cast(const Type *src, return_value_policy policy, handle parent) {
-        return cast(*src, policy, parent);
-    }
-
     static handle cast(const Type &src, return_value_policy /* policy */, handle /* parent */) {
         if (isVector) {
             return array(buffer_info(
@@ -114,7 +139,7 @@ struct type_caster<Type, typename std::enable_if<is_eigen_dense<Type>::value>::t
                 /* Buffer dimensions */
                 { (size_t) src.size() },
                 /* Strides (in bytes) for each index */
-                { sizeof(Scalar) }
+                { sizeof(Scalar) * static_cast<size_t>(src.innerStride()) }
             )).release();
         } else {
             return array(buffer_info(
@@ -130,21 +155,14 @@ struct type_caster<Type, typename std::enable_if<is_eigen_dense<Type>::value>::t
                 { (size_t) src.rows(),
                   (size_t) src.cols() },
                 /* Strides (in bytes) for each index */
-                { sizeof(Scalar) * (rowMajor ? (size_t) src.cols() : 1),
-                  sizeof(Scalar) * (rowMajor ? 1 : (size_t) src.rows()) }
+                { sizeof(Scalar) * static_cast<size_t>(src.rowStride()),
+                  sizeof(Scalar) * static_cast<size_t>(src.colStride()) }
             )).release();
         }
     }
 
-    template <typename _T> using cast_op_type = pybind11::detail::cast_op_type<_T>;
-
-    static PYBIND11_DESCR name() {
-        return _("numpy.ndarray[dtype=") + npy_format_descriptor<Scalar>::name() +
-               _(", shape=(") + rows() + _(", ") + cols() + _(")]");
-    }
-
-    operator Type*() { return &value; }
-    operator Type&() { return value; }
+    PYBIND11_TYPE_CASTER(Type, _("numpy.ndarray[") + npy_format_descriptor<Scalar>::name() +
+            _("[") + rows() + _(", ") + cols() + _("]]"));
 
 protected:
     template <typename T = Type, typename std::enable_if<T::RowsAtCompileTime == Eigen::Dynamic, int>::type = 0>
@@ -155,9 +173,44 @@ protected:
     static PYBIND11_DESCR cols() { return _("n"); }
     template <typename T = Type, typename std::enable_if<T::ColsAtCompileTime != Eigen::Dynamic, int>::type = 0>
     static PYBIND11_DESCR cols() { return _<T::ColsAtCompileTime>(); }
+};
 
+template<typename Type>
+struct type_caster<Type, typename std::enable_if<is_eigen_dense<Type>::value && is_eigen_ref<Type>::value>::type> {
 protected:
-    Type value;
+    using Derived = typename std::remove_const<typename is_eigen_ref<Type>::Derived>::type;
+    using DerivedCaster = type_caster<Derived>;
+    DerivedCaster derived_caster;
+    std::unique_ptr<Type> value;
+public:
+    bool load(handle src, bool convert) { if (derived_caster.load(src, convert)) { value.reset(new Type(derived_caster.operator Derived&())); return true; } return false; }
+    static handle cast(const Type &src, return_value_policy policy, handle parent) { return DerivedCaster::cast(src, policy, parent); }
+    static handle cast(const Type *src, return_value_policy policy, handle parent) { return DerivedCaster::cast(*src, policy, parent); }
+
+    static PYBIND11_DESCR name() { return DerivedCaster::name(); }
+
+    operator Type*() { return value.get(); }
+    operator Type&() { if (!value) pybind11_fail("Eigen::Ref<...> value not loaded"); return *value; }
+    template <typename _T> using cast_op_type = pybind11::detail::cast_op_type<_T>;
+};
+
+// type_caster for special matrix types (e.g. DiagonalMatrix): load() is not supported, but we can
+// cast them into the python domain by first copying to a regular Eigen::Matrix, then casting that.
+template <typename Type>
+struct type_caster<Type, typename std::enable_if<is_eigen_base<Type>::value && !is_eigen_ref<Type>::value>::type> {
+protected:
+    using Matrix = Eigen::Matrix<typename Type::Scalar, Eigen::Dynamic, Eigen::Dynamic>;
+    using MatrixCaster = type_caster<Matrix>;
+public:
+    [[noreturn]] bool load(handle, bool) { pybind11_fail("Unable to load() into specialized EigenBase object"); }
+    static handle cast(const Type &src, return_value_policy policy, handle parent) { return MatrixCaster::cast(Matrix(src), policy, parent); }
+    static handle cast(const Type *src, return_value_policy policy, handle parent) { return MatrixCaster::cast(Matrix(*src), policy, parent); }
+
+    static PYBIND11_DESCR name() { return MatrixCaster::name(); }
+
+    [[noreturn]] operator Type*() { pybind11_fail("Loading not supported for specialized EigenBase object"); }
+    [[noreturn]] operator Type&() { pybind11_fail("Loading not supported for specialized EigenBase object"); }
+    template <typename _T> using cast_op_type = pybind11::detail::cast_op_type<_T>;
 };
 
 template<typename Type>
@@ -209,10 +262,6 @@ struct type_caster<Type, typename std::enable_if<is_eigen_sparse<Type>::value>::
         );
 
         return true;
-    }
-
-    static handle cast(const Type *src, return_value_policy policy, handle parent) {
-        return cast(*src, policy, parent);
     }
 
     static handle cast(const Type &src, return_value_policy /* policy */, handle /* parent */) {
@@ -272,18 +321,8 @@ struct type_caster<Type, typename std::enable_if<is_eigen_sparse<Type>::value>::
         ).release();
     }
 
-    template <typename _T> using cast_op_type = pybind11::detail::cast_op_type<_T>;
-
-    template <typename T = Type, typename std::enable_if<(T::Flags & Eigen::RowMajorBit) != 0, int>::type = 0>
-    static PYBIND11_DESCR name() { return _("scipy.sparse.csr_matrix[dtype=") + npy_format_descriptor<Scalar>::name() + _("]"); }
-    template <typename T = Type, typename std::enable_if<(T::Flags & Eigen::RowMajorBit) == 0, int>::type = 0>
-    static PYBIND11_DESCR name() { return _("scipy.sparse.csc_matrix[dtype=") + npy_format_descriptor<Scalar>::name() + _("]"); }
-
-    operator Type*() { return &value; }
-    operator Type&() { return value; }
-
-protected:
-    Type value;
+    PYBIND11_TYPE_CASTER(Type, _<(Type::Flags & Eigen::RowMajorBit) != 0>("scipy.sparse.csr_matrix[", "scipy.sparse.csc_matrix[")
+            + npy_format_descriptor<Scalar>::name() + _("]"));
 };
 
 NAMESPACE_END(detail)

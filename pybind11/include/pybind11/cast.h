@@ -49,6 +49,27 @@ PYBIND11_NOINLINE inline internals &get_internals() {
             internals_ptr->istate = tstate->interp;
         #endif
         builtins[id] = capsule(internals_ptr);
+        internals_ptr->registered_exception_translators.push_front(
+            [](std::exception_ptr p) -> void {
+                try {
+                    if (p) std::rethrow_exception(p);
+                } catch (const error_already_set &)      {                                                 return;
+                } catch (const index_error &e)           { PyErr_SetString(PyExc_IndexError,    e.what()); return;
+                } catch (const value_error &e)           { PyErr_SetString(PyExc_ValueError,    e.what()); return;
+                } catch (const stop_iteration &e)        { PyErr_SetString(PyExc_StopIteration, e.what()); return;
+                } catch (const std::bad_alloc &e)        { PyErr_SetString(PyExc_MemoryError,   e.what()); return;
+                } catch (const std::domain_error &e)     { PyErr_SetString(PyExc_ValueError,    e.what()); return;
+                } catch (const std::invalid_argument &e) { PyErr_SetString(PyExc_ValueError,    e.what()); return;
+                } catch (const std::length_error &e)     { PyErr_SetString(PyExc_ValueError,    e.what()); return;
+                } catch (const std::out_of_range &e)     { PyErr_SetString(PyExc_IndexError,    e.what()); return;
+                } catch (const std::range_error &e)      { PyErr_SetString(PyExc_ValueError,    e.what()); return;
+                } catch (const std::exception &e)        { PyErr_SetString(PyExc_RuntimeError,  e.what()); return;
+                } catch (...) {
+                    PyErr_SetString(PyExc_RuntimeError, "Caught an unknown exception!");
+                    return;
+                }
+            }
+        );
     }
     return *internals_ptr;
 }
@@ -83,27 +104,30 @@ PYBIND11_NOINLINE inline handle get_type_handle(const std::type_info &tp) {
 }
 
 PYBIND11_NOINLINE inline std::string error_string() {
-    std::string errorString;
-    PyThreadState *tstate = PyThreadState_GET();
-    if (tstate == nullptr)
-        return "";
+   PyObject *type, *value, *traceback;
+   PyErr_Fetch(&type, &value, &traceback);
 
-    if (tstate->curexc_type) {
-        errorString += (std::string) handle(tstate->curexc_type).str();
+   std::string errorString;
+    if (type) {
+        errorString += (std::string) handle(type).str();
         errorString += ": ";
     }
-    if (tstate->curexc_value)
-        errorString += (std::string) handle(tstate->curexc_value).str();
+    if (value)
+        errorString += (std::string) handle(value).str();
 
+    PyErr_Restore(type, value, traceback);
     return errorString;
 }
 
-PYBIND11_NOINLINE inline handle get_object_handle(const void *ptr) {
-    auto instances = get_internals().registered_instances;
-    auto it = instances.find(ptr);
-    if (it == instances.end())
-        return handle();
-    return handle((PyObject *) it->second);
+PYBIND11_NOINLINE inline handle get_object_handle(const void *ptr, const detail::type_info *type ) {
+    auto &instances = get_internals().registered_instances;
+    auto range = instances.equal_range(ptr);
+    for (auto it = range.first; it != range.second; ++it) {
+        auto instance_type = detail::get_type_info(Py_TYPE(it->second), false);
+        if (instance_type && instance_type == type)
+            return handle((PyObject *) it->second);
+    }
+    return handle();
 }
 
 inline PyThreadState *get_thread_state_unchecked() {
@@ -117,6 +141,9 @@ inline PyThreadState *get_thread_state_unchecked() {
     return _PyThreadState_UncheckedGet();
 #endif
 }
+
+// Forward declaration
+inline void keep_alive_impl(handle nurse, handle patient);
 
 class type_caster_generic {
 public:
@@ -153,14 +180,7 @@ public:
         if (src == nullptr)
             return handle(Py_None).inc_ref();
 
-        // avoid an issue with internal references matching their parent's address
-        bool dont_cache = policy == return_value_policy::reference_internal &&
-                          parent && ((instance<void> *) parent.ptr())->value == (void *) src;
-
-        auto& internals = get_internals();
-        auto it_instance = internals.registered_instances.find(src);
-        if (it_instance != internals.registered_instances.end() && !dont_cache)
-            return handle((PyObject *) it_instance->second).inc_ref();
+        auto &internals = get_internals();
 
         auto it = internals.registered_types_cpp.find(std::type_index(*type_info));
         if (it == internals.registered_types_cpp.end()) {
@@ -177,13 +197,20 @@ public:
         }
 
         auto tinfo = (const detail::type_info *) it->second;
+
+        auto it_instances = internals.registered_instances.equal_range(src);
+        for (auto it = it_instances.first; it != it_instances.second; ++it) {
+            auto instance_type = detail::get_type_info(Py_TYPE(it->second), false);
+            if (instance_type && instance_type == tinfo)
+                return handle((PyObject *) it->second).inc_ref();
+        }
+
         object inst(PyType_GenericAlloc(tinfo->type, 0), false);
 
         auto wrapper = (instance<void> *) inst.ptr();
 
         wrapper->value = src;
         wrapper->owned = true;
-        wrapper->parent = nullptr;
 
         if (policy == return_value_policy::automatic)
             policy = return_value_policy::take_ownership;
@@ -204,12 +231,12 @@ public:
             wrapper->owned = false;
         } else if (policy == return_value_policy::reference_internal) {
             wrapper->owned = false;
-            wrapper->parent = parent.inc_ref().ptr();
+            detail::keep_alive_impl(inst, parent);
         }
 
         tinfo->init_holder(inst.ptr(), existing_holder);
-        if (!dont_cache)
-            internals.registered_instances[wrapper->value] = inst.ptr();
+
+        internals.registered_instances.emplace(wrapper->value, inst.ptr());
 
         return inst.release();
     }
@@ -254,7 +281,7 @@ public:
     template <typename T> using cast_op_type = pybind11::detail::cast_op_type<T>;
 
     operator type*() { return (type *) value; }
-    operator type&() { if (!value) throw cast_error(); return *((type *) value); }
+    operator type&() { if (!value) throw reference_cast_error(); return *((type *) value); }
 
 protected:
     typedef void *(*Constructor)(const void *stream);
@@ -369,22 +396,7 @@ public:
         }
     }
 
-    static handle cast(const T *src, return_value_policy policy, handle parent) {
-        return cast(*src, policy, parent);
-    }
-
-    template <typename T2 = T, typename std::enable_if<std::is_integral<T2>::value, int>::type = 0>
-    static PYBIND11_DESCR name() { return type_descr(_("int")); }
-
-    template <typename T2 = T, typename std::enable_if<!std::is_integral<T2>::value, int>::type = 0>
-    static PYBIND11_DESCR name() { return type_descr(_("float")); }
-
-    operator T*() { return &value; }
-    operator T&() { return value; }
-
-    template <typename T2> using cast_op_type = pybind11::detail::cast_op_type<T2>;
-protected:
-    T value;
+    PYBIND11_TYPE_CASTER(T, _<std::is_integral<T>::value>("int", "float"));
 };
 
 template <> class type_caster<void_type> {
@@ -393,7 +405,7 @@ public:
     static handle cast(void_type, return_value_policy /* policy */, handle /* parent */) {
         return handle(Py_None).inc_ref();
     }
-    PYBIND11_TYPE_CASTER(void_type, _("NoneType"));
+    PYBIND11_TYPE_CASTER(void_type, _("None"));
 };
 
 template <> class type_caster<void> : public type_caster<void_type> {
@@ -434,7 +446,7 @@ public:
 
     template <typename T> using cast_op_type = void*&;
     operator void *&() { return value; }
-    static PYBIND11_DESCR name() { return _("capsule"); }
+    static PYBIND11_DESCR name() { return type_descr(_("capsule")); }
 private:
     void *value = nullptr;
 };
@@ -609,8 +621,8 @@ public:
 
     static PYBIND11_DESCR name() {
         return type_descr(
-            _("(") + type_caster<typename intrinsic_type<T1>::type>::name() +
-            _(", ") + type_caster<typename intrinsic_type<T2>::type>::name() + _(")"));
+            _("Tuple[") + type_caster<typename intrinsic_type<T1>::type>::name() +
+            _(", ") + type_caster<typename intrinsic_type<T2>::type>::name() + _("]"));
     }
 
     template <typename T> using cast_op_type = type;
@@ -665,11 +677,12 @@ public:
         return cast(src, policy, parent, typename make_index_sequence<size>::type());
     }
 
+    static PYBIND11_DESCR element_names() {
+        return detail::concat(type_caster<typename intrinsic_type<Tuple>::type>::name()...);
+    }
+    
     static PYBIND11_DESCR name() {
-        return type_descr(
-               _("(") +
-               detail::concat(type_caster<typename intrinsic_type<Tuple>::type>::name()...) +
-               _(")"));
+        return type_descr(_("Tuple[") + element_names() + _("]"));
     }
 
     template <typename ReturnValue, typename Func> typename std::enable_if<!std::is_void<ReturnValue>::value, ReturnValue>::type call(Func &&f) {
@@ -802,13 +815,46 @@ public:
     PYBIND11_TYPE_CASTER(type, handle_type_name<type>::name());
 };
 
+// Our conditions for enabling moving are quite restrictive:
+// At compile time:
+// - T needs to be a non-const, non-pointer, non-reference type
+// - type_caster<T>::operator T&() must exist
+// - the type must be move constructible (obviously)
+// At run-time:
+// - if the type is non-copy-constructible, the object must be the sole owner of the type (i.e. it
+//   must have ref_count() == 1)h
+// If any of the above are not satisfied, we fall back to copying.
+template <typename T, typename SFINAE = void> struct move_is_plain_type : std::false_type {};
+template <typename T> struct move_is_plain_type<T, typename std::enable_if<
+        !std::is_void<T>::value && !std::is_pointer<T>::value && !std::is_reference<T>::value && !std::is_const<T>::value
+    >::type> : std::true_type {};
+template <typename T, typename SFINAE = void> struct move_always : std::false_type {};
+template <typename T> struct move_always<T, typename std::enable_if<
+        move_is_plain_type<T>::value &&
+        !std::is_copy_constructible<T>::value && std::is_move_constructible<T>::value &&
+        std::is_same<decltype(std::declval<type_caster<T>>().operator T&()), T&>::value
+    >::type> : std::true_type {};
+template <typename T, typename SFINAE = void> struct move_if_unreferenced : std::false_type {};
+template <typename T> struct move_if_unreferenced<T, typename std::enable_if<
+        move_is_plain_type<T>::value &&
+        !move_always<T>::value && std::is_move_constructible<T>::value &&
+        std::is_same<decltype(std::declval<type_caster<T>>().operator T&()), T&>::value
+    >::type> : std::true_type {};
+template <typename T> using move_never = std::integral_constant<bool, !move_always<T>::value && !move_if_unreferenced<T>::value>;
+
 NAMESPACE_END(detail)
 
-template <typename T> T cast(handle handle) {
+template <typename T> T cast(const handle &handle) {
     typedef detail::type_caster<typename detail::intrinsic_type<T>::type> type_caster;
     type_caster conv;
-    if (!conv.load(handle, true))
-        throw cast_error("Unable to cast Python object to C++ type");
+    if (!conv.load(handle, true)) {
+#if defined(NDEBUG)
+        throw cast_error("Unable to cast Python instance to C++ type (compile in debug mode for details)");
+#else
+        throw cast_error("Unable to cast Python instance of type " +
+            (std::string) handle.get_type().str() + " to C++ type '" + type_id<T>() + "''");
+#endif
+    }
     return conv.operator typename type_caster::template cast_op_type<T>();
 }
 
@@ -825,6 +871,57 @@ template <typename T> object cast(const T &value,
 template <typename T> T handle::cast() const { return pybind11::cast<T>(*this); }
 template <> inline void handle::cast() const { return; }
 
+template <typename T>
+typename std::enable_if<detail::move_always<T>::value || detail::move_if_unreferenced<T>::value, T>::type move(object &&obj) {
+    if (obj.ref_count() > 1)
+#if defined(NDEBUG)
+        throw cast_error("Unable to cast Python instance to C++ rvalue: instance has multiple references"
+            " (compile in debug mode for details)");
+#else
+        throw cast_error("Unable to move from Python " + (std::string) obj.get_type().str() +
+                " instance to C++ " + type_id<T>() + " instance: instance has multiple references");
+#endif
+
+    typedef detail::type_caster<T> type_caster;
+    type_caster conv;
+    if (!conv.load(obj, true))
+#if defined(NDEBUG)
+        throw cast_error("Unable to cast Python instance to C++ type (compile in debug mode for details)");
+#else
+        throw cast_error("Unable to cast Python instance of type " +
+            (std::string) obj.get_type().str() + " to C++ type '" + type_id<T>() + "''");
+#endif
+
+    // Move into a temporary and return that, because the reference may be a local value of `conv`
+    T ret = std::move(conv.operator T&());
+    return ret;
+}
+
+// Calling cast() on an rvalue calls pybind::cast with the object rvalue, which does:
+// - If we have to move (because T has no copy constructor), do it.  This will fail if the moved
+//   object has multiple references, but trying to copy will fail to compile.
+// - If both movable and copyable, check ref count: if 1, move; otherwise copy
+// - Otherwise (not movable), copy.
+template <typename T> typename std::enable_if<detail::move_always<T>::value, T>::type cast(object &&object) {
+    return move<T>(std::move(object));
+}
+template <typename T> typename std::enable_if<detail::move_if_unreferenced<T>::value, T>::type cast(object &&object) {
+    if (object.ref_count() > 1)
+        return cast<T>(object);
+    else
+        return move<T>(std::move(object));
+}
+template <typename T> typename std::enable_if<detail::move_never<T>::value, T>::type cast(object &&object) {
+    return cast<T>(object);
+}
+
+template <typename T> T object::cast() const & { return pybind11::cast<T>(*this); }
+template <typename T> T object::cast() && { return pybind11::cast<T>(std::move(*this)); }
+template <> inline void object::cast() const & { return; }
+template <> inline void object::cast() && { return; }
+
+
+
 template <return_value_policy policy = return_value_policy::automatic_reference,
           typename... Args> tuple make_tuple(Args&&... args_) {
     const size_t size = sizeof...(Args);
@@ -832,9 +929,16 @@ template <return_value_policy policy = return_value_policy::automatic_reference,
         { object(detail::type_caster<typename detail::intrinsic_type<Args>::type>::cast(
             std::forward<Args>(args_), policy, nullptr), false)... }
     };
-    for (auto &arg_value : args)
-        if (!arg_value)
-            throw cast_error("make_tuple(): unable to convert arguments to Python objects");
+    for (auto &arg_value : args) {
+        if (!arg_value) {
+#if defined(NDEBUG)
+            throw cast_error("make_tuple(): unable to convert arguments to Python object (compile in debug mode for details)");
+#else
+            throw cast_error("make_tuple(): unable to convert arguments of types '" +
+                (std::string) type_id<std::tuple<Args...>>() + "' to Python object");
+#endif
+        }
+    }
     tuple result(size);
     int counter = 0;
     for (auto &arg_value : args)

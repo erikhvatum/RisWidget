@@ -30,67 +30,126 @@ from PyQt5 import Qt
 import textwrap
 from .async_texture import AsyncTexture
 from .ndimage_statistics import ndimage_statistics
+from . import om
 
 class Image(Qt.QObject):
-    """An instance of the Image class is a wrapper around a Numpy ndarray representing a single image, optional mask data, plus some related attributes and
-    a .name.
-
-    If an ndarray of supported dtype, shape, and striding is supplied as the data argument to Image's constructor or set method,
-    a reference to that ndarray is kept rather than a copy of it.  In such cases, if the wrapped data is subsequently modified,
-    care must be taken to call the Image's .refresh method before querying, for example, its .histogram property as changes to the
-    data are not automatically detected.
-
-    The attributes maintained by an Image instance fall into the following categories:
-        * Properties that represent aspects of ONLY .data: .dtype, .strides.  For non-floating-point Images, .range is also in this category.  The
-        .data_changed signal is emitted when a new value is assigned to .data or the .refresh method is called with data_changed=True in order to indicate
-        that the contents of .data have been modified in place.
-        * Plain instance attributes updated by .refresh() and .set(..): .size, .is_grayscale, .num_channels, .has_alpha_channel, .is_twelve_bit.  Although
-        nothing prevents assigning over these attributes, doing so is not advised.  The .data_changed signal is emitted to indicate that the value of any
-        or all of these attributes has changed.
-        * Properties computed from the combination of .data, .mask, and .imposed_float_range.  These include .histogram, .histogram_max_bin, .extremae.
-        * .mask: None or a 2D bool or uint8 ndarray with neither dimension smaller than the corresponding dimension of .data.  If mask is not None, only
-        image pixels with non-zero mask counterparts contribute to the histogram and extremae.  Mask pixels outside of the image have no impact.  If mask
-        is None, all image pixels are included.  The .mask_changed signal is emitted to indicate that .mask has been replaced or that the contents of .mask
-        have changed.
-        * Properties with individual change signals: .name.  It is safe to assign None in addition anything else that str(..) accepts as its argument to
-        .name.  When the value of .name or .imposed_float_range is modified, .name_changed is emitted.
-
-    Additionally, emission of .data_changed, .mask_changed, or .name_changed causes emission of .changed.
-
-    An Image instance should only be manipulated by the thread that owns it.  Imposing this restriction simplifies Image's implementation while improving
-    performance.  For example, the main thread may modify image.data in place while texture upload and ndimage statistic calculations are ongoing in background
-    threads, with the result that the content of image.stats_future.result() - used by image.extremae, image.histogram, and image.max_histogram_bin -  and the
-    texture bound by "image.bind_texture(n, estack):" become undefined.  However, so long as the main thread calls image.refresh() immediately after modifying
-    the contents of image.data, causing image.stats_future and image.async_texture to be replaced, there is never an opportunity for these undefined results
-    to be used."""
-    changed = Qt.pyqtSignal(object)
-    data_changed = Qt.pyqtSignal(object)
-    mask_changed = Qt.pyqtSignal(object)
+    """"""
     name_changed = Qt.pyqtSignal(object)
+    dtype_changed = Qt.pyqtSignal(object)
+    type_changed = Qt.pyqtSignal(object)
+    num_channels_changed = Qt.pyqtSignal(object)
+    size_changed = Qt.pyqtSignal(object)
+    extrema_changed = Qt.pyqtSignal(object)
+    histogram_changed = Qt.pyqtSignal(object)
 
     IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT = {
-        'G': Qt.QOpenGLTexture.R32F,
-        'Ga': Qt.QOpenGLTexture.RG32F,
-        'rgb': Qt.QOpenGLTexture.RGB32F,
-        'rgba': Qt.QOpenGLTexture.RGBA32F}
+        'G'   : Qt.QOpenGLTexture.R32F,
+        'Ga'  : Qt.QOpenGLTexture.RG32F,
+        'rgb' : Qt.QOpenGLTexture.RGB32F,
+        'rgba': Qt.QOpenGLTexture.RGBA32F
+    }
     NUMPY_DTYPE_TO_GL_PIXEL_TYPE = {
-        numpy.bool8  : PyGL.GL_UNSIGNED_BYTE,
+        bool         : PyGL.GL_UNSIGNED_BYTE,
         numpy.uint8  : PyGL.GL_UNSIGNED_BYTE,
         numpy.uint16 : PyGL.GL_UNSIGNED_SHORT,
-        numpy.float32: PyGL.GL_FLOAT}
+        numpy.float32: PyGL.GL_FLOAT
+    }
     IMAGE_TYPE_TO_GL_PIX_FORMAT = {
         'G'   : PyGL.GL_RED,
         'Ga'  : PyGL.GL_RG,
         'rgb' : PyGL.GL_RGB,
-        'rgba': PyGL.GL_RGBA}
+        'rgba': PyGL.GL_RGBA
+    }
+    NUMPY_INTEGER_DTYPE_TO_DEFAULT_DRANGE = {
+        bool         : numpy.array((0, 1), dtype=bool),
+        numpy.uint8  : numpy.array((0, 255), dtype=numpy.uint8),
+        numpy.uint16 : numpy.array((0, 65535), dtype=numpy.uint16)
+    }
+    for a in NUMPY_INTEGER_DTYPE_TO_DEFAULT_DRANGE.values():
+        a.flags.writeable = False
+    del a
+
+    properties = []
+
+    name = property(
+        Qt.QObject.objectName,
+        lambda self, name: self.setObjectName('' if name is None else name),
+        doc='Property proxy for QObject::objectName Qt property, which is directly accessible via the objectName getter and '
+            'setObjectName setter.  Upon change, objectNameChanged is emitted.'
+    )
+
+    def _take_data(self, v):
+        if v is None:
+            return
+        v = numpy.asarray(v)
+        if not (v.ndim == 2 or (v.ndim == 3 and v.shape[2] in (2, 3, 4))):
+            raise ValueError('The value supplied for data must be a 2D (grayscale) or 3D (grayscale with alpha, rgb, or rgba) iterable or None.')
+        if v.dtype not in (bool, numpy.uint8, numpy.uint16, numpy.float32):
+            if numpy.issubdtype(v.dtype, numpy.floating) or numpy.issubdtype(v.dtype, numpy.integer):
+                v = v.astype(numpy.float32)
+            else:
+                raise ValueError('Image data must be integer or floating-point.')
+        bpe = v.itemsize
+        desired_strides = (bpe, v.shape[0] * bpe) if v.ndim == 2 else (v.shape[2] * bpe, v.shape[0] * v.shape[2] * bpe, bpe)
+        if desired_strides != v.strides:
+            v_ = v
+            v = numpy.ndarray(v.shape, strides=desired_strides, dtype=v.dtype)
+            v.flat = v_.flat
+        return v
+
+    def _post_set_data(self, v):
+        if v is None:
+            dtype = None
+            self._stats_future = None
+            size = None
+            type_ = None
+            num_channels = None
+            is_grayscale = False
+        else:
+            if v.ndim == 2:
+                type_ = 'G'
+                is_grayscale = True
+                num_channels = 1
+            else:
+                type_ = {2: 'Ga', 3: 'rgb', 4: 'rgba'}[v.shape[2]]
+                is_grayscale = False
+                num_channels = self._data.shape[2]
+            self.size = Qt.QSize(*self._data.shape[:2])
+            self.has_alpha_channel = self.type in ('Ga', 'rgba')
+            dtype = v.dtype
+            self._stats_future =
+            size = Qt.QSize(v.shape[0], v.shape[1])
+        if dtype != self._dtype:
+            self._dtype = dtype
+            self.dtype_changed.emit(self)
+        if size != self._size:
+            self._size = size
+            self.size_changed.emit(self)
+
+
+    data = om.Property(
+        properties=properties,
+        name='data',
+        default_value_callback=lambda image: None,
+        take_arg_callback=_take_data,
+        post_set_callback=_post_set_data
+    )
+
+    @property
+    def valid_specials(self):
+        return (None, '12bit') if self.dtype == numpy.uint16 else (None,)
+
+    @property
+    def dtype(self):
+        return self._dtype
 
     def __init__(
             self,
-            data,
+            data=None,
+            drange=None,
+            special=None,
             mask=None,
             parent=None,
-            is_twelve_bit=False,
-            imposed_float_range=None,
             name=None,
             immediate_texture_upload=True,
             use_open_mp=False):
@@ -98,25 +157,37 @@ class Image(Qt.QObject):
         The shape of image and mask data is interpreted as (x,y) for 2-d arrays and (x,y,c) for 3-d arrays.  If your image or mask was loaded as (y,x),
         array.T will produce an (x,y)-shaped array.  In case of (y,x,c) image data, array.swapaxes(0,1) is required."""
         super().__init__(parent)
-        if data is None:
-            raise ValueError('The "data" argument supplied to Image.__init__(..) must not be None.')
-        self.data_changed.connect(self.changed)
-        self.objectNameChanged.connect(self._onObjectNameChanged)
-        self.name_changed.connect(self.changed)
+        for property in self.properties:
+            property.instantiate(self)
+        self._type = 'EMPTY'
+        self._dtype = None
+        self._stats_future = None
+        self._size = None
+        self._num_channels = None
         self.set(
             data=data,
+            drange=drange,
+            special=special,
             mask=mask,
-            is_twelve_bit=is_twelve_bit,
-            imposed_float_range=imposed_float_range,
             name=name,
             immediate_texture_upload=immediate_texture_upload,
-            use_open_mp=use_open_mp)
-
-    def _onObjectNameChanged(self):
-        self.name_changed.emit(self)
+            use_open_mp=use_open_mp,
+            _emit_change_signals=False
+        )
+        self.setObjectName(name)
+        self.objectNameChanged.connect(lambda v: self.name_changed.emit(self))
 
     @classmethod
-    def from_qimage(cls, qimage, parent=None, is_twelve_bit=False, name=None, use_open_mp=False):
+    def from_qimage(
+            cls,
+            qimage,
+            drange=None,
+            special=None,
+            mask=None,
+            parent=None,
+            name=None,
+            immediate_texture_upload=True,
+            use_open_mp=False):
         if not qimage.isNull() and qimage.format() != Qt.QImage.Format_Invalid:
             if qimage.hasAlphaChannel():
                 desired_format = Qt.QImage.Format_RGBA8888
@@ -141,20 +212,39 @@ class Image(Qt.QObject):
             if qimage.isGrayscale():
                 # Note: Qt does not support grayscale with alpha channels, so we don't need to worry about that case
                 npyimage=npyimage[...,0]
-            return cls(data=npyimage.copy(), parent=parent, is_twelve_bit=is_twelve_bit, name=name, use_open_mp=use_open_mp)
+            return cls(
+                data=npyimage.copy(),
+                drange=drange,
+                special=special,
+                mask=mask,
+                parent=parent,
+                name=name,
+                immediate_texture_upload=immediate_texture_upload,
+                use_open_mp=use_open_mp)
 
     def __repr__(self):
-        num_channels = self.num_channels
-        name = self.name
-        return '{}; {}, {}x{}, {}{} channel{} ({})>'.format(
+        name = self.getObjectName()
+        name = 'with name "{}"'.format(name) if name else 'unnamed'
+        if self._data is None:
+            return '{}; {}, ({}){}>'.format(
+                super().__repr__()[:-1],
+                name,
+                self._type,
+                '' if self._mask is None else ', masked'
+            )
+        num_channels = self._num_channels
+        return '{}; {}, {}x{}, {}{} channel{} ({}), drange {}-{}>'.format(
             super().__repr__()[:-1],
-            'with name "{}"'.format(name) if name else 'unnamed',
-            self.size.width(),
-            self.size.height(),
+            name,
+            self._size.width(),
+            self._size.height(),
             '' if self._mask is None else 'masked, ',
             num_channels,
             '' if num_channels == 1 else 's',
-            self.type)
+            self._type,
+            self._drange[0],
+            self.range[1]
+        )
 
     def refresh(
             self,
@@ -172,13 +262,14 @@ class Image(Qt.QObject):
         The .refresh method is primarily useful to cause a user interface to update in response to data changes caused by manipulation of .data.data or
         another numpy view of the same memory.  (You probably want to use the .set method in most cases.)"""
         if self.dtype == numpy.float32:
-            self.async_texture = AsyncTexture(
-                self._data,
-                Image.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[self.type],
-                Image.IMAGE_TYPE_TO_GL_PIX_FORMAT[self.type],
-                Image.NUMPY_DTYPE_TO_GL_PIXEL_TYPE[self.dtype.type],
-                immediate_texture_upload,
-                self.name)
+            if data_changed:
+                self.async_texture = AsyncTexture(
+                    self._data,
+                    Image.IMAGE_TYPE_TO_QOGLTEX_TEX_FORMAT[self.type],
+                    Image.IMAGE_TYPE_TO_GL_PIX_FORMAT[self.type],
+                    Image.NUMPY_DTYPE_TO_GL_PIXEL_TYPE[self.dtype.type],
+                    immediate_texture_upload,
+                    self.name)
             if data_changed or mask_changed:
                 extremae = ndimage_statistics.extremae(self._data, self._mask)
             else:
@@ -217,16 +308,18 @@ class Image(Qt.QObject):
 
     def set(self,
             data=...,
+            drange=...,
+            special=...,
             mask=...,
-            is_twelve_bit=...,
-            imposed_float_range=...,
             name=...,
             immediate_texture_upload=True,
-            use_open_mp=False):
+            use_open_mp=False,
+            _emit_change_signals=True):
         """
-        In addition to the values __init__ accepts for the data, mask, name, is_twelve_bit, and imposed_float_range arguments, set accepts ...
-        (Ellipses) for these arguments to indicate No Change.  That is, the contents of i.data, i.name, i.mask, i.is_twelve_bit, and
-        i.specified_float_range are left unchanged by i.set(..) if their corresponding arguments are Ellipses (as they are by default)."""
+        In addition to the values __init__ accepts for the data, drange, special, mask, and name, set accepts ... (Ellipses) for these
+        arguments to indicate No Change.  That is, the contents of i.data, i.drange, i.special, i.mask, and i.name are left unchanged
+        by i.set(..) if their corresponding arguments are Ellipses (as they are by default), except in the case where i.drange or
+        i.special are modified as a consequence of supplying non-ellipses for data or special."""
         if data is ...:
             data_changed = False
             data = self._data
@@ -368,28 +461,52 @@ class Image(Qt.QObject):
                 vt = vt.format(*self.data[x, y])
             return mst+vt
 
-    name = property(
-        Qt.QObject.objectName,
-        lambda self, name: self.setObjectName('' if name is None else name),
-        doc='Property proxy for QObject::objectName Qt property, which is directly accessible via the objectName getter and '
-            'setObjectName setter.  Upon change, objectNameChanged is emitted.')
+
 
     @property
     def data(self):
         """Image data as numpy array in shape = (width, height, [channels]) convention."""
         return self._data
 
+    @data.setter
+    def data(self, v):
+        self.set(data=v)
+
+    @property
+    def type(self):
+        return self._type
+
+    @property
+    def dtype(self):
+        return None if self._data is None else self._data.dtype
+
+    @property
+    def valid_specials(self):
+        return (None, '12bit') if self.dtype == numpy.uint16 else (None,)
+
+    @property
+    def special(self):
+        return self._special
+
+    @special.setter
+    def special(self, v):
+        self.set(special=v)
+
+    @property
+    def drange(self):
+        return self._drange
+
+    @drange.setter
+    def drange(self, v):
+        self.set(drange=v)
+
     @property
     def mask(self):
         return self._mask
 
-    @property
-    def dtype(self):
-        return self._data.dtype
-
-    @property
-    def strides(self):
-        return self._data.strides
+    @mask.setter
+    def mask(self, v):
+        self.set(mask=v)
 
     @property
     def histogram(self):
@@ -399,21 +516,30 @@ class Image(Qt.QObject):
         return histogram
 
     @property
+    def channel_histograms(self):
+        channel_histograms = self.stats_future.result().channel_histograms
+        if self.dtype == bool:
+            return [channel_histogram[:2] for channel_histogram in channel_histograms]
+        return channel_histograms
+
+    @property
     def max_histogram_bin(self):
         return self.stats_future.result().max_bin
 
     @property
-    def extremae(self):
-        """The actual per-channel minimum and maximum intensity values.  The max intensity value of 4095 for 12-bit-per-channel images
-        and the range optionally supplied with floating-point images are not enforced, so it is possible for min and/or max to fall
-        outside of the interval represented by the value of the .range property (12-bit-per-channel intensity values are stored in
-        16-bit unsigned integers, meaning that a nominally 12-bit-per-channel image may have a maximum value up to 65535.)"""
-        return self.stats_future.result().min_max_intensity
+    def extrema(self):
+        """The actual minimum and maximum intensity values across all channels, excluding alpha.  drange is not enforced, so it is
+        possible for min and/or max to fall outside of the interval represented by the value of the drange property."""
+        if self.data is None:
+            return
+        return self.stats_future.result.extrema
 
     @property
-    def range(self):
-        """The range of valid values that may be assigned to any component of any image pixel.  For 8-bit-per-channel integer images,
-        this is always [0,255], for 12-bit-per-channel integer images, [0,4095], for 16-bit-per-channel integer images, [0,65535].
-        For floating point images, this is min/max values for all components of all pixels, unless specified with the imposed_float_range
-        argument to the .__init__ or .set methods."""
-        return self._range
+    def channel_extrema(self):
+        """The actual per-channel minimum and maximum intensity values.  drange is not enforced, so it is possible for min and/or
+        max to fall outside of the interval represented by the value of the drange property."""
+        if self.data is None:
+            return
+        if self.is_grayscale:
+            return self.extrema
+        return self.stats_future.channel_extrema

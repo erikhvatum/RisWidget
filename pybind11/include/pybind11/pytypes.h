@@ -89,6 +89,11 @@ public:
         }
         return *this;
     }
+
+    // Calling cast() on an object lvalue just copies (via handle::cast)
+    template <typename T> T cast() const &;
+    // Calling on an object rvalue does a move, if needed and/or possible
+    template <typename T> T cast() &&;
 };
 
 NAMESPACE_BEGIN(detail)
@@ -117,10 +122,10 @@ public:
     void operator=(const handle &value) {
         if (attr) {
             if (PyObject_SetAttr(obj.ptr(), key.ptr(), value.ptr()) == -1)
-                pybind11_fail("Unable to set object attribute");
+                throw error_already_set();
         } else {
             if (PyObject_SetItem(obj.ptr(), key.ptr(), value.ptr()) == -1)
-                pybind11_fail("Unable to set object item");
+                throw error_already_set();
         }
     }
 
@@ -340,6 +345,11 @@ public:
 
     str(const std::string &s)
         : object(PyUnicode_FromStringAndSize(s.c_str(), (ssize_t) s.length()), false) {
+        if (!m_ptr) pybind11_fail("Could not allocate string object!");
+    }
+
+    str(const char *c)
+        : object(PyUnicode_FromString(c), false) {
         if (!m_ptr) pybind11_fail("Could not allocate string object!");
     }
 
