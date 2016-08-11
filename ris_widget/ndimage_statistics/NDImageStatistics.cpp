@@ -84,3 +84,15 @@ void reorder_to_inner_outer(const std::size_t* u_shape, const std::size_t* u_str
         o_coord_1 = u_coord_0;
     }
 }
+
+template<>
+std::size_t bin_count<std::uint8_t>()
+{
+    return 256;
+}
+
+template<>
+std::size_t bin_count<std::int8_t>()
+{
+    return 256;
+}

@@ -25,6 +25,26 @@
 #pragma once
 #include "NDImageStatistics_decl.h"
 
+template<typename T>
+std::size_t bin_count()
+{
+    return 1024;
+}
+
+template<typename T>
+Stats<T>::Stats()
+  : histogram_py_array(py::buffer_info(
+        nullptr,
+        sizeof(std::uint32_t),
+        py::format_descriptor<std::uint32_t>::value,
+        1,
+        {bin_count<T>()},
+        {sizeof(std::uint32_t)}
+    )),
+    histogram(reinterpret_cast<std::uint32_t*>(histogram_py_array.request(true).ptr))
+{
+}
+
 template<typename T, typename MASK>
 void NDImageStatistics<T, MASK>::expose_via_pybind11(py::module& m, const std::string& s)
 {
@@ -33,7 +53,8 @@ void NDImageStatistics<T, MASK>::expose_via_pybind11(py::module& m, const std::s
     name += s;
     py::class_<NDImageStatistics<T, MASK>, std::shared_ptr<NDImageStatistics<T, MASK>>>(m, name.c_str())
             .def(py::init<typed_array_t<T>&>())
-            .def_readonly("data", &NDImageStatistics<T, MASK>::m_a);
+            .def_readonly("data", &NDImageStatistics<T, MASK>::data)
+            .def_readonly("image_stats", &NDImageStatistics<T, MASK>::stats);
     // Add overloaded "constructor" function.  pybind11 does not (yet, at time of writing) support templated class
     // instantiation via overloaded constructor defs, but plain function overloading is supported, and we take
     // advantage of this to present a factory function that is semantically similar.
@@ -41,8 +62,9 @@ void NDImageStatistics<T, MASK>::expose_via_pybind11(py::module& m, const std::s
 }
 
 template<typename T, typename MASK>
-NDImageStatistics<T, MASK>::NDImageStatistics(typed_array_t<T>& a)
-    : m_a(a)
+NDImageStatistics<T, MASK>::NDImageStatistics(typed_array_t<T>& data_, const std::vector<std::uint8_t>& drop_channel_idxs)
+  : data(data_),
+    stats(data_, drop_channel_idxs)
 {
 }
 

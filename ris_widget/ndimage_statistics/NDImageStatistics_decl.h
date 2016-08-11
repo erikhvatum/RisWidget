@@ -25,6 +25,7 @@
 #include <Python.h>
 #include <numpy/npy_common.h>
 #define _USE_MATH_DEFINES
+#include <array>
 #include <atomic>
 #include <cmath>
 #include <cstddef>
@@ -35,6 +36,7 @@
 #include <pybind11/numpy.h>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 #include "Luts.h"
 
 namespace py = pybind11;
@@ -68,22 +70,57 @@ void reorder_to_inner_outer(const std::size_t* u_shape, const std::size_t* u_str
                             const float& u_coord_0,     const float& u_coord_1,
                             float& o_coord_0,           float& o_coord_1);
 
-template<typename T, typename MASK>
+template<typename T>
+std::size_t bin_count();
+
+template<>
+std::size_t bin_count<std::uint8_t>();
+
+template<>
+std::size_t bin_count<std::int8_t>();
+
+template<typename T>
 struct Stats
+  : public std::enable_shared_from_this<Stats<T>>
 {
-    std::atomic_bool cancelled;
+    Stats();
+    py::array data;
+    std::tuple<T, T> extrema;
+    py::array histogram_py_array;
+    std::uint32_t* histogram;
 };
+
+template<typename T>
+struct ImageStats
+  : Stats<T>
+{
+    ImageStats(typed_array_t<T>& data_, const std::vector<std::uint8_t>& drop_channel_idxs);
+    std::vector<std::shared_ptr<Stats<T>>> channels;
+};
+
+//template<typename T, typename MASK, std::uint8_t CHANNEL_COUNT>
+//struct StatComputer
+//  : Stats<T, CHANNEL_COUNT>
+//{
+//    StatComputer(const StatComputer&) = delete;
+//    StatComputer& operator = (const StatComputer&) = delete;
+//
+//    std::atomic_bool m_cancelled;
+//};
 
 template<typename T, typename MASK>
 class NDImageStatistics
-        : public std::enable_shared_from_this<NDImageStatistics<T, MASK>>
+  : public std::enable_shared_from_this<NDImageStatistics<T, MASK>>
 {
 public:
     static void expose_via_pybind11(py::module& m, const std::string& s);
 
-    NDImageStatistics(typed_array_t<T>& a);
+    explicit NDImageStatistics(typed_array_t<T>& data_, const std::vector<std::uint8_t>& drop_channel_idxs={});
+    NDImageStatistics(const NDImageStatistics&) = delete;
+    NDImageStatistics& operator = (const NDImageStatistics&) = delete;
     virtual ~NDImageStatistics();
 
 protected:
-    typed_array_t<T> m_a;
+    typed_array_t<T> data;
+    ImageStats<T> stats;
 };
