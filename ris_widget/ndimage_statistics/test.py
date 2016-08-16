@@ -22,6 +22,15 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+from . import _ndimage_statistics
+import numpy
+
+stats = _ndimage_statistics.NDImageStatistics(numpy.zeros((100,100), dtype=numpy.uint8), False)
+print('made stats')
+print(stats.image_stats.extrema)
+import sys
+sys.exit(0)
+
 import functools
 import numpy
 import time

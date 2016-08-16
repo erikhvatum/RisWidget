@@ -50,3 +50,10 @@ CircularMask::CircularMask(double center_x_, double center_y_, double radius_)
     radius(radius_)
 {
 }
+
+CircularMask::CircularMask(TupleArg t)
+  : center_x(std::get<0>(std::get<0>(t))),
+    center_y(std::get<1>(std::get<0>(t))),
+    radius(std::get<1>(t))
+{
+}

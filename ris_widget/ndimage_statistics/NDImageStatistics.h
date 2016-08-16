@@ -35,6 +35,7 @@
 #include <memory>
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <pybind11/stl_bind.h>
 #include <stdexcept>
 #include <string>
 #include <tuple>
@@ -81,7 +82,10 @@ struct BitmapMask
 struct CircularMask
   : Mask
 {
+    using TupleArg = const std::tuple<std::tuple<double, double>, double>&;
+
     CircularMask(double center_x_, double center_y_, double radius_);
+    explicit CircularMask(TupleArg t);
 
     double center_x, center_y, radius;
 };
@@ -103,6 +107,7 @@ template<typename T>
 struct Stats
   : StatsBase<T>
 {
+//    void expose_via_pybind11(py::module& m) override;
 };
 
 template<typename T>
@@ -129,13 +134,20 @@ struct Stats<double>
 // ado.
 template<typename T>
 struct ImageStats
-  : Stats<T>
+  : std::enable_shared_from_this<ImageStats<T>>,
+    Stats<T>
 {
     ImageStats();
     ImageStats(const ImageStats&) = delete;
     ImageStats& operator = (const ImageStats&) = delete;
 
+    std::tuple<int, int> get_extrema() {
+        return this->extrema;
+    };
+
     std::vector<std::shared_ptr<Stats<T>>> channel_stats;
+
+    using Stats<T>::extrema;
 };
 
 // template<typename T, typename MASK_T>
@@ -150,41 +162,43 @@ struct ImageStats
 
 template<typename T>
 class NDImageStatistics
+  : public std::enable_shared_from_this<NDImageStatistics<T>>
 {
 public:
     static void expose_via_pybind11(py::module& m, const std::string& s);
 
+    NDImageStatistics(){}
     // No mask
     NDImageStatistics(typed_array_t<T>& data_py_,
                       bool drop_last_channel_from_overall_stats);
     // Bitmap mask
-    NDImageStatistics(typed_array_t<T>& data_py_,
-                      typed_array_t<std::uint8_t>& mask_,
-                      bool drop_last_channel_from_overall_stats);
+//    NDImageStatistics(typed_array_t<T>& data_py_,
+//                      typed_array_t<std::uint8_t>& mask_,
+//                      bool drop_last_channel_from_overall_stats);
     // Circular mask
-    NDImageStatistics(typed_array_t<T>& data_py_,
-                      const std::tuple<std::tuple<double, double>, double>& circular_mask_parameters,
-                      bool drop_last_channel_from_overall_stats);
+//    NDImageStatistics(typed_array_t<T>& data_py_,
+//                      CircularMask::TupleArg mask_,
+//                      bool drop_last_channel_from_overall_stats);
     // Not copyable via constructor
-    NDImageStatistics(const NDImageStatistics&) = delete;
+//    NDImageStatistics(const NDImageStatistics&) = delete;
     // Not copyable via assignment
-    NDImageStatistics& operator = (const NDImageStatistics&) = delete;
+//    NDImageStatistics& operator = (const NDImageStatistics&) = delete;
 
-    ~NDImageStatistics();
+//    ~NDImageStatistics();
 
 protected:
     // A shared pointer with a GIL-aware deleter is kept to avoid the need to acquire the gil whenever the C++ reference 
     // count to the array changes. In other words, we keep our own fast, atomic reference count in the form of a 
     // shared_ptr and only bother acquiring the GIL and decrementing the Python reference count when ours has dropped to 
     // zero. 
-    std::shared_ptr<typed_array_t<T>> data_py;
+//    std::shared_ptr<typed_array_t<T>> data_py;
 //  const T* const data;
-    std::shared_ptr<const Mask> mask;
-    ImageStats<T> stats;
+//    std::shared_ptr<const Mask> mask;
+    std::shared_ptr<ImageStats<T>> image_stats;
 
-    NDImageStatistics(typed_array_t<T>& data_py_,
-                      std::shared_ptr<const Mask>&& mask_,
-                      bool drop_last_channel_from_overall_stats);
+//    NDImageStatistics(typed_array_t<T>& data_py_,
+//                      std::shared_ptr<const Mask>&& mask_,
+//                      bool drop_last_channel_from_overall_stats);
 };
 
 #include "NDImageStatistics_impl.h"
