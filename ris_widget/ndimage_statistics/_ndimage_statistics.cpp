@@ -83,7 +83,9 @@ PYBIND11_PLUGIN(_ndimage_statistics)
 
     expose<int>(m);
 
-    std::cout << 
+    std::cout << typeid(std::uint8_t).name() << std::endl;
+    std::cout << typeid(int).name() << std::endl;
+    std::cout << typeid(std::uint16_t).name() << std::endl;
 
     return m.ptr();
 }

@@ -32,6 +32,15 @@ std::size_t bin_count()
 }
 
 template<typename T>
+void StatsBase<T>::expose_via_pybind11(py::module& m)
+{
+    auto s = std::string("_StatsBase_") + component_type_names[typeinfo(T)];
+    py::class_<StatsBase<T>>(m, s.c_str())
+        .def_readonly("extrema", &StatsBase<T>::extrema)
+        .def("histogram", [](StatsBase<T>& v){return *v.histogram_py;});
+}
+
+template<typename T>
 StatsBase<T>::StatsBase()
   : extrema(0, 0),
     histogram_py(new typed_array_t<std::uint32_t>(py::buffer_info(nullptr,

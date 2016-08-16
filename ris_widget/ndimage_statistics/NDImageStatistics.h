@@ -39,6 +39,9 @@
 #include <stdexcept>
 #include <string>
 #include <tuple>
+#include <typeindex>
+#include <typeinfo>
+#include <unordered_map>
 #include <vector>
 #include "Luts.h"
 
@@ -55,6 +58,8 @@ template<typename T> using typed_array_t = py::array_t<T, 0>;
 using mask_tuple_t = std::tuple<std::tuple<double, double>, double>;
 
 extern Luts luts;
+
+extern const std::unordered_map<std::type_index, std::string> component_type_names;
 
 template<typename T>
 std::size_t bin_count();
@@ -93,6 +98,8 @@ struct CircularMask
 template<typename T>
 struct StatsBase
 {
+    static void expose_via_pybind11(py::module& m);
+
     StatsBase();
     StatsBase(const StatsBase&) = delete;
     StatsBase& operator = (const StatsBase&) = delete;
@@ -107,13 +114,15 @@ template<typename T>
 struct Stats
   : StatsBase<T>
 {
-//    void expose_via_pybind11(py::module& m) override;
+    static void expose_via_pybind11(py::module& m);
 };
 
 template<typename T>
 struct FloatStatsBase
   : StatsBase<T>
 {
+    static void expose_via_pybind11(py::module& m);
+
     std::uint32_t NaN_count=0, neg_inf_count=0, pos_inf_count=0;
 };
 
@@ -121,12 +130,14 @@ template<>
 struct Stats<float>
   : FloatStatsBase<float>
 {
+    static void expose_via_pybind11(py::module& m);
 };
 
 template<>
 struct Stats<double>
   : FloatStatsBase<double>
 {
+    static void expose_via_pybind11(py::module& m);
 };
 
 // This is neat: we only need to provide specializations for Stats; ImageStats automatically inherits the correct 
@@ -165,7 +176,7 @@ class NDImageStatistics
   : public std::enable_shared_from_this<NDImageStatistics<T>>
 {
 public:
-    static void expose_via_pybind11(py::module& m, const std::string& s);
+    static void expose_via_pybind11(py::module& m);
 
     NDImageStatistics(){}
     // No mask
