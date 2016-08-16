@@ -55,6 +55,7 @@ PYBIND11_NOINLINE inline internals &get_internals() {
                     if (p) std::rethrow_exception(p);
                 } catch (const error_already_set &)      {                                                 return;
                 } catch (const index_error &e)           { PyErr_SetString(PyExc_IndexError,    e.what()); return;
+                } catch (const key_error &e)             { PyErr_SetString(PyExc_KeyError,      e.what()); return;
                 } catch (const value_error &e)           { PyErr_SetString(PyExc_ValueError,    e.what()); return;
                 } catch (const stop_iteration &e)        { PyErr_SetString(PyExc_StopIteration, e.what()); return;
                 } catch (const std::bad_alloc &e)        { PyErr_SetString(PyExc_MemoryError,   e.what()); return;
@@ -199,10 +200,10 @@ public:
         auto tinfo = (const detail::type_info *) it->second;
 
         auto it_instances = internals.registered_instances.equal_range(src);
-        for (auto it = it_instances.first; it != it_instances.second; ++it) {
-            auto instance_type = detail::get_type_info(Py_TYPE(it->second), false);
+        for (auto it_i = it_instances.first; it_i != it_instances.second; ++it_i) {
+            auto instance_type = detail::get_type_info(Py_TYPE(it_i->second), false);
             if (instance_type && instance_type == tinfo)
-                return handle((PyObject *) it->second).inc_ref();
+                return handle((PyObject *) it_i->second).inc_ref();
         }
 
         object inst(PyType_GenericAlloc(tinfo->type, 0), false);

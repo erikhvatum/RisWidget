@@ -26,65 +26,6 @@
 
 Luts luts{200};
 
-void reorder_to_inner_outer(const std::size_t* u_shape, const std::size_t* u_strides,
-                                  std::size_t* o_shape,       std::size_t* o_strides)
-{
-    if(u_strides[0] >= u_strides[1])
-    {
-        o_strides[0] = u_strides[0]; o_strides[1] = u_strides[1];
-        o_shape[0] = u_shape[0]; o_shape[1] = u_shape[1];
-    }
-    else
-    {
-        o_strides[0] = u_strides[1]; o_strides[1] = u_strides[0];
-        o_shape[0] = u_shape[1]; o_shape[1] = u_shape[0];
-    }
-}
-
-void reorder_to_inner_outer(const std::size_t* u_shape,       const std::size_t* u_strides,
-                                  std::size_t* o_shape,             std::size_t* o_strides,
-                            const std::size_t* u_slave_shape, const std::size_t* u_slave_strides,
-                                  std::size_t* o_slave_shape,       std::size_t* o_slave_strides)
-{
-    // The u_strides[0] < u_strides[1] comparison controlling slave shape and striding reversal is not a typo: slave
-    // striding and shape are reversed if non-slave striding and shape are reversed. 
-    if(u_strides[0] >= u_strides[1])
-    {
-        o_strides[0] = u_strides[0]; o_strides[1] = u_strides[1];
-        o_shape[0] = u_shape[0]; o_shape[1] = u_shape[1];
-        o_slave_strides[0] = u_slave_strides[0]; o_slave_strides[1] = u_slave_strides[1];
-        o_slave_shape[0] = u_slave_shape[0]; o_slave_shape[1] = u_slave_shape[1];
-    }
-    else
-    {
-        o_strides[0] = u_strides[1]; o_strides[1] = u_strides[0];
-        o_shape[0] = u_shape[1]; o_shape[1] = u_shape[0];
-        o_slave_strides[0] = u_slave_strides[1]; o_slave_strides[1] = u_slave_strides[0];
-        o_slave_shape[0] = u_slave_shape[1]; o_slave_shape[1] = u_slave_shape[0];
-    }
-}
-
-void reorder_to_inner_outer(const std::size_t* u_shape, const std::size_t* u_strides,
-                                  std::size_t* o_shape,       std::size_t* o_strides,
-                            const float& u_coord_0,     const float& u_coord_1,
-                                  float& o_coord_0,           float& o_coord_1)
-{
-    if(u_strides[0] >= u_strides[1])
-    {
-        o_strides[0] = u_strides[0]; o_strides[1] = u_strides[1];
-        o_shape[0] = u_shape[0]; o_shape[1] = u_shape[1];
-        o_coord_0 = u_coord_0;
-        o_coord_1 = u_coord_1;
-    }
-    else
-    {
-        o_strides[0] = u_strides[1]; o_strides[1] = u_strides[0];
-        o_shape[0] = u_shape[1]; o_shape[1] = u_shape[0];
-        o_coord_0 = u_coord_1;
-        o_coord_1 = u_coord_0;
-    }
-}
-
 template<>
 std::size_t bin_count<std::uint8_t>()
 {
@@ -95,4 +36,17 @@ template<>
 std::size_t bin_count<std::int8_t>()
 {
     return 256;
+}
+
+BitmapMask::BitmapMask(typed_array_t<std::uint8_t>& bitmap_)
+  : bitmap(bitmap_),
+    bitmap_bi(bitmap.request())
+{
+}
+
+CircularMask::CircularMask(double center_x_, double center_y_, double radius_)
+  : center_x(center_x_),
+    center_y(center_y_),
+    radius(radius_)
+{
 }

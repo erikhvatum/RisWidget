@@ -94,13 +94,12 @@ include_directories(BEFORE SYSTEM ${PROJECT_SOURCE_DIR}/../../pybind11/include)
 
 SET(SOURCE_FILES
     NDImageStatistics.cpp
-    ndimage_statistics.cpp
+    _ndimage_statistics.cpp
     Luts.cpp)
 
 SET(HEADER_FILES
     NDImageStatistics.h
     Luts.h
-    NDImageStatistics_decl.h
     NDImageStatistics_impl.h)
 
 add_library(_ndimage_statistics SHARED ${SOURCE_FILES} ${HEADER_FILES})

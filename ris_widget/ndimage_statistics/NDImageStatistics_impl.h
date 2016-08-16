@@ -23,7 +23,7 @@
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 #pragma once
-#include "NDImageStatistics_decl.h"
+#include "NDImageStatistics.h"
 
 template<typename T>
 std::size_t bin_count()
@@ -32,43 +32,73 @@ std::size_t bin_count()
 }
 
 template<typename T>
-Stats<T>::Stats()
-  : histogram_py_array(py::buffer_info(
-        nullptr,
-        sizeof(std::uint32_t),
-        py::format_descriptor<std::uint32_t>::value,
-        1,
-        {bin_count<T>()},
-        {sizeof(std::uint32_t)}
-    )),
-    histogram(reinterpret_cast<std::uint32_t*>(histogram_py_array.request(true).ptr))
+StatsBase<T>::StatsBase()
+  : extrema(0, 0),
+    histogram_py(new typed_array_t<std::uint32_t>(py::buffer_info(nullptr,
+                                                                  sizeof(std::uint32_t),
+                                                                  py::format_descriptor<std::uint32_t>::value,
+                                                                  1,
+                                                                  {bin_count<T>()},
+                                                                  {sizeof(std::uint32_t)}))),
+    histogram(reinterpret_cast<std::uint32_t*>(histogram_py->request().ptr))
 {
 }
 
-template<typename T, typename MASK>
-void NDImageStatistics<T, MASK>::expose_via_pybind11(py::module& m, const std::string& s)
+template<typename T>
+StatsBase<T>::~StatsBase()
+{}
+
+template<typename T>
+ImageStats<T>::ImageStats()
+{}
+
+template<typename T>
+void NDImageStatistics<T>::expose_via_pybind11(py::module& m, const std::string& s)
 {
     std::string name("NDImageStatistics");
     name += "_";
     name += s;
-    py::class_<NDImageStatistics<T, MASK>, std::shared_ptr<NDImageStatistics<T, MASK>>>(m, name.c_str())
-            .def(py::init<typed_array_t<T>&>())
-            .def_readonly("data", &NDImageStatistics<T, MASK>::data)
-            .def_readonly("image_stats", &NDImageStatistics<T, MASK>::stats);
+    py::class_<NDImageStatistics<T>, std::shared_ptr<NDImageStatistics<T>>>(m, name.c_str());
+//      .def_readonly("data", &NDImageStatistics<T, MASK>::data)
+//      .def_readonly("image_stats", &NDImageStatistics<T, MASK>::stats);
     // Add overloaded "constructor" function.  pybind11 does not (yet, at time of writing) support templated class
     // instantiation via overloaded constructor defs, but plain function overloading is supported, and we take
     // advantage of this to present a factory function that is semantically similar.
-    m.def("NDImageStatistics", [](typed_array_t<T>& a){return new NDImageStatistics<T, MASK>(a);});
+    m.def("NDImageStatistics", [](typed_array_t<T>& a, bool b){return new NDImageStatistics<T>(a, b);});
+    m.def("NDImageStatistics", [](typed_array_t<T>& a, const std::tuple<std::tuple<double, double>, double>& m, bool b){return new NDImageStatistics<T>(a, m, b);});
+    m.def("NDImageStatistics", [](typed_array_t<T>& a, typed_array_t<std::uint8_t>& m, bool b){return new NDImageStatistics<T>(a, m, b);});
 }
 
-template<typename T, typename MASK>
-NDImageStatistics<T, MASK>::NDImageStatistics(typed_array_t<T>& data_, const std::vector<std::uint8_t>& drop_channel_idxs)
-  : data(data_),
-    stats(data_, drop_channel_idxs)
+template<typename T>
+NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
+                                        bool drop_last_channel_from_overall_stats)
 {
 }
 
-template<typename T, typename MASK>
-NDImageStatistics<T, MASK>::~NDImageStatistics()
+template<typename T>
+NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
+                                        typed_array_t<std::uint8_t>& mask_,
+                                        bool drop_last_channel_from_overall_stats)
+{
+}
+
+template<typename T>
+NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
+                                        const std::tuple<std::tuple<double, double>, double>& circular_mask_parameters,
+                                        bool drop_last_channel_from_overall_stats)
+{
+}
+
+template<typename T>
+NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
+                                        std::shared_ptr<const Mask>&& mask_,
+                                        bool drop_last_channel_from_overall_stats)
+// : data(data_),
+//  stats(data_, drop_channel_idxs_from_overall)
+{
+}
+
+template<typename T>
+NDImageStatistics<T>::~NDImageStatistics()
 {
 }
