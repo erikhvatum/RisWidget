@@ -55,7 +55,17 @@ ImageStats<T>::ImageStats()
 template<typename T>
 void NDImageStatistics<T>::expose_via_pybind11(py::module& m, const std::string& s)
 {
-    std::string name("NDImageStatistics");
+    std::string name("_Stats");
+    name += "_";
+    name += s;
+    py::class_<Stats<T>>(m, name.c_str())
+        .def_readonly("extrema", &Stats<T>::extrema);
+    name = "_ImageStats";
+    name += "_";
+    name += s;
+    py::class_<ImageStats<T>>(m, name.c_str(), py::base<Stats<T>>());
+//      .def_readonly("extrema", &Stats<T>::extrema);
+    name = "_NDImageStatistics";
     name += "_";
     name += s;
     py::class_<NDImageStatistics<T>, std::shared_ptr<NDImageStatistics<T>>>(m, name.c_str());
