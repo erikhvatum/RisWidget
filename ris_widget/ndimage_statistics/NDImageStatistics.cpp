@@ -51,10 +51,29 @@ std::size_t bin_count<std::int8_t>()
     return 256;
 }
 
-BitmapMask::BitmapMask(typed_array_t<std::uint8_t>& bitmap_)
-  : bitmap(bitmap_),
-    bitmap_bi(bitmap.request())
+void Mask::expose_via_pybind11(py::module& m)
 {
+    py::class_<Mask, std::shared_ptr<Mask>>(m, "_Mask");
+}
+
+void BitmapMask::expose_via_pybind11(py::module& m)
+{
+    py::class_<BitmapMask, std::shared_ptr<BitmapMask>>(m, "_BitmapMask", py::base<Mask>())
+        .def_readonly("bitmap", &BitmapMask::bitmap_py);
+}
+
+BitmapMask::BitmapMask(typed_array_t<std::uint8_t>& bitmap_py_)
+  : bitmap_py(bitmap_py_),
+    bitmap_bi(bitmap_py.request())
+{
+}
+
+void CircularMask::expose_via_pybind11(py::module& m)
+{
+    py::class_<CircularMask, std::shared_ptr<CircularMask>>(m, "_CircularMask", py::base<Mask>())
+        .def_readonly("center_x", &CircularMask::center_x)
+        .def_readonly("center_y", &CircularMask::center_y)
+        .def_readonly("radius", &CircularMask::radius);
 }
 
 CircularMask::CircularMask(double center_x_, double center_y_, double radius_)

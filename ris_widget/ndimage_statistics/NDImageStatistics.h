@@ -26,8 +26,6 @@
 #include <Python.h>
 #include <numpy/npy_common.h>
 #define _USE_MATH_DEFINES
-#include <array>
-#include <atomic>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -72,15 +70,19 @@ std::size_t bin_count<std::int8_t>();
 
 struct Mask
 {
+    static void expose_via_pybind11(py::module& m);
+
     virtual ~Mask() = default;
 };
 
 struct BitmapMask
   : Mask
 {
-    explicit BitmapMask(typed_array_t<std::uint8_t>& bitmap_);
+    static void expose_via_pybind11(py::module& m);
 
-    typed_array_t<std::uint8_t> bitmap;
+    explicit BitmapMask(typed_array_t<std::uint8_t>& bitmap_py_);
+
+    typed_array_t<std::uint8_t> bitmap_py;
     py::buffer_info bitmap_bi;
 };
 
@@ -88,6 +90,8 @@ struct CircularMask
   : Mask
 {
     using TupleArg = const std::tuple<std::tuple<double, double>, double>&;
+
+    static void expose_via_pybind11(py::module& m);
 
     CircularMask(double center_x_, double center_y_, double radius_);
     explicit CircularMask(TupleArg t);
@@ -151,25 +155,16 @@ struct ImageStats
     static void expose_via_pybind11(py::module& m);
 
     ImageStats();
-    ImageStats(const ImageStats&) = delete;
-    ImageStats& operator = (const ImageStats&) = delete;
-
-    std::tuple<int, int> get_extrema() {
-        return this->extrema;
-    };
 
     std::vector<std::shared_ptr<Stats<T>>> channel_stats;
 };
 
-// template<typename T, typename MASK_T>
-// struct StatComputer
-// {
-//     StatComputer(const StatComputer&) = delete;
-//     StatComputer& operator = (const StatComputer&) = delete;
-//     virtual ~StatComputer() = default;
-// 
-//     std::atomic_bool m_cancelled;
-// };
+template<typename T, typename MASK_T>
+struct StatComputer
+{
+    StatComputer(const StatComputer&) = delete;
+    StatComputer& operator = (const StatComputer&) = delete;
+};
 
 template<typename T>
 class NDImageStatistics
@@ -178,38 +173,38 @@ class NDImageStatistics
 public:
     static void expose_via_pybind11(py::module& m, const std::string& s);
 
-    NDImageStatistics(){}
     // No mask
     NDImageStatistics(typed_array_t<T>& data_py_,
                       bool drop_last_channel_from_overall_stats);
     // Bitmap mask
-//    NDImageStatistics(typed_array_t<T>& data_py_,
-//                      typed_array_t<std::uint8_t>& mask_,
-//                      bool drop_last_channel_from_overall_stats);
+    NDImageStatistics(typed_array_t<T>& data_py_,
+                      typed_array_t<std::uint8_t>& mask_,
+                      bool drop_last_channel_from_overall_stats);
     // Circular mask
-//    NDImageStatistics(typed_array_t<T>& data_py_,
-//                      CircularMask::TupleArg mask_,
-//                      bool drop_last_channel_from_overall_stats);
+    NDImageStatistics(typed_array_t<T>& data_py_,
+                      CircularMask::TupleArg mask_,
+                      bool drop_last_channel_from_overall_stats);
+    // Not constructable with no parameters
+    NDImageStatistics() = delete; 
     // Not copyable via constructor
-//    NDImageStatistics(const NDImageStatistics&) = delete;
+    NDImageStatistics(const NDImageStatistics&) = delete;
     // Not copyable via assignment
-//    NDImageStatistics& operator = (const NDImageStatistics&) = delete;
-
-//    ~NDImageStatistics();
+    NDImageStatistics& operator = (const NDImageStatistics&) = delete;
 
 protected:
-    // A shared pointer with a GIL-aware deleter is kept to avoid the need to acquire the gil whenever the C++ reference 
-    // count to the array changes. In other words, we keep our own fast, atomic reference count in the form of a 
-    // shared_ptr and only bother acquiring the GIL and decrementing the Python reference count when ours has dropped to 
-    // zero. 
-//    std::shared_ptr<typed_array_t<T>> data_py;
-//  const T* const data;
-//    std::shared_ptr<const Mask> mask;
+    static void data_py_deleter(typed_array_t<T>* data_py);
+
+    // data_py is a shared pointer with a GIL-aware deleter is kept to avoid the need to acquire the gil whenever the 
+    // C++ reference count to the array changes. In other words, we keep our own fast, atomic reference count in the 
+    // form of a shared_ptr and only bother acquiring the GIL and decrementing the Python reference count when ours has 
+    // dropped to zero. 
+    std::shared_ptr<typed_array_t<T>> data_py;
+    std::shared_ptr<const Mask> mask;
     std::shared_ptr<ImageStats<T>> image_stats;
 
-//    NDImageStatistics(typed_array_t<T>& data_py_,
-//                      std::shared_ptr<const Mask>&& mask_,
-//                      bool drop_last_channel_from_overall_stats);
+    NDImageStatistics(typed_array_t<T>& data_py_,
+                      std::shared_ptr<const Mask>&& mask_,
+                      bool drop_last_channel_from_overall_stats);
 };
 
 #include "NDImageStatistics_impl.h"
