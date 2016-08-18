@@ -34,8 +34,8 @@ std::size_t bin_count()
 template<typename T>
 void StatsBase<T>::expose_via_pybind11(py::module& m)
 {
-    auto s = std::string("_StatsBase_") + component_type_names[typeinfo(T)];
-    py::class_<StatsBase<T>>(m, s.c_str())
+    std::string s = std::string("_StatsBase_") + component_type_names[std::type_index(typeid(T))];
+    py::class_<StatsBase<T>, std::shared_ptr<StatsBase<T>>>(m, s.c_str())
         .def_readonly("extrema", &StatsBase<T>::extrema)
         .def("histogram", [](StatsBase<T>& v){return *v.histogram_py;});
 }
@@ -54,8 +54,34 @@ StatsBase<T>::StatsBase()
 }
 
 template<typename T>
-StatsBase<T>::~StatsBase()
-{}
+void FloatStatsBase<T>::expose_via_pybind11(py::module& m)
+{
+    StatsBase<T>::expose_via_pybind11(m);
+    std::string s = std::string("_FloatStatsBase_") + component_type_names[std::type_index(typeid(T))];
+    py::class_<FloatStatsBase<T>, std::shared_ptr<FloatStatsBase<T>>>(m, s.c_str(), py::base<StatsBase<T>>())
+        .def_readonly("NaN_count", &FloatStatsBase<T>::NaN_count)
+        .def_readonly("neg_inf_count", &FloatStatsBase<T>::neg_inf_count)
+        .def_readonly("pos_inf_count", &FloatStatsBase<T>::pos_inf_count);
+}
+
+template<typename T>
+void Stats<T>::expose_via_pybind11(py::module& m)
+{
+    StatsBase<T>::expose_via_pybind11(m);
+    std::string s = std::string("_Stats_") + component_type_names[std::type_index(typeid(T))];
+    py::class_<Stats<T>, std::shared_ptr<Stats<T>>>(m, s.c_str(), py::base<StatsBase<T>>());
+}
+
+template<typename T>
+void ImageStats<T>::expose_via_pybind11(py::module& m)
+{
+    Stats<T>::expose_via_pybind11(m);
+    std::string s = std::string("_ImageStats_") + component_type_names[std::type_index(typeid(T))];
+    py::class_<ImageStats<T>, std::shared_ptr<ImageStats<T>>>(m, s.c_str(), py::base<Stats<T>>())
+        .def_readonly("channel_stats", &ImageStats<T>::channel_stats);
+    s = std::string("_Stats_") + component_type_names[std::type_index(typeid(T))] + "_list";
+    py::bind_vector<std::shared_ptr<Stats<T>>>(m, s);
+}
 
 template<typename T>
 ImageStats<T>::ImageStats()
@@ -64,6 +90,7 @@ ImageStats<T>::ImageStats()
 template<typename T>
 void NDImageStatistics<T>::expose_via_pybind11(py::module& m, const std::string& s)
 {
+    ImageStats<T>::expose_via_pybind11(m);
     std::string name("_StatsBase_");
     name = "_Stats_";
     name += s;
@@ -80,7 +107,7 @@ void NDImageStatistics<T>::expose_via_pybind11(py::module& m, const std::string&
 //      .def_readonly("extrema", &ImageStats<T>::extrema);
     name = "_NDImageStatistics_";
     name += s;
-    py::class_<NDImageStatistics<T>, std::shared_ptr<NDImageStatistics<T>>>(m, s.c_str())
+    py::class_<NDImageStatistics<T>, std::shared_ptr<NDImageStatistics<T>>>(m, name.c_str())
 //    .def("getfoo", []{return std::tuple<int, int>(23,12);});
 //
 //    m.def("make_ndimagestatistics", []{return new NDImageStatistics<T>();});

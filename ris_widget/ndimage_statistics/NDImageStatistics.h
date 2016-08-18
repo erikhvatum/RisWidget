@@ -59,7 +59,7 @@ using mask_tuple_t = std::tuple<std::tuple<double, double>, double>;
 
 extern Luts luts;
 
-extern const std::unordered_map<std::type_index, std::string> component_type_names;
+extern std::unordered_map<std::type_index, std::string> component_type_names;
 
 template<typename T>
 std::size_t bin_count();
@@ -103,7 +103,7 @@ struct StatsBase
     StatsBase();
     StatsBase(const StatsBase&) = delete;
     StatsBase& operator = (const StatsBase&) = delete;
-    virtual ~StatsBase();
+    virtual ~StatsBase() = default;
 
     std::tuple<T, T> extrema;
     typed_array_t<std::uint32_t>* histogram_py;
@@ -148,6 +148,8 @@ struct ImageStats
   : std::enable_shared_from_this<ImageStats<T>>,
     Stats<T>
 {
+    static void expose_via_pybind11(py::module& m);
+
     ImageStats();
     ImageStats(const ImageStats&) = delete;
     ImageStats& operator = (const ImageStats&) = delete;
@@ -157,8 +159,6 @@ struct ImageStats
     };
 
     std::vector<std::shared_ptr<Stats<T>>> channel_stats;
-
-    using Stats<T>::extrema;
 };
 
 // template<typename T, typename MASK_T>
@@ -176,7 +176,7 @@ class NDImageStatistics
   : public std::enable_shared_from_this<NDImageStatistics<T>>
 {
 public:
-    static void expose_via_pybind11(py::module& m);
+    static void expose_via_pybind11(py::module& m, const std::string& s);
 
     NDImageStatistics(){}
     // No mask

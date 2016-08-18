@@ -26,17 +26,17 @@
 
 Luts luts{200};
 
-const std::unordered_map<std::type_index, std::string> component_type_names {
-    {typeid(std::int8_t), "int8"},
-    {typeid(std::uint8_t), "uint8"},
-    {typeid(std::int16_t), "int16"},
-    {typeid(std::uint16_t), "uint16"},
-    {typeid(std::int32_t), "int32"},
-    {typeid(std::uint32_t), "uint32"},
-    {typeid(std::int64_t), "int64"},
-    {typeid(std::uint64_t), "uint64"},
-    {typeid(float), "float"},
-    {typeid(double), "double"},
+std::unordered_map<std::type_index, std::string> component_type_names {
+    {std::type_index(typeid(std::int8_t)), "int8"},
+    {std::type_index(typeid(std::uint8_t)), "uint8"},
+    {std::type_index(typeid(std::int16_t)), "int16"},
+    {std::type_index(typeid(std::uint16_t)), "uint16"},
+    {std::type_index(typeid(std::int32_t)), "int32"},
+    {std::type_index(typeid(std::uint32_t)), "uint32"},
+    {std::type_index(typeid(std::int64_t)), "int64"},
+    {std::type_index(typeid(std::uint64_t)), "uint64"},
+    {std::type_index(typeid(float)), "float"},
+    {std::type_index(typeid(double)), "double"},
 };
 
 template<>
@@ -69,4 +69,20 @@ CircularMask::CircularMask(TupleArg t)
     center_y(std::get<1>(std::get<0>(t))),
     radius(std::get<1>(t))
 {
+}
+
+void Stats<float>::expose_via_pybind11(py::module& m)
+{
+    FloatStatsBase<float>::expose_via_pybind11(m);
+    std::string s = std::string("_Stats_float");
+    py::class_<Stats<float>, std::shared_ptr<Stats<float>>>(m, s.c_str(), py::base<FloatStatsBase<float>>());
+    s = std::string("_Stats_float_list");
+}
+
+void Stats<double>::expose_via_pybind11(py::module& m)
+{
+    FloatStatsBase<double>::expose_via_pybind11(m);
+    std::string s = std::string("_Stats_double");
+    py::class_<Stats<double>, std::shared_ptr<Stats<double>>>(m, s.c_str(), py::base<FloatStatsBase<double>>());
+    s = std::string("_Stats_double_list");
 }
