@@ -51,6 +51,12 @@ std::size_t bin_count<std::int8_t>()
     return 256;
 }
 
+void safe_py_deleter(py::object* py_obj)
+{
+    py::gil_scoped_acquire acquire_gil;
+    delete py_obj;
+}
+
 void Mask::expose_via_pybind11(py::module& m)
 {
     py::class_<Mask, std::shared_ptr<Mask>>(m, "_Mask");
@@ -63,8 +69,7 @@ void BitmapMask::expose_via_pybind11(py::module& m)
 }
 
 BitmapMask::BitmapMask(typed_array_t<std::uint8_t>& bitmap_py_)
-  : bitmap_py(bitmap_py_),
-    bitmap_bi(bitmap_py.request())
+  : bitmap_py(std::shared_ptr<typed_array_t<std::uint8_t>>(new typed_array_t<std::uint8_t>(bitmap_py_), &safe_py_deleter))
 {
 }
 

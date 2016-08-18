@@ -25,15 +25,15 @@
 #include "Luts.h"
 #include <cmath>
 
-Lut::Lut(const std::uint32_t& fromSampleCount, const std::uint32_t& toSampleCount)
+Lut::Lut(const std::uint64_t& fromSampleCount, const std::uint64_t& toSampleCount)
   : m_fromSampleCount(fromSampleCount),
     m_toSampleCount(toSampleCount),
     m_data(fromSampleCount, 0)
 {
     LutData& data{const_cast<LutData&>(m_data)};
-    std::uint32_t* toSampleIt{data.data()};
+    std::uint64_t* toSampleIt{data.data()};
     const double f{((double)(m_toSampleCount)) / m_fromSampleCount};
-    for(std::uint32_t fromSampleNum=0; fromSampleNum < m_fromSampleCount; ++fromSampleNum, ++toSampleIt)
+    for(std::uint64_t fromSampleNum=0; fromSampleNum < m_fromSampleCount; ++fromSampleNum, ++toSampleIt)
         *toSampleIt = fromSampleNum * f;
 }
 
@@ -44,19 +44,19 @@ Luts::Luts(const std::size_t& maxCachedLuts)
         throw std::invalid_argument("The value supplied for maxCachedLuts must be > 0.");
 }
 
-LutPtr Luts::getLut(const std::uint32_t& fromSampleCount, const std::uint32_t& toSampleCount)
+LutPtr Luts::getLut(const std::uint64_t& fromSampleCount, const std::uint64_t& toSampleCount)
 {
     std::lock_guard<std::mutex> lutCacheLock(m_lutCacheMutex);
     if(fromSampleCount == 0 || toSampleCount == 0)
         throw std::invalid_argument("The values supplied for fromSampleCount and toSampleCount must be > 0.");
-    std::pair<std::uint32_t, std::uint32_t> key(fromSampleCount, toSampleCount);
+    std::pair<std::uint64_t, std::uint64_t> key(fromSampleCount, toSampleCount);
     LutCacheIt lutCacheIt{m_lutCache.find(key)};
     if(lutCacheIt == m_lutCache.end())
     {
         LutPtr lut(new Lut(fromSampleCount, toSampleCount));
         lutCacheIt = lut->m_lutCacheIt = m_lutCache.insert(
-            std::pair<std::pair<std::uint32_t, std::uint32_t>, LutPtr>(
-                std::pair<std::uint32_t, std::uint32_t>(fromSampleCount, toSampleCount), lut
+            std::pair<std::pair<std::uint64_t, std::uint64_t>, LutPtr>(
+                std::pair<std::uint64_t, std::uint64_t>(fromSampleCount, toSampleCount), lut
             )
         ).first;
         m_lutCacheLru.push_front(lut->m_lutCacheIt);

@@ -25,8 +25,9 @@
 from . import _ndimage_statistics
 import numpy
 
-stats = _ndimage_statistics.NDImageStatistics(numpy.zeros((100,100), dtype=numpy.uint8), False)
+stats = _ndimage_statistics.NDImageStatistics(numpy.zeros((100,100), dtype=numpy.uint8, order='F'), False)
 print('made stats')
+stats.launch_computation()
 print(stats.image_stats.extrema)
 import sys
 sys.exit(0)

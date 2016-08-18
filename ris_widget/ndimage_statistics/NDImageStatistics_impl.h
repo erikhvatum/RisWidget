@@ -43,13 +43,13 @@ void StatsBase<T>::expose_via_pybind11(py::module& m)
 template<typename T>
 StatsBase<T>::StatsBase()
   : extrema(0, 0),
-    histogram_py(new typed_array_t<std::uint32_t>(py::buffer_info(nullptr,
-                                                                  sizeof(std::uint32_t),
-                                                                  py::format_descriptor<std::uint32_t>::value,
+    max_bin(0),
+    histogram_py(new typed_array_t<std::uint64_t>(py::buffer_info(nullptr,
+                                                                  sizeof(std::uint64_t),
+                                                                  py::format_descriptor<std::uint64_t>::value,
                                                                   1,
                                                                   {bin_count<T>()},
-                                                                  {sizeof(std::uint32_t)}))),
-    histogram(reinterpret_cast<std::uint32_t*>(histogram_py->request().ptr))
+                                                                  {sizeof(std::uint64_t)})))
 {
 }
 
@@ -62,6 +62,14 @@ void FloatStatsBase<T>::expose_via_pybind11(py::module& m)
         .def_readonly("NaN_count", &FloatStatsBase<T>::NaN_count)
         .def_readonly("neg_inf_count", &FloatStatsBase<T>::neg_inf_count)
         .def_readonly("pos_inf_count", &FloatStatsBase<T>::pos_inf_count);
+}
+
+template<typename T>
+FloatStatsBase<T>::FloatStatsBase()
+  : NaN_count(0),
+    neg_inf_count(0),
+    pos_inf_count(0)
+{
 }
 
 // Note that concrete specializations for T=float and T=double are found in NDImageStatistics.cpp
@@ -85,8 +93,11 @@ void ImageStats<T>::expose_via_pybind11(py::module& m)
 }
 
 template<typename T>
-ImageStats<T>::ImageStats()
-{}
+ImageStats<T>::ImageStats(std::shared_ptr<NDImageStatistics<T>> parent)
+{
+    std::weak_ptr<NDImageStatistics<T>> w_parent = parent;
+    std::shared_ptr<typed_array_t<T>> data_py{parent->data_py};
+}
 
 template<typename T>
 void NDImageStatistics<T>::expose_via_pybind11(py::module& m, const std::string& s)
@@ -95,9 +106,10 @@ void NDImageStatistics<T>::expose_via_pybind11(py::module& m, const std::string&
     std::string name = "_NDImageStatistics_";
     name += s;
     py::class_<NDImageStatistics<T>, std::shared_ptr<NDImageStatistics<T>>>(m, name.c_str())
+        .def("launch_computation", &NDImageStatistics<T>::launch_computation)
         .def_property_readonly("data", [](NDImageStatistics<T>& v){return *v.data_py.get();})
         .def_readonly("mask", &NDImageStatistics<T>::mask)
-        .def_readonly("image_stats", &NDImageStatistics<T>::image_stats);
+        .def_property_readonly("image_stats", [](NDImageStatistics<T>& v){return v.image_stats.get();});
     // Add overloaded "constructor" function.  pybind11 does not (yet, at time of writing) support templated class
     // instantiation via overloaded constructor defs, but plain function overloading is supported, and we take
     // advantage of this to present a factory function that is semantically similar.
@@ -109,41 +121,50 @@ void NDImageStatistics<T>::expose_via_pybind11(py::module& m, const std::string&
           [](typed_array_t<T>& a, typed_array_t<std::uint8_t>& m, bool b){return new NDImageStatistics<T>(a, m, b);});
 }
 
-template<typename T>
-void NDImageStatistics<T>::data_py_deleter(typed_array_t<T>* data_py)
-{
-    py::gil_scoped_acquire acquire_gil;
-    delete data_py;
-}
+
 
 template<typename T>
 NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
-                                        bool drop_last_channel_from_overall_stats)
-  : NDImageStatistics<T>(data_py_, std::make_shared<Mask>(), drop_last_channel_from_overall_stats)
+                                        bool drop_last_channel_from_overall_stats_)
+  : NDImageStatistics<T>(data_py_, std::make_shared<Mask>(), drop_last_channel_from_overall_stats_)
 {
 }
 
 template<typename T>
 NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
                                         typed_array_t<std::uint8_t>& mask_,
-                                        bool drop_last_channel_from_overall_stats)
-  : NDImageStatistics<T>(data_py_, std::make_shared<BitmapMask>(mask_), drop_last_channel_from_overall_stats)
+                                        bool drop_last_channel_from_overall_stats_)
+  : NDImageStatistics<T>(data_py_, std::make_shared<BitmapMask>(mask_), drop_last_channel_from_overall_stats_)
 {
 }
 
 template<typename T>
 NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
                                         CircularMask::TupleArg mask_,
-                                        bool drop_last_channel_from_overall_stats)
-  : NDImageStatistics<T>(data_py_, std::make_shared<CircularMask>(mask_), drop_last_channel_from_overall_stats)
+                                        bool drop_last_channel_from_overall_stats_)
+  : NDImageStatistics<T>(data_py_, std::make_shared<CircularMask>(mask_), drop_last_channel_from_overall_stats_)
 {
 }
 
 template<typename T>
 NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
                                         std::shared_ptr<const Mask>&& mask_,
-                                        bool drop_last_channel_from_overall_stats)
-  : data_py(std::shared_ptr<typed_array_t<T>>(new typed_array_t<T>(data_py_), &NDImageStatistics::data_py_deleter)),
-    mask(mask_)
+                                        bool drop_last_channel_from_overall_stats_)
+  : data_py(std::shared_ptr<typed_array_t<T>>(new typed_array_t<T>(data_py_), &safe_py_deleter)),
+    mask(mask_),
+    drop_last_channel_from_overall_stats(drop_last_channel_from_overall_stats_)
 {
+    py::buffer_info bi{data_py_.request()};
+    if(bi.ndim < 2 || bi.ndim > 3) throw std::invalid_argument("data argument must be 2 or 3 dimensional.");
+    if(bi.strides[0] > bi.strides[1]) throw std::invalid_argument("data argument striding must be (X, Y) or (X, Y, C).");
+}
+
+template<typename T>
+void NDImageStatistics<T>::launch_computation()
+{
+    std::cout << "getting shared_from_this\n";
+    std::shared_ptr<NDImageStatistics<T>> s_this{this->shared_from_this()};
+    std::cout << "got shared_from_this\n";
+    std::cout << ((bool)s_this) << std::endl;
+    image_stats = std::async(std::launch::async, [=]{return std::make_shared<ImageStats<T>>(s_this);});
 }
