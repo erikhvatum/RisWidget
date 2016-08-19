@@ -71,6 +71,7 @@ std::size_t bin_count<std::int8_t>();
 // GIL-aware deleter for Python objects likely to be released and refcount-decremented on another (non-Python) thread
 void safe_py_deleter(py::object* py_obj);
 
+template<typename T>
 struct Mask;
 
 template<typename T>
@@ -79,9 +80,10 @@ struct Cursor
 //  Cursor(
 
     std::shared_ptr<typed_array_t<T>> data_py;
-    std::shared_ptr<const Mask> mask;
+    std::shared_ptr<const Mask<T>> mask;
 };
 
+template<typename T>
 struct Mask
 {
     static void expose_via_pybind11(py::module& m);
@@ -89,8 +91,9 @@ struct Mask
     virtual ~Mask() = default;
 };
 
+template<typename T>
 struct BitmapMask
-  : Mask
+  : Mask<T>
 {
     static void expose_via_pybind11(py::module& m);
 
@@ -100,8 +103,9 @@ struct BitmapMask
     std::shared_ptr<typed_array_t<std::uint8_t>> bitmap_py;
 };
 
+template<typename T>
 struct CircularMask
-  : Mask
+  : Mask<T>
 {
     using TupleArg = const std::tuple<std::tuple<double, double>, double>&;
 
@@ -125,7 +129,8 @@ struct StatsBase
 
     std::tuple<T, T> extrema;
     std::uint64_t max_bin;
-    typed_array_t<std::uint64_t>* histogram_py;
+    // histogram_py is a shared pointer with a GIL-aware deleter
+    std::shared_ptr<typed_array_t<std::uint64_t>> histogram_py;
 };
 
 template<typename T>
@@ -202,7 +207,7 @@ public:
                       bool drop_last_channel_from_overall_stats_);
     // Circular mask
     NDImageStatistics(typed_array_t<T>& data_py_,
-                      CircularMask::TupleArg mask_,
+                      typename CircularMask<T>::TupleArg mask_,
                       bool drop_last_channel_from_overall_stats_);
     // Not constructable with no parameters
     NDImageStatistics() = delete; 
@@ -212,19 +217,20 @@ public:
     NDImageStatistics& operator = (const NDImageStatistics&) = delete;
 
     void launch_computation();
+    std::shared_ptr<ImageStats<T>> get_image_stats();
 
 protected:
     // data_py is a shared pointer with a GIL-aware deleter is kept to avoid the need to acquire the gil whenever the 
     // C++ reference count to the array changes. In other words, we keep our own fast, atomic reference count in the 
     // form of a shared_ptr and only bother acquiring the GIL and decrementing the Python reference count when ours has 
-    // dropped to zero. This is needed as worker threads may be the last to hold a data_py reference.
+    // dropped to zero. The GIL-aware deleter is needed as worker threads may be the last to hold a data_py reference.
     std::shared_ptr<typed_array_t<T>> data_py;
-    std::shared_ptr<const Mask> mask;
+    std::shared_ptr<const Mask<T>> mask;
     std::shared_future<std::shared_ptr<ImageStats<T>>> image_stats;
     const bool drop_last_channel_from_overall_stats;
 
     NDImageStatistics(typed_array_t<T>& data_py_,
-                      std::shared_ptr<const Mask>&& mask_,
+                      std::shared_ptr<const Mask<T>>&& mask_,
                       bool drop_last_channel_from_overall_stats_);
 };
 

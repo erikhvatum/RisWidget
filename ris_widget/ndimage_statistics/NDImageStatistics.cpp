@@ -57,44 +57,6 @@ void safe_py_deleter(py::object* py_obj)
     delete py_obj;
 }
 
-void Mask::expose_via_pybind11(py::module& m)
-{
-    py::class_<Mask, std::shared_ptr<Mask>>(m, "_Mask");
-}
-
-void BitmapMask::expose_via_pybind11(py::module& m)
-{
-    py::class_<BitmapMask, std::shared_ptr<BitmapMask>>(m, "_BitmapMask", py::base<Mask>())
-        .def_readonly("bitmap", &BitmapMask::bitmap_py);
-}
-
-BitmapMask::BitmapMask(typed_array_t<std::uint8_t>& bitmap_py_)
-  : bitmap_py(std::shared_ptr<typed_array_t<std::uint8_t>>(new typed_array_t<std::uint8_t>(bitmap_py_), &safe_py_deleter))
-{
-}
-
-void CircularMask::expose_via_pybind11(py::module& m)
-{
-    py::class_<CircularMask, std::shared_ptr<CircularMask>>(m, "_CircularMask", py::base<Mask>())
-        .def_readonly("center_x", &CircularMask::center_x)
-        .def_readonly("center_y", &CircularMask::center_y)
-        .def_readonly("radius", &CircularMask::radius);
-}
-
-CircularMask::CircularMask(double center_x_, double center_y_, double radius_)
-  : center_x(center_x_),
-    center_y(center_y_),
-    radius(radius_)
-{
-}
-
-CircularMask::CircularMask(TupleArg t)
-  : center_x(std::get<0>(std::get<0>(t))),
-    center_y(std::get<1>(std::get<0>(t))),
-    radius(std::get<1>(t))
-{
-}
-
 void Stats<float>::expose_via_pybind11(py::module& m)
 {
     FloatStatsBase<float>::expose_via_pybind11(m);

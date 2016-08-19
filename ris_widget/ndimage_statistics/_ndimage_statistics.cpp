@@ -28,10 +28,6 @@ PYBIND11_PLUGIN(_ndimage_statistics)
 {
     py::module m("_ndimage_statistics", "ris_widget.ndimage_statistics._ndimage_statistics module");
 
-    Mask::expose_via_pybind11(m);
-    BitmapMask::expose_via_pybind11(m);
-    CircularMask::expose_via_pybind11(m);
-
     NDImageStatistics<std::int8_t>  ::expose_via_pybind11(m, "int8");
     NDImageStatistics<std::uint8_t> ::expose_via_pybind11(m, "uint8");
     NDImageStatistics<std::int16_t> ::expose_via_pybind11(m, "int16");

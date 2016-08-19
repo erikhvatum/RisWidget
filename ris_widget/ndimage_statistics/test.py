@@ -24,8 +24,10 @@
 
 from . import _ndimage_statistics
 import numpy
+import freeimage
 
-stats = _ndimage_statistics.NDImageStatistics(numpy.zeros((100,100), dtype=numpy.uint8, order='F'), False)
+im = freeimage.read('/home/ehvatum/m1_hubble.jpg')
+stats = _ndimage_statistics.NDImageStatistics(im, ((1,2),3), False)
 print('made stats')
 stats.launch_computation()
 print(stats.image_stats.extrema)

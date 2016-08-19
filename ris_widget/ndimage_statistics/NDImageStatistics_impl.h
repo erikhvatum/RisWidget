@@ -32,25 +32,78 @@ std::size_t bin_count()
 }
 
 template<typename T>
+void Mask<T>::expose_via_pybind11(py::module& m)
+{
+    std::string s = std::string("_Mask_") + component_type_names[std::type_index(typeid(T))];
+    py::class_<Mask<T>, std::shared_ptr<Mask<T>>>(m, s.c_str());
+}
+
+template<typename T>
+void BitmapMask<T>::expose_via_pybind11(py::module& m)
+{
+    std::string s = std::string("_BitmapMask_") + component_type_names[std::type_index(typeid(T))];
+    py::class_<BitmapMask<T>, std::shared_ptr<BitmapMask<T>>>(m, s.c_str(), py::base<Mask<T>>())
+        .def_readonly("bitmap", &BitmapMask<T>::bitmap_py);
+}
+
+template<typename T>
+BitmapMask<T>::BitmapMask(typed_array_t<std::uint8_t>& bitmap_py_)
+{
+    py::gil_scoped_acquire acquire_gil;
+    bitmap_py.reset(new typed_array_t<std::uint8_t>(bitmap_py_), &safe_py_deleter);
+}
+
+template<typename T>
+void CircularMask<T>::expose_via_pybind11(py::module& m)
+{
+    std::string s = std::string("_CircularMask_") + component_type_names[std::type_index(typeid(T))];
+    py::class_<CircularMask<T>, std::shared_ptr<CircularMask<T>>>(m, s.c_str(), py::base<Mask<T>>())
+        .def_readonly("center_x", &CircularMask::center_x)
+        .def_readonly("center_y", &CircularMask::center_y)
+        .def_readonly("radius", &CircularMask::radius);
+}
+
+template<typename T>
+CircularMask<T>::CircularMask(double center_x_, double center_y_, double radius_)
+  : center_x(center_x_),
+    center_y(center_y_),
+    radius(radius_)
+{
+}
+
+template<typename T>
+CircularMask<T>::CircularMask(TupleArg t)
+  : center_x(std::get<0>(std::get<0>(t))),
+    center_y(std::get<1>(std::get<0>(t))),
+    radius(std::get<1>(t))
+{
+}
+
+template<typename T>
 void StatsBase<T>::expose_via_pybind11(py::module& m)
 {
     std::string s = std::string("_StatsBase_") + component_type_names[std::type_index(typeid(T))];
     py::class_<StatsBase<T>, std::shared_ptr<StatsBase<T>>>(m, s.c_str())
         .def_readonly("extrema", &StatsBase<T>::extrema)
-        .def("histogram", [](StatsBase<T>& v){return *v.histogram_py;});
+        .def_property_readonly("histogram", [](StatsBase<T>& v){return *v.histogram_py;});
 }
 
 template<typename T>
 StatsBase<T>::StatsBase()
   : extrema(0, 0),
-    max_bin(0),
-    histogram_py(new typed_array_t<std::uint64_t>(py::buffer_info(nullptr,
-                                                                  sizeof(std::uint64_t),
-                                                                  py::format_descriptor<std::uint64_t>::value,
-                                                                  1,
-                                                                  {bin_count<T>()},
-                                                                  {sizeof(std::uint64_t)})))
+    max_bin(0)
 {
+    py::gil_scoped_acquire acquire_gil;
+    histogram_py.reset(
+       new typed_array_t<std::uint64_t>(
+          py::buffer_info(
+             nullptr,
+             sizeof(std::uint64_t),
+             py::format_descriptor<std::uint64_t>::value,
+             1,
+             {bin_count<T>()},
+             {sizeof(std::uint64_t)})),
+       &safe_py_deleter);
 }
 
 template<typename T>
@@ -102,6 +155,9 @@ ImageStats<T>::ImageStats(std::shared_ptr<NDImageStatistics<T>> parent)
 template<typename T>
 void NDImageStatistics<T>::expose_via_pybind11(py::module& m, const std::string& s)
 {
+    Mask<T>::expose_via_pybind11(m);
+    BitmapMask<T>::expose_via_pybind11(m);
+    CircularMask<T>::expose_via_pybind11(m);
     ImageStats<T>::expose_via_pybind11(m);
     std::string name = "_NDImageStatistics_";
     name += s;
@@ -109,14 +165,15 @@ void NDImageStatistics<T>::expose_via_pybind11(py::module& m, const std::string&
         .def("launch_computation", &NDImageStatistics<T>::launch_computation)
         .def_property_readonly("data", [](NDImageStatistics<T>& v){return *v.data_py.get();})
         .def_readonly("mask", &NDImageStatistics<T>::mask)
-        .def_property_readonly("image_stats", [](NDImageStatistics<T>& v){return v.image_stats.get();});
+        .def_property_readonly("image_stats", &NDImageStatistics<T>::get_image_stats)
+        .def_readonly("drop_last_channel_from_overall_stats", &NDImageStatistics<T>::drop_last_channel_from_overall_stats);
     // Add overloaded "constructor" function.  pybind11 does not (yet, at time of writing) support templated class
     // instantiation via overloaded constructor defs, but plain function overloading is supported, and we take
     // advantage of this to present a factory function that is semantically similar.
     m.def("NDImageStatistics",
           [](typed_array_t<T>& a, bool b){return new NDImageStatistics<T>(a, b);});
     m.def("NDImageStatistics",
-          [](typed_array_t<T>& a, CircularMask::TupleArg m, bool b){return new NDImageStatistics<T>(a, m, b);});
+          [](typed_array_t<T>& a, typename CircularMask<T>::TupleArg m, bool b){return new NDImageStatistics<T>(a, m, b);});
     m.def("NDImageStatistics",
           [](typed_array_t<T>& a, typed_array_t<std::uint8_t>& m, bool b){return new NDImageStatistics<T>(a, m, b);});
 }
@@ -126,7 +183,7 @@ void NDImageStatistics<T>::expose_via_pybind11(py::module& m, const std::string&
 template<typename T>
 NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
                                         bool drop_last_channel_from_overall_stats_)
-  : NDImageStatistics<T>(data_py_, std::make_shared<Mask>(), drop_last_channel_from_overall_stats_)
+  : NDImageStatistics<T>(data_py_, std::make_shared<Mask<T>>(), drop_last_channel_from_overall_stats_)
 {
 }
 
@@ -134,21 +191,21 @@ template<typename T>
 NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
                                         typed_array_t<std::uint8_t>& mask_,
                                         bool drop_last_channel_from_overall_stats_)
-  : NDImageStatistics<T>(data_py_, std::make_shared<BitmapMask>(mask_), drop_last_channel_from_overall_stats_)
+  : NDImageStatistics<T>(data_py_, std::make_shared<BitmapMask<T>>(mask_), drop_last_channel_from_overall_stats_)
 {
 }
 
 template<typename T>
 NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
-                                        CircularMask::TupleArg mask_,
+                                        typename CircularMask<T>::TupleArg mask_,
                                         bool drop_last_channel_from_overall_stats_)
-  : NDImageStatistics<T>(data_py_, std::make_shared<CircularMask>(mask_), drop_last_channel_from_overall_stats_)
+  : NDImageStatistics<T>(data_py_, std::make_shared<CircularMask<T>>(mask_), drop_last_channel_from_overall_stats_)
 {
 }
 
 template<typename T>
 NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
-                                        std::shared_ptr<const Mask>&& mask_,
+                                        std::shared_ptr<const Mask<T>>&& mask_,
                                         bool drop_last_channel_from_overall_stats_)
   : data_py(std::shared_ptr<typed_array_t<T>>(new typed_array_t<T>(data_py_), &safe_py_deleter)),
     mask(mask_),
@@ -162,9 +219,16 @@ NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
 template<typename T>
 void NDImageStatistics<T>::launch_computation()
 {
-    std::cout << "getting shared_from_this\n";
     std::shared_ptr<NDImageStatistics<T>> s_this{this->shared_from_this()};
-    std::cout << "got shared_from_this\n";
-    std::cout << ((bool)s_this) << std::endl;
     image_stats = std::async(std::launch::async, [=]{return std::make_shared<ImageStats<T>>(s_this);});
+}
+
+template<typename T>
+std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::get_image_stats()
+{
+    // Avoid deadlocking when called from Python just as worker thread is starting (GIL would not be released until we 
+    // return, but we can not return until the future is ready, and the future needs the GIL in order to set up data 
+    // structures). 
+    py::gil_scoped_release release_gil;
+    return image_stats.get();
 }
