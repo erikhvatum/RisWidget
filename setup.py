@@ -77,10 +77,6 @@ class BuildExt(setuptools.command.build_ext.build_ext):
                 cflags.append('-fvisibility=hidden')
             if has_flag(self.compiler, '-mtune=native'):
                 cflags.append('-mtune=native')
-        if has_flag(self.compiler, '-fopenmp') and sys.platform != 'darwin': # TODO: re-enable openmp support on darwin/OS X when a version of XCode supporting openmp is released
-            cflags.append('-fopenmp')
-            ldflags.append('-fopenmp')
-        # cflags.append('-O0')
         for ext in self.extensions:
             ext.extra_compile_args = cflags
             ext.extra_link_args = ldflags
@@ -91,13 +87,14 @@ ext_modules = [
         'ris_widget.ndimage_statistics._ndimage_statistics',
         language='c++',
         sources=[
-            'ris_widget/ndimage_statistics/_ndimage_statistics_module.cpp',
             'ris_widget/ndimage_statistics/_ndimage_statistics.cpp',
-            'ris_widget/ndimage_statistics/resampling_lut.cpp'
+            'ris_widget/ndimage_statistics/NDImageStatistics.cpp',
+            'ris_widget/ndimage_statistics/Luts.cpp'
         ],
         depends=[
-            'ris_widget/ndimage_statistics/_ndimage_statistics.h',
-            'ris_widget/ndimage_statistics/resampling_lut.h'
+            'ris_widget/ndimage_statistics/NDImageStatistics.h',
+            'ris_widget/ndimage_statistics/NDImageStatistics_impl.h',
+            'ris_widget/ndimage_statistics/Luts.h'
         ],
         include_dirs=[
             numpy.get_include(),
@@ -164,4 +161,4 @@ setuptools.setup(
         'ris_widget.qwidgets'
     ],
     cmdclass={'build_ext': BuildExt},
-    version = '1.4')
+    version = '1.5')
