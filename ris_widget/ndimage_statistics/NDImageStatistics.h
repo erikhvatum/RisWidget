@@ -26,6 +26,7 @@
 #include <Python.h>
 #include <numpy/npy_common.h>
 #define _USE_MATH_DEFINES
+#include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -75,12 +76,41 @@ template<typename T>
 struct Mask;
 
 template<typename T>
-struct Cursor
+struct CursorBase
 {
-//  Cursor(
+    explicit CursorBase(std::shared_ptr<typed_array_t<T>>& data_py_);
+    CursorBase(const CursorBase&) = delete;
+    CursorBase& operator = (const CursorBase&) = delete;
+    virtual ~CursorBase() = default;
+
+    virtual void advance_pixel() = 0;
+    void advance_component();
 
     std::shared_ptr<typed_array_t<T>> data_py;
-    std::shared_ptr<const Mask<T>> mask;
+    py::buffer_info data_bi;
+    bool pixel_valid, component_valid;
+
+    const std::size_t scanline_stride;
+    const std::uint8_t* scanline_raw;
+    const std::uint8_t* scanlines_raw_end;
+
+    const std::size_t pixel_stride;
+    const std::uint8_t* pixel_raw;
+    const std::uint8_t* pixels_raw_end;
+
+    const std::size_t component_stride;
+    const std::uint8_t* component_raw;
+    const std::uint8_t* components_raw_end;
+    const T*& component;
+};
+
+template<typename T>
+struct Cursor
+  : CursorBase<T>
+{
+    explicit Cursor(std::shared_ptr<typed_array_t<T>>& data_py_);
+
+    void advance_pixel() override;
 };
 
 template<typename T>
@@ -88,7 +118,12 @@ struct Mask
 {
     static void expose_via_pybind11(py::module& m);
 
+    Mask() = default;
+    Mask(const Mask&) = delete;
+    Mask& operator = (const Mask&) = delete;
     virtual ~Mask() = default;
+
+    virtual Cursor<T>* make_cursor(std::shared_ptr<typed_array_t<T>>& data_py);
 };
 
 template<typename T>
@@ -128,7 +163,7 @@ struct StatsBase
     virtual ~StatsBase() = default;
 
     std::tuple<T, T> extrema;
-    std::uint64_t max_bin;
+    std::size_t max_bin;
     // histogram_py is a shared pointer with a GIL-aware deleter
     std::shared_ptr<typed_array_t<std::uint64_t>> histogram_py;
 };
@@ -183,13 +218,6 @@ struct ImageStats
     std::vector<std::shared_ptr<Stats<T>>> channel_stats;
 };
 
-// template<typename T, typename MASK_T>
-// struct StatComputer
-// {
-//     StatComputer(const StatComputer&) = delete;
-//     StatComputer& operator = (const StatComputer&) = delete;
-// };
-
 template<typename T>
 class NDImageStatistics
   : public std::enable_shared_from_this<NDImageStatistics<T>>
@@ -225,12 +253,12 @@ protected:
     // form of a shared_ptr and only bother acquiring the GIL and decrementing the Python reference count when ours has 
     // dropped to zero. The GIL-aware deleter is needed as worker threads may be the last to hold a data_py reference.
     std::shared_ptr<typed_array_t<T>> data_py;
-    std::shared_ptr<const Mask<T>> mask;
+    std::shared_ptr<Mask<T>> mask;
     std::shared_future<std::shared_ptr<ImageStats<T>>> image_stats;
     const bool drop_last_channel_from_overall_stats;
 
     NDImageStatistics(typed_array_t<T>& data_py_,
-                      std::shared_ptr<const Mask<T>>&& mask_,
+                      std::shared_ptr<Mask<T>>&& mask_,
                       bool drop_last_channel_from_overall_stats_);
 };
 

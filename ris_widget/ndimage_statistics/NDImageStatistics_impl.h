@@ -32,6 +32,37 @@ std::size_t bin_count()
 }
 
 template<typename T>
+CursorBase<T>::CursorBase(std::shared_ptr<typed_array_t<T>>& data_py_)
+  : data_py(data_py_),
+    data_bi(data_py->request()),
+    scanline_stride(data_bi.strides[1]),
+    pixel_stride(data_bi.strides[0]),
+    component_stride(data_bi.strides.back()),
+    component(reinterpret_cast<const T*&>(component_raw))
+{
+}
+
+template<typename T>
+void CursorBase<T>::advance_component()
+{
+    assert(pixel_valid);
+    assert(component_valid);
+    component_raw += component_stride;
+    component_valid = component_raw < components_raw_end;
+}
+
+template<typename T>
+Cursor<T>::Cursor(std::shared_ptr<typed_array_t<T>>& data_py_)
+  : CursorBase<T>(data_py_)
+{
+}
+
+template<typename T>
+void Cursor<T>::advance_pixel()
+{
+}
+
+template<typename T>
 void Mask<T>::expose_via_pybind11(py::module& m)
 {
     std::string s = std::string("_Mask_") + component_type_names[std::type_index(typeid(T))];
@@ -39,17 +70,26 @@ void Mask<T>::expose_via_pybind11(py::module& m)
 }
 
 template<typename T>
+Cursor<T>* Mask<T>::make_cursor(std::shared_ptr<typed_array_t<T>>& data_py)
+{
+    py::gil_scoped_acquire acquire_gil;
+    return new Cursor<T>(data_py);
+}
+
+template<typename T>
 void BitmapMask<T>::expose_via_pybind11(py::module& m)
 {
     std::string s = std::string("_BitmapMask_") + component_type_names[std::type_index(typeid(T))];
     py::class_<BitmapMask<T>, std::shared_ptr<BitmapMask<T>>>(m, s.c_str(), py::base<Mask<T>>())
-        .def_readonly("bitmap", &BitmapMask<T>::bitmap_py);
+        .def_property_readonly("bitmap", [](BitmapMask<T>& v){return *v.bitmap_py;});
 }
 
 template<typename T>
 BitmapMask<T>::BitmapMask(typed_array_t<std::uint8_t>& bitmap_py_)
 {
-    py::gil_scoped_acquire acquire_gil;
+    py::buffer_info bi(bitmap_py_.request());
+    if(bi.ndim != 2) throw std::invalid_argument("bitmap mask must be 2 dimensional.");
+    if(bi.strides[0] > bi.strides[1]) throw std::invalid_argument("bitmap mask striding must be (X, Y).");
     bitmap_py.reset(new typed_array_t<std::uint8_t>(bitmap_py_), &safe_py_deleter);
 }
 
@@ -85,6 +125,7 @@ void StatsBase<T>::expose_via_pybind11(py::module& m)
     std::string s = std::string("_StatsBase_") + component_type_names[std::type_index(typeid(T))];
     py::class_<StatsBase<T>, std::shared_ptr<StatsBase<T>>>(m, s.c_str())
         .def_readonly("extrema", &StatsBase<T>::extrema)
+        .def_readonly("max_bin", &StatsBase<T>::max_bin)
         .def_property_readonly("histogram", [](StatsBase<T>& v){return *v.histogram_py;});
 }
 
@@ -149,7 +190,8 @@ template<typename T>
 ImageStats<T>::ImageStats(std::shared_ptr<NDImageStatistics<T>> parent)
 {
     std::weak_ptr<NDImageStatistics<T>> w_parent = parent;
-    std::shared_ptr<typed_array_t<T>> data_py{parent->data_py};
+    std::unique_ptr<Cursor<T>> cursor(parent->mask->make_cursor(parent->data_py));
+    parent.reset();
 }
 
 template<typename T>
@@ -205,7 +247,7 @@ NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
 
 template<typename T>
 NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
-                                        std::shared_ptr<const Mask<T>>&& mask_,
+                                        std::shared_ptr<Mask<T>>&& mask_,
                                         bool drop_last_channel_from_overall_stats_)
   : data_py(std::shared_ptr<typed_array_t<T>>(new typed_array_t<T>(data_py_), &safe_py_deleter)),
     mask(mask_),
