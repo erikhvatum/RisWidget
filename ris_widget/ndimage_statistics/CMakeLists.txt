@@ -116,6 +116,9 @@ if (WIN32)
 else ()
     add_custom_command(TARGET _ndimage_statistics
                        POST_BUILD
-                       COMMAND cp -fv --remove-destination ${_PYTHON_MODULE_LOCATION} "${PROJECT_SOURCE_DIR}/_ndimage_statistics.so")
+                       COMMAND rm -fv "${PROJECT_SOURCE_DIR}/_ndimage_statistics.so")
+    add_custom_command(TARGET _ndimage_statistics
+                       POST_BUILD
+                       COMMAND cp -v ${_PYTHON_MODULE_LOCATION} "${PROJECT_SOURCE_DIR}/_ndimage_statistics.so")
 endif ()
 unset(_PYTHON_MODULE_LOCATION)

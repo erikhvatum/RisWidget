@@ -443,6 +443,7 @@ class LayerTableModel(LayerTableDragDropBehavior, om.signaling_list.RecursivePro
         self.signaling_list = layers
 
     def _refresh_column(self, column):
+        return
         if self.signaling_list is not None:
             self.dataChanged.emit(self.createIndex(0, column), self.createIndex(len(self.signaling_list)-1, column))
 

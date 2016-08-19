@@ -46,6 +46,12 @@ pagesize = 1
 pages_im_fpaths = list(im_fpaths[i*pagesize:(i+1)*pagesize] for i in range(int(len(im_fpaths)/pagesize)))
 rw.flipbook.add_image_files(pages_im_fpaths)
 
+btn = Qt.QPushButton('do thing')
+btn.show()
+def on_btn():
+    rw.image.set(data=numpy.zeros((100,100), dtype=numpy.uint8))
+btn.clicked.connect(on_btn)
+
 # import yappi
 # def on_flipbook_playing_toggled(is_playing):
 #     if is_playing:

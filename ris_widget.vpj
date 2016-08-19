@@ -242,6 +242,7 @@
                 <F N="ris_widget/ndimage_statistics/_measures_fast.py"/>
                 <F N="ris_widget/ndimage_statistics/_measures_slow.py"/>
                 <F N="ris_widget/ndimage_statistics/_ndimage_statistics.cpp"/>
+                <F N="ris_widget/ndimage_statistics/CMakeLists.txt"/>
                 <F N="ris_widget/ndimage_statistics/Luts.cpp"/>
                 <F N="ris_widget/ndimage_statistics/Luts.h"/>
                 <F N="ris_widget/ndimage_statistics/ndimage_statistics.py"/>
