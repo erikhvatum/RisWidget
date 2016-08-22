@@ -78,23 +78,24 @@ struct Mask;
 template<typename T>
 struct CursorBase
 {
-    explicit CursorBase(std::shared_ptr<typed_array_t<T>>& data_py_);
+    explicit CursorBase(typed_array_t<T>& data_py);
     CursorBase(const CursorBase&) = delete;
     CursorBase& operator = (const CursorBase&) = delete;
     virtual ~CursorBase() = default;
 
-    std::shared_ptr<typed_array_t<T>> data_py;
-    py::buffer_info data_bi;
     bool pixel_valid, component_valid;
 
+    const std::size_t scanline_count;
     const std::size_t scanline_stride;
     const std::uint8_t* scanline_raw;
-    const std::uint8_t* scanlines_raw_end;
+    const std::uint8_t*const scanlines_raw_end;
 
+    const std::size_t scanline_width;
     const std::size_t pixel_stride;
     const std::uint8_t* pixel_raw;
     const std::uint8_t* pixels_raw_end;
 
+    const std::size_t component_count;
     const std::size_t component_stride;
     const std::uint8_t* component_raw;
     const std::uint8_t* components_raw_end;
@@ -125,7 +126,7 @@ template<typename T, typename MASK_T>
 struct Cursor
   : NonPerComponentMaskCursor<T>
 {
-    using NonPerComponentMaskCursor<T>::NonPerComponentMaskCursor;
+    Cursor(typed_array_t<T>& data_py, MASK_T& mask_);
 
     void advance_pixel();
 };
@@ -140,15 +141,18 @@ struct BitmapMask
 
     // bitmap_py is a shared pointer with a GIL-aware deleter
     std::shared_ptr<typed_array_t<std::uint8_t>> bitmap_py;
+    py::buffer_info bitmap_bi;
 };
 
 template<typename T>
 struct Cursor<T, BitmapMask<T>>
   : NonPerComponentMaskCursor<T>
 {
-    using NonPerComponentMaskCursor<T>::NonPerComponentMaskCursor;
+    Cursor(typed_array_t<T>& data_py, BitmapMask<T>& mask_);
 
     void advance_pixel();
+
+    BitmapMask<T>& mask;
 };
 
 template<typename T>
@@ -169,9 +173,11 @@ template<typename T>
 struct Cursor<T, CircularMask<T>>
   : NonPerComponentMaskCursor<T>
 {
-    using NonPerComponentMaskCursor<T>::NonPerComponentMaskCursor;
+    Cursor(typed_array_t<T>& data_py, CircularMask<T>& mask_);
 
     void advance_pixel();
+
+    CircularMask<T>& mask;
 };
 
 template<typename T>

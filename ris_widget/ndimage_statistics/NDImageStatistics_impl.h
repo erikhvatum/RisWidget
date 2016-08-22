@@ -32,14 +32,28 @@ std::size_t bin_count()
 }
 
 template<typename T>
-CursorBase<T>::CursorBase(std::shared_ptr<typed_array_t<T>>& data_py_)
-  : data_py(data_py_),
-    data_bi(data_py->request()),
-    scanline_stride(data_bi.strides[1]),
-    pixel_stride(data_bi.strides[0]),
-    component_stride(data_bi.strides.back()),
+CursorBase<T>::CursorBase(typed_array_t<T>& data_py)
+  : scanline_count(0),
+    scanline_stride(0),
+    scanlines_raw_end(nullptr),
+    scanline_width(0),
+    pixel_stride(0),
+    component_count(1),
+    component_stride(sizeof(T)),
     component(reinterpret_cast<const T*&>(component_raw))
 {
+    py::buffer_info data_bi(data_py.request());
+    const_cast<std::size_t&>(scanline_count) = data_bi.shape[1];
+    const_cast<std::size_t&>(scanline_stride) = data_bi.strides[1];
+    scanline_raw = reinterpret_cast<std::uint8_t*>(data_bi.ptr);
+    const_cast<const std::uint8_t*&>(scanlines_raw_end) = scanline_raw + scanline_stride * data_bi.shape[1];
+    const_cast<std::size_t&>(scanline_width) = data_bi.strides[0];
+    const_cast<std::size_t&>(pixel_stride) = data_bi.strides[0];
+    if(data_bi.ndim == 3)
+    {
+        const_cast<std::size_t&>(component_count) = data_bi.shape[2];
+        const_cast<std::size_t&>(component_stride) = data_bi.strides[2];
+    }
 }
 
 template<typename T>
@@ -66,6 +80,12 @@ void Mask<T>::expose_via_pybind11(py::module& m)
 // }
 
 template<typename T, typename MASK_T>
+Cursor<T, MASK_T>::Cursor(typed_array_t<T>& data_py, MASK_T& /*mask_*/)
+  : NonPerComponentMaskCursor<T>(data_py)
+{
+}
+
+template<typename T, typename MASK_T>
 void Cursor<T, MASK_T>::advance_pixel()
 {
 }
@@ -80,11 +100,18 @@ void BitmapMask<T>::expose_via_pybind11(py::module& m)
 
 template<typename T>
 BitmapMask<T>::BitmapMask(typed_array_t<std::uint8_t>& bitmap_py_)
+  : bitmap_bi(bitmap_py_.request())
 {
-    py::buffer_info bi(bitmap_py_.request());
-    if(bi.ndim != 2) throw std::invalid_argument("bitmap mask must be 2 dimensional.");
-    if(bi.strides[0] > bi.strides[1]) throw std::invalid_argument("bitmap mask striding must be (X, Y).");
+    if(bitmap_bi.ndim != 2) throw std::invalid_argument("bitmap mask must be 2 dimensional.");
+    if(bitmap_bi.strides[0] > bitmap_bi.strides[1]) throw std::invalid_argument("bitmap mask striding must be (X, Y).");
     bitmap_py.reset(new typed_array_t<std::uint8_t>(bitmap_py_), &safe_py_deleter);
+}
+
+template<typename T>
+Cursor<T, BitmapMask<T>>::Cursor(typed_array_t<T>& data_py, BitmapMask<T>& mask_)
+  : NonPerComponentMaskCursor<T>(data_py),
+    mask(mask_)
+{
 }
 
 template<typename T>
@@ -115,6 +142,13 @@ CircularMask<T>::CircularMask(TupleArg t)
   : center_x(std::get<0>(std::get<0>(t))),
     center_y(std::get<1>(std::get<0>(t))),
     radius(std::get<1>(t))
+{
+}
+
+template<typename T>
+Cursor<T, CircularMask<T>>::Cursor(typed_array_t<T>& data_py, CircularMask<T>& mask_)
+  : NonPerComponentMaskCursor<T>(data_py),
+    mask(mask_)
 {
 }
 
@@ -293,6 +327,9 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDIma
         std::shared_ptr<MASK_T> mask{std::dynamic_pointer_cast<MASK_T>(this_sp->mask)};
         bool drop_last_channel_from_overall_stats{this_sp->drop_last_channel_from_overall_stats};
         this_sp.reset();
+        auto acquire_gil = std::make_shared<py::gil_scoped_acquire>();
+        Cursor<T, MASK_T> cursor(*data_py, *mask);
+        acquire_gil.reset();
     }
     return stats;
 }
