@@ -28,7 +28,7 @@ import freeimage
 
 im = freeimage.read('/home/ehvatum/m1_hubble.jpg')
 mask = (freeimage.read('/home/ehvatum/code_repositories/ris_widget/top_left_g.png') / 256).astype(numpy.uint8)
-stats = _ndimage_statistics.NDImageStatistics(im, mask, False)
+stats = _ndimage_statistics.NDImageStatistics(im, (0, 255), mask, False)
 stats.launch_computation()
 print(stats.image_stats.extrema)
 import sys

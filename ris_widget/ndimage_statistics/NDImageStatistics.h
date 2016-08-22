@@ -253,13 +253,16 @@ public:
 
     // No mask
     NDImageStatistics(typed_array_t<T>& data_py_,
+                      const std::pair<T, T>& range_,
                       bool drop_last_channel_from_overall_stats_);
     // Bitmap mask
     NDImageStatistics(typed_array_t<T>& data_py_,
+                      const std::pair<T, T>& range_,
                       typed_array_t<std::uint8_t>& mask_,
                       bool drop_last_channel_from_overall_stats_);
     // Circular mask
     NDImageStatistics(typed_array_t<T>& data_py_,
+                      const std::pair<T, T>& range_,
                       typename CircularMask<T>::TupleArg mask_,
                       bool drop_last_channel_from_overall_stats_);
     // Not constructable with no parameters
@@ -278,12 +281,14 @@ protected:
     // form of a shared_ptr and only bother acquiring the GIL and decrementing the Python reference count when ours has 
     // dropped to zero. The GIL-aware deleter is needed as worker threads may be the last to hold a data_py reference.
     std::shared_ptr<typed_array_t<T>> data_py;
+    std::pair<T, T> range;
     std::shared_ptr<Mask<T>> mask;
     std::shared_future<std::shared_ptr<ImageStats<T>>> image_stats;
     const bool drop_last_channel_from_overall_stats;
     std::shared_ptr<ImageStats<T>>(*compute_fn)(std::weak_ptr<NDImageStatistics<T>>);
 
     NDImageStatistics(typed_array_t<T>& data_py_,
+                      const std::pair<T, T>& range_,
                       std::shared_ptr<Mask<T>>&& mask_,
                       bool drop_last_channel_from_overall_stats_,
                       std::shared_ptr<ImageStats<T>>(*compute_fn_)(std::weak_ptr<NDImageStatistics<T>>));
