@@ -83,9 +83,6 @@ struct CursorBase
     CursorBase& operator = (const CursorBase&) = delete;
     virtual ~CursorBase() = default;
 
-    virtual void advance_pixel() = 0;
-    void advance_component();
-
     std::shared_ptr<typed_array_t<T>> data_py;
     py::buffer_info data_bi;
     bool pixel_valid, component_valid;
@@ -105,12 +102,12 @@ struct CursorBase
 };
 
 template<typename T>
-struct Cursor
+struct NonPerComponentMaskCursor
   : CursorBase<T>
 {
-    explicit Cursor(std::shared_ptr<typed_array_t<T>>& data_py_);
+    using CursorBase<T>::CursorBase;
 
-    void advance_pixel() override;
+    void advance_component();
 };
 
 template<typename T>
@@ -122,8 +119,15 @@ struct Mask
     Mask(const Mask&) = delete;
     Mask& operator = (const Mask&) = delete;
     virtual ~Mask() = default;
+};
 
-    virtual Cursor<T>* make_cursor(std::shared_ptr<typed_array_t<T>>& data_py);
+template<typename T, typename MASK_T>
+struct Cursor
+  : NonPerComponentMaskCursor<T>
+{
+    using NonPerComponentMaskCursor<T>::NonPerComponentMaskCursor;
+
+    void advance_pixel();
 };
 
 template<typename T>
@@ -139,6 +143,15 @@ struct BitmapMask
 };
 
 template<typename T>
+struct Cursor<T, BitmapMask<T>>
+  : NonPerComponentMaskCursor<T>
+{
+    using NonPerComponentMaskCursor<T>::NonPerComponentMaskCursor;
+
+    void advance_pixel();
+};
+
+template<typename T>
 struct CircularMask
   : Mask<T>
 {
@@ -150,6 +163,15 @@ struct CircularMask
     explicit CircularMask(TupleArg t);
 
     double center_x, center_y, radius;
+};
+
+template<typename T>
+struct Cursor<T, CircularMask<T>>
+  : NonPerComponentMaskCursor<T>
+{
+    using NonPerComponentMaskCursor<T>::NonPerComponentMaskCursor;
+
+    void advance_pixel();
 };
 
 template<typename T>
@@ -212,9 +234,6 @@ struct ImageStats
     Stats<T>
 {
     static void expose_via_pybind11(py::module& m);
-
-    explicit ImageStats(std::shared_ptr<NDImageStatistics<T>> parent);
-
     std::vector<std::shared_ptr<Stats<T>>> channel_stats;
 };
 
@@ -256,10 +275,14 @@ protected:
     std::shared_ptr<Mask<T>> mask;
     std::shared_future<std::shared_ptr<ImageStats<T>>> image_stats;
     const bool drop_last_channel_from_overall_stats;
+    std::function<std::shared_ptr<ImageStats<T>>()> compute_call;
 
     NDImageStatistics(typed_array_t<T>& data_py_,
                       std::shared_ptr<Mask<T>>&& mask_,
                       bool drop_last_channel_from_overall_stats_);
+
+    template<typename MASK_T>
+    static std::shared_ptr<ImageStats<T>> compute(std::shared_ptr<MASK_T> mask, bool drop_last_channel_from_overall_stats);
 };
 
 #include "NDImageStatistics_impl.h"

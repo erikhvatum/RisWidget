@@ -43,23 +43,12 @@ CursorBase<T>::CursorBase(std::shared_ptr<typed_array_t<T>>& data_py_)
 }
 
 template<typename T>
-void CursorBase<T>::advance_component()
+void NonPerComponentMaskCursor<T>::advance_component()
 {
-    assert(pixel_valid);
-    assert(component_valid);
-    component_raw += component_stride;
-    component_valid = component_raw < components_raw_end;
-}
-
-template<typename T>
-Cursor<T>::Cursor(std::shared_ptr<typed_array_t<T>>& data_py_)
-  : CursorBase<T>(data_py_)
-{
-}
-
-template<typename T>
-void Cursor<T>::advance_pixel()
-{
+    assert(this->pixel_valid);
+    assert(this->component_valid);
+    this->component_raw += this->component_stride;
+    this->component_valid = this->component_raw < this->components_raw_end;
 }
 
 template<typename T>
@@ -69,11 +58,16 @@ void Mask<T>::expose_via_pybind11(py::module& m)
     py::class_<Mask<T>, std::shared_ptr<Mask<T>>>(m, s.c_str());
 }
 
-template<typename T>
-Cursor<T>* Mask<T>::make_cursor(std::shared_ptr<typed_array_t<T>>& data_py)
+// template<typename T>
+// Cursor<T>* Mask<T>::make_cursor(std::shared_ptr<typed_array_t<T>>& data_py)
+// {
+//  py::gil_scoped_acquire acquire_gil;
+//  return new Cursor<T>(data_py);
+// }
+
+template<typename T, typename MASK_T>
+void Cursor<T, MASK_T>::advance_pixel()
 {
-    py::gil_scoped_acquire acquire_gil;
-    return new Cursor<T>(data_py);
 }
 
 template<typename T>
@@ -91,6 +85,11 @@ BitmapMask<T>::BitmapMask(typed_array_t<std::uint8_t>& bitmap_py_)
     if(bi.ndim != 2) throw std::invalid_argument("bitmap mask must be 2 dimensional.");
     if(bi.strides[0] > bi.strides[1]) throw std::invalid_argument("bitmap mask striding must be (X, Y).");
     bitmap_py.reset(new typed_array_t<std::uint8_t>(bitmap_py_), &safe_py_deleter);
+}
+
+template<typename T>
+void Cursor<T, BitmapMask<T>>::advance_pixel()
+{
 }
 
 template<typename T>
@@ -116,6 +115,11 @@ CircularMask<T>::CircularMask(TupleArg t)
   : center_x(std::get<0>(std::get<0>(t))),
     center_y(std::get<1>(std::get<0>(t))),
     radius(std::get<1>(t))
+{
+}
+
+template<typename T>
+void Cursor<T, CircularMask<T>>::advance_pixel()
 {
 }
 
@@ -187,14 +191,6 @@ void ImageStats<T>::expose_via_pybind11(py::module& m)
 }
 
 template<typename T>
-ImageStats<T>::ImageStats(std::shared_ptr<NDImageStatistics<T>> parent)
-{
-    std::weak_ptr<NDImageStatistics<T>> w_parent = parent;
-    std::unique_ptr<Cursor<T>> cursor(parent->mask->make_cursor(parent->data_py));
-    parent.reset();
-}
-
-template<typename T>
 void NDImageStatistics<T>::expose_via_pybind11(py::module& m, const std::string& s)
 {
     Mask<T>::expose_via_pybind11(m);
@@ -225,24 +221,39 @@ void NDImageStatistics<T>::expose_via_pybind11(py::module& m, const std::string&
 template<typename T>
 NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
                                         bool drop_last_channel_from_overall_stats_)
-  : NDImageStatistics<T>(data_py_, std::make_shared<Mask<T>>(), drop_last_channel_from_overall_stats_)
+  : NDImageStatistics<T>(data_py_,
+                         std::make_shared<Mask<T>>(),
+                         drop_last_channel_from_overall_stats_)
 {
+    compute_call = std::bind(&NDImageStatistics<T>::compute<Mask<T>>,
+                             mask,
+                             drop_last_channel_from_overall_stats);
 }
 
 template<typename T>
 NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
                                         typed_array_t<std::uint8_t>& mask_,
                                         bool drop_last_channel_from_overall_stats_)
-  : NDImageStatistics<T>(data_py_, std::make_shared<BitmapMask<T>>(mask_), drop_last_channel_from_overall_stats_)
+  : NDImageStatistics<T>(data_py_,
+                         std::make_shared<BitmapMask<T>>(mask_),
+                         drop_last_channel_from_overall_stats_)
 {
+    compute_call = std::bind(&NDImageStatistics<T>::compute<BitmapMask<T>>,
+                             std::dynamic_pointer_cast<BitmapMask<T>>(mask),
+                             drop_last_channel_from_overall_stats);
 }
 
 template<typename T>
 NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
                                         typename CircularMask<T>::TupleArg mask_,
                                         bool drop_last_channel_from_overall_stats_)
-  : NDImageStatistics<T>(data_py_, std::make_shared<CircularMask<T>>(mask_), drop_last_channel_from_overall_stats_)
+  : NDImageStatistics<T>(data_py_,
+                         std::make_shared<CircularMask<T>>(mask_),
+                         drop_last_channel_from_overall_stats_)
 {
+    compute_call = std::bind(&NDImageStatistics<T>::compute<CircularMask<T>>,
+                             std::dynamic_pointer_cast<CircularMask<T>>(mask),
+                             drop_last_channel_from_overall_stats);
 }
 
 template<typename T>
@@ -261,8 +272,7 @@ NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
 template<typename T>
 void NDImageStatistics<T>::launch_computation()
 {
-    std::shared_ptr<NDImageStatistics<T>> s_this{this->shared_from_this()};
-    image_stats = std::async(std::launch::async, [=]{return std::make_shared<ImageStats<T>>(s_this);});
+    image_stats = std::async(std::launch::async, [=]{return compute_call();});
 }
 
 template<typename T>
@@ -273,4 +283,12 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::get_image_stats()
     // structures). 
     py::gil_scoped_release release_gil;
     return image_stats.get();
+}
+
+template<typename T>
+template<typename MASK_T>
+std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::shared_ptr<MASK_T> mask, bool drop_last_channel_from_overall_stats)
+{
+    std::shared_ptr<ImageStats<T>> stats(new ImageStats<T>());
+    return stats;
 }
