@@ -223,11 +223,9 @@ NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
                                         bool drop_last_channel_from_overall_stats_)
   : NDImageStatistics<T>(data_py_,
                          std::make_shared<Mask<T>>(),
-                         drop_last_channel_from_overall_stats_)
+                         drop_last_channel_from_overall_stats_,
+                         &NDImageStatistics<T>::compute<Mask<T>>)
 {
-    compute_call = std::bind(&NDImageStatistics<T>::compute<Mask<T>>,
-                             mask,
-                             drop_last_channel_from_overall_stats);
 }
 
 template<typename T>
@@ -236,11 +234,9 @@ NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
                                         bool drop_last_channel_from_overall_stats_)
   : NDImageStatistics<T>(data_py_,
                          std::make_shared<BitmapMask<T>>(mask_),
-                         drop_last_channel_from_overall_stats_)
+                         drop_last_channel_from_overall_stats_,
+                         &NDImageStatistics<T>::compute<BitmapMask<T>>)
 {
-    compute_call = std::bind(&NDImageStatistics<T>::compute<BitmapMask<T>>,
-                             std::dynamic_pointer_cast<BitmapMask<T>>(mask),
-                             drop_last_channel_from_overall_stats);
 }
 
 template<typename T>
@@ -249,20 +245,20 @@ NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
                                         bool drop_last_channel_from_overall_stats_)
   : NDImageStatistics<T>(data_py_,
                          std::make_shared<CircularMask<T>>(mask_),
-                         drop_last_channel_from_overall_stats_)
+                         drop_last_channel_from_overall_stats_,
+                         &NDImageStatistics<T>::compute<CircularMask<T>>)
 {
-    compute_call = std::bind(&NDImageStatistics<T>::compute<CircularMask<T>>,
-                             std::dynamic_pointer_cast<CircularMask<T>>(mask),
-                             drop_last_channel_from_overall_stats);
 }
 
 template<typename T>
 NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
                                         std::shared_ptr<Mask<T>>&& mask_,
-                                        bool drop_last_channel_from_overall_stats_)
+                                        bool drop_last_channel_from_overall_stats_,
+                                        std::shared_ptr<ImageStats<T>>(*compute_fn_)(std::weak_ptr<NDImageStatistics<T>>))
   : data_py(std::shared_ptr<typed_array_t<T>>(new typed_array_t<T>(data_py_), &safe_py_deleter)),
     mask(mask_),
-    drop_last_channel_from_overall_stats(drop_last_channel_from_overall_stats_)
+    drop_last_channel_from_overall_stats(drop_last_channel_from_overall_stats_),
+    compute_fn(compute_fn_)
 {
     py::buffer_info bi{data_py_.request()};
     if(bi.ndim < 2 || bi.ndim > 3) throw std::invalid_argument("data argument must be 2 or 3 dimensional.");
@@ -272,7 +268,7 @@ NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
 template<typename T>
 void NDImageStatistics<T>::launch_computation()
 {
-    image_stats = std::async(std::launch::async, [=]{return compute_call();});
+    image_stats = std::async(std::launch::async, std::bind(compute_fn, std::weak_ptr<NDImageStatistics<T>>(this->shared_from_this())));
 }
 
 template<typename T>
@@ -287,8 +283,16 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::get_image_stats()
 
 template<typename T>
 template<typename MASK_T>
-std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::shared_ptr<MASK_T> mask, bool drop_last_channel_from_overall_stats)
+std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDImageStatistics<T>> this_wp)
 {
     std::shared_ptr<ImageStats<T>> stats(new ImageStats<T>());
+    std::shared_ptr<NDImageStatistics<T>> this_sp(this_wp.lock());
+    if(this_sp)
+    {
+        std::shared_ptr<typed_array_t<T>> data_py{this_sp->data_py};
+        std::shared_ptr<MASK_T> mask{std::dynamic_pointer_cast<MASK_T>(this_sp->mask)};
+        bool drop_last_channel_from_overall_stats{this_sp->drop_last_channel_from_overall_stats};
+        this_sp.reset();
+    }
     return stats;
 }

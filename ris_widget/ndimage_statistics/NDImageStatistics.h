@@ -275,14 +275,15 @@ protected:
     std::shared_ptr<Mask<T>> mask;
     std::shared_future<std::shared_ptr<ImageStats<T>>> image_stats;
     const bool drop_last_channel_from_overall_stats;
-    std::function<std::shared_ptr<ImageStats<T>>()> compute_call;
+    std::shared_ptr<ImageStats<T>>(*compute_fn)(std::weak_ptr<NDImageStatistics<T>>);
 
     NDImageStatistics(typed_array_t<T>& data_py_,
                       std::shared_ptr<Mask<T>>&& mask_,
-                      bool drop_last_channel_from_overall_stats_);
+                      bool drop_last_channel_from_overall_stats_,
+                      std::shared_ptr<ImageStats<T>>(*compute_fn_)(std::weak_ptr<NDImageStatistics<T>>));
 
     template<typename MASK_T>
-    static std::shared_ptr<ImageStats<T>> compute(std::shared_ptr<MASK_T> mask, bool drop_last_channel_from_overall_stats);
+    static std::shared_ptr<ImageStats<T>> compute(std::weak_ptr<NDImageStatistics<T>> this_wp);
 };
 
 #include "NDImageStatistics_impl.h"
