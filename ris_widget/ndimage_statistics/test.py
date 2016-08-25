@@ -31,6 +31,7 @@ mask = (freeimage.read('/home/ehvatum/code_repositories/ris_widget/top_left_g.pn
 stats = _ndimage_statistics.NDImageStatistics(im, (0, 255), mask, False)
 stats.launch_computation()
 print(stats.image_stats.extrema)
+print(stats.image_stats.histogram)
 import sys
 sys.exit(0)
 

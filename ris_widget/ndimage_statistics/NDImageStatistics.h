@@ -25,6 +25,7 @@
 #pragma once
 #include <Python.h>
 #include <numpy/npy_common.h>
+#include <numpy/arrayobject.h>
 #define _USE_MATH_DEFINES
 #include <cassert>
 #include <cmath>
@@ -43,6 +44,7 @@
 #include <unordered_map>
 #include <vector>
 #include "Luts.h"
+#include "PyArrayView.h"
 
 namespace py = pybind11;
 
@@ -72,16 +74,26 @@ std::size_t bin_count<std::int8_t>();
 // GIL-aware deleter for Python objects likely to be released and refcount-decremented on another (non-Python) thread
 void safe_py_deleter(py::object* py_obj);
 
+// SimpleBufferInfo is like py::buffer_info, differing in that SimpleBufferInfo does not retain keep a Python reference 
+// to the buffer whose info is represented. with only the information we need and without 
+struct SimpleBufferInfo
+{
+    std::size_t ndim;
+
+};
+
 template<typename T>
 struct Mask;
 
 template<typename T>
 struct CursorBase
 {
-    explicit CursorBase(typed_array_t<T>& data_py);
+    explicit CursorBase(PyArrayView& data_view);
     CursorBase(const CursorBase&) = delete;
     CursorBase& operator = (const CursorBase&) = delete;
     virtual ~CursorBase() = default;
+
+    virtual void seek_to_front();
 
     bool pixel_valid, component_valid;
 
@@ -126,7 +138,7 @@ template<typename T, typename MASK_T>
 struct Cursor
   : NonPerComponentMaskCursor<T>
 {
-    Cursor(typed_array_t<T>& data_py, MASK_T& mask_);
+    Cursor(PyArrayView& data_view, MASK_T& mask_);
 
     void advance_pixel();
 };
@@ -139,16 +151,14 @@ struct BitmapMask
 
     explicit BitmapMask(typed_array_t<std::uint8_t>& bitmap_py_);
 
-    // bitmap_py is a shared pointer with a GIL-aware deleter
-    std::shared_ptr<typed_array_t<std::uint8_t>> bitmap_py;
-    py::buffer_info bitmap_bi;
+    PyArrayView bitmap_view;
 };
 
 template<typename T>
 struct Cursor<T, BitmapMask<T>>
   : NonPerComponentMaskCursor<T>
 {
-    Cursor(typed_array_t<T>& data_py, BitmapMask<T>& mask_);
+    Cursor(PyArrayView& data_view, BitmapMask<T>& mask_);
 
     void advance_pixel();
 
@@ -173,7 +183,7 @@ template<typename T>
 struct Cursor<T, CircularMask<T>>
   : NonPerComponentMaskCursor<T>
 {
-    Cursor(typed_array_t<T>& data_py, CircularMask<T>& mask_);
+    Cursor(PyArrayView& data_view, CircularMask<T>& mask_);
 
     void advance_pixel();
 
@@ -192,8 +202,12 @@ struct StatsBase
 
     std::tuple<T, T> extrema;
     std::size_t max_bin;
-    // histogram_py is a shared pointer with a GIL-aware deleter
-    std::shared_ptr<typed_array_t<std::uint64_t>> histogram_py;
+
+    std::shared_ptr<std::vector<std::uint64_t>> histogram;
+    // A numpy array that is a read-only view of histogram. Lazily created in response to get_histogram_py calls.
+    std::unique_ptr<py::object> histogram_py;
+
+    py::object& get_histogram_py();
 };
 
 template<typename T>
@@ -276,11 +290,7 @@ public:
     std::shared_ptr<ImageStats<T>> get_image_stats();
 
 protected:
-    // data_py is a shared pointer with a GIL-aware deleter is kept to avoid the need to acquire the gil whenever the 
-    // C++ reference count to the array changes. In other words, we keep our own fast, atomic reference count in the 
-    // form of a shared_ptr and only bother acquiring the GIL and decrementing the Python reference count when ours has 
-    // dropped to zero. The GIL-aware deleter is needed as worker threads may be the last to hold a data_py reference.
-    std::shared_ptr<typed_array_t<T>> data_py;
+    std::shared_ptr<PyArrayView> data_view;
     std::pair<T, T> range;
     std::shared_ptr<Mask<T>> mask;
     std::shared_future<std::shared_ptr<ImageStats<T>>> image_stats;

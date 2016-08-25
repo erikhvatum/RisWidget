@@ -32,8 +32,10 @@ std::size_t bin_count()
 }
 
 template<typename T>
-CursorBase<T>::CursorBase(typed_array_t<T>& data_py)
-  : scanline_count(0),
+CursorBase<T>::CursorBase(PyArrayView& data_view)
+  : pixel_valid(false),
+    component_valid(false),
+    scanline_count(0),
     scanline_stride(0),
     scanlines_raw_end(nullptr),
     scanline_width(0),
@@ -42,18 +44,24 @@ CursorBase<T>::CursorBase(typed_array_t<T>& data_py)
     component_stride(sizeof(T)),
     component(reinterpret_cast<const T*&>(component_raw))
 {
-    py::buffer_info data_bi(data_py.request());
-    const_cast<std::size_t&>(scanline_count) = data_bi.shape[1];
-    const_cast<std::size_t&>(scanline_stride) = data_bi.strides[1];
-    scanline_raw = reinterpret_cast<std::uint8_t*>(data_bi.ptr);
-    const_cast<const std::uint8_t*&>(scanlines_raw_end) = scanline_raw + scanline_stride * data_bi.shape[1];
-    const_cast<std::size_t&>(scanline_width) = data_bi.strides[0];
-    const_cast<std::size_t&>(pixel_stride) = data_bi.strides[0];
-    if(data_bi.ndim == 3)
+    const_cast<std::size_t&>(scanline_count) = data_view.shape[1];
+    const_cast<std::size_t&>(scanline_stride) = data_view.strides[1];
+    scanline_raw = reinterpret_cast<std::uint8_t*>(data_view.buf);
+    const_cast<const std::uint8_t*&>(scanlines_raw_end) = scanline_raw + scanline_stride * scanline_count;
+    const_cast<std::size_t&>(scanline_width) = data_view.shape[0];
+    const_cast<std::size_t&>(pixel_stride) = data_view.strides[0];
+    if(data_view.ndim == 3)
     {
-        const_cast<std::size_t&>(component_count) = data_bi.shape[2];
-        const_cast<std::size_t&>(component_stride) = data_bi.strides[2];
+        const_cast<std::size_t&>(component_count) = data_view.shape[2];
+        const_cast<std::size_t&>(component_stride) = data_view.strides[2];
     }
+    seek_to_front();
+}
+
+template<typename T>
+void CursorBase<T>::seek_to_front()
+{
+    
 }
 
 template<typename T>
@@ -73,8 +81,8 @@ void Mask<T>::expose_via_pybind11(py::module& m)
 }
 
 template<typename T, typename MASK_T>
-Cursor<T, MASK_T>::Cursor(typed_array_t<T>& data_py, MASK_T& /*mask_*/)
-  : NonPerComponentMaskCursor<T>(data_py)
+Cursor<T, MASK_T>::Cursor(PyArrayView& data_view, MASK_T& /*mask_*/)
+  : NonPerComponentMaskCursor<T>(data_view)
 {
 }
 
@@ -87,22 +95,21 @@ template<typename T>
 void BitmapMask<T>::expose_via_pybind11(py::module& m)
 {
     std::string s = std::string("_BitmapMask_") + component_type_names[std::type_index(typeid(T))];
-    py::class_<BitmapMask<T>, std::shared_ptr<BitmapMask<T>>>(m, s.c_str(), py::base<Mask<T>>())
-        .def_property_readonly("bitmap", [](BitmapMask<T>& v){return *v.bitmap_py;});
+    py::class_<BitmapMask<T>, std::shared_ptr<BitmapMask<T>>>(m, s.c_str(), py::base<Mask<T>>());
+//        .def_property_readonly("bitmap", [](BitmapMask<T>& v){return *v.bitmap_py;});
 }
 
 template<typename T>
 BitmapMask<T>::BitmapMask(typed_array_t<std::uint8_t>& bitmap_py_)
-  : bitmap_bi(bitmap_py_.request())
+  : bitmap_view(bitmap_py_)
 {
-    if(bitmap_bi.ndim != 2) throw std::invalid_argument("bitmap mask must be 2 dimensional.");
-    if(bitmap_bi.strides[0] > bitmap_bi.strides[1]) throw std::invalid_argument("bitmap mask striding must be (X, Y).");
-    bitmap_py.reset(new typed_array_t<std::uint8_t>(bitmap_py_), &safe_py_deleter);
+    if(bitmap_view.ndim != 2) throw std::invalid_argument("bitmap mask must be 2 dimensional.");
+    if(bitmap_view.strides[0] > bitmap_view.strides[1]) throw std::invalid_argument("bitmap mask striding must be (X, Y).");
 }
 
 template<typename T>
-Cursor<T, BitmapMask<T>>::Cursor(typed_array_t<T>& data_py, BitmapMask<T>& mask_)
-  : NonPerComponentMaskCursor<T>(data_py),
+Cursor<T, BitmapMask<T>>::Cursor(PyArrayView& data_view, BitmapMask<T>& mask_)
+  : NonPerComponentMaskCursor<T>(data_view),
     mask(mask_)
 {
 }
@@ -139,8 +146,8 @@ CircularMask<T>::CircularMask(TupleArg t)
 }
 
 template<typename T>
-Cursor<T, CircularMask<T>>::Cursor(typed_array_t<T>& data_py, CircularMask<T>& mask_)
-  : NonPerComponentMaskCursor<T>(data_py),
+Cursor<T, CircularMask<T>>::Cursor(PyArrayView& data_view, CircularMask<T>& mask_)
+  : NonPerComponentMaskCursor<T>(data_view),
     mask(mask_)
 {
 }
@@ -157,25 +164,28 @@ void StatsBase<T>::expose_via_pybind11(py::module& m)
     py::class_<StatsBase<T>, std::shared_ptr<StatsBase<T>>>(m, s.c_str())
         .def_readonly("extrema", &StatsBase<T>::extrema)
         .def_readonly("max_bin", &StatsBase<T>::max_bin)
-        .def_property_readonly("histogram", [](StatsBase<T>& v){return *v.histogram_py;});
+        .def_readonly("histogram_buff", &StatsBase<T>::histogram)
+        .def_property_readonly("histogram", [](StatsBase<T>& v){return v.get_histogram_py();});
 }
 
 template<typename T>
 StatsBase<T>::StatsBase()
   : extrema(0, 0),
-    max_bin(0)
+    max_bin(0),
+    histogram(new std::vector<std::uint64_t>(bin_count<T>(), 0)),
+    histogram_py(nullptr)
 {
-    py::gil_scoped_acquire acquire_gil;
-    histogram_py.reset(
-       new typed_array_t<std::uint64_t>(
-          py::buffer_info(
-             nullptr,
-             sizeof(std::uint64_t),
-             py::format_descriptor<std::uint64_t>::value,
-             1,
-             {bin_count<T>()},
-             {sizeof(std::uint64_t)})),
-       &safe_py_deleter);
+}
+
+template<typename T>
+py::object& StatsBase<T>::get_histogram_py()
+{
+    if(!histogram_py)
+    {
+        py::object buffer_obj = py::cast(histogram);
+        histogram_py.reset(new py::object(PyArray_FromAny(buffer_obj.ptr(), nullptr, 1, 1, 0, nullptr), true));
+    }
+    return *histogram_py;
 }
 
 template<typename T>
@@ -228,7 +238,7 @@ void NDImageStatistics<T>::expose_via_pybind11(py::module& m, const std::string&
     name += s;
     py::class_<NDImageStatistics<T>, std::shared_ptr<NDImageStatistics<T>>>(m, name.c_str())
         .def("launch_computation", &NDImageStatistics<T>::launch_computation)
-        .def_property_readonly("data", [](NDImageStatistics<T>& v){return *v.data_py.get();})
+//        .def_property_readonly("data", [](NDImageStatistics<T>& v){return *v.data_py.get();})
         .def_readonly("range", &NDImageStatistics<T>::range)
         .def_readonly("mask", &NDImageStatistics<T>::mask)
         .def_property_readonly("image_stats", &NDImageStatistics<T>::get_image_stats)
@@ -290,15 +300,14 @@ NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
                                         std::shared_ptr<Mask<T>>&& mask_,
                                         bool drop_last_channel_from_overall_stats_,
                                         std::shared_ptr<ImageStats<T>>(*compute_fn_)(std::weak_ptr<NDImageStatistics<T>>))
-  : data_py(std::shared_ptr<typed_array_t<T>>(new typed_array_t<T>(data_py_), &safe_py_deleter)),
+  : data_view(new PyArrayView(data_py_)),
     range(range_),
     mask(mask_),
     drop_last_channel_from_overall_stats(drop_last_channel_from_overall_stats_),
     compute_fn(compute_fn_)
 {
-    py::buffer_info bi{data_py_.request()};
-    if(bi.ndim < 2 || bi.ndim > 3) throw std::invalid_argument("data argument must be 2 or 3 dimensional.");
-    if(bi.strides[0] > bi.strides[1]) throw std::invalid_argument("data argument striding must be (X, Y) or (X, Y, C).");
+    if(data_view->ndim < 2 || data_view->ndim > 3) throw std::invalid_argument("data argument must be 2 or 3 dimensional.");
+    if(data_view->strides[0] > data_view->strides[1]) throw std::invalid_argument("data argument striding must be (X, Y) or (X, Y, C).");
 }
 
 template<typename T>
@@ -310,10 +319,6 @@ void NDImageStatistics<T>::launch_computation()
 template<typename T>
 std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::get_image_stats()
 {
-    // Avoid deadlocking when called from Python just as worker thread is starting (GIL would not be released until we 
-    // return, but we can not return until the future is ready, and the future needs the GIL in order to set up data 
-    // structures). 
-    py::gil_scoped_release release_gil;
     return image_stats.get();
 }
 
@@ -323,16 +328,29 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDIma
 {
     std::shared_ptr<ImageStats<T>> stats(new ImageStats<T>());
     std::shared_ptr<NDImageStatistics<T>> this_sp(this_wp.lock());
+    // (bool)this_sp evaluates to false if the NDImageStatistics instance that asynchronously invoked compute(..) has 
+    // already been deleted. If/when it is deleted, we take this to mean that nobody is interested in the result of the 
+    // current invocation, so this is the mechanism (detecting that our invoking NDImageStatistics instance has been 
+    // deleted) is our early-out cue (further down in this function, we simply check if the weak pointer is expired 
+    // rather than acquiring a shared pointer to it via the lock method because checking if it is expired at that point 
+    // is all we require).
     if(this_sp)
     {
+        // Copy or get reference counted vars to all of the invoking NDImageStatistics instance's data that we will 
+        // need. 
         const std::pair<T, T>& range(this_sp->range);
-        std::shared_ptr<typed_array_t<T>> data_py{this_sp->data_py};
+        std::shared_ptr<PyArrayView> data_view{this_sp->data_view};
         std::shared_ptr<MASK_T> mask{std::dynamic_pointer_cast<MASK_T>(this_sp->mask)};
         bool drop_last_channel_from_overall_stats{this_sp->drop_last_channel_from_overall_stats};
+
+        // We made copies of or reference-counted vars to all of the invoking NDImageStatistics instance's data that we 
+        // need. Now, we drop our reference to that NDImageStatistics instance. It is possible that ours became the last
+        // reference to it; this would be OK and would simply indicate that some Python thread dropped the last existing 
+        // reference other than ours between the evaluation of the condition of the enclosing if statement and this line
+        // of code. If that happened, we early-out before beginning processing of the first image scanline. 
         this_sp.reset();
-        auto acquire_gil = std::make_shared<py::gil_scoped_acquire>();
-        Cursor<T, MASK_T> cursor(*data_py, *mask);
-        acquire_gil.reset();
+
+        Cursor<T, MASK_T> cursor(*data_view, *mask);
 
 
     }

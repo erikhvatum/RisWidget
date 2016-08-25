@@ -28,6 +28,16 @@ PYBIND11_PLUGIN(_ndimage_statistics)
 {
     py::module m("_ndimage_statistics", "ris_widget.ndimage_statistics._ndimage_statistics module");
 
+    py::class_<std::vector<std::uint64_t>, std::shared_ptr<std::vector<std::uint64_t>>>(m, "_HistogramBuffer")
+        .def_buffer([](std::vector<std::uint64_t>& v) {
+            return py::buffer_info(
+                v.data(),
+                sizeof(std::uint64_t),
+                py::format_descriptor<std::uint64_t>::format(),
+                1,
+                { v.size() },
+                { sizeof(std::uint64_t) }); });
+
     NDImageStatistics<std::int8_t>  ::expose_via_pybind11(m, "int8");
     NDImageStatistics<std::uint8_t> ::expose_via_pybind11(m, "uint8");
     NDImageStatistics<std::int16_t> ::expose_via_pybind11(m, "int16");
