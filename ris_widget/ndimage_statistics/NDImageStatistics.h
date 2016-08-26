@@ -24,6 +24,9 @@
 
 #pragma once
 #include <Python.h>
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#define PY_ARRAY_UNIQUE_SYMBOL _ndimage_statistics_ARRAY_API
+#define NO_IMPORT_ARRAY
 #include <numpy/npy_common.h>
 #include <numpy/arrayobject.h>
 #define _USE_MATH_DEFINES

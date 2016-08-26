@@ -22,10 +22,16 @@
 //
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#define PY_ARRAY_UNIQUE_SYMBOL _ndimage_statistics_ARRAY_API
+#include <numpy/arrayobject.h>
+
 #include "NDImageStatistics.h"
 
 PYBIND11_PLUGIN(_ndimage_statistics)
 {
+    import_array();
+
     py::module m("_ndimage_statistics", "ris_widget.ndimage_statistics._ndimage_statistics module");
 
     py::class_<std::vector<std::uint64_t>, std::shared_ptr<std::vector<std::uint64_t>>>(m, "_HistogramBuffer")
@@ -36,7 +42,8 @@ PYBIND11_PLUGIN(_ndimage_statistics)
                 py::format_descriptor<std::uint64_t>::format(),
                 1,
                 { v.size() },
-                { sizeof(std::uint64_t) }); });
+                { sizeof(std::uint64_t) });
+         });
 
     NDImageStatistics<std::int8_t>  ::expose_via_pybind11(m, "int8");
     NDImageStatistics<std::uint8_t> ::expose_via_pybind11(m, "uint8");
