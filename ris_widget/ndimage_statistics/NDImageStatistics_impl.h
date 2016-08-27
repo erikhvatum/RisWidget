@@ -182,9 +182,8 @@ py::object& StatsBase<T>::get_histogram_py()
 {
     if(!histogram_py)
     {
-        pybind11::gil_scoped_acquire acquire_gil;
         py::object buffer_obj = py::cast(histogram);
-        histogram_py.reset(new py::object(PyArray_FromAny(buffer_obj.ptr(), nullptr, 1, 1, 0, nullptr), false));
+        histogram_py.reset(new py::object(PyArray_FromAny(buffer_obj.ptr(), nullptr, 1, 1, 0, nullptr), false), &safe_py_deleter);
     }
     return *histogram_py;
 }

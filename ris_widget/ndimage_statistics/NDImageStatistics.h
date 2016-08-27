@@ -208,7 +208,7 @@ struct StatsBase
 
     std::shared_ptr<std::vector<std::uint64_t>> histogram;
     // A numpy array that is a read-only view of histogram. Lazily created in response to get_histogram_py calls.
-    std::unique_ptr<py::object> histogram_py;
+    std::shared_ptr<py::object> histogram_py;
 
     py::object& get_histogram_py();
 };
