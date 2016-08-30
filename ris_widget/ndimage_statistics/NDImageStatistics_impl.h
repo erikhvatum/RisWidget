@@ -35,33 +35,31 @@ template<typename T>
 CursorBase<T>::CursorBase(PyArrayView& data_view)
   : pixel_valid(false),
     component_valid(false),
-    scanline_count(0),
-    scanline_stride(0),
-    scanlines_raw_end(nullptr),
-    scanline_width(0),
-    pixel_stride(0),
+    scanline_count(data_view.shape[1]),
+    scanline_stride(data_view.strides[1]),
+    scanline_origin(reinterpret_cast<const T*>(data_view.buf)),
+    scanline_raw(nullptr),
+    scanlines_raw_end(reinterpret_cast<std::uint8_t*>(data_view.buf) + scanline_stride * scanline_count),
+    scanline_width(data_view.shape[0]),
+    pixel_stride(data_view.strides[0]),
     component_count(1),
     component_stride(sizeof(T)),
     component(reinterpret_cast<const T*&>(component_raw))
 {
-    const_cast<std::size_t&>(scanline_count) = data_view.shape[1];
-    const_cast<std::size_t&>(scanline_stride) = data_view.strides[1];
-    scanline_raw = reinterpret_cast<std::uint8_t*>(data_view.buf);
-    const_cast<const std::uint8_t*&>(scanlines_raw_end) = scanline_raw + scanline_stride * scanline_count;
-    const_cast<std::size_t&>(scanline_width) = data_view.shape[0];
-    const_cast<std::size_t&>(pixel_stride) = data_view.strides[0];
     if(data_view.ndim == 3)
     {
         const_cast<std::size_t&>(component_count) = data_view.shape[2];
         const_cast<std::size_t&>(component_stride) = data_view.strides[2];
     }
-    seek_to_front();
 }
 
 template<typename T>
-void CursorBase<T>::seek_to_front()
+void NonPerComponentMaskCursor<T>::seek_front_component_of_pixel()
 {
-    
+    assert(this->pixel_valid);
+    this->component_raw = this->pixel_raw;
+    this->components_raw_end = this->pixel_raw + this->component_stride * this->component_count;
+    this->component_valid = this->component_raw < this->components_raw_end;
 }
 
 template<typename T>
@@ -87,8 +85,34 @@ Cursor<T, MASK_T>::Cursor(PyArrayView& data_view, MASK_T& /*mask_*/)
 }
 
 template<typename T, typename MASK_T>
+void Cursor<T, MASK_T>::seek_front_pixel()
+{
+    this->scanline_raw = reinterpret_cast<const std::uint8_t*>(this->scanline_origin);
+    this->pixel_raw = this->scanline_raw;
+    this->pixels_raw_end = this->pixel_raw + this->scanline_width * this->pixel_stride;
+    this->pixel_valid = this->scanline_raw < this->scanlines_raw_end && this->pixel_raw < this->pixels_raw_end;
+    this->component_valid = false;
+}
+
+template<typename T, typename MASK_T>
 void Cursor<T, MASK_T>::advance_pixel()
 {
+    assert(this->pixel_valid);
+    this->pixel_raw += this->pixel_stride;
+    if(this->pixel_raw >= this->pixels_raw_end)
+    {
+        this->scanline_raw += this->scanline_stride;
+        if(this->scanline_raw >= this->scanlines_raw_end)
+        {
+            this->pixel_valid = false;
+        }
+        else
+        {
+            this->pixel_raw = this->scanline_raw;
+            this->pixels_raw_end = this->pixel_raw + this->scanline_width * this->pixel_stride;
+        }
+    }
+    this->component_valid = false;
 }
 
 template<typename T>
@@ -111,6 +135,11 @@ template<typename T>
 Cursor<T, BitmapMask<T>>::Cursor(PyArrayView& data_view, BitmapMask<T>& mask_)
   : NonPerComponentMaskCursor<T>(data_view),
     mask(mask_)
+{
+}
+
+template<typename T>
+void Cursor<T, BitmapMask<T>>::seek_front_pixel()
 {
 }
 
@@ -149,6 +178,11 @@ template<typename T>
 Cursor<T, CircularMask<T>>::Cursor(PyArrayView& data_view, CircularMask<T>& mask_)
   : NonPerComponentMaskCursor<T>(data_view),
     mask(mask_)
+{
+}
+
+template<typename T>
+void Cursor<T, CircularMask<T>>::seek_front_pixel()
 {
 }
 
@@ -254,13 +288,11 @@ void NDImageStatistics<T>::expose_via_pybind11(py::module& m, const std::string&
           [](typed_array_t<T>& a, const std::pair<T, T>& b, typed_array_t<std::uint8_t>& m, bool c){return new NDImageStatistics<T>(a, b, m, c);});
 }
 
-
-
 template<typename T>
-NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
+NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py,
                                         const std::pair<T, T>& range_,
                                         bool drop_last_channel_from_overall_stats_)
-  : NDImageStatistics<T>(data_py_,
+  : NDImageStatistics<T>(data_py,
                          range_,
                          std::make_shared<Mask<T>>(),
                          drop_last_channel_from_overall_stats_,
@@ -269,11 +301,11 @@ NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
 }
 
 template<typename T>
-NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
+NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py,
                                         const std::pair<T, T>& range_,
                                         typed_array_t<std::uint8_t>& mask_,
                                         bool drop_last_channel_from_overall_stats_)
-  : NDImageStatistics<T>(data_py_,
+  : NDImageStatistics<T>(data_py,
                          range_,
                          std::make_shared<BitmapMask<T>>(mask_),
                          drop_last_channel_from_overall_stats_,
@@ -282,11 +314,11 @@ NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
 }
 
 template<typename T>
-NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
+NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py,
                                         const std::pair<T, T>& range_,
                                         typename CircularMask<T>::TupleArg mask_,
                                         bool drop_last_channel_from_overall_stats_)
-  : NDImageStatistics<T>(data_py_,
+  : NDImageStatistics<T>(data_py,
                          range_,
                          std::make_shared<CircularMask<T>>(mask_),
                          drop_last_channel_from_overall_stats_,
@@ -295,12 +327,12 @@ NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
 }
 
 template<typename T>
-NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py_,
+NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py,
                                         const std::pair<T, T>& range_,
                                         std::shared_ptr<Mask<T>>&& mask_,
                                         bool drop_last_channel_from_overall_stats_,
                                         std::shared_ptr<ImageStats<T>>(*compute_fn_)(std::weak_ptr<NDImageStatistics<T>>))
-  : data_view(new PyArrayView(data_py_)),
+  : data_view(new PyArrayView(data_py)),
     range(range_),
     mask(mask_),
     drop_last_channel_from_overall_stats(drop_last_channel_from_overall_stats_),
@@ -321,7 +353,7 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::get_image_stats()
 {
     return image_stats.get();
 }
-
+#include<iostream>
 template<typename T>
 template<typename MASK_T>
 std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDImageStatistics<T>> this_wp)
@@ -351,8 +383,23 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDIma
         this_sp.reset();
 
         Cursor<T, MASK_T> cursor(*data_view, *mask);
-
-
+        bool fp{true};
+        std::cout << "[";
+        for(cursor.seek_front_pixel(); cursor.pixel_valid; cursor.advance_pixel())
+        {
+            if(fp) fp = false;
+            else std::cout << ", ";
+            std::cout << "[";
+            bool fc{true};
+            for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component())
+            {
+                if(fc) fc = false;
+                else std::cout << ", ";
+                std::cout << (int)*cursor.component;
+            }
+            std::cout << "]";
+        }
+        std::cout << "]\n";
     }
     return stats;
 }

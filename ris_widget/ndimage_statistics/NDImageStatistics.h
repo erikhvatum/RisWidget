@@ -77,14 +77,6 @@ std::size_t bin_count<std::int8_t>();
 // GIL-aware deleter for Python objects likely to be released and refcount-decremented on another (non-Python) thread
 void safe_py_deleter(py::object* py_obj);
 
-// SimpleBufferInfo is like py::buffer_info, differing in that SimpleBufferInfo does not retain keep a Python reference 
-// to the buffer whose info is represented. with only the information we need and without 
-struct SimpleBufferInfo
-{
-    std::size_t ndim;
-
-};
-
 template<typename T>
 struct Mask;
 
@@ -96,12 +88,11 @@ struct CursorBase
     CursorBase& operator = (const CursorBase&) = delete;
     virtual ~CursorBase() = default;
 
-    virtual void seek_to_front();
-
     bool pixel_valid, component_valid;
 
     const std::size_t scanline_count;
     const std::size_t scanline_stride;
+    const T*const scanline_origin;
     const std::uint8_t* scanline_raw;
     const std::uint8_t*const scanlines_raw_end;
 
@@ -123,6 +114,7 @@ struct NonPerComponentMaskCursor
 {
     using CursorBase<T>::CursorBase;
 
+    void seek_front_component_of_pixel();
     void advance_component();
 };
 
@@ -137,12 +129,14 @@ struct Mask
     virtual ~Mask() = default;
 };
 
+// Primary Cursor template; used concretely in the case where MASK_T is of type Mask (eg, a null mask)
 template<typename T, typename MASK_T>
 struct Cursor
   : NonPerComponentMaskCursor<T>
 {
     Cursor(PyArrayView& data_view, MASK_T& mask_);
 
+    void seek_front_pixel();
     void advance_pixel();
 };
 
@@ -157,12 +151,14 @@ struct BitmapMask
     PyArrayView bitmap_view;
 };
 
+// Cursor specialization for BitmapMask
 template<typename T>
 struct Cursor<T, BitmapMask<T>>
   : NonPerComponentMaskCursor<T>
 {
     Cursor(PyArrayView& data_view, BitmapMask<T>& mask_);
 
+    void seek_front_pixel();
     void advance_pixel();
 
     BitmapMask<T>& mask;
@@ -182,12 +178,14 @@ struct CircularMask
     double center_x, center_y, radius;
 };
 
+// Cursor specialization for CircularMask
 template<typename T>
 struct Cursor<T, CircularMask<T>>
   : NonPerComponentMaskCursor<T>
 {
     Cursor(PyArrayView& data_view, CircularMask<T>& mask_);
 
+    void seek_front_pixel();
     void advance_pixel();
 
     CircularMask<T>& mask;
@@ -269,16 +267,16 @@ public:
     static void expose_via_pybind11(py::module& m, const std::string& s);
 
     // No mask
-    NDImageStatistics(typed_array_t<T>& data_py_,
+    NDImageStatistics(typed_array_t<T>& data_py,
                       const std::pair<T, T>& range_,
                       bool drop_last_channel_from_overall_stats_);
     // Bitmap mask
-    NDImageStatistics(typed_array_t<T>& data_py_,
+    NDImageStatistics(typed_array_t<T>& data_py,
                       const std::pair<T, T>& range_,
                       typed_array_t<std::uint8_t>& mask_,
                       bool drop_last_channel_from_overall_stats_);
     // Circular mask
-    NDImageStatistics(typed_array_t<T>& data_py_,
+    NDImageStatistics(typed_array_t<T>& data_py,
                       const std::pair<T, T>& range_,
                       typename CircularMask<T>::TupleArg mask_,
                       bool drop_last_channel_from_overall_stats_);
@@ -300,7 +298,7 @@ protected:
     const bool drop_last_channel_from_overall_stats;
     std::shared_ptr<ImageStats<T>>(*compute_fn)(std::weak_ptr<NDImageStatistics<T>>);
 
-    NDImageStatistics(typed_array_t<T>& data_py_,
+    NDImageStatistics(typed_array_t<T>& data_py,
                       const std::pair<T, T>& range_,
                       std::shared_ptr<Mask<T>>&& mask_,
                       bool drop_last_channel_from_overall_stats_,

@@ -26,9 +26,11 @@ from . import _ndimage_statistics
 import numpy
 import freeimage
 
-im = freeimage.read('/home/ehvatum/m1_hubble.jpg')
-mask = (freeimage.read('/home/ehvatum/code_repositories/ris_widget/top_left_g.png') / 256).astype(numpy.uint8)
-stats = _ndimage_statistics.NDImageStatistics(im, (0, 255), mask, False)
+#im = freeimage.read('/home/ehvatum/m1_hubble.jpg')
+#mask = (freeimage.read('/home/ehvatum/code_repositories/ris_widget/top_left_g.png') / 256).astype(numpy.uint8)
+#stats = _ndimage_statistics.NDImageStatistics(im, (0, 255), mask, False)
+im = numpy.array([[[0,0,0],[1,1,1],[2,2,2]],[[3,3,3],[4,4,4],[5,5,5]]],dtype=numpy.uint8).swapaxes(0,1)
+stats = _ndimage_statistics.NDImageStatistics(im, (0, 255), False)
 stats.launch_computation()
 print(stats.image_stats.extrema)
 print(stats.image_stats.histogram)
