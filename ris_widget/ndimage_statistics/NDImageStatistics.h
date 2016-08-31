@@ -66,16 +66,20 @@ extern Luts luts;
 extern std::unordered_map<std::type_index, std::string> component_type_names;
 
 template<typename T>
-std::size_t bin_count();
+std::size_t max_bin_count();
 
 template<>
-std::size_t bin_count<std::uint8_t>();
+std::size_t max_bin_count<std::uint8_t>();
 
 template<>
-std::size_t bin_count<std::int8_t>();
+std::size_t max_bin_count<std::int8_t>();
 
 // GIL-aware deleter for Python objects likely to be released and refcount-decremented on another (non-Python) thread
 void safe_py_deleter(py::object* py_obj);
+
+// Returns {true, log2(v)} if v is a power of two and {false, 0} otherwise. v may be signed but must be positive.
+template<typename T>
+std::pair<bool, T> power_of_two(T v);
 
 template<typename T>
 struct Mask;
@@ -215,6 +219,7 @@ struct StatsBase
     std::shared_ptr<py::object> histogram_py;
 
     py::object& get_histogram_py();
+    virtual void set_bin_count(std::size_t bin_count);
 };
 
 template<typename T>
@@ -259,6 +264,7 @@ struct ImageStats
 {
     static void expose_via_pybind11(py::module& m);
     std::vector<std::shared_ptr<Stats<T>>> channel_stats;
+    void set_bin_count(std::size_t bin_count) override;
 };
 
 template<typename T>

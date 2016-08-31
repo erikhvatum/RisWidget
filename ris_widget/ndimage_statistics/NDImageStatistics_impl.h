@@ -26,9 +26,29 @@
 #include "NDImageStatistics.h"
 
 template<typename T>
-std::size_t bin_count()
+std::size_t max_bin_count()
 {
     return 1024;
+}
+
+template<typename T>
+std::pair<bool, T> power_of_two(T v)
+{
+    if(!std::is_integral<T>::value)
+        throw std::domain_error("power_of_two operates on positive integer and unsigned integer values only.");
+    if(v <= 0)
+        throw std::out_of_range("The argument supplied to power_of_two must be positive.");
+    std::int8_t true_bit_pos=-1;
+    for(std::int8_t bit_pos=0; bit_pos < sizeof(T)*8; ++bit_pos, v >>= 1)
+    {
+        if((v & 1) == 1)
+        {
+            if(true_bit_pos != -1)
+                return std::pair<bool, T>(false, 0);
+            true_bit_pos = bit_pos;
+        }
+    }
+    return std::pair<bool, T>(true, (T)true_bit_pos);
 }
 
 template<typename T>
@@ -235,7 +255,7 @@ template<typename T>
 StatsBase<T>::StatsBase()
   : extrema(0, 0),
     max_bin(0),
-    histogram(new std::vector<std::uint64_t>(bin_count<T>(), 0)),
+    histogram(new std::vector<std::uint64_t>()),
     histogram_py(nullptr)
 {
 }
@@ -249,6 +269,12 @@ py::object& StatsBase<T>::get_histogram_py()
         histogram_py.reset(new py::object(PyArray_FromAny(buffer_obj.ptr(), nullptr, 1, 1, 0, nullptr), false), &safe_py_deleter);
     }
     return *histogram_py;
+}
+
+template<typename T>
+void StatsBase<T>::set_bin_count(std::size_t bin_count)
+{
+    histogram->resize(bin_count, 0);
 }
 
 template<typename T>
@@ -291,6 +317,14 @@ void ImageStats<T>::expose_via_pybind11(py::module& m)
 }
 
 template<typename T>
+void ImageStats<T>::set_bin_count(std::size_t bin_count)
+{
+    Stats<T>::set_bin_count(bin_count);
+    for(std::shared_ptr<Stats<T>>& channel_stat : channel_stats)
+        channel_stat->set_bin_count(bin_count);
+}
+
+template<typename T>
 void NDImageStatistics<T>::expose_via_pybind11(py::module& m, const std::string& s)
 {
     Mask<T>::expose_via_pybind11(m);
@@ -315,6 +349,9 @@ void NDImageStatistics<T>::expose_via_pybind11(py::module& m, const std::string&
           [](typed_array_t<T>& a, const std::pair<T, T>& b, typename CircularMask<T>::TupleArg m, bool c){return new NDImageStatistics<T>(a, b, m, c);});
     m.def("NDImageStatistics",
           [](typed_array_t<T>& a, const std::pair<T, T>& b, typed_array_t<std::uint8_t>& m, bool c){return new NDImageStatistics<T>(a, b, m, c);});
+    name = "power_of_two_";
+    name += s;
+    m.def(name.c_str(), &power_of_two<T>);
 }
 
 template<typename T>
@@ -454,6 +491,21 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDIma
         {
             // FP.  Will be slightly more complex owing to need to avoid initializing min/max to non-finite values
         }
+
+        std::size_t bin_count{max_bin_count<T>()};
+        std::function<void(Stats<T>& overall_stats, Stats<T>& component_stats, bool in_overall, const T& component)> process_component;
+        if(std::is_integral<T>::value)
+        {
+            T range_width = range.second - range.first;
+            if(range_width < bin_count)
+                bin_count = range_width;
+            // NB: 
+        }
+        else
+        {
+            // FP.  Cap bin count to FP quanta in range.
+        }
+        stats->set_bin_count(bin_count);
         
         bool fs{true}, fp;
         std::cout << "[";
@@ -470,16 +522,13 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDIma
                 std::cout << "[";
                 bool fc{true};
                 component_idx = 0;
-                for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component(), ++component_idx)
+                channel_stat_p = stats->channel_stats.data();
+                for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component(), ++component_idx, ++channel_stat_p)
                 {
                     if(fc) fc = false;
                     else std::cout << ", ";
                     std::cout << (int)*cursor.component;
-
-//                  if(!drop_last_channel_from_overall_stats || component_idx != last_component_idx)
-//                  {
-// 
-//                  }
+                    process_component(*stats, **channel_stat_p, component_idx < last_overall_component_idx, *cursor.component);
                 }
                 std::cout << "]";
             }

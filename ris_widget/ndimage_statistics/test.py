@@ -29,12 +29,12 @@ import unittest
 
 from . import _ndimage_statistics
 
-import freeimage; im = freeimage.read('/home/ehvatum/m1_hubble.jpg')
+#import freeimage; im = freeimage.read('/home/ehvatum/m1_hubble.jpg')
 #mask = (freeimage.read('/home/ehvatum/code_repositories/ris_widget/top_left_g.png') / 256).astype(numpy.uint8)
 #stats = _ndimage_statistics.NDImageStatistics(im, (0, 255), mask, False)
 #im = numpy.array([[[9,8,7],[1,1,1],[2,2,2]],[[3,3,3],[4,4,4],[5,5,5]]],dtype=numpy.uint8).swapaxes(0,1)
-stats = _ndimage_statistics.NDImageStatistics(im, (0, 255), False)
-stats.launch_computation()
+#stats = _ndimage_statistics.NDImageStatistics(im, (0, 255), False)
+#stats.launch_computation()
 #del stats
 #print('overall')
 #print(stats.image_stats.extrema)
@@ -43,6 +43,15 @@ stats.launch_computation()
 #    print('channel', channel_idx)
 #    print(channel.extrema)
 #    print(channel.histogram)
+
+print(_ndimage_statistics.power_of_two_int8(8))
+print(_ndimage_statistics.power_of_two_int16(1))
+print(_ndimage_statistics.power_of_two_int16(2))
+print(_ndimage_statistics.power_of_two_int16(3))
+print(_ndimage_statistics.power_of_two_int16(4))
+print(_ndimage_statistics.power_of_two_int16(8))
+print(_ndimage_statistics.power_of_two_int32(8))
+
 import sys
 sys.exit(0)
 
