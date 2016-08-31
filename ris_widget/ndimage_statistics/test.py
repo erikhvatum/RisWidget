@@ -22,18 +22,27 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from . import _ndimage_statistics
+import functools
 import numpy
-import freeimage
+import time
+import unittest
 
-#im = freeimage.read('/home/ehvatum/m1_hubble.jpg')
+from . import _ndimage_statistics
+
+import freeimage; im = freeimage.read('/home/ehvatum/m1_hubble.jpg')
 #mask = (freeimage.read('/home/ehvatum/code_repositories/ris_widget/top_left_g.png') / 256).astype(numpy.uint8)
 #stats = _ndimage_statistics.NDImageStatistics(im, (0, 255), mask, False)
-im = numpy.array([[[0,0,0],[1,1,1],[2,2,2]],[[3,3,3],[4,4,4],[5,5,5]]],dtype=numpy.uint8).swapaxes(0,1)
+#im = numpy.array([[[9,8,7],[1,1,1],[2,2,2]],[[3,3,3],[4,4,4],[5,5,5]]],dtype=numpy.uint8).swapaxes(0,1)
 stats = _ndimage_statistics.NDImageStatistics(im, (0, 255), False)
 stats.launch_computation()
-print(stats.image_stats.extrema)
-print(stats.image_stats.histogram)
+#del stats
+#print('overall')
+#print(stats.image_stats.extrema)
+#print(stats.image_stats.histogram)
+#for channel_idx, channel in enumerate(stats.image_stats.channel_stats):
+#    print('channel', channel_idx)
+#    print(channel.extrema)
+#    print(channel.histogram)
 import sys
 sys.exit(0)
 

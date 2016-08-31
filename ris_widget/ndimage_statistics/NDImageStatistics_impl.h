@@ -33,7 +33,8 @@ std::size_t bin_count()
 
 template<typename T>
 CursorBase<T>::CursorBase(PyArrayView& data_view)
-  : pixel_valid(false),
+  : scanline_valid(false),
+    pixel_valid(false),
     component_valid(false),
     scanline_count(data_view.shape[1]),
     scanline_stride(data_view.strides[1]),
@@ -56,6 +57,7 @@ CursorBase<T>::CursorBase(PyArrayView& data_view)
 template<typename T>
 void NonPerComponentMaskCursor<T>::seek_front_component_of_pixel()
 {
+    assert(this->scanline_valid);
     assert(this->pixel_valid);
     this->component_raw = this->pixel_raw;
     this->components_raw_end = this->pixel_raw + this->component_stride * this->component_count;
@@ -65,6 +67,7 @@ void NonPerComponentMaskCursor<T>::seek_front_component_of_pixel()
 template<typename T>
 void NonPerComponentMaskCursor<T>::advance_component()
 {
+    assert(this->scanline_valid);
     assert(this->pixel_valid);
     assert(this->component_valid);
     this->component_raw += this->component_stride;
@@ -85,33 +88,39 @@ Cursor<T, MASK_T>::Cursor(PyArrayView& data_view, MASK_T& /*mask_*/)
 }
 
 template<typename T, typename MASK_T>
-void Cursor<T, MASK_T>::seek_front_pixel()
+void Cursor<T, MASK_T>::seek_front_scanline()
 {
     this->scanline_raw = reinterpret_cast<const std::uint8_t*>(this->scanline_origin);
+    this->scanline_valid = this->scanline_raw < this->scanlines_raw_end;
+}
+
+template<typename T, typename MASK_T>
+void Cursor<T, MASK_T>::advance_scanline()
+{
+    assert(this->scanline_valid);
+    this->scanline_raw += this->scanline_stride;
+    this->scanline_valid = this->scanline_raw < this->scanlines_raw_end;
+    this->pixel_valid = false;
+    this->component_valid = false;
+}
+
+template<typename T, typename MASK_T>
+void Cursor<T, MASK_T>::seek_front_pixel_of_scanline()
+{
+    assert(this->scanline_valid);
     this->pixel_raw = this->scanline_raw;
     this->pixels_raw_end = this->pixel_raw + this->scanline_width * this->pixel_stride;
-    this->pixel_valid = this->scanline_raw < this->scanlines_raw_end && this->pixel_raw < this->pixels_raw_end;
+    this->pixel_valid = this->pixel_raw < this->pixels_raw_end;
     this->component_valid = false;
 }
 
 template<typename T, typename MASK_T>
 void Cursor<T, MASK_T>::advance_pixel()
 {
+    assert(this->scanline_valid);
     assert(this->pixel_valid);
     this->pixel_raw += this->pixel_stride;
-    if(this->pixel_raw >= this->pixels_raw_end)
-    {
-        this->scanline_raw += this->scanline_stride;
-        if(this->scanline_raw >= this->scanlines_raw_end)
-        {
-            this->pixel_valid = false;
-        }
-        else
-        {
-            this->pixel_raw = this->scanline_raw;
-            this->pixels_raw_end = this->pixel_raw + this->scanline_width * this->pixel_stride;
-        }
-    }
+    this->pixel_valid = this->pixel_raw < this->pixels_raw_end;
     this->component_valid = false;
 }
 
@@ -139,7 +148,17 @@ Cursor<T, BitmapMask<T>>::Cursor(PyArrayView& data_view, BitmapMask<T>& mask_)
 }
 
 template<typename T>
-void Cursor<T, BitmapMask<T>>::seek_front_pixel()
+void Cursor<T, BitmapMask<T>>::seek_front_scanline()
+{
+}
+
+template<typename T>
+void Cursor<T, BitmapMask<T>>::advance_scanline()
+{
+}
+
+template<typename T>
+void Cursor<T, BitmapMask<T>>::seek_front_pixel_of_scanline()
 {
 }
 
@@ -182,7 +201,17 @@ Cursor<T, CircularMask<T>>::Cursor(PyArrayView& data_view, CircularMask<T>& mask
 }
 
 template<typename T>
-void Cursor<T, CircularMask<T>>::seek_front_pixel()
+void Cursor<T, CircularMask<T>>::seek_front_scanline()
+{
+}
+
+template<typename T>
+void Cursor<T, CircularMask<T>>::advance_scanline()
+{
+}
+
+template<typename T>
+void Cursor<T, CircularMask<T>>::seek_front_pixel_of_scanline()
 {
 }
 
@@ -383,19 +412,76 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDIma
         this_sp.reset();
 
         Cursor<T, MASK_T> cursor(*data_view, *mask);
-        bool fp{true};
-        std::cout << "[";
-        for(cursor.seek_front_pixel(); cursor.pixel_valid; cursor.advance_pixel())
+        stats->channel_stats.resize(cursor.component_count);
+        std::generate(stats->channel_stats.begin(), stats->channel_stats.end(), std::make_shared<Stats<T>>);
+        std::shared_ptr<Stats<T>>* channel_stat_p;
+        const std::ptrdiff_t last_overall_component_idx{(std::ptrdiff_t)cursor.component_count - 1 - int(drop_last_channel_from_overall_stats)};
+        std::ptrdiff_t component_idx;
+
+        // Initialize min/max. This avoids the need to either branch on whether to replace uninitialized min/max or 
+        // initialize min/max to type::max / type::min and branch on whether a single component value replaces _both_. 
+        if(std::is_integral<T>::value)
         {
-            if(fp) fp = false;
-            else std::cout << ", ";
-            std::cout << "[";
-            bool fc{true};
-            for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component())
+            cursor.seek_front_scanline();
+            if(cursor.scanline_valid)
             {
-                if(fc) fc = false;
+                cursor.seek_front_pixel_of_scanline();
+                if(cursor.pixel_valid)
+                {
+                    channel_stat_p = stats->channel_stats.data();
+                    for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component(), ++channel_stat_p)
+                    {
+                        Stats<T>& channel_stat{**channel_stat_p};
+                        std::get<0>(channel_stat.extrema) = std::get<1>(channel_stat.extrema) = *cursor.component;
+                    }
+                    for(component_idx=0, channel_stat_p=stats->channel_stats.data(); component_idx < last_overall_component_idx; ++component_idx, ++channel_stat_p)
+                    {
+                        Stats<T>& channel_stat{**channel_stat_p};
+                        if(component_idx == 0)
+                            stats->extrema = channel_stat.extrema;
+                        else
+                        {
+                            if(std::get<0>(channel_stat.extrema) < std::get<0>(stats->extrema))
+                                std::get<0>(stats->extrema) = std::get<0>(channel_stat.extrema);
+                            if(std::get<1>(channel_stat.extrema) > std::get<1>(stats->extrema))
+                                std::get<1>(stats->extrema) = std::get<1>(channel_stat.extrema);
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            // FP.  Will be slightly more complex owing to need to avoid initializing min/max to non-finite values
+        }
+        
+        bool fs{true}, fp;
+        std::cout << "[";
+        for(; cursor.scanline_valid && !this_wp.expired(); cursor.advance_scanline())
+        {
+            if(fs) fs = false;
+            else std::cout << ",\n";
+            std::cout << "[";
+            fp = true;
+            for(cursor.seek_front_pixel_of_scanline(); cursor.pixel_valid; cursor.advance_pixel())
+            {
+                if(fp) fp = false;
                 else std::cout << ", ";
-                std::cout << (int)*cursor.component;
+                std::cout << "[";
+                bool fc{true};
+                component_idx = 0;
+                for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component(), ++component_idx)
+                {
+                    if(fc) fc = false;
+                    else std::cout << ", ";
+                    std::cout << (int)*cursor.component;
+
+//                  if(!drop_last_channel_from_overall_stats || component_idx != last_component_idx)
+//                  {
+// 
+//                  }
+                }
+                std::cout << "]";
             }
             std::cout << "]";
         }

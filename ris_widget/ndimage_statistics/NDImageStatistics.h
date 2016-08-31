@@ -88,7 +88,7 @@ struct CursorBase
     CursorBase& operator = (const CursorBase&) = delete;
     virtual ~CursorBase() = default;
 
-    bool pixel_valid, component_valid;
+    bool scanline_valid, pixel_valid, component_valid;
 
     const std::size_t scanline_count;
     const std::size_t scanline_stride;
@@ -136,7 +136,9 @@ struct Cursor
 {
     Cursor(PyArrayView& data_view, MASK_T& mask_);
 
-    void seek_front_pixel();
+    void seek_front_scanline();
+    void advance_scanline();
+    void seek_front_pixel_of_scanline();
     void advance_pixel();
 };
 
@@ -158,7 +160,9 @@ struct Cursor<T, BitmapMask<T>>
 {
     Cursor(PyArrayView& data_view, BitmapMask<T>& mask_);
 
-    void seek_front_pixel();
+    void seek_front_scanline();
+    void advance_scanline();
+    void seek_front_pixel_of_scanline();
     void advance_pixel();
 
     BitmapMask<T>& mask;
@@ -185,7 +189,9 @@ struct Cursor<T, CircularMask<T>>
 {
     Cursor(PyArrayView& data_view, CircularMask<T>& mask_);
 
-    void seek_front_pixel();
+    void seek_front_scanline();
+    void advance_scanline();
+    void seek_front_pixel_of_scanline();
     void advance_pixel();
 
     CircularMask<T>& mask;
@@ -242,9 +248,6 @@ struct Stats<double>
 {
     static void expose_via_pybind11(py::module& m);
 };
-
-template<typename T>
-class NDImageStatistics;
 
 // This is neat: we only need to provide specializations for Stats; ImageStats automatically inherits the correct 
 // specialization and therefore gets the extra overall fields (NaN count, neg_inf_count, pos_inf_count) without futher 
