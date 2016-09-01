@@ -35,6 +35,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <future>
+#include <limits>
 #include <memory>
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
@@ -79,7 +80,7 @@ void safe_py_deleter(py::object* py_obj);
 
 // Returns {true, log2(v)} if v is a power of two and {false, 0} otherwise. v may be signed but must be positive.
 template<typename T>
-std::pair<bool, T> power_of_two(T v);
+std::pair<bool, std::int16_t> power_of_two(T v);
 
 template<typename T>
 struct Mask;
@@ -220,6 +221,7 @@ struct StatsBase
 
     py::object& get_histogram_py();
     virtual void set_bin_count(std::size_t bin_count);
+    void find_max_bin();
 };
 
 template<typename T>

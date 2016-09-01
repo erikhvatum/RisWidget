@@ -32,23 +32,23 @@ std::size_t max_bin_count()
 }
 
 template<typename T>
-std::pair<bool, T> power_of_two(T v)
+std::pair<bool, std::int16_t> power_of_two(T v)
 {
     if(!std::is_integral<T>::value)
         throw std::domain_error("power_of_two operates on positive integer and unsigned integer values only.");
     if(v <= 0)
         throw std::out_of_range("The argument supplied to power_of_two must be positive.");
-    std::int8_t true_bit_pos=-1;
-    for(std::int8_t bit_pos=0; bit_pos < sizeof(T)*8; ++bit_pos, v >>= 1)
+    std::int16_t true_bit_pos=-1;
+    for(std::int16_t bit_pos=0; bit_pos < sizeof(T)*8; ++bit_pos, v >>= 1)
     {
         if((v & 1) == 1)
         {
             if(true_bit_pos != -1)
-                return std::pair<bool, T>(false, 0);
+                return {false, 0};
             true_bit_pos = bit_pos;
         }
     }
-    return std::pair<bool, T>(true, (T)true_bit_pos);
+    return {true, true_bit_pos};
 }
 
 template<typename T>
@@ -278,6 +278,13 @@ void StatsBase<T>::set_bin_count(std::size_t bin_count)
 }
 
 template<typename T>
+void StatsBase<T>::find_max_bin()
+{
+//  const std::uint64_t* h{histogram->data()};
+//  max_bin = h - std::
+}
+
+template<typename T>
 void FloatStatsBase<T>::expose_via_pybind11(py::module& m)
 {
     StatsBase<T>::expose_via_pybind11(m);
@@ -349,9 +356,6 @@ void NDImageStatistics<T>::expose_via_pybind11(py::module& m, const std::string&
           [](typed_array_t<T>& a, const std::pair<T, T>& b, typename CircularMask<T>::TupleArg m, bool c){return new NDImageStatistics<T>(a, b, m, c);});
     m.def("NDImageStatistics",
           [](typed_array_t<T>& a, const std::pair<T, T>& b, typed_array_t<std::uint8_t>& m, bool c){return new NDImageStatistics<T>(a, b, m, c);});
-    name = "power_of_two_";
-    name += s;
-    m.def(name.c_str(), &power_of_two<T>);
 }
 
 template<typename T>
@@ -419,7 +423,7 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::get_image_stats()
 {
     return image_stats.get();
 }
-#include<iostream>
+
 template<typename T>
 template<typename MASK_T>
 std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDImageStatistics<T>> this_wp)
@@ -496,45 +500,72 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDIma
         std::function<void(Stats<T>& overall_stats, Stats<T>& component_stats, bool in_overall, const T& component)> process_component;
         if(std::is_integral<T>::value)
         {
-            T range_width = range.second - range.first;
-            if(range_width < bin_count)
-                bin_count = range_width;
-            // NB: 
+            if(range.first == std::numeric_limits<T>::min() && range.second == std::numeric_limits<T>::max())
+            { // TODO: make this works for signed values if we ever care
+                std::uint16_t bin_shift = sizeof(T)*8 - power_of_two(bin_count).second;
+                process_component = [bin_shift](Stats<T>& overall_stats, Stats<T>& component_stats, bool in_overall, const T& component) {
+                    std::uint16_t bin = component >> bin_shift;
+                    ++(*component_stats.histogram)[bin];
+                    if(component < std::get<0>(component_stats.extrema))
+                        std::get<0>(component_stats.extrema) = component;
+                    else if(component > std::get<1>(component_stats.extrema))
+                        std::get<1>(component_stats.extrema) = component;
+                    if(in_overall)
+                    {
+                        ++(*overall_stats.histogram)[bin];
+                        if(component < std::get<0>(overall_stats.extrema))
+                            std::get<0>(overall_stats.extrema) = component;
+                        else if(component > std::get<1>(overall_stats.extrema))
+                            std::get<1>(overall_stats.extrema) = component;
+                    }
+                };
+            }
+            else
+            {
+//              T range_width = range.second - range.first;
+//              // NB: The above if statement handles the one case where range.second - range.first + 1 would overflow
+//              // T.
+//              T range_quanta_count{range_width + 1};
+//              if(range_quanta_count < bin_count)
+//                  bin_count = range_quanta_count;
+//              bool is_power2;
+//              std::int16_t power2;
+//              std::tie(is_power2, power2) = power_of_two(range_width);
+//              if(is_power2)
+//              {
+//                  std::uint16_t bin_shift = power2 - power_of_two(bin_count).second;
+// 
+//                  else
+//                  {
+//                      process_component = [bin_shift](Stats<T>& overall_stats, Stats<T>& component_stats, bool in_overall, const T& component) {
+// 
+//                      };
+//                  }
+//              }
+            }
         }
         else
         {
             // FP.  Cap bin count to FP quanta in range.
         }
+
         stats->set_bin_count(bin_count);
         
-        bool fs{true}, fp;
-        std::cout << "[";
         for(; cursor.scanline_valid && !this_wp.expired(); cursor.advance_scanline())
         {
-            if(fs) fs = false;
-            else std::cout << ",\n";
-            std::cout << "[";
-            fp = true;
             for(cursor.seek_front_pixel_of_scanline(); cursor.pixel_valid; cursor.advance_pixel())
             {
-                if(fp) fp = false;
-                else std::cout << ", ";
-                std::cout << "[";
-                bool fc{true};
                 component_idx = 0;
                 channel_stat_p = stats->channel_stats.data();
                 for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component(), ++component_idx, ++channel_stat_p)
                 {
-                    if(fc) fc = false;
-                    else std::cout << ", ";
-                    std::cout << (int)*cursor.component;
-                    process_component(*stats, **channel_stat_p, component_idx < last_overall_component_idx, *cursor.component);
+                    process_component(*stats, **channel_stat_p, component_idx <= last_overall_component_idx, *cursor.component);
                 }
-                std::cout << "]";
             }
-            std::cout << "]";
         }
-        std::cout << "]\n";
+        stats->find_max_bin();
+        for(std::shared_ptr<Stats<T>>& channel_stat : stats->channel_stats)
+            channel_stat->find_max_bin();
     }
     return stats;
 }
