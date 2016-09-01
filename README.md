@@ -34,7 +34,7 @@ $ python3 setup.py install
 
 ```python
 
-from ..qwidgets.flipbook_page_annotator import _BaseField, FlipbookPageAnnotator
+from ris_widget.qwidgets.flipbook_page_annotator import _BaseField, FlipbookPageAnnotator
 import numpy
 rw = RisWidget()
 xr = numpy.linspace(0, 2*numpy.pi, 65536, True)
