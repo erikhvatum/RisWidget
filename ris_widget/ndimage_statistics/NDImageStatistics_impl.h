@@ -501,7 +501,7 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDIma
         if(std::is_integral<T>::value)
         {
             if(range.first == std::numeric_limits<T>::min() && range.second == std::numeric_limits<T>::max())
-            { // TODO: make this works for signed values if we ever care
+            {
                 std::uint16_t bin_shift = sizeof(T)*8 - power_of_two(bin_count).second;
                 process_component = [bin_shift](Stats<T>& overall_stats, Stats<T>& component_stats, bool in_overall, const T& component) {
                     std::uint16_t bin = component >> bin_shift;
@@ -522,26 +522,25 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDIma
             }
             else
             {
-//              T range_width = range.second - range.first;
-//              // NB: The above if statement handles the one case where range.second - range.first + 1 would overflow
-//              // T.
-//              T range_quanta_count{range_width + 1};
-//              if(range_quanta_count < bin_count)
-//                  bin_count = range_quanta_count;
-//              bool is_power2;
-//              std::int16_t power2;
-//              std::tie(is_power2, power2) = power_of_two(range_width);
-//              if(is_power2)
-//              {
-//                  std::uint16_t bin_shift = power2 - power_of_two(bin_count).second;
-// 
-//                  else
-//                  {
-//                      process_component = [bin_shift](Stats<T>& overall_stats, Stats<T>& component_stats, bool in_overall, const T& component) {
-// 
-//                      };
-//                  }
-//              }
+                T range_width = range.second - range.first;
+                // NB: The above if statement handles the one case where range.second - range.first + 1 would overflow T
+                T range_quanta_count{range_width + 1};
+                if(range_quanta_count < bin_count)
+                    bin_count = range_quanta_count;
+                bool is_power2;
+                std::int16_t power2;
+                std::tie(is_power2, power2) = power_of_two(range_width);
+                if(is_power2)
+                {
+                    std::uint16_t bin_shift = power2 - power_of_two(bin_count).second;
+
+                    else
+                    {
+                        process_component = [bin_shift](Stats<T>& overall_stats, Stats<T>& component_stats, bool in_overall, const T& component) {
+
+                        };
+                    }
+                }
             }
         }
         else
