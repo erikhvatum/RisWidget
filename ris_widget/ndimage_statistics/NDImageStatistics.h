@@ -212,7 +212,7 @@ struct StatsBase
     StatsBase& operator = (const StatsBase&) = delete;
     virtual ~StatsBase() = default;
 
-    std::tuple<T, T> extrema;
+    std::pair<T, T> extrema;
     std::size_t max_bin;
 
     std::shared_ptr<std::vector<std::uint64_t>> histogram;

@@ -473,7 +473,7 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDIma
                     for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component(), ++channel_stat_p)
                     {
                         Stats<T>& channel_stat{**channel_stat_p};
-                        std::get<0>(channel_stat.extrema) = std::get<1>(channel_stat.extrema) = *cursor.component;
+                        channel_stat.extrema.first = channel_stat.extrema.second = *cursor.component;
                     }
                     for(component_idx=0, channel_stat_p=stats->channel_stats.data(); component_idx < last_overall_component_idx; ++component_idx, ++channel_stat_p)
                     {
@@ -482,10 +482,10 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDIma
                             stats->extrema = channel_stat.extrema;
                         else
                         {
-                            if(std::get<0>(channel_stat.extrema) < std::get<0>(stats->extrema))
-                                std::get<0>(stats->extrema) = std::get<0>(channel_stat.extrema);
-                            if(std::get<1>(channel_stat.extrema) > std::get<1>(stats->extrema))
-                                std::get<1>(stats->extrema) = std::get<1>(channel_stat.extrema);
+                            if(channel_stat.extrema.first < stats->extrema.first)
+                                stats->extrema.first = channel_stat.extrema.first;
+                            if(channel_stat.extrema.second > stats->extrema.second)
+                                stats->extrema.second = channel_stat.extrema.second;
                         }
                     }
                 }
@@ -500,23 +500,23 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDIma
         std::function<void(Stats<T>& overall_stats, Stats<T>& component_stats, bool in_overall, const T& component)> process_component;
         if(std::is_integral<T>::value)
         {
-            if(range.first == std::numeric_limits<T>::min() && range.second == std::numeric_limits<T>::max())
+            if(std::is_unsigned<T>::value && range.first == std::numeric_limits<T>::min() && range.second == std::numeric_limits<T>::max())
             {
                 std::uint16_t bin_shift = sizeof(T)*8 - power_of_two(bin_count).second;
                 process_component = [bin_shift](Stats<T>& overall_stats, Stats<T>& component_stats, bool in_overall, const T& component) {
                     std::uint16_t bin = component >> bin_shift;
                     ++(*component_stats.histogram)[bin];
-                    if(component < std::get<0>(component_stats.extrema))
-                        std::get<0>(component_stats.extrema) = component;
-                    else if(component > std::get<1>(component_stats.extrema))
-                        std::get<1>(component_stats.extrema) = component;
+                    if(component < component_stats.extrema.first)
+                        component_stats.extrema.first = component;
+                    else if(component > component_stats.extrema.second)
+                        component_stats.extrema.second = component;
                     if(in_overall)
                     {
                         ++(*overall_stats.histogram)[bin];
-                        if(component < std::get<0>(overall_stats.extrema))
-                            std::get<0>(overall_stats.extrema) = component;
-                        else if(component > std::get<1>(overall_stats.extrema))
-                            std::get<1>(overall_stats.extrema) = component;
+                        if(component < overall_stats.extrema.first)
+                            overall_stats.extrema.first = component;
+                        else if(component > overall_stats.extrema.second)
+                            overall_stats.extrema.second = component;
                     }
                 };
             }
@@ -524,7 +524,7 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDIma
             {
                 T range_width = range.second - range.first;
                 // NB: The above if statement handles the one case where range.second - range.first + 1 would overflow T
-                T range_quanta_count{range_width + 1};
+                T range_quanta_count = range_width + 1;
                 if(range_quanta_count < bin_count)
                     bin_count = range_quanta_count;
                 bool is_power2;
@@ -534,12 +534,13 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDIma
                 {
                     std::uint16_t bin_shift = power2 - power_of_two(bin_count).second;
 
-                    else
-                    {
-                        process_component = [bin_shift](Stats<T>& overall_stats, Stats<T>& component_stats, bool in_overall, const T& component) {
-
-                        };
-                    }
+                    process_component = [bin_shift](Stats<T>& overall_stats, Stats<T>& component_stats, bool in_overall, const T& component) {
+                    };
+                }
+                else
+                {
+                    process_component = [](Stats<T>& overall_stats, Stats<T>& component_stats, bool in_overall, const T& component) {
+                    };
                 }
             }
         }

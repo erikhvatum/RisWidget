@@ -33,8 +33,7 @@ almost any case, and IPython is the Python REPL par excellence. The only caveat 
 in IPython: you must enable IPython's Qt support before creating any Qt objects.
 
 I prefer to modify make an IPython startup script in the default IPython profile ensuring that this is done in a sure-fire
-manner without requiring further attention. To do so, create the file ~/.ipython/profile_default/50-qt.ipy and paste
-the following into it:
+manner. To do so, create the file ~/.ipython/profile_default/50-qt.ipy and paste the following into it:
 
 ```python
 import sys
