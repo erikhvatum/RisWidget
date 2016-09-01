@@ -28,12 +28,37 @@ $ python3 setup.py install
 ```
 
 ## Using RisWidget in IPython
+Although RisWidget works well as a stand-alone application, working with RisWidget in a Python REPL is the best choice in
+almost any case, and IPython is the Python REPL par excellence. The only caveat is that which applies to any use of PyQt
+in IPython: you must enable IPython's Qt support before creating any Qt objects.
 
+I prefer to modify make an IPython startup script in the default IPython profile ensuring that this is done in a sure-fire
+manner without requiring further attention. To do so, create the file ~/.ipython/profile_default/50-qt.ipy and paste
+the following into it:
+
+```python
+import sys
+from PyQt5 import Qt
+Qt.QApplication.setAttribute(Qt.Qt.AA_ShareOpenGLContexts)
+app = Qt.QApplication(sys.argv)
+import sip
+%gui qt5
+```
+
+With this in place, simply import and instantiate RisWidget:
+
+```python
+from ris_widget.ris_widget import RisWidget
+rw = RisWidget()
+```
+
+At this point, to see the collection of convenient commands offered by RisWidget for day-to-day tasks, type "rw." (without
+quotes) and press the tab key.
 
 ## Annotator
 
 ```python
-
+from ris_widget.ris_widget import RisWidget
 from ris_widget.qwidgets.flipbook_page_annotator import _BaseField, FlipbookPageAnnotator
 import numpy
 rw = RisWidget()
