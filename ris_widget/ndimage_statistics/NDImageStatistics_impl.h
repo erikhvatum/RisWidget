@@ -280,8 +280,8 @@ void StatsBase<T>::set_bin_count(std::size_t bin_count)
 template<typename T>
 void StatsBase<T>::find_max_bin()
 {
-//  const std::uint64_t* h{histogram->data()};
-//  max_bin = h - std::
+    const std::uint64_t* h{histogram->data()};
+    max_bin = std::max_element(h, h+histogram->size()) - h;
 }
 
 template<typename T>
