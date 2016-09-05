@@ -67,13 +67,13 @@ extern Luts luts;
 extern std::unordered_map<std::type_index, std::string> component_type_names;
 
 template<typename T>
-std::size_t max_bin_count();
+std::uint16_t max_bin_count();
 
 template<>
-std::size_t max_bin_count<std::uint8_t>();
+std::uint16_t max_bin_count<std::uint8_t>();
 
 template<>
-std::size_t max_bin_count<std::int8_t>();
+std::uint16_t max_bin_count<std::int8_t>();
 
 // GIL-aware deleter for Python objects likely to be released and refcount-decremented on another (non-Python) thread
 void safe_py_deleter(py::object* py_obj);
@@ -256,8 +256,8 @@ struct Stats<double>
     static void expose_via_pybind11(py::module& m);
 };
 
-// This is neat: we only need to provide specializations for Stats; ImageStats automatically inherits the correct 
-// specialization and therefore gets the extra overall fields (NaN count, neg_inf_count, pos_inf_count) without futher 
+// This is neat: we only need to provide specializations for Stats; ImageStats automatically inherits the correct
+// specialization and therefore gets the extra overall fields (NaN count, neg_inf_count, pos_inf_count) without futher
 // ado.
 template<typename T>
 struct ImageStats
@@ -292,7 +292,7 @@ public:
                       typename CircularMask<T>::TupleArg mask_,
                       bool drop_last_channel_from_overall_stats_);
     // Not constructable with no parameters
-    NDImageStatistics() = delete; 
+    NDImageStatistics() = delete;
     // Not copyable via constructor
     NDImageStatistics(const NDImageStatistics&) = delete;
     // Not copyable via assignment
@@ -316,7 +316,73 @@ protected:
                       std::shared_ptr<ImageStats<T>>(*compute_fn_)(std::weak_ptr<NDImageStatistics<T>>));
 
     template<typename MASK_T>
+    struct ComputeContext
+    {
+        ComputeContext(std::shared_ptr<NDImageStatistics<T>>& ndis_sp, ImageStats<T>& stats_);
+
+        std::pair<T, T> range;
+        std::shared_ptr<PyArrayView> data_view;
+        std::shared_ptr<MASK_T> mask;
+        bool drop_last_channel_from_overall_stats;
+        std::weak_ptr<NDImageStatistics<T>> ndis_wp;
+        ImageStats<T>& stats;
+        std::uint16_t bin_count;
+    };
+
+    template<typename MASK_T>
     static std::shared_ptr<ImageStats<T>> compute(std::weak_ptr<NDImageStatistics<T>> this_wp);
+
+    struct ComputeTag {};
+    struct FloatComputeTag : ComputeTag {};
+    struct UnrangedFloatComputeTag : FloatComputeTag {};
+    struct IntegerComputeTag : ComputeTag {};
+    struct UnsignedIntegerComputeTag : IntegerComputeTag {};
+    struct Power2RangeUnsignedIntegerComputeTag : UnsignedIntegerComputeTag {
+        std::uint16_t bin_shift;
+        explicit Power2RangeUnsignedIntegerComputeTag(std::uint16_t bin_shift_) : bin_shift(bin_shift_) {}
+    };
+    struct MaxRangeUnsignedIntegerComputeTag : Power2RangeUnsignedIntegerComputeTag {
+        using Power2RangeUnsignedIntegerComputeTag::Power2RangeUnsignedIntegerComputeTag;
+    };
+
+    // Dispatch for integral T. The second parameter is a character array with length of 0 or 1, depending on the value
+    // of std::is_integral<T>::value. A zero length array is invalid in C++. Therefore, the this definition is valid C++
+    // only when T is integer, causing the method to be hidden entirely when T is floating point, allowing the integral
+    // and floating point versions to make calls that are only valid for their respective types. The alternative to
+    // standing on SFINAE is to instead have a fully generic dispatch_tagged_compute implementation assume T is integral
+    // and to provide separate specializations for float and double.
+    template<typename MASK_T>
+    static void dispatch_tagged_compute(ComputeContext<MASK_T>& cc, char (*)[std::is_integral<T>::value]=0);
+
+    // Dispatch for floating point T.
+    template<typename MASK_T>
+    static void dispatch_tagged_compute(ComputeContext<MASK_T>& cc, char (*)[std::is_floating_point<T>::value]=0);
+
+    template<typename MASK_T, typename COMPUTE_TAG>
+    static void tagged_compute(ComputeContext<MASK_T>& cc, const COMPUTE_TAG& tag);
+
+    template<typename MASK_T>
+    static void init_extrema(ComputeContext<MASK_T>& cc, const IntegerComputeTag&);
+
+    template<typename MASK_T>
+    static void init_extrema(ComputeContext<MASK_T>& cc, const FloatComputeTag&);
+
+    template<typename MASK_T, typename COMPUTE_TAG>
+    static void scan_image(ComputeContext<MASK_T>& cc, const COMPUTE_TAG& tag);
+
+    template<typename MASK_T>
+    static inline void process_component(Stats<T>& overall_stats,
+                                         Stats<T>& component_stats,
+                                         bool in_overall,
+                                         const T& component,
+                                         const ComputeTag& tag);
+
+    template<typename MASK_T>
+    static inline void process_component(Stats<T>& overall_stats,
+                                         Stats<T>& component_stats,
+                                         bool in_overall,
+                                         const T& component,
+                                         const MaxRangeUnsignedIntegerComputeTag& tag);
 };
 
 #include "NDImageStatistics_impl.h"

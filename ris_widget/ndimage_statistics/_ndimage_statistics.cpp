@@ -53,8 +53,8 @@ PYBIND11_PLUGIN(_ndimage_statistics)
     NDImageStatistics<std::uint32_t>::expose_via_pybind11(m, "uint32");
     NDImageStatistics<std::int64_t> ::expose_via_pybind11(m, "int64");
     NDImageStatistics<std::uint64_t>::expose_via_pybind11(m, "uint64");
-//  NDImageStatistics<float        >::expose_via_pybind11(m, "float32");
-//  NDImageStatistics<double       >::expose_via_pybind11(m, "float64");
+    NDImageStatistics<float        >::expose_via_pybind11(m, "float32");
+    NDImageStatistics<double       >::expose_via_pybind11(m, "float64");
 
     return m.ptr();
 }

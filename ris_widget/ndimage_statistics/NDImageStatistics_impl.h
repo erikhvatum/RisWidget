@@ -26,7 +26,7 @@
 #include "NDImageStatistics.h"
 
 template<typename T>
-std::size_t max_bin_count()
+std::uint16_t max_bin_count()
 {
     return 1024;
 }
@@ -426,6 +426,19 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::get_image_stats()
 
 template<typename T>
 template<typename MASK_T>
+NDImageStatistics<T>::ComputeContext<MASK_T>::ComputeContext(std::shared_ptr<NDImageStatistics<T>>& ndis_sp, ImageStats<T>& stats_)
+  : range(ndis_sp->range),
+    data_view(ndis_sp->data_view),
+    mask(std::dynamic_pointer_cast<MASK_T>(ndis_sp->mask)),
+    drop_last_channel_from_overall_stats(ndis_sp->drop_last_channel_from_overall_stats),
+    ndis_wp(ndis_sp),
+    stats(stats_),
+    bin_count(max_bin_count<T>())
+{
+}
+
+template<typename T>
+template<typename MASK_T>
 std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDImageStatistics<T>> this_wp)
 {
     std::shared_ptr<ImageStats<T>> stats(new ImageStats<T>());
@@ -433,17 +446,13 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDIma
     // (bool)this_sp evaluates to false if the NDImageStatistics instance that asynchronously invoked compute(..) has 
     // already been deleted. If/when it is deleted, we take this to mean that nobody is interested in the result of the 
     // current invocation, so this is the mechanism (detecting that our invoking NDImageStatistics instance has been 
-    // deleted) is our early-out cue (further down in this function, we simply check if the weak pointer is expired 
-    // rather than acquiring a shared pointer to it via the lock method because checking if it is expired at that point 
-    // is all we require).
+    // deleted) is our early-out cue (later, we simply check if the weak pointer is expired rather than acquiring a
+    // shared pointer to it via the lock method because checking if it is expired at that point is all we require). 
     if(this_sp)
     {
         // Copy or get reference counted vars to all of the invoking NDImageStatistics instance's data that we will 
         // need. 
-        const std::pair<T, T>& range(this_sp->range);
-        std::shared_ptr<PyArrayView> data_view{this_sp->data_view};
-        std::shared_ptr<MASK_T> mask{std::dynamic_pointer_cast<MASK_T>(this_sp->mask)};
-        bool drop_last_channel_from_overall_stats{this_sp->drop_last_channel_from_overall_stats};
+        ComputeContext<MASK_T> cc(this_sp, *stats);
 
         // We made copies of or reference-counted vars to all of the invoking NDImageStatistics instance's data that we 
         // need. Now, we drop our reference to that NDImageStatistics instance. It is possible that ours became the last
@@ -452,120 +461,167 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDIma
         // of code. If that happened, we early-out before beginning processing of the first image scanline. 
         this_sp.reset();
 
-        Cursor<T, MASK_T> cursor(*data_view, *mask);
-        stats->channel_stats.resize(cursor.component_count);
-        std::generate(stats->channel_stats.begin(), stats->channel_stats.end(), std::make_shared<Stats<T>>);
-        std::shared_ptr<Stats<T>>* channel_stat_p;
-        const std::ptrdiff_t last_overall_component_idx{(std::ptrdiff_t)cursor.component_count - 1 - int(drop_last_channel_from_overall_stats)};
-        std::ptrdiff_t component_idx;
-
-        // Initialize min/max. This avoids the need to either branch on whether to replace uninitialized min/max or 
-        // initialize min/max to type::max / type::min and branch on whether a single component value replaces _both_. 
-        if(std::is_integral<T>::value)
+        // Dispatch to computation code path templated by image and paremeter (range) characteristics 
+        dispatch_tagged_compute(cc);
+    }
+    return stats;
+}
+#include<iostream>
+template<typename T>
+template<typename MASK_T>
+void NDImageStatistics<T>::dispatch_tagged_compute(ComputeContext<MASK_T>& cc, char (*)[std::is_integral<T>::value])
+{
+    if(std::is_unsigned<T>::value)
+    {
+        if(cc.range.first == std::numeric_limits<T>::min() && cc.range.second == std::numeric_limits<T>::max())
         {
-            cursor.seek_front_scanline();
-            if(cursor.scanline_valid)
-            {
-                cursor.seek_front_pixel_of_scanline();
-                if(cursor.pixel_valid)
-                {
-                    channel_stat_p = stats->channel_stats.data();
-                    for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component(), ++channel_stat_p)
-                    {
-                        Stats<T>& channel_stat{**channel_stat_p};
-                        channel_stat.extrema.first = channel_stat.extrema.second = *cursor.component;
-                    }
-                    for(component_idx=0, channel_stat_p=stats->channel_stats.data(); component_idx < last_overall_component_idx; ++component_idx, ++channel_stat_p)
-                    {
-                        Stats<T>& channel_stat{**channel_stat_p};
-                        if(component_idx == 0)
-                            stats->extrema = channel_stat.extrema;
-                        else
-                        {
-                            if(channel_stat.extrema.first < stats->extrema.first)
-                                stats->extrema.first = channel_stat.extrema.first;
-                            if(channel_stat.extrema.second > stats->extrema.second)
-                                stats->extrema.second = channel_stat.extrema.second;
-                        }
-                    }
-                }
-            }
+            std::uint16_t bin_shift = sizeof(T)*8 - power_of_two(cc.bin_count).second;
+            tagged_compute(cc, MaxRangeUnsignedIntegerComputeTag(bin_shift));
         }
         else
         {
-            // FP.  Will be slightly more complex owing to need to avoid initializing min/max to non-finite values
-        }
-
-        std::size_t bin_count{max_bin_count<T>()};
-        std::function<void(Stats<T>& overall_stats, Stats<T>& component_stats, bool in_overall, const T& component)> process_component;
-        if(std::is_integral<T>::value)
-        {
-            if(std::is_unsigned<T>::value && range.first == std::numeric_limits<T>::min() && range.second == std::numeric_limits<T>::max())
+            // NB: The above if statement handles the one case where range.second - range.first + 1 would overflow T
+            T range_quanta_count = cc.range.second - cc.range.first; ++range_quanta_count;
+            if(range_quanta_count < cc.bin_count)
+                cc.bin_count = range_quanta_count;
+            bool is_power2;
+            std::int16_t power2;
+            std::tie(is_power2, power2) = power_of_two(range_quanta_count);
+            if(is_power2)
             {
-                std::uint16_t bin_shift = sizeof(T)*8 - power_of_two(bin_count).second;
-                process_component = [bin_shift](Stats<T>& overall_stats, Stats<T>& component_stats, bool in_overall, const T& component) {
-                    std::uint16_t bin = component >> bin_shift;
-                    ++(*component_stats.histogram)[bin];
-                    if(component < component_stats.extrema.first)
-                        component_stats.extrema.first = component;
-                    else if(component > component_stats.extrema.second)
-                        component_stats.extrema.second = component;
-                    if(in_overall)
-                    {
-                        ++(*overall_stats.histogram)[bin];
-                        if(component < overall_stats.extrema.first)
-                            overall_stats.extrema.first = component;
-                        else if(component > overall_stats.extrema.second)
-                            overall_stats.extrema.second = component;
-                    }
-                };
+                std::uint16_t bin_shift = power2 - power_of_two(cc.bin_count).second;
+                tagged_compute(cc, Power2RangeUnsignedIntegerComputeTag(bin_shift));
             }
             else
             {
-                T range_width = range.second - range.first;
-                // NB: The above if statement handles the one case where range.second - range.first + 1 would overflow T
-                T range_quanta_count = range_width + 1;
-                if(range_quanta_count < bin_count)
-                    bin_count = range_quanta_count;
-                bool is_power2;
-                std::int16_t power2;
-                std::tie(is_power2, power2) = power_of_two(range_width);
-                if(is_power2)
-                {
-                    std::uint16_t bin_shift = power2 - power_of_two(bin_count).second;
+                tagged_compute(cc, UnsignedIntegerComputeTag());
+            }
+        }
+    }
+    else
+    {
+        // float is used to avoid overflowing in the case of broad range with signed value; the if statement need only 
+        // be triggered if this is small enough that adding one has an effect, in which case the conditional block will 
+        // also not overflow (given the relatively small bin counts we use)
+        if((static_cast<float>(cc.range.second) - cc.range.first) + 1 < cc.bin_count)
+            cc.bin_count = (cc.range.second - cc.range.first) + 1;
+        tagged_compute(cc, IntegerComputeTag());
+    }
+}
 
-                    process_component = [bin_shift](Stats<T>& overall_stats, Stats<T>& component_stats, bool in_overall, const T& component) {
-                    };
-                }
+template<typename T>
+template<typename MASK_T>
+void NDImageStatistics<T>::dispatch_tagged_compute(ComputeContext<MASK_T>& cc, char (*)[std::is_floating_point<T>::value])
+{
+}
+
+template<typename T>
+template<typename MASK_T, typename COMPUTE_TAG>
+void NDImageStatistics<T>::tagged_compute(ComputeContext<MASK_T>& cc, const COMPUTE_TAG& tag)
+{
+    cc.stats.channel_stats.resize(cc.data_view->ndim == 3 ? cc.data_view->shape[2] : 1);
+    std::generate(cc.stats.channel_stats.begin(), cc.stats.channel_stats.end(), std::make_shared<Stats<T>>);
+    cc.stats.set_bin_count(cc.bin_count);
+    init_extrema<MASK_T>(cc, tag);
+    scan_image<MASK_T>(cc, tag);
+}
+
+template<typename T>
+template<typename MASK_T>
+void NDImageStatistics<T>::init_extrema(ComputeContext<MASK_T>& cc, const IntegerComputeTag& tag)
+{
+    Cursor<T, MASK_T> cursor(*cc.data_view, *cc.mask);
+    std::shared_ptr<Stats<T>>* channel_stat_p;
+    const std::ptrdiff_t last_overall_component_idx{(std::ptrdiff_t)cursor.component_count - 1 - int(cc.drop_last_channel_from_overall_stats)};
+    std::ptrdiff_t component_idx;
+    cursor.seek_front_scanline();
+    if(cursor.scanline_valid)
+    {
+        cursor.seek_front_pixel_of_scanline();
+        if(cursor.pixel_valid)
+        {
+            channel_stat_p = cc.stats.channel_stats.data();
+            for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component(), ++channel_stat_p)
+            {
+                Stats<T>& channel_stat{**channel_stat_p};
+                channel_stat.extrema.first = channel_stat.extrema.second = *cursor.component;
+            }
+            for(component_idx=0, channel_stat_p=cc.stats.channel_stats.data(); component_idx < last_overall_component_idx; ++component_idx, ++channel_stat_p)
+            {
+                Stats<T>& channel_stat{**channel_stat_p};
+                if(component_idx == 0)
+                    cc.stats.extrema = channel_stat.extrema;
                 else
                 {
-                    process_component = [](Stats<T>& overall_stats, Stats<T>& component_stats, bool in_overall, const T& component) {
-                    };
+                    if(channel_stat.extrema.first < cc.stats.extrema.first)
+                        cc.stats.extrema.first = channel_stat.extrema.first;
+                    if(channel_stat.extrema.second > cc.stats.extrema.second)
+                        cc.stats.extrema.second = channel_stat.extrema.second;
                 }
             }
         }
-        else
-        {
-            // FP.  Cap bin count to FP quanta in range.
-        }
-
-        stats->set_bin_count(bin_count);
-        
-        for(; cursor.scanline_valid && !this_wp.expired(); cursor.advance_scanline())
-        {
-            for(cursor.seek_front_pixel_of_scanline(); cursor.pixel_valid; cursor.advance_pixel())
-            {
-                component_idx = 0;
-                channel_stat_p = stats->channel_stats.data();
-                for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component(), ++component_idx, ++channel_stat_p)
-                {
-                    process_component(*stats, **channel_stat_p, component_idx <= last_overall_component_idx, *cursor.component);
-                }
-            }
-        }
-        stats->find_max_bin();
-        for(std::shared_ptr<Stats<T>>& channel_stat : stats->channel_stats)
-            channel_stat->find_max_bin();
     }
-    return stats;
+}
+
+template<typename T>
+template<typename MASK_T>
+void NDImageStatistics<T>::init_extrema(ComputeContext<MASK_T>& cc, const FloatComputeTag& tag)
+{
+    std::cout << "init_extrema (float)\n";
+}
+
+template<typename T>
+template<typename MASK_T, typename COMPUTE_TAG>
+void NDImageStatistics<T>::scan_image(ComputeContext<MASK_T>& cc, const COMPUTE_TAG& tag)
+{
+    Cursor<T, MASK_T> cursor(*cc.data_view, *cc.mask);
+    std::shared_ptr<Stats<T>>* channel_stat_p;
+    const std::ptrdiff_t last_overall_component_idx{(std::ptrdiff_t)cursor.component_count - 1 - int(cc.drop_last_channel_from_overall_stats)};
+    std::ptrdiff_t component_idx;
+    for(cursor.seek_front_scanline(); cursor.scanline_valid && !cc.ndis_wp.expired(); cursor.advance_scanline())
+    {
+        for(cursor.seek_front_pixel_of_scanline(); cursor.pixel_valid; cursor.advance_pixel())
+        {
+            component_idx = 0;
+            channel_stat_p = cc.stats.channel_stats.data();
+            for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component(), ++component_idx, ++channel_stat_p)
+            {
+                process_component<MASK_T>(cc.stats, **channel_stat_p, component_idx <= last_overall_component_idx, *cursor.component, tag);
+            }
+        }
+    }
+}
+
+template<typename T>
+template<typename MASK_T>
+void NDImageStatistics<T>::process_component(Stats<T>& overall_stats,
+                                             Stats<T>& component_stats,
+                                             bool in_overall,
+                                             const T& component,
+                                             const ComputeTag& tag)
+{
+}
+
+template<typename T>
+template<typename MASK_T>
+void NDImageStatistics<T>::process_component(Stats<T>& overall_stats,
+                                             Stats<T>& component_stats,
+                                             bool in_overall,
+                                             const T& component,
+                                             const MaxRangeUnsignedIntegerComputeTag& tag)
+{
+    std::uint16_t bin = component >> tag.bin_shift;
+    ++(*component_stats.histogram)[bin];
+    if(component < component_stats.extrema.first)
+        component_stats.extrema.first = component;
+    else if(component > component_stats.extrema.second)
+        component_stats.extrema.second = component;
+    if(in_overall)
+    {
+        ++(*overall_stats.histogram)[bin];
+        if(component < overall_stats.extrema.first)
+            overall_stats.extrema.first = component;
+        else if(component > overall_stats.extrema.second)
+            overall_stats.extrema.second = component;
+    }
 }

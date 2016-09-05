@@ -40,13 +40,13 @@ std::unordered_map<std::type_index, std::string> component_type_names {
 };
 
 template<>
-std::size_t max_bin_count<std::uint8_t>()
+std::uint16_t max_bin_count<std::uint8_t>()
 {
     return 256;
 }
 
 template<>
-std::size_t max_bin_count<std::int8_t>()
+std::uint16_t max_bin_count<std::int8_t>()
 {
     return 256;
 }
