@@ -371,18 +371,20 @@ protected:
     static void scan_image(ComputeContext<MASK_T>& cc, const COMPUTE_TAG& tag);
 
     template<typename MASK_T>
-    static inline void process_component(Stats<T>& overall_stats,
-                                         Stats<T>& component_stats,
-                                         bool in_overall,
+    static inline void process_component(Stats<T>& component_stats,
                                          const T& component,
                                          const ComputeTag& tag);
 
     template<typename MASK_T>
-    static inline void process_component(Stats<T>& overall_stats,
-                                         Stats<T>& component_stats,
-                                         bool in_overall,
+    static inline void process_component(Stats<T>& component_stats,
                                          const T& component,
                                          const MaxRangeUnsignedIntegerComputeTag& tag);
+
+    template<typename MASK_T>
+    static void gather_overall(ComputeContext<MASK_T>& cc, const IntegerComputeTag&);
+
+    template<typename MASK_T>
+    static void gather_overall(ComputeContext<MASK_T>& cc, const FloatComputeTag&);
 };
 
 #include "NDImageStatistics_impl.h"

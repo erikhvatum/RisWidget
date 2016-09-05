@@ -524,6 +524,7 @@ void NDImageStatistics<T>::tagged_compute(ComputeContext<MASK_T>& cc, const COMP
     cc.stats.set_bin_count(cc.bin_count);
     init_extrema<MASK_T>(cc, tag);
     scan_image<MASK_T>(cc, tag);
+    gather_overall<MASK_T>(cc, tag);
 }
 
 template<typename T>
@@ -532,8 +533,6 @@ void NDImageStatistics<T>::init_extrema(ComputeContext<MASK_T>& cc, const Intege
 {
     Cursor<T, MASK_T> cursor(*cc.data_view, *cc.mask);
     std::shared_ptr<Stats<T>>* channel_stat_p;
-    const std::ptrdiff_t last_overall_component_idx{(std::ptrdiff_t)cursor.component_count - 1 - int(cc.drop_last_channel_from_overall_stats)};
-    std::ptrdiff_t component_idx;
     cursor.seek_front_scanline();
     if(cursor.scanline_valid)
     {
@@ -545,19 +544,6 @@ void NDImageStatistics<T>::init_extrema(ComputeContext<MASK_T>& cc, const Intege
             {
                 Stats<T>& channel_stat{**channel_stat_p};
                 channel_stat.extrema.first = channel_stat.extrema.second = *cursor.component;
-            }
-            for(component_idx=0, channel_stat_p=cc.stats.channel_stats.data(); component_idx < last_overall_component_idx; ++component_idx, ++channel_stat_p)
-            {
-                Stats<T>& channel_stat{**channel_stat_p};
-                if(component_idx == 0)
-                    cc.stats.extrema = channel_stat.extrema;
-                else
-                {
-                    if(channel_stat.extrema.first < cc.stats.extrema.first)
-                        cc.stats.extrema.first = channel_stat.extrema.first;
-                    if(channel_stat.extrema.second > cc.stats.extrema.second)
-                        cc.stats.extrema.second = channel_stat.extrema.second;
-                }
             }
         }
     }
@@ -576,27 +562,25 @@ void NDImageStatistics<T>::scan_image(ComputeContext<MASK_T>& cc, const COMPUTE_
 {
     Cursor<T, MASK_T> cursor(*cc.data_view, *cc.mask);
     std::shared_ptr<Stats<T>>* channel_stat_p;
-    const std::ptrdiff_t last_overall_component_idx{(std::ptrdiff_t)cursor.component_count - 1 - int(cc.drop_last_channel_from_overall_stats)};
-    std::ptrdiff_t component_idx;
     for(cursor.seek_front_scanline(); cursor.scanline_valid && !cc.ndis_wp.expired(); cursor.advance_scanline())
     {
         for(cursor.seek_front_pixel_of_scanline(); cursor.pixel_valid; cursor.advance_pixel())
         {
-            component_idx = 0;
             channel_stat_p = cc.stats.channel_stats.data();
-            for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component(), ++component_idx, ++channel_stat_p)
+            for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component(), ++channel_stat_p)
             {
-                process_component<MASK_T>(cc.stats, **channel_stat_p, component_idx <= last_overall_component_idx, *cursor.component, tag);
+                process_component<MASK_T>(**channel_stat_p, *cursor.component, tag);
             }
         }
     }
+    std::shared_ptr<Stats<T>>* channel_stat_p_end{cc.stats.channel_stats.data() + cc.stats.channel_stats.size()};
+    for(channel_stat_p = cc.stats.channel_stats.data(); channel_stat_p != channel_stat_p_end; ++channel_stat_p)
+        (*channel_stat_p)->find_max_bin();
 }
 
 template<typename T>
 template<typename MASK_T>
-void NDImageStatistics<T>::process_component(Stats<T>& overall_stats,
-                                             Stats<T>& component_stats,
-                                             bool in_overall,
+void NDImageStatistics<T>::process_component(Stats<T>& component_stats,
                                              const T& component,
                                              const ComputeTag& tag)
 {
@@ -604,9 +588,7 @@ void NDImageStatistics<T>::process_component(Stats<T>& overall_stats,
 
 template<typename T>
 template<typename MASK_T>
-void NDImageStatistics<T>::process_component(Stats<T>& overall_stats,
-                                             Stats<T>& component_stats,
-                                             bool in_overall,
+void NDImageStatistics<T>::process_component(Stats<T>& component_stats,
                                              const T& component,
                                              const MaxRangeUnsignedIntegerComputeTag& tag)
 {
@@ -616,12 +598,45 @@ void NDImageStatistics<T>::process_component(Stats<T>& overall_stats,
         component_stats.extrema.first = component;
     else if(component > component_stats.extrema.second)
         component_stats.extrema.second = component;
-    if(in_overall)
+}
+
+template<typename T>
+template<typename MASK_T>
+void NDImageStatistics<T>::gather_overall(ComputeContext<MASK_T>& cc, const IntegerComputeTag&)
+{
+    const std::ptrdiff_t last_overall_component_idx{(std::ptrdiff_t)(cc.data_view->ndim == 3 ? cc.data_view->shape[2] : 1) - 1 - int(cc.drop_last_channel_from_overall_stats)};
+    std::ptrdiff_t component_idx;
+    if(last_overall_component_idx == 0)
     {
-        ++(*overall_stats.histogram)[bin];
-        if(component < overall_stats.extrema.first)
-            overall_stats.extrema.first = component;
-        else if(component > overall_stats.extrema.second)
-            overall_stats.extrema.second = component;
+        cc.stats.max_bin = cc.stats.channel_stats[0]->max_bin;
+        cc.stats.extrema = cc.stats.channel_stats[0]->extrema;
+        cc.stats.histogram = cc.stats.channel_stats[0]->histogram;
     }
+    else
+    {
+        cc.stats.extrema = cc.stats.channel_stats[0]->extrema;
+        *cc.stats.histogram = *cc.stats.channel_stats[0]->histogram;
+
+        std::uint64_t *mhit, *chit, *mhit_end;
+        for(std::ptrdiff_t component_idx=1; component_idx <= last_overall_component_idx; ++component_idx)
+        {
+            if(cc.stats.channel_stats[component_idx]->extrema.first < cc.stats.extrema.first)
+                cc.stats.extrema.first = cc.stats.channel_stats[component_idx]->extrema.first;
+            if(cc.stats.channel_stats[component_idx]->extrema.second > cc.stats.extrema.second)
+                cc.stats.extrema.second = cc.stats.channel_stats[component_idx]->extrema.second;
+            mhit = cc.stats.histogram->data();
+            mhit_end = mhit + cc.bin_count;
+            chit = cc.stats.channel_stats[component_idx]->histogram->data();
+            for(; mhit != mhit_end; ++mhit, ++chit)
+                *mhit += *chit;
+        }
+
+        cc.stats.find_max_bin();
+    }
+}
+
+template<typename T>
+template<typename MASK_T>
+void NDImageStatistics<T>::gather_overall(ComputeContext<MASK_T>& cc, const FloatComputeTag&)
+{
 }
