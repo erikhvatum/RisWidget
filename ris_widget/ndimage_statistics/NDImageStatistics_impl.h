@@ -52,6 +52,20 @@ std::pair<bool, std::int16_t> power_of_two(T v)
 }
 
 template<typename T>
+bool is_finite(const T& v)
+{
+    switch(std::fpclassify(v))
+    {
+    case FP_NORMAL:
+    case FP_SUBNORMAL:
+    case FP_ZERO:
+        return true;
+    default:
+        return false;
+    }
+}
+
+template<typename T>
 CursorBase<T>::CursorBase(PyArrayView& data_view)
   : scanline_valid(false),
     pixel_valid(false),
@@ -301,6 +315,7 @@ FloatStatsBase<T>::FloatStatsBase()
     neg_inf_count(0),
     pos_inf_count(0)
 {
+    this->extrema.second = this->extrema.first = std::nan("");
 }
 
 // Note that concrete specializations for T=float and T=double are found in NDImageStatistics.cpp
@@ -513,6 +528,11 @@ template<typename T>
 template<typename MASK_T>
 void NDImageStatistics<T>::dispatch_tagged_compute(ComputeContext<MASK_T>& cc, char (*)[std::is_floating_point<T>::value])
 {
+    // TODO: if bin count exceeds floating point quanta in found or specified range, constrain bin count
+    if(std::isnan(cc.range.first) || std::isnan(cc.range.second))
+        tagged_compute(cc, UnrangedFloatComputeTag());
+    else
+        tagged_compute(cc, FloatComputeTag());
 }
 
 template<typename T>
@@ -521,8 +541,8 @@ void NDImageStatistics<T>::tagged_compute(ComputeContext<MASK_T>& cc, const COMP
 {
     cc.stats.channel_stats.resize(cc.data_view->ndim == 3 ? cc.data_view->shape[2] : 1);
     std::generate(cc.stats.channel_stats.begin(), cc.stats.channel_stats.end(), std::make_shared<Stats<T>>);
-    cc.stats.set_bin_count(cc.bin_count);
     init_extrema<MASK_T>(cc, tag);
+    cc.stats.set_bin_count(cc.bin_count);
     scan_image<MASK_T>(cc, tag);
     gather_overall<MASK_T>(cc, tag);
 }
@@ -553,7 +573,36 @@ template<typename T>
 template<typename MASK_T>
 void NDImageStatistics<T>::init_extrema(ComputeContext<MASK_T>& cc, const FloatComputeTag& tag)
 {
-    std::cout << "init_extrema (float)\n";
+    bool complete;
+    Cursor<T, MASK_T> cursor(*cc.data_view, *cc.mask);
+    std::shared_ptr<Stats<T>>* channel_stat_p;
+    for(cursor.seek_front_scanline(); cursor.scanline_valid && !cc.ndis_wp.expired(); cursor.advance_scanline())
+    {
+        for(cursor.seek_front_pixel_of_scanline(); cursor.pixel_valid; cursor.advance_pixel())
+        {
+            channel_stat_p = cc.stats.channel_stats.data();
+            complete = true;
+            for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component(), ++channel_stat_p)
+            {
+                Stats<T>& channel_stat{**channel_stat_p};
+                if(std::isnan(channel_stat.extrema.first))
+                {
+                    if(is_finite(*cursor.component))
+                        channel_stat.extrema.first = channel_stat.extrema.second = *cursor.component;
+                    else
+                        complete = false;
+                }
+            }
+            if(complete)
+                return;
+        }
+    }
+}
+
+template<typename T>
+template<typename MASK_T>
+void NDImageStatistics<T>::init_extrema(ComputeContext<MASK_T>& cc, const UnrangedFloatComputeTag& tag)
+{
 }
 
 template<typename T>
@@ -639,4 +688,42 @@ template<typename T>
 template<typename MASK_T>
 void NDImageStatistics<T>::gather_overall(ComputeContext<MASK_T>& cc, const FloatComputeTag&)
 {
+    const std::ptrdiff_t last_overall_component_idx{(std::ptrdiff_t)(cc.data_view->ndim == 3 ? cc.data_view->shape[2] : 1) - 1 - int(cc.drop_last_channel_from_overall_stats)};
+    std::ptrdiff_t component_idx;
+    if(last_overall_component_idx == 0)
+    {
+        cc.stats.max_bin = cc.stats.channel_stats[0]->max_bin;
+        cc.stats.extrema = cc.stats.channel_stats[0]->extrema;
+        cc.stats.histogram = cc.stats.channel_stats[0]->histogram;
+        cc.stats.NaN_count = cc.stats.channel_stats[0]->NaN_count;
+        cc.stats.neg_inf_count = cc.stats.channel_stats[0]->neg_inf_count;
+        cc.stats.pos_inf_count = cc.stats.channel_stats[0]->pos_inf_count;
+    }
+    else
+    {
+        cc.stats.extrema = cc.stats.channel_stats[0]->extrema;
+        *cc.stats.histogram = *cc.stats.channel_stats[0]->histogram;
+        cc.stats.NaN_count = cc.stats.channel_stats[0]->NaN_count;
+        cc.stats.neg_inf_count = cc.stats.channel_stats[0]->neg_inf_count;
+        cc.stats.pos_inf_count = cc.stats.channel_stats[0]->pos_inf_count;
+
+        std::uint64_t *mhit, *chit, *mhit_end;
+        for(std::ptrdiff_t component_idx=1; component_idx <= last_overall_component_idx; ++component_idx)
+        {
+            if(std::isnan(cc.stats.extrema.first) || cc.stats.channel_stats[component_idx]->extrema.first < cc.stats.extrema.first)
+                cc.stats.extrema.first = cc.stats.channel_stats[component_idx]->extrema.first;
+            if(std::isnan(cc.stats.extrema.second) || cc.stats.channel_stats[component_idx]->extrema.second > cc.stats.extrema.second)
+                cc.stats.extrema.second = cc.stats.channel_stats[component_idx]->extrema.second;
+            mhit = cc.stats.histogram->data();
+            mhit_end = mhit + cc.bin_count;
+            chit = cc.stats.channel_stats[component_idx]->histogram->data();
+            for(; mhit != mhit_end; ++mhit, ++chit)
+                *mhit += *chit;
+            cc.stats.NaN_count += cc.stats.channel_stats[component_idx]->NaN_count;
+            cc.stats.neg_inf_count += cc.stats.channel_stats[component_idx]->neg_inf_count;
+            cc.stats.pos_inf_count += cc.stats.channel_stats[component_idx]->pos_inf_count;
+        }
+
+        cc.stats.find_max_bin();
+    }
 }
