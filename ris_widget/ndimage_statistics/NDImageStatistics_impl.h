@@ -476,7 +476,7 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDIma
         // of code. If that happened, we early-out before beginning processing of the first image scanline.
         this_sp.reset();
 
-        // Dispatch to computation code path templated by image and paremeter (range) characteristics 
+        // Dispatch to computation code path templated by image and paremeter (range) characteristics
         dispatch_tagged_compute(cc);
     }
     return stats;
@@ -666,6 +666,16 @@ void NDImageStatistics<T>::process_component(ComputeContext<MASK_T>& cc,
                                              const T& component,
                                              const ComputeTag& tag)
 {
+    const T range_width = cc.range.second - cc.range.first;
+    if(range_width == 0)
+        // TODO: bail out in caller rather than here
+        return;
+    // TODO: cache this
+    const double bin_factor = static_cast<double>(cc.bin_count) / range_width;
+    if(component >= cc.range.first && component < cc.range.second)
+        ++component_stats.histogram->data()[static_cast<std::ptrdiff_t>(bin_factor * (component - cc.range.first))];
+    else if(component == cc.range.second)
+        ++component_stats.histogram->back();
 }
 
 template<typename T>
@@ -702,7 +712,7 @@ void NDImageStatistics<T>::process_component(ComputeContext<MASK_T>& cc,
         ++component_stats.NaN_count;
         break;
     default:
-        // It would be more efficient to have a NonFiniteOnlyFloatComputeTag and specialization in order to factor out 
+        // It would be more efficient to have a NonFiniteOnlyFloatComputeTag and specialization in order to factor out
         // this if statement; doing so may improve float image throughput somewhat.
         if(!std::isnan(cc.range.first))
             process_component(cc, component_stats, component, ComputeTag());
