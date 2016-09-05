@@ -458,22 +458,22 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDIma
 {
     std::shared_ptr<ImageStats<T>> stats(new ImageStats<T>());
     std::shared_ptr<NDImageStatistics<T>> this_sp(this_wp.lock());
-    // (bool)this_sp evaluates to false if the NDImageStatistics instance that asynchronously invoked compute(..) has 
-    // already been deleted. If/when it is deleted, we take this to mean that nobody is interested in the result of the 
-    // current invocation, so this is the mechanism (detecting that our invoking NDImageStatistics instance has been 
+    // (bool)this_sp evaluates to false if the NDImageStatistics instance that asynchronously invoked compute(..) has
+    // already been deleted. If/when it is deleted, we take this to mean that nobody is interested in the result of the
+    // current invocation, so this is the mechanism (detecting that our invoking NDImageStatistics instance has been
     // deleted) is our early-out cue (later, we simply check if the weak pointer is expired rather than acquiring a
-    // shared pointer to it via the lock method because checking if it is expired at that point is all we require). 
+    // shared pointer to it via the lock method because checking if it is expired at that point is all we require).
     if(this_sp)
     {
-        // Copy or get reference counted vars to all of the invoking NDImageStatistics instance's data that we will 
-        // need. 
+        // Copy or get reference counted vars to all of the invoking NDImageStatistics instance's data that we will
+        // need.
         ComputeContext<MASK_T> cc(this_sp, *stats);
 
-        // We made copies of or reference-counted vars to all of the invoking NDImageStatistics instance's data that we 
+        // We made copies of or reference-counted vars to all of the invoking NDImageStatistics instance's data that we
         // need. Now, we drop our reference to that NDImageStatistics instance. It is possible that ours became the last
-        // reference to it; this would be OK and would simply indicate that some Python thread dropped the last existing 
+        // reference to it; this would be OK and would simply indicate that some Python thread dropped the last existing
         // reference other than ours between the evaluation of the condition of the enclosing if statement and this line
-        // of code. If that happened, we early-out before beginning processing of the first image scanline. 
+        // of code. If that happened, we early-out before beginning processing of the first image scanline.
         this_sp.reset();
 
         // Dispatch to computation code path templated by image and paremeter (range) characteristics 
@@ -515,8 +515,8 @@ void NDImageStatistics<T>::dispatch_tagged_compute(ComputeContext<MASK_T>& cc, c
     }
     else
     {
-        // float is used to avoid overflowing in the case of broad range with signed value; the if statement need only 
-        // be triggered if this is small enough that adding one has an effect, in which case the conditional block will 
+        // float is used to avoid overflowing in the case of broad range with signed value; the if statement need only
+        // be triggered if this is small enough that adding one has an effect, in which case the conditional block will
         // also not overflow (given the relatively small bin counts we use)
         if((static_cast<float>(cc.range.second) - cc.range.first) + 1 < cc.bin_count)
             cc.bin_count = (cc.range.second - cc.range.first) + 1;
@@ -603,6 +603,39 @@ template<typename T>
 template<typename MASK_T>
 void NDImageStatistics<T>::init_extrema(ComputeContext<MASK_T>& cc, const UnrangedFloatComputeTag& tag)
 {
+    Cursor<T, MASK_T> cursor(*cc.data_view, *cc.mask);
+    std::shared_ptr<Stats<T>>* channel_stat_p;
+    for(cursor.seek_front_scanline(); cursor.scanline_valid && !cc.ndis_wp.expired(); cursor.advance_scanline())
+    {
+        for(cursor.seek_front_pixel_of_scanline(); cursor.pixel_valid; cursor.advance_pixel())
+        {
+            channel_stat_p = cc.stats.channel_stats.data();
+            for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component(), ++channel_stat_p)
+            {
+                Stats<T>& channel_stat{**channel_stat_p};
+                if(!std::isnan(channel_stat.extrema.first))
+                {
+                    if(*cursor.component < channel_stat.extrema.first)
+                        channel_stat.extrema.first = *cursor.component;
+                    else if(*cursor.component > channel_stat.extrema.second)
+                        channel_stat.extrema.second = *cursor.component;
+                }
+                else
+                {
+                    if(is_finite(*cursor.component))
+                        channel_stat.extrema.first = channel_stat.extrema.second = *cursor.component;
+                }
+            }
+        }
+    }
+    // NB: For the purpose of finding range, drop_last_channel_from_overall_stats is ignored
+    for(std::shared_ptr<Stats<T>>& channel_stat : cc.stats.channel_stats)
+    {
+        if(std::isnan(cc.range.first) || channel_stat->extrema.first < cc.range.first)
+            cc.range.first = channel_stat->extrema.first;
+        if(std::isnan(cc.range.second) || channel_stat->extrema.second > cc.range.second)
+            cc.range.second = channel_stat->extrema.second;
+    }
 }
 
 template<typename T>
@@ -618,18 +651,18 @@ void NDImageStatistics<T>::scan_image(ComputeContext<MASK_T>& cc, const COMPUTE_
             channel_stat_p = cc.stats.channel_stats.data();
             for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component(), ++channel_stat_p)
             {
-                process_component<MASK_T>(**channel_stat_p, *cursor.component, tag);
+                process_component<MASK_T>(cc, **channel_stat_p, *cursor.component, tag);
             }
         }
     }
-    std::shared_ptr<Stats<T>>* channel_stat_p_end{cc.stats.channel_stats.data() + cc.stats.channel_stats.size()};
-    for(channel_stat_p = cc.stats.channel_stats.data(); channel_stat_p != channel_stat_p_end; ++channel_stat_p)
-        (*channel_stat_p)->find_max_bin();
+    for(std::shared_ptr<Stats<T>>& channel_stat : cc.stats.channel_stats)
+        channel_stat->find_max_bin();
 }
 
 template<typename T>
 template<typename MASK_T>
-void NDImageStatistics<T>::process_component(Stats<T>& component_stats,
+void NDImageStatistics<T>::process_component(ComputeContext<MASK_T>& cc,
+                                             Stats<T>& component_stats,
                                              const T& component,
                                              const ComputeTag& tag)
 {
@@ -637,7 +670,8 @@ void NDImageStatistics<T>::process_component(Stats<T>& component_stats,
 
 template<typename T>
 template<typename MASK_T>
-void NDImageStatistics<T>::process_component(Stats<T>& component_stats,
+void NDImageStatistics<T>::process_component(ComputeContext<MASK_T>& cc,
+                                             Stats<T>& component_stats,
                                              const T& component,
                                              const MaxRangeUnsignedIntegerComputeTag& tag)
 {
@@ -647,6 +681,33 @@ void NDImageStatistics<T>::process_component(Stats<T>& component_stats,
         component_stats.extrema.first = component;
     else if(component > component_stats.extrema.second)
         component_stats.extrema.second = component;
+}
+
+template<typename T>
+template<typename MASK_T>
+void NDImageStatistics<T>::process_component(ComputeContext<MASK_T>& cc,
+                                             Stats<T>& component_stats,
+                                             const T& component,
+                                             const FloatComputeTag& tag)
+{
+    switch(std::fpclassify(component))
+    {
+    case FP_INFINITE:
+        if(component == -INFINITY)
+            ++component_stats.neg_inf_count;
+        else
+            ++component_stats.pos_inf_count;
+        break;
+    case FP_NAN:
+        ++component_stats.NaN_count;
+        break;
+    default:
+        // It would be more efficient to have a NonFiniteOnlyFloatComputeTag and specialization in order to factor out 
+        // this if statement; doing so may improve float image throughput somewhat.
+        if(!std::isnan(cc.range.first))
+            process_component(cc, component_stats, component, ComputeTag());
+        break;
+    }
 }
 
 template<typename T>

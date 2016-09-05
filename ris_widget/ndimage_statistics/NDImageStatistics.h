@@ -82,9 +82,9 @@ void safe_py_deleter(py::object* py_obj);
 template<typename T>
 std::pair<bool, std::int16_t> power_of_two(T v);
 
-// Returns true if v is zero, normal, or subnormal. Equivalent to Python's math.isfinite(..) function. 
+// Returns true if v is zero, normal, or subnormal. Equivalent to Python's math.isfinite(..) function.
 template<typename T>
-inline bool is_finite(const T& v); 
+inline bool is_finite(const T& v);
 
 template<typename T>
 struct Mask;
@@ -371,6 +371,8 @@ protected:
     template<typename MASK_T>
     static void init_extrema(ComputeContext<MASK_T>& cc, const FloatComputeTag&);
 
+    // Rather than just initializing per-channel extrema with the first finite component found in each channel, this
+    // actually finds extrema across entire image in order to establish range
     template<typename MASK_T>
     static void init_extrema(ComputeContext<MASK_T>& cc, const UnrangedFloatComputeTag&);
 
@@ -378,14 +380,22 @@ protected:
     static void scan_image(ComputeContext<MASK_T>& cc, const COMPUTE_TAG& tag);
 
     template<typename MASK_T>
-    static inline void process_component(Stats<T>& component_stats,
+    static inline void process_component(ComputeContext<MASK_T>& cc,
+                                         Stats<T>& component_stats,
                                          const T& component,
                                          const ComputeTag& tag);
 
     template<typename MASK_T>
-    static inline void process_component(Stats<T>& component_stats,
+    static inline void process_component(ComputeContext<MASK_T>& cc,
+                                         Stats<T>& component_stats,
                                          const T& component,
                                          const MaxRangeUnsignedIntegerComputeTag& tag);
+
+    template<typename MASK_T>
+    static inline void process_component(ComputeContext<MASK_T>& cc,
+                                         Stats<T>& component_stats,
+                                         const T& component,
+                                         const FloatComputeTag&);
 
     template<typename MASK_T>
     static void gather_overall(ComputeContext<MASK_T>& cc, const IntegerComputeTag&);
