@@ -725,7 +725,6 @@ template<typename MASK_T>
 void NDImageStatistics<T>::gather_overall(ComputeContext<MASK_T>& cc, const IntegerComputeTag&)
 {
     const std::ptrdiff_t last_overall_component_idx{(std::ptrdiff_t)(cc.data_view->ndim == 3 ? cc.data_view->shape[2] : 1) - 1 - int(cc.drop_last_channel_from_overall_stats)};
-    std::ptrdiff_t component_idx;
     if(last_overall_component_idx == 0)
     {
         cc.stats.max_bin = cc.stats.channel_stats[0]->max_bin;
