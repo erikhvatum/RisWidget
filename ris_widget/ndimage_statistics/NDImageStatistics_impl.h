@@ -163,7 +163,6 @@ void BitmapMask<T>::expose_via_pybind11(py::module& m)
 {
     std::string s = std::string("_BitmapMask_") + component_type_names[std::type_index(typeid(T))];
     py::class_<BitmapMask<T>, std::shared_ptr<BitmapMask<T>>>(m, s.c_str(), py::base<Mask<T>>());
-//        .def_property_readonly("bitmap", [](BitmapMask<T>& v){return *v.bitmap_py;});
 }
 
 template<typename T>
@@ -177,28 +176,162 @@ BitmapMask<T>::BitmapMask(typed_array_t<std::uint8_t>& bitmap_py_)
 template<typename T>
 Cursor<T, BitmapMask<T>>::Cursor(PyArrayView& data_view, BitmapMask<T>& mask_)
   : NonPerComponentMaskCursor<T>(data_view),
-    mask(mask_)
+    mask(mask_),
+    im_mask_w_ratio(static_cast<float>(data_view.shape[0]) / mask.bitmap_view.shape[0]),
+    im_mask_h_ratio(static_cast<float>(data_view.shape[1]) / mask.bitmap_view.shape[1]),
+    at_unmasked_front_of_scanline(false)
 {
 }
 
 template<typename T>
 void Cursor<T, BitmapMask<T>>::seek_front_scanline()
 {
+    if(im_mask_w_ratio >= 1 && im_mask_h_ratio >= 1)
+    {
+        const std::uint8_t*const mask_scanlines_end =
+            reinterpret_cast<std::uint8_t*>(mask.bitmap_view.buf) + mask.bitmap_view.shape[1] * mask.bitmap_view.strides[1];
+        const std::uint8_t* mask_scanline;
+        const std::uint8_t* mask_elements_end;
+        const std::ptrdiff_t mask_elements_end_offset = mask.bitmap_view.shape[0] * mask.bitmap_view.strides[0];
+        std::size_t mask_scanline_idx=0, mask_element_idx;
+        for ( mask_scanline = reinterpret_cast<std::uint8_t*>(mask.bitmap_view.buf);
+              mask_scanline != mask_scanlines_end;
+              mask_scanline += mask.bitmap_view.strides[1], ++mask_scanline_idx )
+        {
+            for ( mask_element_idx = 0, mask_element = mask_scanline, mask_elements_end = mask_scanline + mask_elements_end_offset;
+                  mask_element != mask_elements_end;
+                  mask_element += mask.bitmap_view.strides[0], ++mask_element_idx )
+            {
+                if(*mask_element != 0)
+                {
+                    scanline_idx = mask_scanline_idx / im_mask_h_ratio;
+                    pixel_idx = mask_element_idx / im_mask_w_ratio;
+                    this->scanline_raw =
+                        reinterpret_cast<const std::uint8_t*>(this->scanline_origin) + scanline_idx * this->scanline_stride;
+                    this->pixels_raw_end = this->scanline_raw + this->scanline_width * this->pixel_stride;
+                    this->pixel_raw = this->scanline_raw + pixel_idx * this->pixel_stride;
+                    this->scanline_valid = true;
+                    this->pixel_valid = true;
+                    this->component_valid = false;
+                    at_unmasked_front_of_scanline = true;
+                    return;
+                }
+            }
+        }
+    }
+    else
+    {
+        this->scanline_raw = reinterpret_cast<const std::uint8_t*>(this->scanline_origin);
+        const std::uint8_t* mask_scanline;
+        for(scanline_idx = 0; this->scanline_raw < this->scanlines_raw_end; this->scanline_raw += this->scanline_stride, ++scanline_idx)
+        {
+            mask_scanline = reinterpret_cast<std::uint8_t*>(mask.bitmap_view.buf) +
+                static_cast<std::ptrdiff_t>(scanline_idx * im_mask_h_ratio) * mask.bitmap_view.strides[1];
+            for ( pixel_idx = 0, this->pixel_raw = this->scanline_raw, this->pixels_raw_end = this->scanline_raw + this->scanline_width * this->pixel_stride;
+                  this->pixel_raw < this->pixels_raw_end;
+                  this->pixel_raw += this->pixel_stride, ++pixel_idx )
+            {
+                mask_element = mask_scanline + static_cast<std::ptrdiff_t>(pixel_idx * im_mask_w_ratio) * mask.bitmap_view.strides[0];
+                if(*mask_element != 0)
+                {
+                    this->scanline_valid = true;
+                    this->pixel_valid = true;
+                    this->component_valid = false;
+                    at_unmasked_front_of_scanline = true;
+                    return;
+                }
+            }
+        }
+    }
+    this->scanline_valid = false;
+    this->pixel_valid = false;
+    this->component_valid = false;
+    at_unmasked_front_of_scanline = false;
 }
 
 template<typename T>
 void Cursor<T, BitmapMask<T>>::advance_scanline()
 {
+    assert(this->scanline_valid);
+    this->scanline_raw += this->scanline_stride;
+    this->scanline_valid = this->scanline_raw < this->scanlines_raw_end;
+    this->pixel_valid = false;
+    this->component_valid = false;
+    at_unmasked_front_of_scanline = false;
+    ++scanline_idx;
 }
 
 template<typename T>
 void Cursor<T, BitmapMask<T>>::seek_front_pixel_of_scanline()
 {
+    assert(this->scanline_valid);
+    if(!at_unmasked_front_of_scanline)
+    {
+        if(im_mask_w_ratio > 1)
+        {
+            mask_element = reinterpret_cast<std::uint8_t*>(mask.bitmap_view.buf) +
+                static_cast<std::ptrdiff_t>(scanline_idx * im_mask_h_ratio) * mask.bitmap_view.strides[1];
+            std::ptrdiff_t mask_element_idx = 0;
+            const std::uint8_t*const mask_elements_end = mask_element + mask.bitmap_view.shape[0] * mask.bitmap_view.strides[0];
+            for(; mask_element < mask_elements_end; mask_element += mask.bitmap_view.strides[0], ++mask_element_idx)
+            {
+                if(*mask_element != 0)
+                {
+                    pixel_idx = mask_element_idx / im_mask_w_ratio;
+                    this->pixel_raw = this->scanline_raw + pixel_idx * this->pixel_stride;
+                    this->pixels_raw_end = this->pixel_raw + this->scanline_width * this->pixel_stride;
+                    this->pixel_valid = this->pixel_raw < this->pixels_raw_end;
+                    this->component_valid = false;
+                    at_unmasked_front_of_scanline = true;
+                    return;
+                }
+            }
+        }
+        else
+        {
+            const std::uint8_t*const mask_scanline = reinterpret_cast<std::uint8_t*>(mask.bitmap_view.buf) +
+                static_cast<std::ptrdiff_t>(scanline_idx * im_mask_h_ratio) * mask.bitmap_view.strides[1];
+            for ( pixel_idx = 0, this->pixel_raw = this->scanline_raw, this->pixels_raw_end = this->scanline_raw + this->scanline_width * this->pixel_stride;
+                  this->pixel_raw < this->pixels_raw_end;
+                  this->pixel_raw += this->pixel_stride, ++pixel_idx )
+            {
+                mask_element = mask_scanline + static_cast<std::ptrdiff_t>(pixel_idx * im_mask_w_ratio) * mask.bitmap_view.strides[0];
+                if(*mask_element != 0)
+                {
+                    this->pixel_valid = true;
+                    this->component_valid = false;
+                    at_unmasked_front_of_scanline = true;
+                    return;
+                }
+            }
+        }
+        this->pixel_valid = false;
+        this->component_valid = false;
+        at_unmasked_front_of_scanline = false;
+    }
 }
 
 template<typename T>
 void Cursor<T, BitmapMask<T>>::advance_pixel()
 {
+    assert(this->scanline_valid);
+    assert(this->pixel_valid);
+    at_unmasked_front_of_scanline = false;
+    this->component_valid = false;
+    const std::uint8_t*const mask_scanline = reinterpret_cast<std::uint8_t*>(mask.bitmap_view.buf) +
+        static_cast<std::ptrdiff_t>(scanline_idx * im_mask_h_ratio) * mask.bitmap_view.strides[1];
+    this->pixel_raw += this->pixel_stride;
+    ++pixel_idx;
+    for(; this->pixel_raw < this->pixels_raw_end; this->pixel_raw += this->pixel_stride, ++pixel_idx)
+    {
+        mask_element = mask_scanline + static_cast<std::ptrdiff_t>(pixel_idx * im_mask_w_ratio) * mask.bitmap_view.strides[0];
+        if(*mask_element != 0)
+        {
+            this->pixel_valid = true;
+            return;
+        }
+    }
+    this->pixel_valid = false;
 }
 
 template<typename T>

@@ -170,12 +170,18 @@ struct Cursor<T, BitmapMask<T>>
 {
     Cursor(PyArrayView& data_view, BitmapMask<T>& mask_);
 
+    BitmapMask<T>& mask;
+    std::ptrdiff_t scanline_idx;
+    std::ptrdiff_t pixel_idx;
+    const float im_mask_w_ratio;
+    const float im_mask_h_ratio;
+    bool at_unmasked_front_of_scanline;
+    const std::uint8_t* mask_element;
+
     void seek_front_scanline();
     void advance_scanline();
     void seek_front_pixel_of_scanline();
     void advance_pixel();
-
-    BitmapMask<T>& mask;
 };
 
 template<typename T>
