@@ -41,6 +41,7 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl_bind.h>
 #include <stdexcept>
+#include <sstream>
 #include <string>
 #include <tuple>
 #include <typeindex>
@@ -223,6 +224,7 @@ struct StatsBase
     // A numpy array that is a read-only view of histogram. Lazily created in response to get_histogram_py calls.
     std::shared_ptr<py::object> histogram_py;
 
+    explicit virtual operator std::string () const;
     py::object& get_histogram_py();
     virtual void set_bin_count(std::size_t bin_count);
     void find_max_bin();
@@ -244,6 +246,8 @@ struct FloatStatsBase
     FloatStatsBase();
 
     std::uint64_t NaN_count, neg_inf_count, pos_inf_count;
+
+    explicit operator std::string () const override;
 };
 
 template<>
@@ -269,6 +273,7 @@ struct ImageStats
     Stats<T>
 {
     static void expose_via_pybind11(py::module& m);
+    explicit operator std::string () const override;
     std::vector<std::shared_ptr<Stats<T>>> channel_stats;
     void set_bin_count(std::size_t bin_count) override;
 };
@@ -350,7 +355,7 @@ protected:
     };
 
     // Dispatch for integral T. The second parameter is a character array with length of 0 or 1, depending on the value
-    // of std::is_integral<T>::value. A zero length array is invalid in C++. Therefore, the this definition is valid C++
+    // of std::is_integral<T>::value. A zero length array is invalid in C++. Therefore, this definition is valid C++
     // only when T is integer, causing the method to be hidden entirely when T is floating point, allowing the integral
     // and floating point versions to make calls that are only valid for their respective types. The alternative to
     // standing on SFINAE is to instead have a fully generic dispatch_tagged_compute implementation assume T is integral

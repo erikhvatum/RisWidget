@@ -262,7 +262,8 @@ void StatsBase<T>::expose_via_pybind11(py::module& m)
         .def_readonly("extrema", &StatsBase<T>::extrema)
         .def_readonly("max_bin", &StatsBase<T>::max_bin)
         .def_readonly("histogram_buff", &StatsBase<T>::histogram)
-        .def_property_readonly("histogram", [](StatsBase<T>& v){return v.get_histogram_py();});
+        .def_property_readonly("histogram", [](StatsBase<T>& v){return v.get_histogram_py();})
+        .def("__repr__", &StatsBase<T>::operator std::string);
 }
 
 template<typename T>
@@ -272,6 +273,39 @@ StatsBase<T>::StatsBase()
     histogram(new std::vector<std::uint64_t>()),
     histogram_py(nullptr)
 {
+}
+
+template<typename T>
+StatsBase<T>::operator std::string () const
+{
+    std::ostringstream o;
+    o << "<extrema: (";
+    if(std::is_same<T, char>::value || std::is_same<T, unsigned char>::value)
+    {
+        o << static_cast<int>(extrema.first) << ", " << static_cast<int>(extrema.second) << "), max_bin: " << max_bin;
+        o << ", histogram:\n[";
+        bool first{true};
+        for(int v : *histogram)
+        {
+            if(first) first=false;
+            else o << ", ";
+            o << v;
+        }
+    }
+    else
+    {
+        o << extrema.first << ", " << extrema.second << "), max_bin: " << max_bin;
+        o << ", histogram: [";
+        bool first{true};
+        for(auto v : *histogram)
+        {
+            if(first) first=false;
+            else o << ", ";
+            o << v;
+        }
+    }
+    o << "]>";
+    return o.str();
 }
 
 template<typename T>
@@ -306,7 +340,8 @@ void FloatStatsBase<T>::expose_via_pybind11(py::module& m)
     py::class_<FloatStatsBase<T>, std::shared_ptr<FloatStatsBase<T>>>(m, s.c_str(), py::base<StatsBase<T>>())
         .def_readonly("NaN_count", &FloatStatsBase<T>::NaN_count)
         .def_readonly("neg_inf_count", &FloatStatsBase<T>::neg_inf_count)
-        .def_readonly("pos_inf_count", &FloatStatsBase<T>::pos_inf_count);
+        .def_readonly("pos_inf_count", &FloatStatsBase<T>::pos_inf_count)
+        .def("__repr__", &FloatStatsBase<T>::operator std::string);
 }
 
 template<typename T>
@@ -316,6 +351,15 @@ FloatStatsBase<T>::FloatStatsBase()
     pos_inf_count(0)
 {
     this->extrema.second = this->extrema.first = std::nan("");
+}
+
+template<typename T>
+FloatStatsBase<T>::operator std::string () const
+{
+    std::string ps{StatsBase<T>::operator std::string()};
+    std::ostringstream o(ps.substr(0, ps.size() - 2));
+    o << "NaN_count: " << NaN_count << ", neg_inf_count: " << neg_inf_count << ", pos_inf_count: " << pos_inf_count << ">";
+    return o.str();
 }
 
 // Note that concrete specializations for T=float and T=double are found in NDImageStatistics.cpp
@@ -333,9 +377,31 @@ void ImageStats<T>::expose_via_pybind11(py::module& m)
     Stats<T>::expose_via_pybind11(m);
     std::string s = std::string("_ImageStats_") + component_type_names[std::type_index(typeid(T))];
     py::class_<ImageStats<T>, std::shared_ptr<ImageStats<T>>>(m, s.c_str(), py::base<Stats<T>>())
-        .def_readonly("channel_stats", &ImageStats<T>::channel_stats);
+        .def_readonly("channel_stats", &ImageStats<T>::channel_stats)
+        .def("__repr__", &ImageStats<T>::operator std::string);
     s = std::string("_Stats_") + component_type_names[std::type_index(typeid(T))] + "_list";
     py::bind_vector<std::shared_ptr<Stats<T>>>(m, s);
+}
+
+template<typename T>
+ImageStats<T>::operator std::string () const
+{
+    std::string ps{};
+    std::ostringstream o;
+    if(channel_stats.size() == 1)
+    {
+        o << Stats<T>::operator std::string();
+    }
+    else
+    {
+        o << "<Overall: " << Stats<T>::operator std::string();
+        for(typename decltype(channel_stats)::const_iterator cs{channel_stats.cbegin()}; cs != channel_stats.end(); ++cs)
+        {
+            o << ",\nChannel " << (cs - channel_stats.cbegin()) << ": " << static_cast<std::string>(**cs);
+        }
+    }
+    o << '>';
+    return o.str();
 }
 
 template<typename T>
@@ -481,7 +547,7 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDIma
     }
     return stats;
 }
-#include<iostream>
+
 template<typename T>
 template<typename MASK_T, bool ENABLE>
 void NDImageStatistics<T>::dispatch_tagged_compute(ComputeContext<MASK_T>& cc, char (*)[ENABLE])

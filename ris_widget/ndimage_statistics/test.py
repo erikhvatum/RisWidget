@@ -40,15 +40,7 @@ import freeimage; im = freeimage.read(str(Path(__file__).parent.parent.parent / 
 stats = _ndimage_statistics.NDImageStatistics(im, (0, 255), False)
 stats.launch_computation()
 #del stats
-print('overall')
-print(stats.image_stats.extrema)
-print(stats.image_stats.histogram)
-print(stats.image_stats.max_bin)
-for channel_idx, channel in enumerate(stats.image_stats.channel_stats):
-    print('channel', channel_idx)
-    print(channel.extrema)
-    print(channel.histogram)
-    print(channel.max_bin)
+print(stats.image_stats)
 
 import sys
 sys.exit(0)
