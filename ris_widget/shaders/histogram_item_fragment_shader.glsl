@@ -1,6 +1,5 @@
 #version 120
 #line 3
-#extension GL_EXT_gpu_shader4 : require
 // The MIT License (MIT)
 // 
 // Copyright (c) 2014 WUSTL ZPLAB
@@ -25,7 +24,7 @@
 // 
 // Authors: Erik Hvatum <ice.rikh@gmail.com> 
 
-uniform usampler1D tex;
+uniform sampler1D tex;
 uniform vec2 inv_view_size;
 uniform float x_offset;
 uniform float x_factor;
@@ -35,7 +34,7 @@ uniform float opacity;
 
 void main()
 {
-    float bin_value = float(texture1D(tex, gl_FragCoord.x * x_factor * inv_view_size.x + x_offset).r);
+    float bin_value = texture1D(tex, gl_FragCoord.x * x_factor * inv_view_size.x + x_offset).r * 4294967295.0f;
     float bin_height = pow(bin_value, gamma_gamma) * inv_max_transformed_bin_val;
     float intensity = 1.0f - clamp(floor((gl_FragCoord.y * inv_view_size.y) / bin_height), 0, 1);
 

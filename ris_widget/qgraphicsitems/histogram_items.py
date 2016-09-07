@@ -24,12 +24,12 @@
 
 from contextlib import ExitStack
 import math
+import numpy
 import OpenGL
 import OpenGL.GL as PyGL
-import numpy
 from PyQt5 import Qt
 from ..contextual_info import ContextualInfo
-from .shader_item import ShaderItem, ShaderTexture
+from .shader_item import ShaderItem
 from ..shared_resources import GL_QUAD, QGL, UNIQUE_QGRAPHICSITEM_TYPE
 
 class HistogramItem(ShaderItem):
@@ -138,19 +138,22 @@ class HistogramItem(ShaderItem):
                 desired_tex_width = image.histogram.shape[-1]
                 tex = self._tex
                 if tex is not None:
-                    if tex.width != desired_tex_width:
+                    if tex.width() != desired_tex_width:
                         tex.destroy()
                         tex = self._tex = None
                 if tex is None:
-                    tex = ShaderTexture(GL.GL_TEXTURE_1D)
-                    tex.bind()
-                    estack.callback(tex.release)
-                    GL.glTexParameteri(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_WRAP_S, GL.GL_CLAMP_TO_EDGE)
-                    GL.glTexParameteri(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_WRAP_T, GL.GL_CLAMP_TO_EDGE)
+                    tex = Qt.QOpenGLTexture(Qt.QOpenGLTexture.Target1D)
+                    tex.setFormat(Qt.QOpenGLTexture.R32F)
+                    tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
+                    tex.setMipLevels(1)
+                    tex.setAutoMipMapGenerationEnabled(False)
+                    tex.setSize(desired_tex_width)
+                    tex.allocateStorage()
                     # tex stores histogram bin counts - values that are intended to be addressed by element without
                     # interpolation.  Thus, nearest neighbor for texture filtering.
-                    GL.glTexParameteri(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_NEAREST)
-                    GL.glTexParameteri(GL.GL_TEXTURE_1D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_NEAREST)
+                    tex.setMinMagFilters(Qt.QOpenGLTexture.Nearest, Qt.QOpenGLTexture.Nearest)
+                    tex.bind()
+                    estack.callback(tex.release)
                     tex.serial = -1
                 else:
                     tex.bind()
@@ -171,14 +174,12 @@ class HistogramItem(ShaderItem):
                         # to whatever QPainter had it set to (when it prepared the OpenGL context for our use as a result of
                         # qpainter.beginNativePainting()).
                         estack.callback(lambda oua=orig_unpack_alignment: GL.glPixelStorei(GL.GL_UNPACK_ALIGNMENT, oua))
-                    PyGL.glTexImage1D(
-                        PyGL.GL_TEXTURE_1D, 0,
-                        GL.GL_LUMINANCE32UI_EXT, desired_tex_width, 0,
-                        GL.GL_LUMINANCE_INTEGER_EXT, PyGL.GL_UNSIGNED_INT,
+                    PyGL.glTexSubImage1D(
+                        PyGL.GL_TEXTURE_1D, 0, 0, desired_tex_width, GL.GL_RED,
+                        GL.GL_UNSIGNED_INT,
                         memoryview(histogram)
                     )
                     tex.serial = self._layer_data_serial
-                    tex.width = desired_tex_width
                     self._tex = tex
                 glQuad = GL_QUAD()
                 if not glQuad.buffer.bind():
