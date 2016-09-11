@@ -165,6 +165,7 @@ class _AsyncTextureUploadThread(Qt.QThread):
                                 async_texture.source_format,
                                 async_texture.source_type,
                                 memoryview(data.swapaxes(0,1).flatten()))
+                            tex.generateMipMaps()
                         finally:
                             tex.release()
                         texture_cache.on_upload_completion_in_upload_thread(async_texture)
