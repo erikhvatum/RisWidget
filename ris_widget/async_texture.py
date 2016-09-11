@@ -27,6 +27,7 @@ from contextlib import ExitStack
 import enum
 import OpenGL
 import OpenGL.GL as PyGL
+import OpenGL.GL.ARB.texture_float
 from PyQt5 import Qt
 import queue
 import sip
@@ -134,6 +135,7 @@ class _AsyncTextureUploadThread(Qt.QThread):
         if not gl_context.create():
             raise RuntimeError('Failed to create OpenGL context for background texture upload thread.')
         gl_context.makeCurrent(self.offscreen_surface)
+        OpenGL.GL.ARB.texture_float.glInitTextureFloatARB()
         PyGL.glPixelStorei(PyGL.GL_UNPACK_ALIGNMENT, 1)
         texture_cache = self.texture_cache
         async_texture_bottle = texture_cache.work_queue.get()

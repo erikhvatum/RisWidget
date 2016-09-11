@@ -24,6 +24,8 @@
 
 from contextlib import ExitStack
 import numpy
+import OpenGL
+import OpenGL.GL.ARB.texture_float
 from PyQt5 import Qt
 from ..shared_resources import QGL, GL_LOGGER, GL_QSURFACE_FORMAT
 from ..image import Image
@@ -165,9 +167,6 @@ class BaseView(Qt.QGraphicsView):
             qimage = fbo.toImage()
         return Image.from_qimage(qimage).data
 
-# class _ShaderViewGLViewport(Qt.QOpenGLWindow):
-
-
 class _ShaderViewGLViewport(Qt.QOpenGLWidget):
     context_about_to_change = Qt.pyqtSignal(Qt.QOpenGLWidget)
     context_changed = Qt.pyqtSignal(Qt.QOpenGLWidget)
@@ -176,6 +175,8 @@ class _ShaderViewGLViewport(Qt.QOpenGLWidget):
         super().__init__()
         self.setFormat(GL_QSURFACE_FORMAT())
         self.view = view
+        self.makeCurrent()
+        OpenGL.GL.ARB.texture_float.glInitTextureFloatARB()
 
     def _check_current(self, estack):
         if Qt.QOpenGLContext.currentContext() is not self.context():
