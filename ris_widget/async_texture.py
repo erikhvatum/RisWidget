@@ -153,7 +153,6 @@ class _AsyncTextureUploadThread(Qt.QThread):
                         tex.setFormat(async_texture.format)
                         tex.setWrapMode(Qt.QOpenGLTexture.ClampToEdge)
                         tex.setMipLevels(6)
-                        tex.setAutoMipMapGenerationEnabled(True)
                         data = async_texture.data
                         tex.setSize(data.shape[0], data.shape[1], 1)
                         tex.allocateStorage()
