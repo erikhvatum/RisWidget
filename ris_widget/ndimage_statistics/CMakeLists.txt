@@ -93,7 +93,7 @@ include_directories(BEFORE SYSTEM ${PROJECT_SOURCE_DIR}/../../pybind11/include)
 
 SET(SOURCE_FILES
     NDImageStatistics.cpp
-    _ndimage_statistics.cpp
+    cpp_ndimage_statistics_python_module.cpp
     Luts.cpp PyArrayView.cpp PyArrayView.h)
 
 SET(HEADER_FILES
@@ -111,7 +111,7 @@ if (WIN32)
     string(REPLACE "/" "\\" _PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR})
     add_custom_command(TARGET _ndimage_statistics
                        POST_BUILD
-                       COMMAND copy /Y ${_PYTHON_MODULE_LOCATION} "${_PROJECT_SOURCE_DIR}\\_ndimage_statistics.pyd")
+                       COMMAND copy /Y ${_PYTHON_MODULE_LOCATION} "${_PROJECT_SOURCE_DIR}\\cpp_ndimage_statistics.pyd")
     unset(_PROJECT_SOURCE_DIR)
 else ()
     add_custom_command(TARGET _ndimage_statistics
@@ -119,6 +119,6 @@ else ()
                        COMMAND rm -fv "${PROJECT_SOURCE_DIR}/_ndimage_statistics.so")
     add_custom_command(TARGET _ndimage_statistics
                        POST_BUILD
-                       COMMAND cp -v ${_PYTHON_MODULE_LOCATION} "${PROJECT_SOURCE_DIR}/_ndimage_statistics.so")
+                       COMMAND cp -v ${_PYTHON_MODULE_LOCATION} "${PROJECT_SOURCE_DIR}/cpp_ndimage_statistics.so")
 endif ()
 unset(_PYTHON_MODULE_LOCATION)

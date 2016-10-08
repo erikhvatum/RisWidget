@@ -34,8 +34,12 @@ from . import _ndimage_statistics
 #import freeimage; im = freeimage.read(str(Path(__file__).parent.parent.parent / 'Opteron_6300_die_shot_16_core_mod.jpg'))
 #im[0,0,0]=1123.456
 #mask = (freeimage.read('/home/ehvatum/code_repositories/ris_widget/top_left_g.png') / 256).astype(numpy.uint8)
-im = numpy.array([[[9,8,7],[1,1,1],[2,2,2]],[[3,3,3],[4,4,4],[5,5,5]]],dtype=numpy.uint8).swapaxes(0,1)
-mask = numpy.array([[0,0,1],[0,0,0],[0,0,0]], dtype=numpy.uint8).swapaxes(0,1)
+#im = numpy.array([[0,1,2],[3,4,5],[6,7,8]],dtype=numpy.uint8).swapaxes(0,1)
+#mask = numpy.array([[0,0,0],[0,0,1],[0,0,0]], dtype=bool).swapaxes(0,1)
+im = numpy.array(list(range(15*5*3))).astype(numpy.uint8).reshape(5,15,3).swapaxes(0,1)
+mask = numpy.zeros((5,15),dtype=numpy.uint8).T
+mask[1,0] = 1
+mask[1,1] = 1
 #im[im==0]=45
 stats = _ndimage_statistics.NDImageStatistics(im, (0, 255), mask, False)
 #stats = _ndimage_statistics.NDImageStatistics(im, (0, 255), False)
