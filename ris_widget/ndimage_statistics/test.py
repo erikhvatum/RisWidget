@@ -29,7 +29,7 @@ import numpy
 import time
 import unittest
 
-from . import _ndimage_statistics
+from . import cpp_ndimage_statistics
 
 #import freeimage; im = freeimage.read(str(Path(__file__).parent.parent.parent / 'Opteron_6300_die_shot_16_core_mod.jpg'))
 #im[0,0,0]=1123.456
@@ -41,8 +41,8 @@ mask = numpy.zeros((5,15),dtype=numpy.uint8).T
 mask[1,0] = 1
 mask[1,1] = 1
 #im[im==0]=45
-stats = _ndimage_statistics.NDImageStatistics(im, (0, 255), mask, False)
-#stats = _ndimage_statistics.NDImageStatistics(im, (0, 255), False)
+stats = cpp_ndimage_statistics.NDImageStatistics(im, (0, 255), mask, False)
+#stats = cpp_ndimage_statistics.NDImageStatistics(im, (0, 255), False)
 stats.launch_computation()
 #del stats
 print(stats.image_stats)

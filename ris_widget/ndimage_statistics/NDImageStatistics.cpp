@@ -61,7 +61,7 @@ void Stats<float>::expose_via_pybind11(py::module& m)
 {
     FloatStatsBase<float>::expose_via_pybind11(m);
     std::string s = std::string("_Stats_float");
-    py::class_<Stats<float>, std::shared_ptr<Stats<float>>>(m, s.c_str(), py::base<FloatStatsBase<float>>());
+    py::class_<Stats<float>, std::shared_ptr<Stats<float>>, FloatStatsBase<float>>(m, s.c_str());
     s = std::string("_Stats_float_list");
 }
 
@@ -69,6 +69,6 @@ void Stats<double>::expose_via_pybind11(py::module& m)
 {
     FloatStatsBase<double>::expose_via_pybind11(m);
     std::string s = std::string("_Stats_double");
-    py::class_<Stats<double>, std::shared_ptr<Stats<double>>>(m, s.c_str(), py::base<FloatStatsBase<double>>());
+    py::class_<Stats<double>, std::shared_ptr<Stats<double>>, FloatStatsBase<double>>(m, s.c_str());
     s = std::string("_Stats_double_list");
 }

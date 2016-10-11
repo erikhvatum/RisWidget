@@ -11,7 +11,9 @@
 
 #include "numpy.h"
 
-#if defined(__GNUG__) || defined(__clang__)
+#if defined(__INTEL_COMPILER)
+#  pragma warning(disable: 1682) // implicit conversion of a 64-bit integral type to a smaller integral type (potential portability problem)
+#elif defined(__GNUG__) || defined(__clang__)
 #  pragma GCC diagnostic push
 #  pragma GCC diagnostic ignored "-Wconversion"
 #  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -32,61 +34,31 @@
 NAMESPACE_BEGIN(pybind11)
 NAMESPACE_BEGIN(detail)
 
-template <typename T> class is_eigen_dense {
-private:
-    template<typename Derived> static std::true_type test(const Eigen::DenseBase<Derived> &);
-    static std::false_type test(...);
-public:
-    static constexpr bool value = decltype(test(std::declval<T>()))::value;
-};
-
-// Eigen::Ref<Derived> satisfies is_eigen_dense, but isn't constructible, so it needs a special
-// type_caster to handle argument copying/forwarding.
-template <typename T> class is_eigen_ref {
-private:
-    template<typename Derived> static typename std::enable_if<
-        std::is_same<typename std::remove_const<T>::type, Eigen::Ref<Derived>>::value,
-        Derived>::type test(const Eigen::Ref<Derived> &);
-    static void test(...);
-public:
-    typedef decltype(test(std::declval<T>())) Derived;
-    static constexpr bool value = !std::is_void<Derived>::value;
-};
-
-template <typename T> class is_eigen_sparse {
-private:
-    template<typename Derived> static std::true_type test(const Eigen::SparseMatrixBase<Derived> &);
-    static std::false_type test(...);
-public:
-    static constexpr bool value = decltype(test(std::declval<T>()))::value;
-};
+template <typename T> using is_eigen_dense = is_template_base_of<Eigen::DenseBase, T>;
+template <typename T> using is_eigen_sparse = is_template_base_of<Eigen::SparseMatrixBase, T>;
+template <typename T> using is_eigen_ref = is_template_base_of<Eigen::RefBase, T>;
 
 // Test for objects inheriting from EigenBase<Derived> that aren't captured by the above.  This
 // basically covers anything that can be assigned to a dense matrix but that don't have a typical
 // matrix data layout that can be copied from their .data().  For example, DiagonalMatrix and
 // SelfAdjointView fall into this category.
-template <typename T> class is_eigen_base {
-private:
-    template<typename Derived> static std::true_type test(const Eigen::EigenBase<Derived> &);
-    static std::false_type test(...);
-public:
-    static constexpr bool value = !is_eigen_dense<T>::value && !is_eigen_sparse<T>::value &&
-        decltype(test(std::declval<T>()))::value;
-};
+template <typename T> using is_eigen_base = bool_constant<
+    is_template_base_of<Eigen::EigenBase, T>::value
+    && !is_eigen_dense<T>::value && !is_eigen_sparse<T>::value
+>;
 
 template<typename Type>
-struct type_caster<Type, typename std::enable_if<is_eigen_dense<Type>::value && !is_eigen_ref<Type>::value>::type> {
+struct type_caster<Type, enable_if_t<is_eigen_dense<Type>::value && !is_eigen_ref<Type>::value>> {
     typedef typename Type::Scalar Scalar;
     static constexpr bool rowMajor = Type::Flags & Eigen::RowMajorBit;
     static constexpr bool isVector = Type::IsVectorAtCompileTime;
 
     bool load(handle src, bool) {
-       array_t<Scalar> buffer(src, true);
-       if (!buffer.check())
-           return false;
+        array_t<Scalar> buf(src, true);
+        if (!buf.check())
+            return false;
 
-        auto info = buffer.request();
-        if (info.ndim == 1) {
+        if (buf.ndim() == 1) {
             typedef Eigen::InnerStride<> Strides;
             if (!isVector &&
                 !(Type::RowsAtCompileTime == Eigen::Dynamic &&
@@ -94,31 +66,32 @@ struct type_caster<Type, typename std::enable_if<is_eigen_dense<Type>::value && 
                 return false;
 
             if (Type::SizeAtCompileTime != Eigen::Dynamic &&
-                info.shape[0] != (size_t) Type::SizeAtCompileTime)
+                buf.shape(0) != (size_t) Type::SizeAtCompileTime)
                 return false;
 
-            auto strides = Strides(info.strides[0] / sizeof(Scalar));
-
-            Strides::Index n_elts = (Strides::Index) info.shape[0];
+            Strides::Index n_elts = (Strides::Index) buf.shape(0);
             Strides::Index unity = 1;
 
             value = Eigen::Map<Type, 0, Strides>(
-                (Scalar *) info.ptr, rowMajor ? unity : n_elts, rowMajor ? n_elts : unity, strides);
-        } else if (info.ndim == 2) {
+                buf.mutable_data(),
+                rowMajor ? unity : n_elts,
+                rowMajor ? n_elts : unity,
+                Strides(buf.strides(0) / sizeof(Scalar))
+            );
+        } else if (buf.ndim() == 2) {
             typedef Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> Strides;
 
-            if ((Type::RowsAtCompileTime != Eigen::Dynamic && info.shape[0] != (size_t) Type::RowsAtCompileTime) ||
-                (Type::ColsAtCompileTime != Eigen::Dynamic && info.shape[1] != (size_t) Type::ColsAtCompileTime))
+            if ((Type::RowsAtCompileTime != Eigen::Dynamic && buf.shape(0) != (size_t) Type::RowsAtCompileTime) ||
+                (Type::ColsAtCompileTime != Eigen::Dynamic && buf.shape(1) != (size_t) Type::ColsAtCompileTime))
                 return false;
 
-            auto strides = Strides(
-                info.strides[rowMajor ? 0 : 1] / sizeof(Scalar),
-                info.strides[rowMajor ? 1 : 0] / sizeof(Scalar));
-
             value = Eigen::Map<Type, 0, Strides>(
-                (Scalar *) info.ptr,
-                typename Strides::Index(info.shape[0]),
-                typename Strides::Index(info.shape[1]), strides);
+                buf.mutable_data(),
+                typename Strides::Index(buf.shape(0)),
+                typename Strides::Index(buf.shape(1)),
+                Strides(buf.strides(rowMajor ? 0 : 1) / sizeof(Scalar),
+                        buf.strides(rowMajor ? 1 : 0) / sizeof(Scalar))
+            );
         } else {
             return false;
         }
@@ -147,20 +120,23 @@ struct type_caster<Type, typename std::enable_if<is_eigen_dense<Type>::value && 
             _("[") + rows() + _(", ") + cols() + _("]]"));
 
 protected:
-    template <typename T = Type, typename std::enable_if<T::RowsAtCompileTime == Eigen::Dynamic, int>::type = 0>
+    template <typename T = Type, enable_if_t<T::RowsAtCompileTime == Eigen::Dynamic, int> = 0>
     static PYBIND11_DESCR rows() { return _("m"); }
-    template <typename T = Type, typename std::enable_if<T::RowsAtCompileTime != Eigen::Dynamic, int>::type = 0>
+    template <typename T = Type, enable_if_t<T::RowsAtCompileTime != Eigen::Dynamic, int> = 0>
     static PYBIND11_DESCR rows() { return _<T::RowsAtCompileTime>(); }
-    template <typename T = Type, typename std::enable_if<T::ColsAtCompileTime == Eigen::Dynamic, int>::type = 0>
+    template <typename T = Type, enable_if_t<T::ColsAtCompileTime == Eigen::Dynamic, int> = 0>
     static PYBIND11_DESCR cols() { return _("n"); }
-    template <typename T = Type, typename std::enable_if<T::ColsAtCompileTime != Eigen::Dynamic, int>::type = 0>
+    template <typename T = Type, enable_if_t<T::ColsAtCompileTime != Eigen::Dynamic, int> = 0>
     static PYBIND11_DESCR cols() { return _<T::ColsAtCompileTime>(); }
 };
 
-template<typename Type>
-struct type_caster<Type, typename std::enable_if<is_eigen_dense<Type>::value && is_eigen_ref<Type>::value>::type> {
+// Eigen::Ref<Derived> satisfies is_eigen_dense, but isn't constructable, so it needs a special
+// type_caster to handle argument copying/forwarding.
+template <typename CVDerived, int Options, typename StrideType>
+struct type_caster<Eigen::Ref<CVDerived, Options, StrideType>> {
 protected:
-    using Derived = typename std::remove_const<typename is_eigen_ref<Type>::Derived>::type;
+    using Type = Eigen::Ref<CVDerived, Options, StrideType>;
+    using Derived = typename std::remove_const<CVDerived>::type;
     using DerivedCaster = type_caster<Derived>;
     DerivedCaster derived_caster;
     std::unique_ptr<Type> value;
@@ -179,7 +155,7 @@ public:
 // type_caster for special matrix types (e.g. DiagonalMatrix): load() is not supported, but we can
 // cast them into the python domain by first copying to a regular Eigen::Matrix, then casting that.
 template <typename Type>
-struct type_caster<Type, typename std::enable_if<is_eigen_base<Type>::value && !is_eigen_ref<Type>::value>::type> {
+struct type_caster<Type, enable_if_t<is_eigen_base<Type>::value && !is_eigen_ref<Type>::value>> {
 protected:
     using Matrix = Eigen::Matrix<typename Type::Scalar, Eigen::Dynamic, Eigen::Dynamic>;
     using MatrixCaster = type_caster<Matrix>;
@@ -196,7 +172,7 @@ public:
 };
 
 template<typename Type>
-struct type_caster<Type, typename std::enable_if<is_eigen_sparse<Type>::value>::type> {
+struct type_caster<Type, enable_if_t<is_eigen_sparse<Type>::value>> {
     typedef typename Type::Scalar Scalar;
     typedef typename std::remove_reference<decltype(*std::declval<Type>().outerIndexPtr())>::type StorageIndex;
     typedef typename Type::Index Index;
@@ -215,33 +191,22 @@ struct type_caster<Type, typename std::enable_if<is_eigen_sparse<Type>::value>::
             try {
                 obj = matrix_type(obj);
             } catch (const error_already_set &) {
-                PyErr_Clear();
                 return false;
             }
         }
 
-        auto valuesArray = array_t<Scalar>((object) obj.attr("data"));
-        auto innerIndicesArray = array_t<StorageIndex>((object) obj.attr("indices"));
-        auto outerIndicesArray = array_t<StorageIndex>((object) obj.attr("indptr"));
+        auto values = array_t<Scalar>((object) obj.attr("data"));
+        auto innerIndices = array_t<StorageIndex>((object) obj.attr("indices"));
+        auto outerIndices = array_t<StorageIndex>((object) obj.attr("indptr"));
         auto shape = pybind11::tuple((pybind11::object) obj.attr("shape"));
         auto nnz = obj.attr("nnz").cast<Index>();
 
-        if (!valuesArray.check() || !innerIndicesArray.check() ||
-            !outerIndicesArray.check())
+        if (!values.check() || !innerIndices.check() || !outerIndices.check())
             return false;
 
-        auto outerIndices = outerIndicesArray.request();
-        auto innerIndices = innerIndicesArray.request();
-        auto values = valuesArray.request();
-
         value = Eigen::MappedSparseMatrix<Scalar, Type::Flags, StorageIndex>(
-            shape[0].cast<Index>(),
-            shape[1].cast<Index>(),
-            nnz,
-            static_cast<StorageIndex *>(outerIndices.ptr),
-            static_cast<StorageIndex *>(innerIndices.ptr),
-            static_cast<Scalar *>(values.ptr)
-        );
+            shape[0].cast<Index>(), shape[1].cast<Index>(), nnz,
+            outerIndices.mutable_data(), innerIndices.mutable_data(), values.mutable_data());
 
         return true;
     }

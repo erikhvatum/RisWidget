@@ -162,7 +162,7 @@ template<typename T>
 void BitmapMask<T>::expose_via_pybind11(py::module& m)
 {
     std::string s = std::string("_BitmapMask_") + component_type_names[std::type_index(typeid(T))];
-    py::class_<BitmapMask<T>, std::shared_ptr<BitmapMask<T>>>(m, s.c_str(), py::base<Mask<T>>());
+    py::class_<BitmapMask<T>, std::shared_ptr<BitmapMask<T>>, Mask<T>>(m, s.c_str());
 }
 
 template<typename T>
@@ -338,7 +338,7 @@ template<typename T>
 void CircularMask<T>::expose_via_pybind11(py::module& m)
 {
     std::string s = std::string("_CircularMask_") + component_type_names[std::type_index(typeid(T))];
-    py::class_<CircularMask<T>, std::shared_ptr<CircularMask<T>>>(m, s.c_str(), py::base<Mask<T>>())
+    py::class_<CircularMask<T>, std::shared_ptr<CircularMask<T>>, Mask<T>>(m, s.c_str())
         .def_readonly("center_x", &CircularMask::center_x)
         .def_readonly("center_y", &CircularMask::center_y)
         .def_readonly("radius", &CircularMask::radius);
@@ -470,7 +470,7 @@ void FloatStatsBase<T>::expose_via_pybind11(py::module& m)
 {
     StatsBase<T>::expose_via_pybind11(m);
     std::string s = std::string("_FloatStatsBase_") + component_type_names[std::type_index(typeid(T))];
-    py::class_<FloatStatsBase<T>, std::shared_ptr<FloatStatsBase<T>>>(m, s.c_str(), py::base<StatsBase<T>>())
+    py::class_<FloatStatsBase<T>, std::shared_ptr<FloatStatsBase<T>>, StatsBase<T>>(m, s.c_str())
         .def_readonly("NaN_count", &FloatStatsBase<T>::NaN_count)
         .def_readonly("neg_inf_count", &FloatStatsBase<T>::neg_inf_count)
         .def_readonly("pos_inf_count", &FloatStatsBase<T>::pos_inf_count)
@@ -501,7 +501,7 @@ void Stats<T>::expose_via_pybind11(py::module& m)
 {
     StatsBase<T>::expose_via_pybind11(m);
     std::string s = std::string("_Stats_") + component_type_names[std::type_index(typeid(T))];
-    py::class_<Stats<T>, std::shared_ptr<Stats<T>>>(m, s.c_str(), py::base<StatsBase<T>>());
+    py::class_<Stats<T>, std::shared_ptr<Stats<T>>, StatsBase<T>>(m, s.c_str());
 }
 
 template<typename T>
@@ -509,11 +509,11 @@ void ImageStats<T>::expose_via_pybind11(py::module& m)
 {
     Stats<T>::expose_via_pybind11(m);
     std::string s = std::string("_ImageStats_") + component_type_names[std::type_index(typeid(T))];
-    py::class_<ImageStats<T>, std::shared_ptr<ImageStats<T>>>(m, s.c_str(), py::base<Stats<T>>())
+    py::class_<ImageStats<T>, std::shared_ptr<ImageStats<T>>>(m, s.c_str())
         .def_readonly("channel_stats", &ImageStats<T>::channel_stats)
         .def("__repr__", &ImageStats<T>::operator std::string);
     s = std::string("_Stats_") + component_type_names[std::type_index(typeid(T))] + "_list";
-    py::bind_vector<std::shared_ptr<Stats<T>>>(m, s);
+    py::bind_vector<std::vector<std::shared_ptr<Stats<T>>>>(m, s);
 }
 
 template<typename T>
