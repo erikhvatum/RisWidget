@@ -55,8 +55,7 @@ struct CursorBase
     const std::size_t component_stride;
     const std::uint8_t* component_raw;
     const std::uint8_t* components_raw_end;
-    // The component member variable is a typecasting reference to component_raw, being a reference to a pointer and, 
-    // like all references, is initialized upon construction - in this case, to component_raw. It acts as a toll-free 
+    // The component member variable is a typecasting reference to component_raw. It acts as a toll-free 
     // bridge.
     const T*& component = reinterpret_cast<const T*&>(component_raw);
     // TODO: verify toll-freeness
