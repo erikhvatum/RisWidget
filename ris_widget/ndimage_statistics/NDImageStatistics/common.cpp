@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2015 WUSTL ZPLAB
+// Copyright (c) 2016 WUSTL ZPLAB
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -21,8 +21,11 @@
 // SOFTWARE.
 //
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
+//
+// Created by ehvatum on 10/11/16.
+// 
 
-#include "NDImageStatistics.h"
+#include "common.h"
 
 Luts luts{200};
 
@@ -55,20 +58,4 @@ void safe_py_deleter(py::object* py_obj)
 {
     py::gil_scoped_acquire acquire_gil;
     delete py_obj;
-}
-
-void Stats<float>::expose_via_pybind11(py::module& m)
-{
-    FloatStatsBase<float>::expose_via_pybind11(m);
-    std::string s = std::string("_Stats_float");
-    py::class_<Stats<float>, std::shared_ptr<Stats<float>>, FloatStatsBase<float>>(m, s.c_str());
-    s = std::string("_Stats_float_list");
-}
-
-void Stats<double>::expose_via_pybind11(py::module& m)
-{
-    FloatStatsBase<double>::expose_via_pybind11(m);
-    std::string s = std::string("_Stats_double");
-    py::class_<Stats<double>, std::shared_ptr<Stats<double>>, FloatStatsBase<double>>(m, s.c_str());
-    s = std::string("_Stats_double_list");
 }

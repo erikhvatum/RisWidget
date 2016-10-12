@@ -237,21 +237,33 @@
                 <F N="ris_widget/examples/very_simple_poly_line_picker.py"/>
             </Folder>
             <Folder Name="ndimage_statistics">
+                <Folder Name="misc">
+                    <F N="ris_widget/ndimage_statistics/misc/Luts.cpp"/>
+                    <F N="ris_widget/ndimage_statistics/misc/Luts.h"/>
+                    <F N="ris_widget/ndimage_statistics/misc/PyArrayView.cpp"/>
+                    <F N="ris_widget/ndimage_statistics/misc/PyArrayView.h"/>
+                </Folder>
+                <Folder Name="NDImageStatistics">
+                    <F N="ris_widget/ndimage_statistics/NDImageStatistics/common.cpp"/>
+                    <F N="ris_widget/ndimage_statistics/NDImageStatistics/common.h"/>
+                    <F N="ris_widget/ndimage_statistics/NDImageStatistics/cursors.h"/>
+                    <F N="ris_widget/ndimage_statistics/NDImageStatistics/cursors_impl.h"/>
+                    <F N="ris_widget/ndimage_statistics/NDImageStatistics/masks.h"/>
+                    <F N="ris_widget/ndimage_statistics/NDImageStatistics/masks_impl.h"/>
+                    <F N="ris_widget/ndimage_statistics/NDImageStatistics/NDImageStatistics.h"/>
+                    <F N="ris_widget/ndimage_statistics/NDImageStatistics/NDImageStatistics_impl.h"/>
+                    <F N="ris_widget/ndimage_statistics/NDImageStatistics/statses.cpp"/>
+                    <F N="ris_widget/ndimage_statistics/NDImageStatistics/statses.h"/>
+                    <F N="ris_widget/ndimage_statistics/NDImageStatistics/statses_impl.h"/>
+                </Folder>
                 <F N="ris_widget/ndimage_statistics/__init__.py"/>
                 <F N="ris_widget/ndimage_statistics/_common.py"/>
                 <F N="ris_widget/ndimage_statistics/_measures_fast.py"/>
                 <F N="ris_widget/ndimage_statistics/_measures_slow.py"/>
                 <F N="ris_widget/ndimage_statistics/CMakeLists.txt"/>
                 <F N="ris_widget/ndimage_statistics/cpp_ndimage_statistics_python_module.cpp"/>
-                <F N="ris_widget/ndimage_statistics/Luts.cpp"/>
-                <F N="ris_widget/ndimage_statistics/Luts.h"/>
                 <F N="ris_widget/ndimage_statistics/ndimage_statistics.py"/>
-                <F N="ris_widget/ndimage_statistics/NDImageStatistics.cpp"/>
-                <F N="ris_widget/ndimage_statistics/NDImageStatistics.h"/>
-                <F N="ris_widget/ndimage_statistics/NDImageStatistics_impl.h"/>
                 <F N="ris_widget/ndimage_statistics/py_ndimage_statistics.py"/>
-                <F N="ris_widget/ndimage_statistics/PyArrayView.cpp"/>
-                <F N="ris_widget/ndimage_statistics/PyArrayView.h"/>
                 <F N="ris_widget/ndimage_statistics/test.py"/>
             </Folder>
             <Folder Name="om">

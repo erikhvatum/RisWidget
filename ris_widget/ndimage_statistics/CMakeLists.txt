@@ -25,7 +25,7 @@
 # CMake 2.8.11 introduced the target_link_libraries command, a huge time saver
 cmake_minimum_required(VERSION 2.8.11)
 
-project(wautofocus)
+project(ndimage_statistics)
 set(MAJOR_VERSION 0)
 set(MINOR_VERSION 1)
 set(PACKAGE wautofocus)
@@ -92,32 +92,42 @@ include_directories(SYSTEM ${PYTHON_INCLUDE_DIRS} ${NUMPY_INCLUDE_DIR})
 include_directories(BEFORE SYSTEM ${PROJECT_SOURCE_DIR}/../../pybind11/include)
 
 SET(SOURCE_FILES
-    NDImageStatistics.cpp
     cpp_ndimage_statistics_python_module.cpp
-    Luts.cpp PyArrayView.cpp PyArrayView.h)
+    misc/Luts.cpp
+    misc/PyArrayView.cpp
+    NDImageStatistics/common.cpp
+    NDImageStatistics/statses.cpp)
 
 SET(HEADER_FILES
-    NDImageStatistics.h
-    Luts.h
-    NDImageStatistics_impl.h PyArrayView.cpp PyArrayView.h)
+    misc/Luts.h
+    misc/PyArrayView.h
+    NDImageStatistics/NDImageStatistics.h
+    NDImageStatistics/NDImageStatistics_impl.h
+    NDImageStatistics/common.h
+    NDImageStatistics/cursors.h
+    NDImageStatistics/cursors_impl.h
+    NDImageStatistics/masks.h
+    NDImageStatistics/masks_impl.h
+    NDImageStatistics/statses.h
+    NDImageStatistics/statses_impl.h)
 
-add_library(_ndimage_statistics SHARED ${SOURCE_FILES} ${HEADER_FILES})
-target_link_libraries(_ndimage_statistics ${PYTHON_LIBRARIES})
+add_library(cpp_ndimage_statistics SHARED ${SOURCE_FILES} ${HEADER_FILES})
+target_link_libraries(cpp_ndimage_statistics ${PYTHON_LIBRARIES})
 
 cmake_policy(SET CMP0026 OLD)
-get_target_property(_PYTHON_MODULE_LOCATION _ndimage_statistics LOCATION)
+get_target_property(_PYTHON_MODULE_LOCATION cpp_ndimage_statistics LOCATION)
 if (WIN32)
     string(REPLACE "/" "\\" _PYTHON_MODULE_LOCATION ${_PYTHON_MODULE_LOCATION})
     string(REPLACE "/" "\\" _PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR})
-    add_custom_command(TARGET _ndimage_statistics
+    add_custom_command(TARGET cpp_ndimage_statistics
                        POST_BUILD
                        COMMAND copy /Y ${_PYTHON_MODULE_LOCATION} "${_PROJECT_SOURCE_DIR}\\cpp_ndimage_statistics.pyd")
     unset(_PROJECT_SOURCE_DIR)
 else ()
-    add_custom_command(TARGET _ndimage_statistics
+    add_custom_command(TARGET cpp_ndimage_statistics
                        POST_BUILD
-                       COMMAND rm -fv "${PROJECT_SOURCE_DIR}/_ndimage_statistics.so")
-    add_custom_command(TARGET _ndimage_statistics
+                       COMMAND rm -fv "${PROJECT_SOURCE_DIR}/cpp_ndimage_statistics.so")
+    add_custom_command(TARGET cpp_ndimage_statistics
                        POST_BUILD
                        COMMAND cp -v ${_PYTHON_MODULE_LOCATION} "${PROJECT_SOURCE_DIR}/cpp_ndimage_statistics.so")
 endif ()

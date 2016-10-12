@@ -26,7 +26,7 @@
 #define PY_ARRAY_UNIQUE_SYMBOL _ndimage_statistics_ARRAY_API
 #include <numpy/arrayobject.h>
 
-#include "NDImageStatistics.h"
+#include "NDImageStatistics/NDImageStatistics.h"
 
 PYBIND11_PLUGIN(cpp_ndimage_statistics)
 {
