@@ -36,7 +36,14 @@ struct Mask
     virtual ~Mask() = default;
 };
 
-template<typename T>
+enum class BitmapMaskDimensionVsImage
+{
+    Smaller,
+    Same,
+    Larger
+};
+
+template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
 struct BitmapMask
   : Mask<T>
 {

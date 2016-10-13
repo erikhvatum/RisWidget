@@ -22,6 +22,9 @@
 //
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+// For a complete explanation of the need to use "this->" so much in this file, see
+// http://stackoverflow.com/a/4643295/2054879 
+
 #include "cursors.h"
 
 template<typename T>
@@ -122,14 +125,14 @@ Cursor<T, BitmapMask<T>>::Cursor(PyArrayView& data_view, BitmapMask<T>& mask_)
     mask_scanlines_origin(reinterpret_cast<const std::uint8_t*const>(mask_.bitmap_view.buf)),
     mask_scanline_width(mask_.bitmap_view.shape[0]),
     mask_element_stride(mask_.bitmap_view.strides[0]),
-    im_to_mask_scanline_idx_lut(Luts::getLut(this->scanline_count, mask_scanline_count)),
-    im_to_mask_pixel_idx_lut(Luts::getLut(this->scanline_width, mask_scanline_width)),
+    im_to_mask_scanline_idx_lut(luts.getLut(this->scanline_count, mask_scanline_count)),
+    im_to_mask_pixel_idx_lut(luts.getLut(this->scanline_width, mask_scanline_width)),
     mask(mask_)
 {
     if(mask_scanline_count < this->scanline_count)
-        const_cast<LutPtr&>(mask_to_im_scanline_idx_lut) = Luts::getLut(mask_scanline_count, this->scanline_count);
+        const_cast<LutPtr&>(mask_to_im_scanline_idx_lut) = luts.getLut(mask_scanline_count, this->scanline_count);
     if(mask_scanline_width < this->scanline_width)
-        const_cast<LutPtr&>(mask_to_im_pixel_idx_lut) = Luts::getLut(mask_scanline_width, this->scanline_width);
+        const_cast<LutPtr&>(mask_to_im_pixel_idx_lut) = luts.getLut(mask_scanline_width, this->scanline_width);
 }
 
 template<typename T>
@@ -138,7 +141,7 @@ void Cursor<T, BitmapMask<T>>::seek_front_scanline()
     if(mask_scanline_count < this->scanline_count && mask_scanline_width < this->scanline_width)
     {
         std::size_t mask_scanline_idx=0, mask_element_idx;
-        for ( const std::uint8_t* mask_scanline = mask_scanlines_origin;
+        for ( mask_scanline = mask_scanlines_origin;
               mask_scanline_idx < mask_scanline_count;
               ++mask_scanline_idx, mask_scanline += mask_scanline_stride )
         {
@@ -150,7 +153,7 @@ void Cursor<T, BitmapMask<T>>::seek_front_scanline()
                 {
                     scanline_idx = mask_to_im_scanline_idx_lut->m_data[mask_scanline_idx];
                     pixel_idx = mask_to_im_pixel_idx_lut->m_data[mask_element_idx];
-                    this->scanline_raw =
+                    scanline_raw =
                         reinterpret_cast<const std::uint8_t*>(this->scanlines_origin) + scanline_idx * this->scanline_stride;
                     this->pixels_raw_end = this->scanline_raw + this->scanline_width * this->pixel_stride;
                     this->pixel_raw = this->scanline_raw + pixel_idx * this->pixel_stride;
@@ -166,9 +169,10 @@ void Cursor<T, BitmapMask<T>>::seek_front_scanline()
     else
     {
         this->scanline_raw = reinterpret_cast<const std::uint8_t*>(this->scanlines_origin);
+
         for(scanline_idx = 0; this->scanline_raw < this->scanlines_raw_end; this->scanline_raw += this->scanline_stride, ++scanline_idx)
         {
-            mask_scanline = mask_scanlines_origin + im_to_mask_
+            mask_scanline = mask_scanlines_origin + im_to_mask_scanline_idx_lut[scanline_idx];
             mask_scanline = reinterpret_cast<std::uint8_t*>(mask.bitmap_view.buf) +
                 static_cast<std::ptrdiff_t>(scanline_idx * im_mask_h_ratio) * mask.bitmap_view.strides[1];
             for ( pixel_idx = 0, this->pixel_raw = this->scanline_raw, this->pixels_raw_end = this->scanline_raw + this->scanline_width * this->pixel_stride;

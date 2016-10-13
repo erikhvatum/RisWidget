@@ -110,12 +110,12 @@ protected:
     // and floating point versions to make calls that are only valid for their respective types. The alternative to
     // standing on SFINAE is to instead have a fully generic dispatch_tagged_compute implementation assume T is integral
     // and to provide separate specializations for float and double.
-    template<typename MASK_T, bool ENABLE=std::is_integral<T>::value>
-    static void dispatch_tagged_compute(ComputeContext<MASK_T>& cc, char (*)[ENABLE]=0);
+    template<typename MASK_T, bool IS_INTEGRAL=std::is_integral<T>::value>
+    static void dispatch_tagged_compute(ComputeContext<MASK_T>& cc, char (*)[IS_INTEGRAL]=0);
 
     // Dispatch for floating point T.
-    template<typename MASK_T, bool ENABLE=std::is_integral<T>::value>
-    static void dispatch_tagged_compute(ComputeContext<MASK_T>& cc, char (*)[!ENABLE]=0);
+    template<typename MASK_T, bool IS_INTEGRAL=std::is_integral<T>::value>
+    static void dispatch_tagged_compute(ComputeContext<MASK_T>& cc, char (*)[!IS_INTEGRAL]=0);
 
     template<typename MASK_T, typename COMPUTE_TAG>
     static void tagged_compute(ComputeContext<MASK_T>& cc, const COMPUTE_TAG& tag);

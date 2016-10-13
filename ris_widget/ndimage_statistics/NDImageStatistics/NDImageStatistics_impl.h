@@ -165,8 +165,8 @@ std::shared_ptr<ImageStats<T>> NDImageStatistics<T>::compute(std::weak_ptr<NDIma
 }
 
 template<typename T>
-template<typename MASK_T, bool ENABLE>
-void NDImageStatistics<T>::dispatch_tagged_compute(ComputeContext<MASK_T>& cc, char (*)[ENABLE])
+template<typename MASK_T, bool IS_INTEGRAL>
+void NDImageStatistics<T>::dispatch_tagged_compute(ComputeContext<MASK_T>& cc, char (*)[IS_INTEGRAL])
 {
     if(std::is_unsigned<T>::value)
     {
@@ -207,8 +207,8 @@ void NDImageStatistics<T>::dispatch_tagged_compute(ComputeContext<MASK_T>& cc, c
 }
 
 template<typename T>
-template<typename MASK_T, bool ENABLE>
-void NDImageStatistics<T>::dispatch_tagged_compute(ComputeContext<MASK_T>& cc, char (*)[!ENABLE])
+template<typename MASK_T, bool IS_INTEGRAL>
+void NDImageStatistics<T>::dispatch_tagged_compute(ComputeContext<MASK_T>& cc, char (*)[!IS_INTEGRAL])
 {
     // TODO: if bin count exceeds floating point quanta in found or specified range, constrain bin count
     if(std::isnan(cc.range.first) || std::isnan(cc.range.second))

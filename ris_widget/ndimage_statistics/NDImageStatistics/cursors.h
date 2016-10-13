@@ -26,9 +26,9 @@
 #include "common.h"
 #include "masks.h"
 
-// Cursors (ie, CursorBase derivatives) are built-to-purpose matrix iterators. For an example of usage, see the 
-// definition of NDImageStatistics<T>::scan_image(ComputeContext<MASK_T>&, const COMPUTE_TAG&) in 
-// NDImageStatistics_impl.h. 
+// Cursors (ie, CursorBase derivatives) are built-to-purpose matrix iterators. For an example of usage, see the
+// definition of NDImageStatistics<T>::scan_image(ComputeContext<MASK_T>&, const COMPUTE_TAG&) in
+// NDImageStatistics_impl.h.
 
 template<typename T>
 struct CursorBase
@@ -55,7 +55,7 @@ struct CursorBase
     const std::size_t component_stride;
     const std::uint8_t* component_raw;
     const std::uint8_t* components_raw_end;
-    // The component member variable is a typecasting reference to component_raw. It acts as a toll-free 
+    // The component member variable is a typecasting reference to component_raw. It acts as a toll-free
     // bridge.
     const T*& component = reinterpret_cast<const T*&>(component_raw);
     // TODO: verify toll-freeness
@@ -85,8 +85,8 @@ struct Cursor
 };
 
 // Cursor specialization for BitmapMask
-template<typename T>
-struct Cursor<T, BitmapMask<T>>
+template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
+struct Cursor<T, BitmapMask<T, T_W, T_H>>
   : NonPerComponentMaskCursor<T>
 {
     Cursor(PyArrayView& data_view, BitmapMask<T>& mask_);
@@ -114,9 +114,31 @@ struct Cursor<T, BitmapMask<T>>
     BitmapMask<T>& mask;
 
     void seek_front_scanline();
-    void advance_scanline();
+
+    // SFINAE is used to hide all but the desired pair of scanline and pixel advance functions. There are other
+    // approaches to implementing advance_scanline/pixel static polymorphism, but the most natural, simply implementing
+    // specializations for advance_scanline templated to with default value of T_W, is not possible:
+    //
+    // C++11 14.7.3/16: In an explicit specialization declaration for a member of a class template or a member template
+    // that appears in namespace scope, the member template and some of its enclosing class templates may remain
+    // unspecialized, except that the declaration shall not explicitly specialize a class member template if its
+    // enclosing class templates are not explicitly specialized as well.
+
+    template<bool MASK_IS_SHORTER=T_H==BitmapMaskDimensionVsImage::Smaller>
+    void advance_scanline(char(*)[MASK_IS_SHORTER]=0);
+    template<bool MASK_IS_SAME_HEIGHT=T_H==BitmapMaskDimensionVsImage::Same>
+    void advance_scanline(char(*)[MASK_IS_SAME_HEIGHT]=0);
+    template<bool MASK_IS_TALLER=T_H==BitmapMaskDimensionVsImage::Larger>
+    void advance_scanline(char(*)[MASK_IS_TALLER]=0);
+
     void seek_front_pixel_of_scanline();
-    void advance_pixel();
+
+    template<bool MASK_IS_NARROWER=T_W==BitmapMaskDimensionVsImage::Smaller>
+    void advance_pixel(char(*)[MASK_IS_NARROWER]=0);
+    template<bool MASK_IS_SAME_WIDTH=T_W==BitmapMaskDimensionVsImage::Same>
+    void advance_pixel(char(*)[MASK_IS_SAME_WIDTH]=0);
+    template<bool MASK_IS_WIDER=T_W==BitmapMaskDimensionVsImage::Larger>
+    void advance_pixel(char(*)[MASK_IS_WIDER]=0);
 };
 
 // Cursor specialization for CircularMask

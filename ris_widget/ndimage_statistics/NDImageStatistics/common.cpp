@@ -27,7 +27,7 @@
 
 #include "common.h"
 
-Luts luts{200};
+Luts luts{256};
 
 std::unordered_map<std::type_index, std::string> component_type_names {
     {std::type_index(typeid(std::int8_t)), "int8"},
