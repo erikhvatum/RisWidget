@@ -33,19 +33,17 @@ void Mask<T>::expose_via_pybind11(py::module& m)
 
 
 
-template<typename T>
-void BitmapMask<T>::expose_via_pybind11(py::module& m)
+template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
+void BitmapMask<T, T_W, T_H>::expose_via_pybind11(py::module& m)
 {
     std::string s = std::string("_BitmapMask_") + component_type_names[std::type_index(typeid(T))];
-    py::class_<BitmapMask<T>, std::shared_ptr<BitmapMask<T>>, Mask<T>>(m, s.c_str());
+    py::class_<BitmapMask<T, T_W, T_H>, std::shared_ptr<BitmapMask<T, T_W, T_H>>, Mask<T>>(m, s.c_str());
 }
 
-template<typename T>
-BitmapMask<T>::BitmapMask(typed_array_t<std::uint8_t>& bitmap_py_)
-  : bitmap_view(bitmap_py_)
+template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
+BitmapMask<T, T_W, T_H>::BitmapMask(PyArrayView&& bitmap_view_)
+  : bitmap_view(bitmap_view_)
 {
-    if(bitmap_view.ndim != 2) throw std::invalid_argument("bitmap mask must be 2 dimensional.");
-    if(bitmap_view.strides[0] > bitmap_view.strides[1]) throw std::invalid_argument("bitmap mask striding must be (X, Y).");
 }
 
 

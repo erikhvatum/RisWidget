@@ -49,7 +49,7 @@ struct BitmapMask
 {
     static void expose_via_pybind11(py::module& m);
 
-    explicit BitmapMask(typed_array_t<std::uint8_t>& bitmap_py_);
+    explicit BitmapMask(PyArrayView&& bitmap_view_);
 
     PyArrayView bitmap_view;
 };

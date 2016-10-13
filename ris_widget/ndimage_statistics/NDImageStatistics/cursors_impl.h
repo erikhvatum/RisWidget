@@ -117,8 +117,8 @@ void Cursor<T, MASK_T>::advance_pixel()
 
 
 
-template<typename T>
-Cursor<T, BitmapMask<T>>::Cursor(PyArrayView& data_view, BitmapMask<T>& mask_)
+template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
+Cursor<T, BitmapMask<T, T_W, T_H>>::Cursor(PyArrayView& data_view, BitmapMask<T, T_W, T_H>& mask_)
   : NonPerComponentMaskCursor<T>(data_view),
     mask_scanline_count(mask_.bitmap_view.shape[1]),
     mask_scanline_stride(mask_.bitmap_view.strides[1]),
@@ -135,10 +135,10 @@ Cursor<T, BitmapMask<T>>::Cursor(PyArrayView& data_view, BitmapMask<T>& mask_)
         const_cast<LutPtr&>(mask_to_im_pixel_idx_lut) = luts.getLut(mask_scanline_width, this->scanline_width);
 }
 
-template<typename T>
-void Cursor<T, BitmapMask<T>>::seek_front_scanline()
+template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
+void Cursor<T, BitmapMask<T, T_W, T_H>>::seek_front_scanline()
 {
-    if(mask_scanline_count < this->scanline_count && mask_scanline_width < this->scanline_width)
+    /*if(mask_scanline_count < this->scanline_count && mask_scanline_width < this->scanline_width)
     {
         std::size_t mask_scanline_idx=0, mask_element_idx;
         for ( mask_scanline = mask_scanlines_origin;
@@ -194,25 +194,43 @@ void Cursor<T, BitmapMask<T>>::seek_front_scanline()
     this->scanline_valid = false;
     this->pixel_valid = false;
     this->component_valid = false;
-    at_unmasked_front_of_scanline = false;
+    at_unmasked_front_of_scanline = false;*/
 }
 
-template<typename T>
-void Cursor<T, BitmapMask<T>>::advance_scanline()
+// template<typename T>
+// void Cursor<T, BitmapMask<T>>::advance_scanline()
+// {
+//     assert(this->scanline_valid);
+//     this->scanline_raw += this->scanline_stride;
+//     this->scanline_valid = this->scanline_raw < this->scanlines_raw_end;
+//     this->pixel_valid = false;
+//     this->component_valid = false;
+//     at_unmasked_front_of_scanline = false;
+//     ++scanline_idx;
+// } 
+
+template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
+template<BitmapMaskDimensionVsImage T_H_>
+void Cursor<T, BitmapMask<T, T_W, T_H>>::advance_scanline(char(*)[T_H_==BitmapMaskDimensionVsImage::Smaller])
 {
-    assert(this->scanline_valid);
-    this->scanline_raw += this->scanline_stride;
-    this->scanline_valid = this->scanline_raw < this->scanlines_raw_end;
-    this->pixel_valid = false;
-    this->component_valid = false;
-    at_unmasked_front_of_scanline = false;
-    ++scanline_idx;
 }
 
-template<typename T>
-void Cursor<T, BitmapMask<T>>::seek_front_pixel_of_scanline()
+template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
+template<BitmapMaskDimensionVsImage T_H_>
+void Cursor<T, BitmapMask<T, T_W, T_H>>::advance_scanline(char(*)[T_H_==BitmapMaskDimensionVsImage::Same])
 {
-    assert(this->scanline_valid);
+}
+
+template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
+template<BitmapMaskDimensionVsImage T_H_>
+void Cursor<T, BitmapMask<T, T_W, T_H>>::advance_scanline(char(*)[T_H_==BitmapMaskDimensionVsImage::Larger])
+{
+}
+
+template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
+void Cursor<T, BitmapMask<T, T_W, T_H>>::seek_front_pixel_of_scanline()
+{
+    /*assert(this->scanline_valid);
     if(!at_unmasked_front_of_scanline)
     {
         if(im_mask_w_ratio > 1)
@@ -256,30 +274,48 @@ void Cursor<T, BitmapMask<T>>::seek_front_pixel_of_scanline()
         this->pixel_valid = false;
         this->component_valid = false;
         at_unmasked_front_of_scanline = false;
-    }
+    }*/
 }
 
-template<typename T>
-void Cursor<T, BitmapMask<T>>::advance_pixel()
+// template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
+// void Cursor<T, BitmapMask<T, T_W, T_H>>::advance_pixel()
+// {
+//     assert(this->scanline_valid);
+//     assert(this->pixel_valid);
+//     at_unmasked_front_of_scanline = false;
+//     this->component_valid = false;
+//     const std::uint8_t*const mask_scanline = reinterpret_cast<std::uint8_t*>(mask.bitmap_view.buf) +
+//         static_cast<std::ptrdiff_t>(scanline_idx * im_mask_h_ratio) * mask.bitmap_view.strides[1];
+//     this->pixel_raw += this->pixel_stride;
+//     ++pixel_idx;
+//     for(; this->pixel_raw < this->pixels_raw_end; this->pixel_raw += this->pixel_stride, ++pixel_idx)
+//     {
+//         mask_element = mask_scanline + static_cast<std::ptrdiff_t>(pixel_idx * im_mask_w_ratio) * mask.bitmap_view.strides[0];
+//         if(*mask_element != 0)
+//         {
+//             this->pixel_valid = true;
+//             return;
+//         }
+//     }
+//     this->pixel_valid = false;
+// }
+
+template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
+template<BitmapMaskDimensionVsImage T_W_>
+void Cursor<T, BitmapMask<T, T_W, T_H>>::advance_pixel(char(*)[T_W_==BitmapMaskDimensionVsImage::Smaller])
 {
-    assert(this->scanline_valid);
-    assert(this->pixel_valid);
-    at_unmasked_front_of_scanline = false;
-    this->component_valid = false;
-    const std::uint8_t*const mask_scanline = reinterpret_cast<std::uint8_t*>(mask.bitmap_view.buf) +
-        static_cast<std::ptrdiff_t>(scanline_idx * im_mask_h_ratio) * mask.bitmap_view.strides[1];
-    this->pixel_raw += this->pixel_stride;
-    ++pixel_idx;
-    for(; this->pixel_raw < this->pixels_raw_end; this->pixel_raw += this->pixel_stride, ++pixel_idx)
-    {
-        mask_element = mask_scanline + static_cast<std::ptrdiff_t>(pixel_idx * im_mask_w_ratio) * mask.bitmap_view.strides[0];
-        if(*mask_element != 0)
-        {
-            this->pixel_valid = true;
-            return;
-        }
-    }
-    this->pixel_valid = false;
+}
+
+template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
+template<BitmapMaskDimensionVsImage T_W_>
+void Cursor<T, BitmapMask<T, T_W, T_H>>::advance_pixel(char(*)[T_W_==BitmapMaskDimensionVsImage::Same])
+{
+}
+
+template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
+template<BitmapMaskDimensionVsImage T_W_>
+void Cursor<T, BitmapMask<T, T_W, T_H>>::advance_pixel(char(*)[T_W_==BitmapMaskDimensionVsImage::Larger])
+{
 }
 
 

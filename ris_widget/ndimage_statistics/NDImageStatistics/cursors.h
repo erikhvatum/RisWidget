@@ -89,7 +89,7 @@ template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage 
 struct Cursor<T, BitmapMask<T, T_W, T_H>>
   : NonPerComponentMaskCursor<T>
 {
-    Cursor(PyArrayView& data_view, BitmapMask<T>& mask_);
+    Cursor(PyArrayView& data_view, BitmapMask<T, T_W, T_H>& mask_);
 
     std::ptrdiff_t scanline_idx;
     std::ptrdiff_t pixel_idx;
@@ -111,7 +111,7 @@ struct Cursor<T, BitmapMask<T, T_W, T_H>>
     const LutPtr mask_to_im_scanline_idx_lut;
     const LutPtr mask_to_im_pixel_idx_lut;
 
-    BitmapMask<T>& mask;
+    BitmapMask<T, T_W, T_H>& mask;
 
     void seek_front_scanline();
 
@@ -124,21 +124,21 @@ struct Cursor<T, BitmapMask<T, T_W, T_H>>
     // unspecialized, except that the declaration shall not explicitly specialize a class member template if its
     // enclosing class templates are not explicitly specialized as well.
 
-    template<bool MASK_IS_SHORTER=T_H==BitmapMaskDimensionVsImage::Smaller>
-    void advance_scanline(char(*)[MASK_IS_SHORTER]=0);
-    template<bool MASK_IS_SAME_HEIGHT=T_H==BitmapMaskDimensionVsImage::Same>
-    void advance_scanline(char(*)[MASK_IS_SAME_HEIGHT]=0);
-    template<bool MASK_IS_TALLER=T_H==BitmapMaskDimensionVsImage::Larger>
-    void advance_scanline(char(*)[MASK_IS_TALLER]=0);
+    template<BitmapMaskDimensionVsImage T_W_=T_W>
+    void advance_scanline(char(*)[T_W_==BitmapMaskDimensionVsImage::Smaller]=0);
+    template<BitmapMaskDimensionVsImage T_W_=T_W>
+    void advance_scanline(char(*)[T_W_==BitmapMaskDimensionVsImage::Same]=0);
+    template<BitmapMaskDimensionVsImage T_W_=T_W>
+    void advance_scanline(char(*)[T_W_==BitmapMaskDimensionVsImage::Larger]=0);
 
     void seek_front_pixel_of_scanline();
 
-    template<bool MASK_IS_NARROWER=T_W==BitmapMaskDimensionVsImage::Smaller>
-    void advance_pixel(char(*)[MASK_IS_NARROWER]=0);
-    template<bool MASK_IS_SAME_WIDTH=T_W==BitmapMaskDimensionVsImage::Same>
-    void advance_pixel(char(*)[MASK_IS_SAME_WIDTH]=0);
-    template<bool MASK_IS_WIDER=T_W==BitmapMaskDimensionVsImage::Larger>
-    void advance_pixel(char(*)[MASK_IS_WIDER]=0);
+    template<BitmapMaskDimensionVsImage T_H_=T_H>
+    void advance_pixel(char(*)[T_H_==BitmapMaskDimensionVsImage::Smaller]=0);
+    template<BitmapMaskDimensionVsImage T_H_=T_H>
+    void advance_pixel(char(*)[T_H_==BitmapMaskDimensionVsImage::Same]=0);
+    template<BitmapMaskDimensionVsImage T_H_=T_H>
+    void advance_pixel(char(*)[T_H_==BitmapMaskDimensionVsImage::Larger]=0);
 };
 
 // Cursor specialization for CircularMask
