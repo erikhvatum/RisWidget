@@ -117,7 +117,7 @@ struct Cursor<T, BitmapMask<T, T_W, T_H>>
 
     // SFINAE is used to hide all but the desired pair of scanline and pixel advance functions. There are other
     // approaches to implementing advance_scanline/pixel static polymorphism, but the most natural, simply implementing
-    // specializations for advance_scanline templated to with default value of T_W, is not possible:
+    // specializations for advance_scanline templated with default value of T_W, is not possible:
     //
     // C++11 14.7.3/16: In an explicit specialization declaration for a member of a class template or a member template
     // that appears in namespace scope, the member template and some of its enclosing class templates may remain
