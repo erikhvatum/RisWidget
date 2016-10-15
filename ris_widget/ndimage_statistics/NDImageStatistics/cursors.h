@@ -95,9 +95,9 @@ template<typename BitmapMaskCursor, typename T, BitmapMaskDimensionVsImage T_W>
 struct BitmapMaskCursorScanlineAdvanceAspect<BitmapMaskCursor, T, T_W, BitmapMaskDimensionVsImage::Smaller>
 {
     BitmapMaskCursorScanlineAdvanceAspect(PyArrayView& data_view, BitmapMask<T, T_W, BitmapMaskDimensionVsImage::Smaller>& mask_);
-    void advance_scanline();
     const std::uint8_t* mask_scanlines_end;
     const LutPtr mask_to_im_scanline_idx_lut;
+    void advance_scanline();
 };
 
 template<typename BitmapMaskCursor, typename T, BitmapMaskDimensionVsImage T_W>
@@ -122,9 +122,9 @@ template<typename BitmapMaskCursor, typename T, BitmapMaskDimensionVsImage T_H>
 struct BitmapMaskCursorPixelAdvanceAspect<BitmapMaskCursor, T, BitmapMaskDimensionVsImage::Smaller, T_H>
 {
     BitmapMaskCursorPixelAdvanceAspect(PyArrayView& data_view, BitmapMask<T, BitmapMaskDimensionVsImage::Smaller, T_H>& mask_);
-    void advance_pixel();
     const std::uint8_t* mask_elements_end;
     const LutPtr mask_to_im_pixel_idx_lut;
+    void advance_pixel();
 };
 
 template<typename BitmapMaskCursor, typename T, BitmapMaskDimensionVsImage T_H>
@@ -138,8 +138,8 @@ template<typename BitmapMaskCursor, typename T, BitmapMaskDimensionVsImage T_H>
 struct BitmapMaskCursorPixelAdvanceAspect<BitmapMaskCursor, T, BitmapMaskDimensionVsImage::Larger, T_H>
 {
     BitmapMaskCursorPixelAdvanceAspect(PyArrayView& data_view, BitmapMask<T, BitmapMaskDimensionVsImage::Larger, T_H>& mask_);
-    void advance_pixel();
     const LutPtr im_to_mask_pixel_idx_lut;
+    void advance_pixel();
 };
 
 // Cursor specialization for BitmapMask
