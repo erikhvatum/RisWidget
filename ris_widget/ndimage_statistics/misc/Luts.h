@@ -41,7 +41,7 @@ typedef std::shared_ptr<SampleLut> SampleLutPtr;
 typedef std::map<std::pair<std::uint64_t, std::uint64_t>, SampleLutPtr> SampleLutCache;
 typedef SampleLutCache::iterator SampleLutCacheIt;
 typedef std::list<SampleLutCacheIt> SampleLutCacheLru;
-typedef SampleLutCacheLru::iterator LutCacheLruIt;
+typedef SampleLutCacheLru::iterator SampleLutCacheLruIt;
 
 class SampleLut
 {
@@ -56,7 +56,7 @@ public:
 
 protected:
     SampleLutCacheIt m_lutCacheIt;
-    LutCacheLruIt m_lutCacheLruIt;
+    SampleLutCacheLruIt m_lutCacheLruIt;
 };
 
 class SampleLuts
@@ -74,3 +74,46 @@ protected:
 };
 
 extern SampleLuts sampleLuts;
+
+
+class BresenhamCirculeLut;
+class BresenhamCirculeLuts;
+
+typedef std::vector<std::uint64_t> BresenhamCirculeLutData;
+typedef std::shared_ptr<BresenhamCirculeLut> BresenhamCirculeLutPtr;
+typedef std::map<std::pair<std::uint64_t, std::uint64_t>, BresenhamCirculeLutPtr> BresenhamCirculeLutCache;
+typedef BresenhamCirculeLutCache::iterator BresenhamCirculeLutCacheIt;
+typedef std::list<BresenhamCirculeLutCacheIt> BresenhamCirculeLutCacheLru;
+typedef BresenhamCirculeLutCacheLru::iterator BresenhamCirculeLutCacheLruIt;
+
+class BresenhamCirculeLut
+{
+public:
+    friend class BresenhamCirculeLuts;
+
+    const std::uint64_t m_fromBresenhamCirculeCount;
+    const std::uint64_t m_toBresenhamCirculeCount;
+    const BresenhamCirculeLutData m_data;
+
+    BresenhamCirculeLut(const std::uint64_t& fromBresenhamCirculeCount, const std::uint64_t& toBresenhamCirculeCount);
+
+protected:
+    BresenhamCirculeLutCacheIt m_lutCacheIt;
+    BresenhamCirculeLutCacheLruIt m_lutCacheLruIt;
+};
+
+class BresenhamCirculeLuts
+{
+public:
+    explicit BresenhamCirculeLuts(const std::size_t& maxCachedLuts);
+
+    BresenhamCirculeLutPtr getLut(const std::uint64_t& fromBresenhamCirculeCount, const std::uint64_t& toBresenhamCirculeCount);
+
+protected:
+    BresenhamCirculeLutCache m_lutCache;
+    BresenhamCirculeLutCacheLru m_lutCacheLru;
+    std::mutex m_lutCacheMutex;
+    std::size_t m_maxCachedLuts;
+};
+
+extern BresenhamCirculeLuts bresenhamCircleLuts;

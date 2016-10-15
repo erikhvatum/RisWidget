@@ -84,3 +84,60 @@ SampleLutPtr SampleLuts::getLut(const std::uint64_t& fromSampleCount, const std:
 SampleLuts sampleLuts{256};
 
 
+BresenhamCirculeLut::BresenhamCirculeLut(const std::uint64_t& fromBresenhamCirculeCount, const std::uint64_t& toBresenhamCirculeCount)
+  : m_fromBresenhamCirculeCount(fromBresenhamCirculeCount),
+    m_toBresenhamCirculeCount(toBresenhamCirculeCount),
+    m_data(fromBresenhamCirculeCount, 0)
+{
+    BresenhamCirculeLutData& data{const_cast<BresenhamCirculeLutData&>(m_data)};
+    std::uint64_t* toBresenhamCirculeIt{data.data()};
+    const double f{((double)(m_toBresenhamCirculeCount)) / m_fromBresenhamCirculeCount};
+    for(std::uint64_t fromBresenhamCirculeNum=0; fromBresenhamCirculeNum < m_fromBresenhamCirculeCount; ++fromBresenhamCirculeNum, ++toBresenhamCirculeIt)
+        *toBresenhamCirculeIt = fromBresenhamCirculeNum * f;
+}
+
+BresenhamCirculeLuts::BresenhamCirculeLuts(const std::size_t& maxCachedLuts)
+  : m_maxCachedLuts(maxCachedLuts)
+{
+    if(m_maxCachedLuts <= 0)
+        throw std::invalid_argument("The value supplied for maxCachedLuts must be > 0.");
+}
+
+BresenhamCirculeLutPtr BresenhamCirculeLuts::getLut(const std::uint64_t& fromBresenhamCirculeCount, const std::uint64_t& toBresenhamCirculeCount)
+{
+    std::lock_guard<std::mutex> lutCacheLock(m_lutCacheMutex);
+    if(fromBresenhamCirculeCount == 0 || toBresenhamCirculeCount == 0)
+        throw std::invalid_argument("The values supplied for fromBresenhamCirculeCount and toBresenhamCirculeCount must be > 0.");
+    std::pair<std::uint64_t, std::uint64_t> key(fromBresenhamCirculeCount, toBresenhamCirculeCount);
+    BresenhamCirculeLutCacheIt lutCacheIt{m_lutCache.find(key)};
+    if(lutCacheIt == m_lutCache.end())
+    {
+        BresenhamCirculeLutPtr lut(new BresenhamCirculeLut(fromBresenhamCirculeCount, toBresenhamCirculeCount));
+        lutCacheIt = lut->m_lutCacheIt = m_lutCache.insert(
+            std::pair<std::pair<std::uint64_t, std::uint64_t>, BresenhamCirculeLutPtr>(
+                std::pair<std::uint64_t, std::uint64_t>(fromBresenhamCirculeCount, toBresenhamCirculeCount), lut
+            )
+        ).first;
+        m_lutCacheLru.push_front(lut->m_lutCacheIt);
+        lut->m_lutCacheLruIt = m_lutCacheLru.begin();
+        if(m_lutCacheLru.size() > m_maxCachedLuts)
+        {
+
+            m_lutCache.erase(m_lutCacheLru.back()->second->m_lutCacheIt);
+            m_lutCacheLru.pop_back();
+        }
+    }
+    else
+    {
+        BresenhamCirculeLut& lut{*lutCacheIt->second};
+        if(lut.m_lutCacheLruIt != m_lutCacheLru.begin())
+        {
+            m_lutCacheLru.erase(lut.m_lutCacheLruIt);
+            m_lutCacheLru.push_front(lut.m_lutCacheIt);
+            lut.m_lutCacheLruIt = m_lutCacheLru.begin();
+        }
+    }
+    return lutCacheIt->second;
+}
+
+BresenhamCirculeLuts bresenhamCircleLuts{256};
