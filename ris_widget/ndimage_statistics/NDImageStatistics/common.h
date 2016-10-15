@@ -63,8 +63,6 @@ PYBIND11_DECLARE_HOLDER_TYPE(_T_, std::shared_ptr<_T_>);
 template<typename T> using typed_array_t = py::array_t<T, 0>;
 using mask_tuple_t = std::tuple<std::tuple<double, double>, double>;
 
-extern Luts luts;
-
 extern std::unordered_map<std::type_index, std::string> component_type_names;
 
 template<typename T>

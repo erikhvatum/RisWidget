@@ -33,42 +33,44 @@
 #include <stdexcept>
 #include <vector>
 
-class Lut;
-class Luts;
+class SampleLut;
+class SampleLuts;
 
-typedef std::vector<std::uint64_t> LutData;
-typedef std::shared_ptr<Lut> LutPtr;
-typedef std::map<std::pair<std::uint64_t, std::uint64_t>, LutPtr> LutCache;
-typedef LutCache::iterator LutCacheIt;
-typedef std::list<LutCacheIt> LutCacheLru;
-typedef LutCacheLru::iterator LutCacheLruIt;
+typedef std::vector<std::uint64_t> SampleLutData;
+typedef std::shared_ptr<SampleLut> SampleLutPtr;
+typedef std::map<std::pair<std::uint64_t, std::uint64_t>, SampleLutPtr> SampleLutCache;
+typedef SampleLutCache::iterator SampleLutCacheIt;
+typedef std::list<SampleLutCacheIt> SampleLutCacheLru;
+typedef SampleLutCacheLru::iterator LutCacheLruIt;
 
-class Lut
+class SampleLut
 {
 public:
-    friend class Luts;
+    friend class SampleLuts;
 
     const std::uint64_t m_fromSampleCount;
     const std::uint64_t m_toSampleCount;
-    const LutData m_data;
+    const SampleLutData m_data;
 
-    Lut(const std::uint64_t& fromSampleCount, const std::uint64_t& toSampleCount);
+    SampleLut(const std::uint64_t& fromSampleCount, const std::uint64_t& toSampleCount);
 
 protected:
-    LutCacheIt m_lutCacheIt;
+    SampleLutCacheIt m_lutCacheIt;
     LutCacheLruIt m_lutCacheLruIt;
 };
 
-class Luts
+class SampleLuts
 {
 public:
-    explicit Luts(const std::size_t& maxCachedLuts);
+    explicit SampleLuts(const std::size_t& maxCachedLuts);
 
-    LutPtr getLut(const std::uint64_t& fromSampleCount, const std::uint64_t& toSampleCount);
+    SampleLutPtr getLut(const std::uint64_t& fromSampleCount, const std::uint64_t& toSampleCount);
 
 protected:
-    LutCache m_lutCache;
-    LutCacheLru m_lutCacheLru;
+    SampleLutCache m_lutCache;
+    SampleLutCacheLru m_lutCacheLru;
     std::mutex m_lutCacheMutex;
     std::size_t m_maxCachedLuts;
 };
+
+extern SampleLuts luts;
