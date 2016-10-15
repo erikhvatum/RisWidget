@@ -109,7 +109,7 @@ SET(HEADER_FILES
     NDImageStatistics/masks.h
     NDImageStatistics/masks_impl.h
     NDImageStatistics/statses.h
-    NDImageStatistics/statses_impl.h)
+    NDImageStatistics/statses_impl.h NDImageStatistics/bitmap_mask_cursor_aspects.h)
 
 add_library(cpp_ndimage_statistics SHARED ${SOURCE_FILES} ${HEADER_FILES})
 target_link_libraries(cpp_ndimage_statistics ${PYTHON_LIBRARIES})

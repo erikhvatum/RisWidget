@@ -244,6 +244,7 @@
                     <F N="ris_widget/ndimage_statistics/misc/PyArrayView.h"/>
                 </Folder>
                 <Folder Name="NDImageStatistics">
+                    <F N="ris_widget/ndimage_statistics/NDImageStatistics/bitmap_mask_cursor_aspects.h"/>
                     <F N="ris_widget/ndimage_statistics/NDImageStatistics/common.cpp"/>
                     <F N="ris_widget/ndimage_statistics/NDImageStatistics/common.h"/>
                     <F N="ris_widget/ndimage_statistics/NDImageStatistics/cursors.h"/>
