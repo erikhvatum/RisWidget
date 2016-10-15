@@ -107,9 +107,7 @@ protected:
     // Dispatch for integral T. The second parameter is a character array with length of 0 or 1, depending on the value
     // of std::is_integral<T>::value. A zero length array is invalid in C++. Therefore, this definition is valid C++
     // only when T is integer, causing the method to be hidden entirely when T is floating point, allowing the integral
-    // and floating point versions to make calls that are only valid for their respective types. The alternative to
-    // standing on SFINAE is to instead have a fully generic dispatch_tagged_compute implementation assume T is integral
-    // and to provide separate specializations for float and double.
+    // and floating point versions to make calls that are only valid for their respective types.
     template<typename MASK_T, bool IS_INTEGRAL=std::is_integral<T>::value>
     static void dispatch_tagged_compute(ComputeContext<MASK_T>& cc, char (*)[IS_INTEGRAL]=0);
 

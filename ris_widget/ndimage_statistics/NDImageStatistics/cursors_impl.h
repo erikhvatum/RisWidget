@@ -117,27 +117,91 @@ void Cursor<T, MASK_T>::advance_pixel()
 
 
 
+template<typename BitmapMaskCursor, typename T, BitmapMaskDimensionVsImage T_W>
+BitmapMaskCursorScanlineAdvanceAspect<BitmapMaskCursor, T, T_W, BitmapMaskDimensionVsImage::Smaller>::
+BitmapMaskCursorScanlineAdvanceAspect(PyArrayView& data_view, BitmapMask<T, T_W, BitmapMaskDimensionVsImage::Smaller>& mask_)
+{
+}
+
+template<typename BitmapMaskCursor, typename T, BitmapMaskDimensionVsImage T_W>
+void BitmapMaskCursorScanlineAdvanceAspect<BitmapMaskCursor, T, T_W, BitmapMaskDimensionVsImage::Smaller>::advance_scanline()
+{
+}
+
+template<typename BitmapMaskCursor, typename T, BitmapMaskDimensionVsImage T_W>
+BitmapMaskCursorScanlineAdvanceAspect<BitmapMaskCursor, T, T_W, BitmapMaskDimensionVsImage::Same>::
+BitmapMaskCursorScanlineAdvanceAspect(PyArrayView& data_view, BitmapMask<T, T_W, BitmapMaskDimensionVsImage::Same>& mask_)
+{
+}
+
+template<typename BitmapMaskCursor, typename T, BitmapMaskDimensionVsImage T_W>
+void BitmapMaskCursorScanlineAdvanceAspect<BitmapMaskCursor, T, T_W, BitmapMaskDimensionVsImage::Same>::advance_scanline()
+{
+}
+
+template<typename BitmapMaskCursor, typename T, BitmapMaskDimensionVsImage T_W>
+BitmapMaskCursorScanlineAdvanceAspect<BitmapMaskCursor, T, T_W, BitmapMaskDimensionVsImage::Larger>::
+BitmapMaskCursorScanlineAdvanceAspect(PyArrayView& data_view, BitmapMask<T, T_W, BitmapMaskDimensionVsImage::Larger>& mask_)
+{
+}
+
+template<typename BitmapMaskCursor, typename T, BitmapMaskDimensionVsImage T_W>
+void BitmapMaskCursorScanlineAdvanceAspect<BitmapMaskCursor, T, T_W, BitmapMaskDimensionVsImage::Larger>::advance_scanline()
+{
+}
+
+template<typename BitmapMaskCursor, typename T, BitmapMaskDimensionVsImage T_H>
+BitmapMaskCursorPixelAdvanceAspect<BitmapMaskCursor, T, BitmapMaskDimensionVsImage::Smaller, T_H>::
+BitmapMaskCursorPixelAdvanceAspect(PyArrayView& data_view, BitmapMask<T, BitmapMaskDimensionVsImage::Smaller, T_H>& mask_)
+{
+}
+
+template<typename BitmapMaskCursor, typename T, BitmapMaskDimensionVsImage T_H>
+void BitmapMaskCursorPixelAdvanceAspect<BitmapMaskCursor, T, BitmapMaskDimensionVsImage::Smaller, T_H>::advance_pixel()
+{
+}
+
+template<typename BitmapMaskCursor, typename T, BitmapMaskDimensionVsImage T_H>
+BitmapMaskCursorPixelAdvanceAspect<BitmapMaskCursor, T, BitmapMaskDimensionVsImage::Same, T_H>::
+BitmapMaskCursorPixelAdvanceAspect(PyArrayView& data_view, BitmapMask<T, BitmapMaskDimensionVsImage::Same, T_H>& mask_)
+{
+}
+
+template<typename BitmapMaskCursor, typename T, BitmapMaskDimensionVsImage T_H>
+void BitmapMaskCursorPixelAdvanceAspect<BitmapMaskCursor, T, BitmapMaskDimensionVsImage::Same, T_H>::advance_pixel()
+{
+}
+
+template<typename BitmapMaskCursor, typename T, BitmapMaskDimensionVsImage T_H>
+BitmapMaskCursorPixelAdvanceAspect<BitmapMaskCursor, T, BitmapMaskDimensionVsImage::Larger, T_H>::
+BitmapMaskCursorPixelAdvanceAspect(PyArrayView& data_view, BitmapMask<T, BitmapMaskDimensionVsImage::Larger, T_H>& mask_)
+{
+}
+
+template<typename BitmapMaskCursor, typename T, BitmapMaskDimensionVsImage T_H>
+void BitmapMaskCursorPixelAdvanceAspect<BitmapMaskCursor, T, BitmapMaskDimensionVsImage::Larger, T_H>::advance_pixel()
+{
+}
+
 template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
 Cursor<T, BitmapMask<T, T_W, T_H>>::Cursor(PyArrayView& data_view, BitmapMask<T, T_W, T_H>& mask_)
   : NonPerComponentMaskCursor<T>(data_view),
+    BitmapMaskCursorScanlineAdvanceAspect<Cursor<T, BitmapMask<T, T_W, T_H>>, T, T_W, T_H>(data_view, mask_),
+    BitmapMaskCursorPixelAdvanceAspect<Cursor<T, BitmapMask<T, T_W, T_H>>, T, T_W, T_H>(data_view, mask_),
     mask_scanline_count(mask_.bitmap_view.shape[1]),
     mask_scanline_stride(mask_.bitmap_view.strides[1]),
     mask_scanlines_origin(reinterpret_cast<const std::uint8_t*const>(mask_.bitmap_view.buf)),
     mask_scanline_width(mask_.bitmap_view.shape[0]),
     mask_element_stride(mask_.bitmap_view.strides[0]),
-    im_to_mask_scanline_idx_lut(luts.getLut(this->scanline_count, mask_scanline_count)),
-    im_to_mask_pixel_idx_lut(luts.getLut(this->scanline_width, mask_scanline_width)),
     mask(mask_)
 {
-    if(mask_scanline_count < this->scanline_count)
-        const_cast<LutPtr&>(mask_to_im_scanline_idx_lut) = luts.getLut(mask_scanline_count, this->scanline_count);
-    if(mask_scanline_width < this->scanline_width)
-        const_cast<LutPtr&>(mask_to_im_pixel_idx_lut) = luts.getLut(mask_scanline_width, this->scanline_width);
 }
 
 template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
 void Cursor<T, BitmapMask<T, T_W, T_H>>::seek_front_scanline()
 {
+    this->scanline_raw = reinterpret_cast<const std::uint8_t*>(this->scanlines_origin);
+    this->scanline_valid = this->scanline_raw < this->scanlines_raw_end;
     /*if(mask_scanline_count < this->scanline_count && mask_scanline_width < this->scanline_width)
     {
         std::size_t mask_scanline_idx=0, mask_element_idx;
@@ -208,24 +272,6 @@ void Cursor<T, BitmapMask<T, T_W, T_H>>::seek_front_scanline()
 //     at_unmasked_front_of_scanline = false;
 //     ++scanline_idx;
 // } 
-
-template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
-template<BitmapMaskDimensionVsImage T_H_>
-void Cursor<T, BitmapMask<T, T_W, T_H>>::advance_scanline(char(*)[T_H_==BitmapMaskDimensionVsImage::Smaller])
-{
-}
-
-template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
-template<BitmapMaskDimensionVsImage T_H_>
-void Cursor<T, BitmapMask<T, T_W, T_H>>::advance_scanline(char(*)[T_H_==BitmapMaskDimensionVsImage::Same])
-{
-}
-
-template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
-template<BitmapMaskDimensionVsImage T_H_>
-void Cursor<T, BitmapMask<T, T_W, T_H>>::advance_scanline(char(*)[T_H_==BitmapMaskDimensionVsImage::Larger])
-{
-}
 
 template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
 void Cursor<T, BitmapMask<T, T_W, T_H>>::seek_front_pixel_of_scanline()
@@ -299,24 +345,6 @@ void Cursor<T, BitmapMask<T, T_W, T_H>>::seek_front_pixel_of_scanline()
 //     }
 //     this->pixel_valid = false;
 // }
-
-template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
-template<BitmapMaskDimensionVsImage T_W_>
-void Cursor<T, BitmapMask<T, T_W, T_H>>::advance_pixel(char(*)[T_W_==BitmapMaskDimensionVsImage::Smaller])
-{
-}
-
-template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
-template<BitmapMaskDimensionVsImage T_W_>
-void Cursor<T, BitmapMask<T, T_W, T_H>>::advance_pixel(char(*)[T_W_==BitmapMaskDimensionVsImage::Same])
-{
-}
-
-template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
-template<BitmapMaskDimensionVsImage T_W_>
-void Cursor<T, BitmapMask<T, T_W, T_H>>::advance_pixel(char(*)[T_W_==BitmapMaskDimensionVsImage::Larger])
-{
-}
 
 
 
