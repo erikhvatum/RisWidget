@@ -76,44 +76,44 @@ protected:
 extern SampleLuts sampleLuts;
 
 
-class BresenhamCirculeLut;
-class BresenhamCirculeLuts;
+class BresenhamCircleLut;
+class BresenhamCircleLuts;
 
-typedef std::vector<std::uint64_t> BresenhamCirculeLutData;
-typedef std::shared_ptr<BresenhamCirculeLut> BresenhamCirculeLutPtr;
-typedef std::map<std::pair<std::uint64_t, std::uint64_t>, BresenhamCirculeLutPtr> BresenhamCirculeLutCache;
-typedef BresenhamCirculeLutCache::iterator BresenhamCirculeLutCacheIt;
-typedef std::list<BresenhamCirculeLutCacheIt> BresenhamCirculeLutCacheLru;
-typedef BresenhamCirculeLutCacheLru::iterator BresenhamCirculeLutCacheLruIt;
+typedef std::vector<std::uint64_t> BresenhamCircleLutData;
+typedef std::shared_ptr<BresenhamCircleLut> BresenhamCircleLutPtr;
+typedef std::map<std::pair<std::uint64_t, std::uint64_t>, BresenhamCircleLutPtr> BresenhamCircleLutCache;
+typedef BresenhamCircleLutCache::iterator BresenhamCircleLutCacheIt;
+typedef std::list<BresenhamCircleLutCacheIt> BresenhamCircleLutCacheLru;
+typedef BresenhamCircleLutCacheLru::iterator BresenhamCircleLutCacheLruIt;
 
-class BresenhamCirculeLut
+class BresenhamCircleLut
 {
 public:
-    friend class BresenhamCirculeLuts;
+    friend class BresenhamCircleLuts;
 
-    const std::uint64_t m_fromBresenhamCirculeCount;
-    const std::uint64_t m_toBresenhamCirculeCount;
-    const BresenhamCirculeLutData m_data;
+    const std::uint64_t m_fromBresenhamCircleCount;
+    const std::uint64_t m_toBresenhamCircleCount;
+    const BresenhamCircleLutData m_data;
 
-    BresenhamCirculeLut(const std::uint64_t& fromBresenhamCirculeCount, const std::uint64_t& toBresenhamCirculeCount);
+    BresenhamCircleLut(const std::uint64_t& fromBresenhamCircleCount, const std::uint64_t& toBresenhamCircleCount);
 
 protected:
-    BresenhamCirculeLutCacheIt m_lutCacheIt;
-    BresenhamCirculeLutCacheLruIt m_lutCacheLruIt;
+    BresenhamCircleLutCacheIt m_lutCacheIt;
+    BresenhamCircleLutCacheLruIt m_lutCacheLruIt;
 };
 
-class BresenhamCirculeLuts
+class BresenhamCircleLuts
 {
 public:
-    explicit BresenhamCirculeLuts(const std::size_t& maxCachedLuts);
+    explicit BresenhamCircleLuts(const std::size_t& maxCachedLuts);
 
-    BresenhamCirculeLutPtr getLut(const std::uint64_t& fromBresenhamCirculeCount, const std::uint64_t& toBresenhamCirculeCount);
+    BresenhamCircleLutPtr getLut(const std::uint64_t& fromBresenhamCircleCount, const std::uint64_t& toBresenhamCircleCount);
 
 protected:
-    BresenhamCirculeLutCache m_lutCache;
-    BresenhamCirculeLutCacheLru m_lutCacheLru;
+    BresenhamCircleLutCache m_lutCache;
+    BresenhamCircleLutCacheLru m_lutCacheLru;
     std::mutex m_lutCacheMutex;
     std::size_t m_maxCachedLuts;
 };
 
-extern BresenhamCirculeLuts bresenhamCircleLuts;
+extern BresenhamCircleLuts bresenhamCircleLuts;
