@@ -81,6 +81,6 @@ SampleLutPtr SampleLuts::getLut(const std::uint64_t& fromSampleCount, const std:
     return lutCacheIt->second;
 }
 
-SampleLuts luts{256};
+SampleLuts sampleLuts{256};
 
 

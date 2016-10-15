@@ -33,7 +33,7 @@ struct BitmapMaskCursorScanlineAdvanceAspect<BitmapMaskCursor, T, T_W, BitmapMas
     const std::uint64_t* lut_element;
     BitmapMaskCursorScanlineAdvanceAspect(PyArrayView& data_view, BitmapMask<T, T_W, BitmapMaskDimensionVsImage::Smaller>& mask_)
       : mask_scanlines_end(static_cast<std::uint8_t*>(mask_.bitmap_view.buf) + mask_.bitmap_view.shape[1] * mask_.bitmap_view.strides[1]),
-        mask_to_im_scanline_idx_lut(luts.getLut(mask_.bitmap_view.shape[1], data_view.shape[1])),
+        mask_to_im_scanline_idx_lut(sampleLuts.getLut(mask_.bitmap_view.shape[1], data_view.shape[1])),
         lut_element(mask_to_im_scanline_idx_lut->m_data.data()) {}
     void advance_scanline();
 };
@@ -49,7 +49,7 @@ template<typename BitmapMaskCursor, typename T, BitmapMaskDimensionVsImage T_W>
 struct BitmapMaskCursorScanlineAdvanceAspect<BitmapMaskCursor, T, T_W, BitmapMaskDimensionVsImage::Larger>
 {
     BitmapMaskCursorScanlineAdvanceAspect(PyArrayView& data_view, BitmapMask<T, T_W, BitmapMaskDimensionVsImage::Larger>& mask_)
-      : im_to_mask_scanline_idx_lut(luts.getLut(data_view.shape[1], mask_.bitmap_view.shape[1])),
+      : im_to_mask_scanline_idx_lut(sampleLuts.getLut(data_view.shape[1], mask_.bitmap_view.shape[1])),
         lut_element(im_to_mask_scanline_idx_lut->m_data.data()) {}
     const SampleLutPtr im_to_mask_scanline_idx_lut;
     const std::uint64_t* lut_element;

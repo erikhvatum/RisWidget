@@ -73,4 +73,4 @@ protected:
     std::size_t m_maxCachedLuts;
 };
 
-extern SampleLuts luts;
+extern SampleLuts sampleLuts;
