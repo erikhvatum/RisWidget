@@ -76,44 +76,45 @@ protected:
 extern SampleLuts sampleLuts;
 
 
-class BresenhamCircleLut;
-class BresenhamCircleLuts;
+class PeroneCircleLut;
+class PeroneCircleLuts;
 
-typedef std::vector<std::uint64_t> BresenhamCircleLutData;
-typedef std::shared_ptr<BresenhamCircleLut> BresenhamCircleLutPtr;
-typedef std::map<std::pair<std::uint64_t, std::uint64_t>, BresenhamCircleLutPtr> BresenhamCircleLutCache;
-typedef BresenhamCircleLutCache::iterator BresenhamCircleLutCacheIt;
-typedef std::list<BresenhamCircleLutCacheIt> BresenhamCircleLutCacheLru;
-typedef BresenhamCircleLutCacheLru::iterator BresenhamCircleLutCacheLruIt;
+typedef std::unique_ptr<const std::int32_t, void(*)(const std::int32_t*)> PeroneCircleLutData;
+typedef std::shared_ptr<PeroneCircleLut> PeroneCircleLutPtr;
+typedef std::map<std::uint32_t, PeroneCircleLutPtr> PeroneCircleLutCache;
+typedef PeroneCircleLutCache::iterator PeroneCircleLutCacheIt;
+typedef std::list<PeroneCircleLutCacheIt> PeroneCircleLutCacheLru;
+typedef PeroneCircleLutCacheLru::iterator PeroneCircleLutCacheLruIt;
 
-class BresenhamCircleLut
+// The magnificent circle algorithm used by this class is a modest modification of the last algorithm listed here in the
+// main post (not the comments): http://www.willperone.net/Code/codecircle.php 
+class PeroneCircleLut
 {
 public:
-    friend class BresenhamCircleLuts;
+    friend class PeroneCircleLuts;
 
-    const std::uint64_t m_fromBresenhamCircleCount;
-    const std::uint64_t m_toBresenhamCircleCount;
-    const BresenhamCircleLutData m_data;
+    const std::uint32_t m_r;
+    const PeroneCircleLutData m_y_to_x_data;
 
-    BresenhamCircleLut(const std::uint64_t& fromBresenhamCircleCount, const std::uint64_t& toBresenhamCircleCount);
+    explicit PeroneCircleLut(const std::uint32_t r);
 
 protected:
-    BresenhamCircleLutCacheIt m_lutCacheIt;
-    BresenhamCircleLutCacheLruIt m_lutCacheLruIt;
+    PeroneCircleLutCacheIt m_lutCacheIt;
+    PeroneCircleLutCacheLruIt m_lutCacheLruIt;
 };
 
-class BresenhamCircleLuts
+class PeroneCircleLuts
 {
 public:
-    explicit BresenhamCircleLuts(const std::size_t& maxCachedLuts);
+    explicit PeroneCircleLuts(const std::size_t& maxCachedLuts);
 
-    BresenhamCircleLutPtr getLut(const std::uint64_t& fromBresenhamCircleCount, const std::uint64_t& toBresenhamCircleCount);
+    PeroneCircleLutPtr getLut(const std::uint32_t r);
 
 protected:
-    BresenhamCircleLutCache m_lutCache;
-    BresenhamCircleLutCacheLru m_lutCacheLru;
+    PeroneCircleLutCache m_lutCache;
+    PeroneCircleLutCacheLru m_lutCacheLru;
     std::mutex m_lutCacheMutex;
     std::size_t m_maxCachedLuts;
 };
 
-extern BresenhamCircleLuts bresenhamCircleLuts;
+extern PeroneCircleLuts peroneCircleLuts;

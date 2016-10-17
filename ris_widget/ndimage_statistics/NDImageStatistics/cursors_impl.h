@@ -292,6 +292,7 @@ Cursor<T, CircularMask<T>>::Cursor(PyArrayView& data_view, CircularMask<T>& mask
 template<typename T>
 void Cursor<T, CircularMask<T>>::seek_front_scanline()
 {
+    //if(r == 0) return;
 }
 
 template<typename T>

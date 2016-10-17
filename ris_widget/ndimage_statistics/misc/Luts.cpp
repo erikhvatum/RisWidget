@@ -22,8 +22,10 @@
 //
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+#include "branch_hints.h"
 #include "Luts.h"
 #include <cmath>
+#include <cstdlib>
 
 SampleLut::SampleLut(const std::uint64_t& fromSampleCount, const std::uint64_t& toSampleCount)
   : m_fromSampleCount(fromSampleCount),
@@ -84,40 +86,59 @@ SampleLutPtr SampleLuts::getLut(const std::uint64_t& fromSampleCount, const std:
 SampleLuts sampleLuts{256};
 
 
-BresenhamCircleLut::BresenhamCircleLut(const std::uint64_t& fromBresenhamCircleCount, const std::uint64_t& toBresenhamCircleCount)
-  : m_fromBresenhamCircleCount(fromBresenhamCircleCount),
-    m_toBresenhamCircleCount(toBresenhamCircleCount),
-    m_data(fromBresenhamCircleCount, 0)
+
+PeroneCircleLut::PeroneCircleLut(const std::uint32_t r)
+  : m_r(r),
+    m_y_to_x_data(
+       static_cast<std::int32_t*>
+       (
+          reinterpret_cast<std::int32_t*>
+          (
+             malloc((r*2 + 1)*sizeof(std::int32_t))
+          )
+       ),
+       [](const std::int32_t* v){const_cast<std::int32_t*>(v);}
+    )
 {
-    BresenhamCircleLutData& data{const_cast<BresenhamCircleLutData&>(m_data)};
-    std::uint64_t* toBresenhamCircleIt{data.data()};
-    const double f{((double)(m_toBresenhamCircleCount)) / m_fromBresenhamCircleCount};
-    for(std::uint64_t fromBresenhamCircleNum=0; fromBresenhamCircleNum < m_fromBresenhamCircleCount; ++fromBresenhamCircleNum, ++toBresenhamCircleIt)
-        *toBresenhamCircleIt = fromBresenhamCircleNum * f;
+    std::int32_t* lut = const_cast<std::int32_t*>(m_y_to_x_data.get());
+    std::uint32_t x=r, y=0;
+    std::int32_t cd2=0;
+
+    lut[0] = 0;
+    lut[r] = r;
+    lut[r*2] = 0;
+
+    // NB: The lut[r-x] = y and lut[r+x] = y assignments replace previously written values a number of times. The
+    // correct value is always the last written in any sequence of consecutive overwrites because y never decreases, so
+    // that's OK.
+    while(x > y)
+    {
+        cd2 -= --x - ++y;
+        if(cd2 < 0)
+            cd2 += x++;
+        lut[r-x] = y;
+        lut[r-y] = x;
+        lut[r+x] = y;
+        lut[r+y] = x;
+    }
+
 }
 
-BresenhamCircleLuts::BresenhamCircleLuts(const std::size_t& maxCachedLuts)
+PeroneCircleLuts::PeroneCircleLuts(const std::size_t& maxCachedLuts)
   : m_maxCachedLuts(maxCachedLuts)
 {
     if(m_maxCachedLuts <= 0)
         throw std::invalid_argument("The value supplied for maxCachedLuts must be > 0.");
 }
 
-BresenhamCircleLutPtr BresenhamCircleLuts::getLut(const std::uint64_t& fromBresenhamCircleCount, const std::uint64_t& toBresenhamCircleCount)
+PeroneCircleLutPtr PeroneCircleLuts::getLut(const std::uint32_t r)
 {
     std::lock_guard<std::mutex> lutCacheLock(m_lutCacheMutex);
-    if(fromBresenhamCircleCount == 0 || toBresenhamCircleCount == 0)
-        throw std::invalid_argument("The values supplied for fromBresenhamCircleCount and toBresenhamCircleCount must be > 0.");
-    std::pair<std::uint64_t, std::uint64_t> key(fromBresenhamCircleCount, toBresenhamCircleCount);
-    BresenhamCircleLutCacheIt lutCacheIt{m_lutCache.find(key)};
+    PeroneCircleLutCacheIt lutCacheIt{m_lutCache.find(r)};
     if(lutCacheIt == m_lutCache.end())
     {
-        BresenhamCircleLutPtr lut(new BresenhamCircleLut(fromBresenhamCircleCount, toBresenhamCircleCount));
-        lutCacheIt = lut->m_lutCacheIt = m_lutCache.insert(
-            std::pair<std::pair<std::uint64_t, std::uint64_t>, BresenhamCircleLutPtr>(
-                std::pair<std::uint64_t, std::uint64_t>(fromBresenhamCircleCount, toBresenhamCircleCount), lut
-            )
-        ).first;
+        PeroneCircleLutPtr lut(new PeroneCircleLut(r));
+        lutCacheIt = lut->m_lutCacheIt = m_lutCache.insert(std::pair<std::uint32_t, PeroneCircleLutPtr>(r, lut)).first;
         m_lutCacheLru.push_front(lut->m_lutCacheIt);
         lut->m_lutCacheLruIt = m_lutCacheLru.begin();
         if(m_lutCacheLru.size() > m_maxCachedLuts)
@@ -129,7 +150,7 @@ BresenhamCircleLutPtr BresenhamCircleLuts::getLut(const std::uint64_t& fromBrese
     }
     else
     {
-        BresenhamCircleLut& lut{*lutCacheIt->second};
+        PeroneCircleLut& lut{*lutCacheIt->second};
         if(lut.m_lutCacheLruIt != m_lutCacheLru.begin())
         {
             m_lutCacheLru.erase(lut.m_lutCacheLruIt);
@@ -140,4 +161,4 @@ BresenhamCircleLutPtr BresenhamCircleLuts::getLut(const std::uint64_t& fromBrese
     return lutCacheIt->second;
 }
 
-BresenhamCircleLuts bresenhamCircleLuts{256};
+PeroneCircleLuts peroneCircleLuts{256};

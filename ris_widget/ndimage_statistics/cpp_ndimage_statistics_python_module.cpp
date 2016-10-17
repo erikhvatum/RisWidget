@@ -56,5 +56,7 @@ PYBIND11_PLUGIN(cpp_ndimage_statistics)
     NDImageStatistics<float>        ::expose_via_pybind11(m, "float32");
     NDImageStatistics<double>       ::expose_via_pybind11(m, "float64");
 
+    peroneCircleLuts.getLut(900);
+
     return m.ptr();
 }

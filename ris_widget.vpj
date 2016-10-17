@@ -238,6 +238,7 @@
             </Folder>
             <Folder Name="ndimage_statistics">
                 <Folder Name="misc">
+                    <F N="ris_widget/ndimage_statistics/misc/branch_hints.h"/>
                     <F N="ris_widget/ndimage_statistics/misc/Luts.cpp"/>
                     <F N="ris_widget/ndimage_statistics/misc/Luts.h"/>
                     <F N="ris_widget/ndimage_statistics/misc/PyArrayView.cpp"/>
