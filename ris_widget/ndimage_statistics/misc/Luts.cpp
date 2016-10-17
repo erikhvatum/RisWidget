@@ -97,7 +97,7 @@ PeroneCircleLut::PeroneCircleLut(const std::uint32_t r)
              malloc((r*2 + 1)*sizeof(std::int32_t))
           )
        ),
-       [](const std::int32_t* v){const_cast<std::int32_t*>(v);}
+       [](const std::int32_t* v){free(const_cast<std::int32_t*>(v));}
     )
 {
     std::int32_t* lut = const_cast<std::int32_t*>(m_y_to_x_data.get());
