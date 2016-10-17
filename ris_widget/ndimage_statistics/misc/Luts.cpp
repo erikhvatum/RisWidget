@@ -116,6 +116,13 @@ PeroneCircleLut::PeroneCircleLut(const std::uint32_t r)
         cd2 -= --x - ++y;
         if(cd2 < 0)
             cd2 += x++;
+//      else
+//      {
+//          lut[r-x] = y;
+//          lut[r+x] = y;
+//      }
+//      lut[r-y] = x;
+//      lut[r+y] = x;
         lut[r-x] = y;
         lut[r-y] = x;
         lut[r+x] = y;
