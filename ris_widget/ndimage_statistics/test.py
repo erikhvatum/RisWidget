@@ -41,7 +41,7 @@ mask = numpy.zeros((5,15),dtype=numpy.uint8).T
 mask[1,0] = 1
 mask[1,1] = 1
 #im[im==0]=45
-stats = cpp_ndimage_statistics.NDImageStatistics(im, (0, 255), mask, False)
+stats = cpp_ndimage_statistics.NDImageStatistics(im, (0, 255), False)
 #stats = cpp_ndimage_statistics.NDImageStatistics(im, (0, 255), False)
 stats.launch_computation()
 #del stats

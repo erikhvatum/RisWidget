@@ -126,9 +126,17 @@ FloatStatsBase<T>::FloatStatsBase()
 template<typename T>
 FloatStatsBase<T>::operator std::string () const
 {
-    std::string ps{StatsBase<T>::operator std::string()};
-    std::ostringstream o(ps.substr(0, ps.size() - 2));
-    o << "NaN_count: " << NaN_count << ", neg_inf_count: " << neg_inf_count << ", pos_inf_count: " << pos_inf_count << ">";
+    std::ostringstream o;
+    o << "<NaN_count: " << NaN_count << ", neg_inf_count: " << neg_inf_count << ", pos_inf_count: " << pos_inf_count << ", ";
+    o << "extrema: (" << this->extrema.first << ", " << this->extrema.second << "), max_bin: " << this->max_bin << ", histogram: [";
+    bool first{true};
+    for(auto v : *this->histogram)
+    {
+        if(first) first=false;
+        else o << ", ";
+        o << v;
+    }
+    o << "]>";
     return o.str();
 }
 
