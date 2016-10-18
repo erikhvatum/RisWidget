@@ -48,6 +48,7 @@
 #include <typeinfo>
 #include <unordered_map>
 #include <vector>
+#include "../misc/branch_hints.h"
 #include "../misc/Luts.h"
 #include "../misc/PyArrayView.h"
 

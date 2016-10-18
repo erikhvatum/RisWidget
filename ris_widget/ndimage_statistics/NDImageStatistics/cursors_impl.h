@@ -136,6 +136,10 @@ void Cursor<T, BitmapMask<T, T_W, T_H>>::seek_front_scanline()
 {
     this->scanline_raw = reinterpret_cast<const std::uint8_t*>(this->scanlines_origin);
     this->scanline_valid = this->scanline_raw < this->scanlines_raw_end;
+    if(likely(this->scanline_valid))
+    {
+//        BitmapMaskCursorScanlineAdvanceAspect<Cursor<T, BitmapMask<T, T_W, T_H>>, T, T_W, T_H>::seek_front_scanline();
+    }
     /*if(mask_scanline_count < this->scanline_count && mask_scanline_width < this->scanline_width)
     {
         std::size_t mask_scanline_idx=0, mask_element_idx;
@@ -210,8 +214,10 @@ void Cursor<T, BitmapMask<T, T_W, T_H>>::seek_front_scanline()
 template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
 void Cursor<T, BitmapMask<T, T_W, T_H>>::seek_front_pixel_of_scanline()
 {
-    /*assert(this->scanline_valid);
-    if(!at_unmasked_front_of_scanline)
+    assert(this->scanline_valid);
+    BitmapMaskCursorPixelAdvanceAspect<Cursor<T, BitmapMask<T, T_W, T_H>>, T, T_W, T_H>::seek_front_pixel_of_scanline();
+
+    /*if(!at_unmasked_front_of_scanline)
     {
         if(im_mask_w_ratio > 1)
         {

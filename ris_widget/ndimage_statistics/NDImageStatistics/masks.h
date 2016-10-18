@@ -62,10 +62,10 @@ struct CircularMask
 
     static void expose_via_pybind11(py::module& m);
 
-    CircularMask(double center_x_, double center_y_, double radius_);
+    CircularMask(double center_x, double center_y, double radius);
     explicit CircularMask(TupleArg t);
 
-    double center_x, center_y, radius;
+    const std::int32_t m_center_x, m_center_y, m_radius;
 };
 
 #include "masks_impl.h"
