@@ -67,8 +67,8 @@ struct NonPerComponentMaskCursor
 {
     using CursorBase<T>::CursorBase;
 
-    void seek_front_component_of_pixel();
-    void advance_component();
+    inline void seek_front_component_of_pixel();
+    inline void advance_component();
 };
 
 // Primary Cursor template; used concretely in the case where MASK_T is of type Mask (eg, a null mask)
@@ -78,10 +78,10 @@ struct Cursor
 {
     Cursor(PyArrayView& data_view, MASK_T& mask_);
 
-    void seek_front_scanline();
-    void advance_scanline();
-    void seek_front_pixel_of_scanline();
-    void advance_pixel();
+    inline void seek_front_scanline();
+    inline void advance_scanline();
+    inline void seek_front_pixel_of_scanline();
+    inline void advance_pixel();
 };
 
 // Specialized aspects of the Cursor<T, BitmapMask> specialization, BitmapMaskCursorXxxxxAdvanceAspects are mixins that
@@ -112,8 +112,8 @@ struct Cursor<T, BitmapMask<T, T_W, T_H>>
 
     BitmapMask<T, T_W, T_H>& mask;
 
-    void seek_front_scanline();
-    void seek_front_pixel_of_scanline();
+    inline void seek_front_scanline();
+    inline void seek_front_pixel_of_scanline();
 };
 
 // Cursor specialization for CircularMask
@@ -123,12 +123,13 @@ struct Cursor<T, CircularMask<T>>
 {
     Cursor(PyArrayView& data_view, CircularMask<T>& mask_);
 
-    void seek_front_scanline();
-    void advance_scanline();
-    void seek_front_pixel_of_scanline();
-    void advance_pixel();
+    inline void seek_front_scanline();
+    inline void advance_scanline();
+    inline void seek_front_pixel_of_scanline();
+    inline void advance_pixel();
 
     CircularMask<T>& mask;
+    PeroneCircleLutPtr bounds_lut;
 };
 
 #include "cursors_impl.h"

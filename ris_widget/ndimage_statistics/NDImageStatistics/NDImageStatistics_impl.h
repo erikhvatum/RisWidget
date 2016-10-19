@@ -57,10 +57,10 @@ void NDImageStatistics<T>::expose_via_pybind11(py::module& m, const std::string&
           py::arg("data"), py::arg("range_"), py::arg("drop_last_channel_from_overall_stats"));
     m.def("NDImageStatistics",
           [](typed_array_t<T>& a, const std::pair<T, T>& b, typename CircularMask<T>::TupleArg m, bool c){return new NDImageStatistics<T>(a, b, m, c);},
-          py::arg("data"), py::arg("range_"), py::arg("bitmap_mask_data"), py::arg("drop_last_channel_from_overall_stats"));
+          py::arg("data"), py::arg("range_"), py::arg("roi_mask_tuple"), py::arg("drop_last_channel_from_overall_stats"));
     m.def("NDImageStatistics",
           [](typed_array_t<T>& a, const std::pair<T, T>& b, typed_array_t<std::uint8_t>& m, bool c){return new NDImageStatistics<T>(a, b, m, c);},
-          py::arg("data"), py::arg("range_"), py::arg("roi_mask_tuple"), py::arg("drop_last_channel_from_overall_stats"));
+          py::arg("data"), py::arg("range_"), py::arg("bitmap_mask_data"), py::arg("drop_last_channel_from_overall_stats"));
 }
 
 template<typename T>

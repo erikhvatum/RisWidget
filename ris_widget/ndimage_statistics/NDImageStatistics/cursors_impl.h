@@ -298,7 +298,11 @@ Cursor<T, CircularMask<T>>::Cursor(PyArrayView& data_view, CircularMask<T>& mask
 template<typename T>
 void Cursor<T, CircularMask<T>>::seek_front_scanline()
 {
-    if(mask.radius == 0) return;
+    if(unlikely(mask.radius == 0)) return;
+    this->scanline_raw = reinterpret_cast<const std::uint8_t*>(this->scanlines_origin);
+    this->scanline_valid = this->scanline_raw < this->scanlines_raw_end;
+    if(unlikely(!this->scanline_valid)) return;
+
 }
 
 template<typename T>
