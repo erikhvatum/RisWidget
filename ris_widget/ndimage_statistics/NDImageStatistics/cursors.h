@@ -38,7 +38,7 @@ struct CursorBase
     CursorBase& operator = (const CursorBase&) = delete;
     virtual ~CursorBase() = default;
 
-    bool scanline_valid, pixel_valid, component_valid;
+    volatile bool scanline_valid, pixel_valid, component_valid;
 
     const std::size_t scanline_count;
     const std::size_t scanline_stride;
