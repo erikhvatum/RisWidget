@@ -311,7 +311,7 @@ void Cursor<T, CircularMask<T>>::seek_front_scanline()
     this->scanline_raw = reinterpret_cast<const std::uint8_t*>(this->scanlines_origin) + this->scanline_stride * std::max(mask.center_y - mask.radius, 0);
     bound = bounds_lut->m_y_to_x_data.get() + std::max(mask.radius - mask.center_y, 0);
     // Modifying scanlines_raw_end would be bad news indeed if we were being called from within a loop whose condition
-    // depended directly on scanlines_raw_end unless scanlines_raw_end were marked volatile in the context of the loop
+    // depended directly on scanlines_raw_end, unless scanlines_raw_end were marked volatile in the context of the loop
     // or this function itself was inline. Fortunately, scanline_valid is used for loop control.
     const_cast<const std::uint8_t*&>(this->scanlines_raw_end) =
         reinterpret_cast<const std::uint8_t*>(this->scanlines_origin) +
