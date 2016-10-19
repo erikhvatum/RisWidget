@@ -301,7 +301,7 @@ Cursor<T, CircularMask<T>>::Cursor(PyArrayView& data_view, CircularMask<T>& mask
                : nullptr) // otherwise, we do not.
 {
 }
-// #include<iostream>
+
 template<typename T>
 void Cursor<T, CircularMask<T>>::seek_front_scanline()
 {
@@ -316,10 +316,6 @@ void Cursor<T, CircularMask<T>>::seek_front_scanline()
     const_cast<const std::uint8_t*&>(this->scanlines_raw_end) =
         reinterpret_cast<const std::uint8_t*>(this->scanlines_origin) +
         this->scanline_stride * std::min(mask.center_y + mask.radius + 1, static_cast<std::int32_t>(this->scanline_count));
-//  std::cout << "scanlines: " << (std::int64_t)((this->scanlines_raw_end - this->scanline_raw)/this->scanline_stride);
-//  std::cout << ", " << (std::int64_t)((this->scanline_raw - (const std::uint8_t*const)this->scanlines_origin)/this->scanline_stride);
-//  std::cout << " - " << (std::int64_t)((this->scanlines_raw_end - (const std::uint8_t*const)this->scanlines_origin)/this->scanline_stride);
-//  std::cout << std::endl;
 }
 
 template<typename T>
@@ -340,11 +336,6 @@ void Cursor<T, CircularMask<T>>::seek_front_pixel_of_scanline()
     this->pixels_raw_end = this->pixel_raw + this->pixel_stride * std::min(mask.center_x + *bound + 1, static_cast<std::int32_t>(this->scanline_width));
     this->pixel_valid = this->pixel_raw < this->pixels_raw_end;
     this->component_valid = false;
-//  std::cout << "scanline: " << (std::int64_t)((this->scanline_raw - (const std::uint8_t*const)this->scanlines_origin)/this->scanline_stride);
-//  std::cout << ", " << (bound - bounds_lut->m_y_to_x_data.get()) << ": " << *bound;
-//  std::cout << ", " << std::max(mask.center_x - *bound, 0);
-//  std::cout << " - " << std::min(mask.center_x + *bound + 1, static_cast<std::int32_t>(this->scanline_width));
-//  std::cout << std::endl;
 }
 
 template<typename T>
