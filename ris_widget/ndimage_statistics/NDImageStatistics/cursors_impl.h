@@ -23,7 +23,7 @@
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 // For a complete explanation of the need to use "this->" so much in this file, see
-// http://stackoverflow.com/a/4643295/2054879 
+// http://stackoverflow.com/a/4643295/2054879
 
 #include "cursors.h"
 
@@ -209,7 +209,7 @@ void Cursor<T, BitmapMask<T, T_W, T_H>>::seek_front_scanline()
 //     this->component_valid = false;
 //     at_unmasked_front_of_scanline = false;
 //     ++scanline_idx;
-// } 
+// }
 
 template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
 void Cursor<T, BitmapMask<T, T_W, T_H>>::seek_front_pixel_of_scanline()
@@ -291,31 +291,68 @@ void Cursor<T, BitmapMask<T, T_W, T_H>>::seek_front_pixel_of_scanline()
 template<typename T>
 Cursor<T, CircularMask<T>>::Cursor(PyArrayView& data_view, CircularMask<T>& mask_)
   : NonPerComponentMaskCursor<T>(data_view),
-    mask(mask_)
+    mask(mask_),
+    bounds_lut(mask.radius > 0 // If ROI radius is greater then zero...
+               && mask.center_x + mask.radius >= 0 // and right ROI edge is right of or at left image edge...
+               && mask.center_x - mask.radius < data_view.shape[0] // and left ROI edge is left of or at right image edge...
+               && mask.center_y + mask.radius >= 0 // and bottom ROI edge is above or at top image edge...
+               && mask.center_y - mask.radius < data_view.shape[1] // and top ROI edge is above or at bottom image edge,
+               ? peroneCircleLuts.getLut(mask.radius) // then we actually need to scan and have use for our x bounds vs y position LUT;
+               : nullptr) // otherwise, we do not.
 {
 }
-
+// #include<iostream>
 template<typename T>
 void Cursor<T, CircularMask<T>>::seek_front_scanline()
 {
     if(unlikely(mask.radius == 0)) return;
-    this->scanline_raw = reinterpret_cast<const std::uint8_t*>(this->scanlines_origin);
-    this->scanline_valid = this->scanline_raw < this->scanlines_raw_end;
+    this->scanline_valid = bounds_lut.get() != nullptr;
     if(unlikely(!this->scanline_valid)) return;
-
+    this->scanline_raw = reinterpret_cast<const std::uint8_t*>(this->scanlines_origin) + this->scanline_stride * std::max(mask.center_y - mask.radius, 0);
+    bound = bounds_lut->m_y_to_x_data.get() + std::max(mask.radius - mask.center_y, 0);
+    // Modifying scanlines_raw_end would be bad news indeed if we were being called from within a loop whose condition
+    // depended directly on scanlines_raw_end unless scanlines_raw_end were marked volatile in the context of the loop
+    // or this function itself was inline. Fortunately, scanline_valid is used for loop control.
+    const_cast<const std::uint8_t*&>(this->scanlines_raw_end) =
+        reinterpret_cast<const std::uint8_t*>(this->scanlines_origin) +
+        this->scanline_stride * std::min(mask.center_y + mask.radius + 1, static_cast<std::int32_t>(this->scanline_count));
+//  std::cout << "scanlines: " << (std::int64_t)((this->scanlines_raw_end - this->scanline_raw)/this->scanline_stride);
+//  std::cout << ", " << (std::int64_t)((this->scanline_raw - (const std::uint8_t*const)this->scanlines_origin)/this->scanline_stride);
+//  std::cout << " - " << (std::int64_t)((this->scanlines_raw_end - (const std::uint8_t*const)this->scanlines_origin)/this->scanline_stride);
+//  std::cout << std::endl;
 }
 
 template<typename T>
 void Cursor<T, CircularMask<T>>::advance_scanline()
 {
+    assert(this->scanline_valid);
+    this->scanline_raw += this->scanline_stride;
+    this->scanline_valid = this->scanline_raw < this->scanlines_raw_end;
+    this->pixel_valid = false;
+    this->component_valid = false;
+    ++bound;
 }
 
 template<typename T>
 void Cursor<T, CircularMask<T>>::seek_front_pixel_of_scanline()
 {
+    this->pixel_raw = this->scanline_raw + this->pixel_stride * std::max(mask.center_x - *bound, 0);
+    this->pixels_raw_end = this->pixel_raw + this->pixel_stride * std::min(mask.center_x + *bound + 1, static_cast<std::int32_t>(this->scanline_width));
+    this->pixel_valid = this->pixel_raw < this->pixels_raw_end;
+    this->component_valid = false;
+//  std::cout << "scanline: " << (std::int64_t)((this->scanline_raw - (const std::uint8_t*const)this->scanlines_origin)/this->scanline_stride);
+//  std::cout << ", " << (bound - bounds_lut->m_y_to_x_data.get()) << ": " << *bound;
+//  std::cout << ", " << std::max(mask.center_x - *bound, 0);
+//  std::cout << " - " << std::min(mask.center_x + *bound + 1, static_cast<std::int32_t>(this->scanline_width));
+//  std::cout << std::endl;
 }
 
 template<typename T>
 void Cursor<T, CircularMask<T>>::advance_pixel()
 {
+    assert(this->scanline_valid);
+    assert(this->pixel_valid);
+    this->pixel_raw += this->pixel_stride;
+    this->pixel_valid = this->pixel_raw < this->pixels_raw_end;
+    this->component_valid = false;
 }

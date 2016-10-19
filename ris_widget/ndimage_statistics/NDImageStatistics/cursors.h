@@ -130,6 +130,7 @@ struct Cursor<T, CircularMask<T>>
 
     CircularMask<T>& mask;
     PeroneCircleLutPtr bounds_lut;
+    const std::int32_t* bound;
 };
 
 #include "cursors_impl.h"
