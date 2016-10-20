@@ -71,12 +71,16 @@ struct NonPerComponentMaskCursor
     inline void advance_component();
 };
 
-// Primary Cursor template; used concretely in the case where MASK_T is of type Mask (eg, a null mask)
+// Although the primary Cursor template is declared, only specializations are defined.
 template<typename T, typename MASK_T>
-struct Cursor
+struct Cursor;
+
+// Cursor specialization for Mask (null mask) 
+template<typename T>
+struct Cursor<T, Mask<T>>
   : NonPerComponentMaskCursor<T>
 {
-    Cursor(PyArrayView& data_view, MASK_T& mask_);
+    Cursor(PyArrayView& data_view, Mask<T>&);
 
     inline void seek_front_scanline();
     inline void advance_scanline();

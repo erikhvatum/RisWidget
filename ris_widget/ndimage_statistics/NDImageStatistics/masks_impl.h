@@ -31,12 +31,46 @@ void Mask<T>::expose_via_pybind11(py::module& m)
     py::class_<Mask<T>, std::shared_ptr<Mask<T>>>(m, s.c_str());
 }
 
-
-
 template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
 void BitmapMask<T, T_W, T_H>::expose_via_pybind11(py::module& m)
 {
+    static const std::unordered_map<BitmapMaskDimensionVsImage, std::string> w_names {
+        {BitmapMaskDimensionVsImage::Smaller, "narrower"},
+        {BitmapMaskDimensionVsImage::Same, "same_width"},
+        {BitmapMaskDimensionVsImage::Larger, "wider"},
+    };
+    static const std::unordered_map<BitmapMaskDimensionVsImage, std::string> h_names {
+        {BitmapMaskDimensionVsImage::Smaller, "shorter"},
+        {BitmapMaskDimensionVsImage::Same, "same_height"},
+        {BitmapMaskDimensionVsImage::Larger, "taller"},
+    };
     std::string s = std::string("_BitmapMask_") + component_type_names[std::type_index(typeid(T))];
+    s += "_";
+    switch(T_W)
+    {
+    case BitmapMaskDimensionVsImage::Smaller:
+        s += "narrower";
+        break;
+    case BitmapMaskDimensionVsImage::Same:
+        s += "same_width";
+        break;
+    case BitmapMaskDimensionVsImage::Larger:
+        s += "wider";
+        break;
+    }
+    s += "_and_";
+    switch(T_H)
+    {
+    case BitmapMaskDimensionVsImage::Smaller:
+        s += "shorter";
+        break;
+    case BitmapMaskDimensionVsImage::Same:
+        s += "same_height";
+        break;
+    case BitmapMaskDimensionVsImage::Larger:
+        s += "taller";
+        break;
+    }
     py::class_<BitmapMask<T, T_W, T_H>, std::shared_ptr<BitmapMask<T, T_W, T_H>>, Mask<T>>(m, s.c_str());
 }
 

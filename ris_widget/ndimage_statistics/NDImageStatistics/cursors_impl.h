@@ -72,21 +72,21 @@ void NonPerComponentMaskCursor<T>::advance_component()
 
 
 
-template<typename T, typename MASK_T>
-Cursor<T, MASK_T>::Cursor(PyArrayView& data_view, MASK_T& /*mask_*/)
+template<typename T>
+Cursor<T, Mask<T>>::Cursor(PyArrayView& data_view, Mask<T>&)
   : NonPerComponentMaskCursor<T>(data_view)
 {
 }
 
-template<typename T, typename MASK_T>
-void Cursor<T, MASK_T>::seek_front_scanline()
+template<typename T>
+void Cursor<T, Mask<T>>::seek_front_scanline()
 {
     this->scanline_raw = reinterpret_cast<const std::uint8_t*>(this->scanlines_origin);
     this->scanline_valid = this->scanline_raw < this->scanlines_raw_end;
 }
 
-template<typename T, typename MASK_T>
-void Cursor<T, MASK_T>::advance_scanline()
+template<typename T>
+void Cursor<T, Mask<T>>::advance_scanline()
 {
     assert(this->scanline_valid);
     this->scanline_raw += this->scanline_stride;
@@ -95,8 +95,8 @@ void Cursor<T, MASK_T>::advance_scanline()
     this->component_valid = false;
 }
 
-template<typename T, typename MASK_T>
-void Cursor<T, MASK_T>::seek_front_pixel_of_scanline()
+template<typename T>
+void Cursor<T, Mask<T>>::seek_front_pixel_of_scanline()
 {
     assert(this->scanline_valid);
     this->pixel_raw = this->scanline_raw;
@@ -105,8 +105,8 @@ void Cursor<T, MASK_T>::seek_front_pixel_of_scanline()
     this->component_valid = false;
 }
 
-template<typename T, typename MASK_T>
-void Cursor<T, MASK_T>::advance_pixel()
+template<typename T>
+void Cursor<T, Mask<T>>::advance_pixel()
 {
     assert(this->scanline_valid);
     assert(this->pixel_valid);
