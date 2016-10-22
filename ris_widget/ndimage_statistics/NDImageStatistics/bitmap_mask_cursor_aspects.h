@@ -30,21 +30,36 @@ struct BitmapMaskCursorScanlineAdvanceAspect<BitmapMaskCursor, T, T_W, BitmapMas
 {
     const std::uint8_t*const mask_scanlines_end;
     const SampleLutPtr im_to_mask_scanline_idx_lut;
-    const std::uint64_t* mask_scanline_lut_element;
+    const std::uint64_t* im_to_mask_scanline_lut_element;
     const SampleLutPtr mask_to_im_scanline_idx_lut;
-    const std::uint64_t* im_scanline_lut_element;
+    const std::uint64_t* mask_to_im_scanline_lut_element;
 
     BitmapMaskCursorScanlineAdvanceAspect(PyArrayView& data_view, BitmapMask<T, T_W, BitmapMaskDimensionVsImage::Smaller>& mask_)
       : mask_scanlines_end(static_cast<std::uint8_t*>(mask_.bitmap_view.buf) + mask_.bitmap_view.shape[1] * mask_.bitmap_view.strides[1]),
         im_to_mask_scanline_idx_lut(sampleLuts.getLut(data_view.shape[1], mask_.bitmap_view.shape[1])),
         mask_to_im_scanline_idx_lut(sampleLuts.getLut(mask_.bitmap_view.shape[1], data_view.shape[1])) {}
 
-    void quick_advance_scanline()
+    inline void seek_front_scanline()
     {
-        mask_scanline_lut_element = im_to_mask_scanline_idx_lut->m_data.data();
-        im_scanline_lut_element = mask_to_im_scanline_idx_lut->m_data.data();
-        static_cast<BitmapMaskCursor*>(this)->mask_scanline = static_cast<BitmapMaskCursor*>(this)->mask_scanlines_origin[*mask_scanline_lut_element];
+        BitmapMaskCursor& S = *static_cast<BitmapMaskCursor*>(this);
+        S.mask_scanline = S.mask_scanlines_origin;
+        im_to_mask_scanline_lut_element = im_to_mask_scanline_idx_lut->m_data.data();
+        mask_to_im_scanline_lut_element = mask_to_im_scanline_idx_lut->m_data.data();
+        for(;;)
+        {
+            S.seek_front_pixel_of_scanline();
+            if(S.pixel_valid) break;
+            S.mask_scanline += S.mask_scanline_stride;
+            ++mask_to_im_scanline_lut_element;
+        }
     }
+
+//  void quick_advance_scanline()
+//  {
+//      mask_scanline_lut_element = im_to_mask_scanline_idx_lut->m_data.data();
+//      im_scanline_lut_element = mask_to_im_scanline_idx_lut->m_data.data();
+//      static_cast<BitmapMaskCursor*>(this)->mask_scanline = static_cast<BitmapMaskCursor*>(this)->mask_scanlines_origin[*mask_scanline_lut_element];
+//  }
 
     inline void advance_scanline() {}
 };

@@ -138,7 +138,7 @@ void Cursor<T, BitmapMask<T, T_W, T_H>>::seek_front_scanline()
     this->scanline_valid = this->scanline_raw < this->scanlines_raw_end;
     if(likely(this->scanline_valid))
     {
-//        BitmapMaskCursorScanlineAdvanceAspect<Cursor<T, BitmapMask<T, T_W, T_H>>, T, T_W, T_H>::seek_front_scanline();
+        BitmapMaskCursorScanlineAdvanceAspect<Cursor<T, BitmapMask<T, T_W, T_H>>, T, T_W, T_H>::seek_front_scanline();
     }
     /*if(mask_scanline_count < this->scanline_count && mask_scanline_width < this->scanline_width)
     {
