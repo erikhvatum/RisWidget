@@ -102,6 +102,8 @@ struct Cursor<T, BitmapMask<T, T_W, T_H>>
 {
     Cursor(PyArrayView& data_view, BitmapMask<T, T_W, T_H>& mask_);
 
+    volatile bool mask_scanline_valid, mask_element_valid;
+
     std::ptrdiff_t scanline_idx;
     std::ptrdiff_t pixel_idx;
 
@@ -116,8 +118,8 @@ struct Cursor<T, BitmapMask<T, T_W, T_H>>
 
     BitmapMask<T, T_W, T_H>& mask;
 
-    inline void seek_front_scanline();
-    inline void seek_front_pixel_of_scanline();
+//  inline void seek_front_scanline();
+//  inline void seek_front_pixel_of_scanline();
 };
 
 // Cursor specialization for CircularMask
