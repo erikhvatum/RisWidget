@@ -104,7 +104,7 @@ struct BitmapMaskCursorScanlineAdvanceAspect<BitmapMaskCursor, T, T_W, BitmapMas
     BitmapMaskCursorScanlineAdvanceAspect(PyArrayView& data_view, BitmapMask<T, T_W, BitmapMaskDimensionVsImage::Larger>& mask_)
       : im_to_mask_scanline_idx_lut(sampleLuts.getLut(data_view.shape[1], mask_.bitmap_view.shape[1])),
         lut_element(im_to_mask_scanline_idx_lut->m_data.data()) {}
-    
+
     inline void seek_front_scanline() {}
     inline void update_scanline()
     {
@@ -125,7 +125,7 @@ struct BitmapMaskCursorPixelAdvanceAspect<BitmapMaskCursor, T, BitmapMaskDimensi
     const std::uint8_t* mask_elements_end;
     const SampleLutPtr im_to_mask_pixel_idx_lut;
     const std::uint64_t* im_to_mask_pixel_lut_element;
-    std::uint64_t prev_im_to_mask_pixel_lut_element_value;
+    std::uint64_t prev_mask_idx;
     const std::uint64_t*const im_to_mask_pixel_lut_elements_end;
     const SampleLutPtr mask_to_im_pixel_idx_lut;
     const std::uint64_t* mask_to_im_pixel_lut_element;
@@ -156,7 +156,7 @@ struct BitmapMaskCursorPixelAdvanceAspect<BitmapMaskCursor, T, BitmapMaskDimensi
         BitmapMaskCursor& S = *static_cast<BitmapMaskCursor*>(this);
         assert(S.mask_scanline_valid);
         mask_to_im_pixel_lut_element = mask_to_im_pixel_idx_lut->m_data.data();
-        prev_im_to_mask_pixel_lut_element_value = 0;
+        prev_mask_idx = 0;
         S.mask_element = S.mask_scanline;
         S.mask_element_valid = true;
         mask_elements_end = S.mask_element + S.mask_element_stride * S.mask_scanline_width;
@@ -175,34 +175,41 @@ struct BitmapMaskCursorPixelAdvanceAspect<BitmapMaskCursor, T, BitmapMaskDimensi
 
     inline void seek_front_pixel_of_scanline()
     {
-        // Precondition: either seek_front_scanline or advance_scanline is the BitmapMaskCursor member function most 
-        // recently called. Both leave us in the state where the mask element pointer and lut element pointer are 
-        // correct, but the pixel pointer is not. Calling update_pixel fixes that. 
+        // Precondition: either seek_front_scanline or advance_scanline is the BitmapMaskCursor member function most
+        // recently called. Both leave us in the state where the mask element pointer and lut element pointer are
+        // correct, but the pixel pointer is not. Calling update_pixel fixes that.
         update_pixel();
     }
 
     inline void advance_pixel()
     {
         BitmapMaskCursor& S = *static_cast<BitmapMaskCursor*>(this);
-        assert(S.pixel_valid && S.mask_element_valid);
+        // Our being called can only mean we are looking at the current mask element because it is true; the preceeding
+        // advance_pixel or seek_front_element_of_mask_scanline call would have left pixel_valid false and caused the
+        // calling loop to terminate before calling advance_pixel if the mask element were false.
+        assert(S.pixel_valid && S.mask_element_valid && *S.mask_element != 0);
         ++im_to_mask_pixel_lut_element;
-        if(im_to_mask_pixel_lut_element > im_to_mask_pixel_lut_elements_end)
+        if(im_to_mask_pixel_lut_element < im_to_mask_pixel_lut_elements_end)
+        {
+            if(prev_mask_idx == *im_to_mask_pixel_lut_element)
+            {
+                S.pixel_raw += S.pixel_stride;
+                assert(S.pixel_raw < S.pixels_raw_end);
+            }
+            else
+            {
+                prev_mask_idx = *im_to_mask_pixel_lut_element;
+                advance_mask_element();
+                S.pixel_valid = S.mask_element_valid;
+                if(likely(S.pixel_valid)) // We are likely to see another true mask value before the end of the scanline
+                    update_pixel();
+            }
+        }
+        else
         {
             S.pixel_valid = false;
             S.mask_element_valid = false;
             S.component_valid = false;
-            return;
-        }
-        if(prev_im_to_mask_pixel_lut_element_value != *im_to_mask_pixel_lut_element)
-        {
-            advance_mask_element();
-            S.pixel_valid = S.mask_element_valid;
-            if(likely(S.pixel_valid))
-                update_pixel();
-        }
-        else
-        {
-//          normal stuff
         }
     }
 };
