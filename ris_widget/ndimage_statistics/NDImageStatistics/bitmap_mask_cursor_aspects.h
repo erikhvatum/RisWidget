@@ -247,9 +247,9 @@ struct BitmapMaskCursorPixelAdvanceAspect<BitmapMaskCursor, T, BitmapMaskDimensi
     {
         std::cout << "advance_pixel" << std::endl;
         BitmapMaskCursor& S = *static_cast<BitmapMaskCursor*>(this);
-        // Our being called can only mean we are looking at the current mask element because it is true; the preceeding
-        // advance_pixel or seek_front_element_of_mask_scanline call would have left pixel_valid false and caused the
-        // calling loop to terminate before calling advance_pixel if the mask element were false.
+        // Our being called can only mean we are looking at the current mask element because it is true; if the mask
+        // element were false, the preceeding advance_pixel or seek_front_element_of_mask_scanline call would have left
+        // pixel_valid false and caused the calling loop to terminate before calling advance_pixel.
         assert(S.pixel_valid && S.mask_element_valid && *S.mask_element != 0);
         ++im_to_mask_pixel_lut_element;
         if(im_to_mask_pixel_lut_element < im_to_mask_pixel_lut_elements_end)
