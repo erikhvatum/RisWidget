@@ -296,53 +296,15 @@ void NDImageStatistics<T>::tagged_compute(ComputeContext<MASK_T>& cc, const COMP
 
 template<typename T>
 template<typename MASK_T>
-void NDImageStatistics<T>::init_extrema(ComputeContext<MASK_T>& cc, const IntegerComputeTag& tag)
+void NDImageStatistics<T>::init_extrema(ComputeContext<MASK_T>& cc, const ComputeTag& tag)
 {
-    Cursor<T, MASK_T> cursor(*cc.data_view, *cc.mask);
-    std::shared_ptr<Stats<T>>* channel_stat_p;
-    cursor.seek_front_scanline();
-    if(cursor.scanline_valid)
+    std::shared_ptr<Stats<T>>* channel_stat_p{cc.stats.channel_stats.data()};
+    std::shared_ptr<Stats<T>>*const channel_stat_p_end{channel_stat_p + cc.stats.channel_stats.size()};
+    for(; channel_stat_p != channel_stat_p_end; ++channel_stat_p)
     {
-        cursor.seek_front_pixel_of_scanline();
-        if(cursor.pixel_valid)
-        {
-            channel_stat_p = cc.stats.channel_stats.data();
-            for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component(), ++channel_stat_p)
-            {
-                Stats<T>& channel_stat{**channel_stat_p};
-                channel_stat.extrema.first = channel_stat.extrema.second = *cursor.component;
-            }
-        }
-    }
-}
-
-template<typename T>
-template<typename MASK_T>
-void NDImageStatistics<T>::init_extrema(ComputeContext<MASK_T>& cc, const FloatComputeTag& tag)
-{
-    bool complete;
-    Cursor<T, MASK_T> cursor(*cc.data_view, *cc.mask);
-    std::shared_ptr<Stats<T>>* channel_stat_p;
-    for(cursor.seek_front_scanline(); cursor.scanline_valid && !cc.ndis_wp.expired(); cursor.advance_scanline())
-    {
-        for(cursor.seek_front_pixel_of_scanline(); cursor.pixel_valid; cursor.advance_pixel())
-        {
-            channel_stat_p = cc.stats.channel_stats.data();
-            complete = true;
-            for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component(), ++channel_stat_p)
-            {
-                Stats<T>& channel_stat{**channel_stat_p};
-                if(std::isnan(channel_stat.extrema.first))
-                {
-                    if(is_finite(*cursor.component))
-                        channel_stat.extrema.first = channel_stat.extrema.second = *cursor.component;
-                    else
-                        complete = false;
-                }
-            }
-            if(complete)
-                return;
-        }
+        std::pair<T, T>& extrema = (*channel_stat_p)->extrema;
+        extrema.first = std::numeric_limits<T>::max();
+        extrema.second = std::numeric_limits<T>::lowest();
     }
 }
 

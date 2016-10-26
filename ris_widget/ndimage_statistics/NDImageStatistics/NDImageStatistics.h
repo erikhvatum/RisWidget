@@ -118,14 +118,11 @@ protected:
     template<typename MASK_T, typename COMPUTE_TAG>
     static void tagged_compute(ComputeContext<MASK_T>& cc, const COMPUTE_TAG& tag);
 
+    // Sets (min, max) to (largest for type T, smallest and possibly negative value for type T)
     template<typename MASK_T>
-    static void init_extrema(ComputeContext<MASK_T>& cc, const IntegerComputeTag&);
+    static void init_extrema(ComputeContext<MASK_T>& cc, const ComputeTag&);
 
-    template<typename MASK_T>
-    static void init_extrema(ComputeContext<MASK_T>& cc, const FloatComputeTag&);
-
-    // Rather than just initializing per-channel extrema with the first finite component found in each channel, this
-    // actually finds extrema across entire image in order to establish range
+    // Finds extrema across entire image in order to establish range
     template<typename MASK_T>
     static void init_extrema(ComputeContext<MASK_T>& cc, const UnrangedFloatComputeTag&);
 
