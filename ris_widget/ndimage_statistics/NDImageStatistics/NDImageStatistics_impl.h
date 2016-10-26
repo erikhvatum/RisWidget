@@ -360,6 +360,7 @@ void NDImageStatistics<T>::scan_image(ComputeContext<MASK_T>& cc, const COMPUTE_
             channel_stat_p = cc.stats.channel_stats.data();
             for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component(), ++channel_stat_p)
             {
+                std::cout << "*process_component\n";
                 process_component<MASK_T>(cc, **channel_stat_p, *cursor.component, tag);
             }
         }

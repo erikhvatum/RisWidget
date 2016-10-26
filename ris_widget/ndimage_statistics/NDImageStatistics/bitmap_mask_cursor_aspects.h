@@ -33,6 +33,7 @@ struct BitmapMaskCursorScanlineAdvanceAspect<BitmapMaskCursor, T, T_W, BitmapMas
     const std::uint64_t* im_to_mask_scanline_lut_element;
     const std::uint64_t*const im_to_mask_scanline_lut_elements_end;
     std::uint64_t prev_mask_scanline_idx;
+    const std::uint8_t* prev_mask_scanline_front;
     const SampleLutPtr mask_to_im_scanline_idx_lut;
     const std::uint64_t* mask_to_im_scanline_lut_element;
 
@@ -68,6 +69,7 @@ struct BitmapMaskCursorScanlineAdvanceAspect<BitmapMaskCursor, T, T_W, BitmapMas
         S.scanline_raw = reinterpret_cast<const std::uint8_t*>(S.scanlines_origin) + *mask_to_im_scanline_lut_element * S.scanline_stride;
         S.scanline_valid = true;
         im_to_mask_scanline_lut_element = im_to_mask_scanline_idx_lut->m_data.data() + *mask_to_im_scanline_lut_element;
+        prev_mask_scanline_idx = *im_to_mask_scanline_lut_element;
         S.update_pixel();
     }
 
@@ -83,6 +85,7 @@ struct BitmapMaskCursorScanlineAdvanceAspect<BitmapMaskCursor, T, T_W, BitmapMas
         if(S.mask_element_valid)
         {
             update_scanline();
+            prev_mask_scanline_front = S.mask_element;
         }
         else
         {
@@ -90,6 +93,7 @@ struct BitmapMaskCursorScanlineAdvanceAspect<BitmapMaskCursor, T, T_W, BitmapMas
             if(S.mask_element_valid)
             {
                 update_scanline();
+                prev_mask_scanline_front = S.mask_element;
             }
         }
     }
@@ -106,22 +110,25 @@ struct BitmapMaskCursorScanlineAdvanceAspect<BitmapMaskCursor, T, T_W, BitmapMas
             {
                 S.scanline_raw += S.scanline_stride;
                 assert(S.scanline_raw < S.scanlines_raw_end);
+                S.mask_element = prev_mask_scanline_front;
+                S.mask_element_valid = true;
             }
             else
             {
-                prev_mask_scanline_idx = *im_to_mask_scanline_lut_element;
                 advance_mask_scanline();
                 S.scanline_valid = S.mask_scanline_valid;
                 if(likely(S.scanline_valid)) // We are likely to see another scanline with a true value before the end of the image
+                {
                     update_scanline();
+                }
             }
         }
         else
         {
             S.mask_scanline_valid = false;
+            S.mask_element_valid = false;
         }
         S.pixel_valid = false;
-        S.mask_element_valid = false;
         S.component_valid = false;
     }
 };
@@ -217,15 +224,19 @@ struct BitmapMaskCursorPixelAdvanceAspect<BitmapMaskCursor, T, BitmapMaskDimensi
     {
         std::cout << "update_pixel" << std::endl;
         BitmapMaskCursor& S = *static_cast<BitmapMaskCursor*>(this);
+        std::cout << S.scanline_valid << " : " << S.mask_element_valid << " : " << (*S.mask_element == 0 ? "false" : "true") << std::endl;
         assert(S.scanline_valid && S.mask_element_valid && *S.mask_element != 0);
         S.pixel_raw = S.scanline_raw + *mask_to_im_pixel_lut_element * S.pixel_stride;
         S.pixel_valid = true;
         im_to_mask_pixel_lut_element = im_to_mask_pixel_idx_lut->m_data.data() + *mask_to_im_pixel_lut_element;
+        prev_mask_element_idx = *im_to_mask_pixel_lut_element;
     }
 
     inline void seek_front_pixel_of_scanline()
     {
         std::cout << "seek_front_pixel_of_scanline" << std::endl;
+        BitmapMaskCursor& S = *static_cast<BitmapMaskCursor*>(this);
+        S.pixels_raw_end = S.scanline_raw + S.pixel_stride * S.scanline_width;
         // Precondition: either seek_front_scanline or advance_scanline is the BitmapMaskCursor member function most
         // recently called. Both leave us in the state where the mask element pointer and lut element pointer are
         // correct, but the pixel pointer is not. Calling update_pixel fixes that.
@@ -250,7 +261,6 @@ struct BitmapMaskCursorPixelAdvanceAspect<BitmapMaskCursor, T, BitmapMaskDimensi
             }
             else
             {
-                prev_mask_element_idx = *im_to_mask_pixel_lut_element;
                 advance_mask_element();
                 S.pixel_valid = S.mask_element_valid;
                 if(likely(S.pixel_valid)) // We are likely to see another true mask value before the end of the scanline
