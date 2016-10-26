@@ -30,54 +30,95 @@ struct BitmapMaskCursorScanlineAdvanceAspect<BitmapMaskCursor, T, T_W, BitmapMas
 {
     const std::uint8_t*const mask_scanlines_end;
     const SampleLutPtr im_to_mask_scanline_idx_lut;
-//  const std::uint64_t* im_to_mask_scanline_lut_element;
+    const std::uint64_t* im_to_mask_scanline_lut_element;
+    const std::uint64_t*const im_to_mask_scanline_lut_elements_end;
+    std::uint64_t prev_mask_scanline_idx;
     const SampleLutPtr mask_to_im_scanline_idx_lut;
     const std::uint64_t* mask_to_im_scanline_lut_element;
 
     BitmapMaskCursorScanlineAdvanceAspect(PyArrayView& data_view, BitmapMask<T, T_W, BitmapMaskDimensionVsImage::Smaller>& mask_)
       : mask_scanlines_end(static_cast<std::uint8_t*>(mask_.bitmap_view.buf) + mask_.bitmap_view.shape[1] * mask_.bitmap_view.strides[1]),
         im_to_mask_scanline_idx_lut(sampleLuts.getLut(data_view.shape[1], mask_.bitmap_view.shape[1])),
+        im_to_mask_scanline_lut_elements_end(im_to_mask_scanline_idx_lut->m_data.data() + data_view.shape[1]),
         mask_to_im_scanline_idx_lut(sampleLuts.getLut(mask_.bitmap_view.shape[1], data_view.shape[1])) {}
+
+    inline void advance_mask_scanline()
+    {
+        BitmapMaskCursor& S = *static_cast<BitmapMaskCursor*>(this);
+        assert(S.mask_scanline_valid);
+        for(;;)
+        {
+            S.mask_scanline += S.mask_scanline_stride;
+            S.mask_scanline_valid = S.mask_scanline < mask_scanlines_end;
+            if(!S.mask_scanline_valid)
+                break;
+            ++mask_to_im_scanline_lut_element;
+            S.seek_front_element_of_mask_scanline();
+            if(S.mask_element_valid)
+                break;
+        }
+    }
 
     inline void update_scanline()
     {
         BitmapMaskCursor& S = *static_cast<BitmapMaskCursor*>(this);
         assert(S.mask_scanline_valid);
         S.scanline_raw = reinterpret_cast<const std::uint8_t*>(S.scanlines_origin) + *mask_to_im_scanline_lut_element * S.scanline_stride;
+        S.scanline_valid = true;
+        im_to_mask_scanline_lut_element = im_to_mask_scanline_idx_lut->m_data.data() + *mask_to_im_scanline_lut_element;
+        S.update_pixel();
     }
 
     inline void seek_front_scanline()
     {
         BitmapMaskCursor& S = *static_cast<BitmapMaskCursor*>(this);
-        S.mask_scanline = S.mask_scanlines_origin;
-        S.mask_scanline_valid = S.mask_scanline < S.mask_scanlines_end;
-        if(unlikely(!S.mask_scanline_valid)) return;
         mask_to_im_scanline_lut_element = mask_to_im_scanline_idx_lut->m_data.data();
+        S.mask_scanline = S.mask_scanlines_origin;
+        S.mask_scanline_valid = true;
+        prev_mask_scanline_idx = 0;
         S.seek_front_element_of_mask_scanline();
         if(S.mask_element_valid)
+        {
             update_scanline();
+        }
         else
+        {
             advance_mask_scanline();
+            if(S.mask_element_valid)
+            {
+                update_scanline();
+            }
+        }
     }
-
-    inline void advance_mask_scanline()
-    {
-    }
-
-//  void quick_advance_scanline()
-//  {
-//      mask_scanline_lut_element = im_to_mask_scanline_idx_lut->m_data.data();
-//      im_scanline_lut_element = mask_to_im_scanline_idx_lut->m_data.data();
-//      static_cast<BitmapMaskCursor*>(this)->mask_scanline = static_cast<BitmapMaskCursor*>(this)->mask_scanlines_origin[*mask_scanline_lut_element];
-//  }
 
     inline void advance_scanline()
     {
         BitmapMaskCursor& S = *static_cast<BitmapMaskCursor*>(this);
-        assert(S.scanline_valid);
-        S.scanline_valid = S.mask_scanline_valid;
-        if(likely(S.scanline_valid))
-            update_scanline();
+        assert(S.scanline_valid && S.mask_scanline_valid);
+        ++im_to_mask_scanline_lut_element;
+        if(im_to_mask_scanline_lut_element < im_to_mask_scanline_lut_elements_end)
+        {
+            if(prev_mask_scanline_idx == *im_to_mask_scanline_lut_element)
+            {
+                S.scanline_raw += S.scanline_stride;
+                assert(S.scanline_raw < S.scanlines_raw_end);
+            }
+            else
+            {
+                prev_mask_scanline_idx = *im_to_mask_scanline_lut_element;
+                advance_mask_scanline();
+                S.scanline_valid = S.mask_scanline_valid;
+                if(likely(S.scanline_valid)) // We are likely to see another scanline with a true value before the end of the image
+                    update_scanline();
+            }
+        }
+        else
+        {
+            S.mask_scanline_valid = false;
+        }
+        S.pixel_valid = false;
+        S.mask_element_valid = false;
+        S.component_valid = false;
     }
 };
 
@@ -125,17 +166,15 @@ struct BitmapMaskCursorPixelAdvanceAspect<BitmapMaskCursor, T, BitmapMaskDimensi
     const std::uint8_t* mask_elements_end;
     const SampleLutPtr im_to_mask_pixel_idx_lut;
     const std::uint64_t* im_to_mask_pixel_lut_element;
-    std::uint64_t prev_mask_idx;
     const std::uint64_t*const im_to_mask_pixel_lut_elements_end;
+    std::uint64_t prev_mask_element_idx;
     const SampleLutPtr mask_to_im_pixel_idx_lut;
     const std::uint64_t* mask_to_im_pixel_lut_element;
-    const std::uint64_t*const mask_to_im_pixel_lut_elements_end;
 
     BitmapMaskCursorPixelAdvanceAspect(PyArrayView& data_view, BitmapMask<T, BitmapMaskDimensionVsImage::Smaller, T_H>& mask_)
       : im_to_mask_pixel_idx_lut(sampleLuts.getLut(data_view.shape[0], mask_.bitmap_view.shape[0])),
         im_to_mask_pixel_lut_elements_end(im_to_mask_pixel_idx_lut->m_data.data() + data_view.shape[0]),
-        mask_to_im_pixel_idx_lut(sampleLuts.getLut(mask_.bitmap_view.shape[0], data_view.shape[0])),
-        mask_to_im_pixel_lut_elements_end(mask_to_im_pixel_idx_lut->m_data.data() + mask_.bitmap_view.shape[0]) {}
+        mask_to_im_pixel_idx_lut(sampleLuts.getLut(mask_.bitmap_view.shape[0], data_view.shape[0])) {}
 
     inline void advance_mask_element()
     {
@@ -151,12 +190,16 @@ struct BitmapMaskCursorPixelAdvanceAspect<BitmapMaskCursor, T, BitmapMaskDimensi
         }
     }
 
+    // There is no corresponding BitmapCursorScanlineAdvanceAspect::seek_front_mask_scanline method owing to the fact
+    // that BitmapCursorScanlineAdvanceAspect handles scanning through entirely zero mask scanlines, requiring
+    // seek_front_element_of_mask_scanline, whereas BitmapMaskCursorPixelAdvanceAspect never has a need to scan to the
+    // first non-zero scanline.
     inline void seek_front_element_of_mask_scanline()
     {
         BitmapMaskCursor& S = *static_cast<BitmapMaskCursor*>(this);
         assert(S.mask_scanline_valid);
         mask_to_im_pixel_lut_element = mask_to_im_pixel_idx_lut->m_data.data();
-        prev_mask_idx = 0;
+        prev_mask_element_idx = 0;
         S.mask_element = S.mask_scanline;
         S.mask_element_valid = true;
         mask_elements_end = S.mask_element + S.mask_element_stride * S.mask_scanline_width;
@@ -191,14 +234,14 @@ struct BitmapMaskCursorPixelAdvanceAspect<BitmapMaskCursor, T, BitmapMaskDimensi
         ++im_to_mask_pixel_lut_element;
         if(im_to_mask_pixel_lut_element < im_to_mask_pixel_lut_elements_end)
         {
-            if(prev_mask_idx == *im_to_mask_pixel_lut_element)
+            if(prev_mask_element_idx == *im_to_mask_pixel_lut_element)
             {
                 S.pixel_raw += S.pixel_stride;
                 assert(S.pixel_raw < S.pixels_raw_end);
             }
             else
             {
-                prev_mask_idx = *im_to_mask_pixel_lut_element;
+                prev_mask_element_idx = *im_to_mask_pixel_lut_element;
                 advance_mask_element();
                 S.pixel_valid = S.mask_element_valid;
                 if(likely(S.pixel_valid)) // We are likely to see another true mask value before the end of the scanline
@@ -222,6 +265,7 @@ struct BitmapMaskCursorPixelAdvanceAspect<BitmapMaskCursor, T, BitmapMaskDimensi
     inline void seek_front_element_of_mask_scanline()
     {
     }
+    inline void update_pixel() {}
     inline void seek_front_pixel_of_scanline() {}
     inline void advance_mask_element()
     {
@@ -241,6 +285,7 @@ struct BitmapMaskCursorPixelAdvanceAspect<BitmapMaskCursor, T, BitmapMaskDimensi
     inline void seek_front_element_of_mask_scanline()
     {
     }
+    inline void update_pixel() {}
     inline void seek_front_pixel_of_scanline() {}
     inline void advance_mask_element()
     {

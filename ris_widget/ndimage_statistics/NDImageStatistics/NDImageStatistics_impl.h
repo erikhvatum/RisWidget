@@ -99,29 +99,49 @@ NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py,
     if(mask_view.shape[0] < data_view->shape[0])
     {
         if(mask_view.shape[1] < data_view->shape[1])
-            compute_fn = &NDImageStatistics<T>::compute<BitmapMask<T, BitmapMaskDimensionVsImage::Smaller, BitmapMaskDimensionVsImage::Smaller>>;
+        {
+            using BM_T = BitmapMask<T, BitmapMaskDimensionVsImage::Smaller, BitmapMaskDimensionVsImage::Smaller>;
+            compute_fn = &NDImageStatistics<T>::compute<BM_T>;
+            mask = std::make_shared<BM_T>(std::move(mask_view));
+        }
         else if(mask_view.shape[1] == data_view->shape[1])
+        {
             compute_fn = &NDImageStatistics<T>::compute<BitmapMask<T, BitmapMaskDimensionVsImage::Smaller, BitmapMaskDimensionVsImage::Same>>;
+        }
         else
+        {
             compute_fn = &NDImageStatistics<T>::compute<BitmapMask<T, BitmapMaskDimensionVsImage::Smaller, BitmapMaskDimensionVsImage::Larger>>;
+        }
     }
     else if(mask_view.shape[0] == data_view->shape[0])
     {
         if(mask_view.shape[1] < data_view->shape[1])
+        {
             compute_fn = &NDImageStatistics<T>::compute<BitmapMask<T, BitmapMaskDimensionVsImage::Same, BitmapMaskDimensionVsImage::Smaller>>;
+        }
         else if(mask_view.shape[1] == data_view->shape[1])
+        {
             compute_fn = &NDImageStatistics<T>::compute<BitmapMask<T, BitmapMaskDimensionVsImage::Same, BitmapMaskDimensionVsImage::Same>>;
+        }
         else
+        {
             compute_fn = &NDImageStatistics<T>::compute<BitmapMask<T, BitmapMaskDimensionVsImage::Same, BitmapMaskDimensionVsImage::Larger>>;
+        }
     }
     else
     {
         if(mask_view.shape[1] < data_view->shape[1])
+        {
             compute_fn = &NDImageStatistics<T>::compute<BitmapMask<T, BitmapMaskDimensionVsImage::Larger, BitmapMaskDimensionVsImage::Smaller>>;
+        }
         else if(mask_view.shape[1] == data_view->shape[1])
+        {
             compute_fn = &NDImageStatistics<T>::compute<BitmapMask<T, BitmapMaskDimensionVsImage::Larger, BitmapMaskDimensionVsImage::Same>>;
+        }
         else
+        {
             compute_fn = &NDImageStatistics<T>::compute<BitmapMask<T, BitmapMaskDimensionVsImage::Larger, BitmapMaskDimensionVsImage::Larger>>;
+        }
     }
 }
 
