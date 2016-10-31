@@ -23,6 +23,7 @@
 // Authors: Erik Hvatum <ice.rikh@gmail.com>
 
 #pragma once
+#include <atomic>
 #include <Python.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
@@ -35,6 +36,13 @@ struct PyArrayView
 {
     // Not GIL-safe (requires but does not attempt to acquire GIL) 
     explicit PyArrayView(pybind11::array& array, bool writeable=false);
+    PyArrayView() = delete;
+    PyArrayView(const PyArrayView&) = delete;
+    PyArrayView& operator = (const PyArrayView&) = delete;
+    // GIL-safe (does not require GIL)
+    PyArrayView(PyArrayView&& rhs);
     // GIL-safe (requires and does acquire the GIL)
     ~PyArrayView();
+
+    std::atomic<bool> is_vacated;
 };

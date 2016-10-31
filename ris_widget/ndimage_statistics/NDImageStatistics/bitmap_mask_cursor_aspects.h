@@ -202,10 +202,10 @@ struct BitmapMaskCursorPixelAdvanceAspect<BitmapMaskCursor, T, BitmapMaskDimensi
         }
     }
 
-    // There is no corresponding BitmapCursorScanlineAdvanceAspect::seek_front_mask_scanline method owing to the fact
-    // that BitmapCursorScanlineAdvanceAspect handles scanning through entirely zero mask scanlines, requiring
-    // seek_front_element_of_mask_scanline, whereas BitmapMaskCursorPixelAdvanceAspect never has a need to scan to the
-    // first non-zero scanline.
+    // There is no corresponding BitmapCursorScanlineAdvanceAspect::seek_front_mask_scanline method, owing to the fact
+    // that BitmapCursorScanlineAdvanceAspect handles scanning through mask scanlines consisting entirely of false
+    // values, requiring seek_front_element_of_mask_scanline, whereas BitmapMaskCursorPixelAdvanceAspect never has a
+    // need to scan to the first non-zero scanline.
     inline void seek_front_element_of_mask_scanline()
     {
         std::cout << "seek_front_element_of_mask_scanline" << std::endl;
