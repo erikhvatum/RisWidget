@@ -44,13 +44,13 @@ class NDImageStatistics:
 
     def _min_max(self, im, mask=None):
         if mask is not None:
-            mask = _stretch_mask(im, mask)
+            mask = self._stretch_mask(im, mask)
             im = numpy.ma.array(im, dtype=im.dtype, copy=False, mask=~mask)
         return numpy.array((im.min(), im.max()), dtype=im.dtype)
 
     def _histogram(self, im, bin_count, range_, mask=None, with_overflow_bins=False):
         if mask is not None:
-            mask = _stretch_mask(im, mask)
+            mask = self._stretch_mask(im, mask)
             im = im[mask]
         if with_overflow_bins:
             assert bin_count >= 3

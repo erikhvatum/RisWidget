@@ -49,9 +49,9 @@ struct BitmapMask
 {
     static void expose_via_pybind11(py::module& m);
 
-    explicit BitmapMask(PyArrayView&& bitmap_view_);
+    explicit BitmapMask(std::unique_ptr<PyArrayView>&& bitmap_view_);
 
-    PyArrayView bitmap_view;
+    std::unique_ptr<PyArrayView> bitmap_view;
 };
 
 template<typename T>

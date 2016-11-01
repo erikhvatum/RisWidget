@@ -25,7 +25,6 @@
 #include "PyArrayView.h"
 
 PyArrayView::PyArrayView(pybind11::array& array, bool writeable)
-  : is_vacated(false)
 {
     int flags = PyBUF_STRIDES | PyBUF_FORMAT;
     if (writeable)
@@ -34,18 +33,8 @@ PyArrayView::PyArrayView(pybind11::array& array, bool writeable)
         throw pybind11::error_already_set();
 }
 
-PyArrayView::PyArrayView(PyArrayView&& rhs)
-  : Py_buffer(rhs),
-    is_vacated(rhs.is_vacated.load())
-{
-    rhs.is_vacated.store(true);
-}
-
 PyArrayView::~PyArrayView()
 {
-    if(!is_vacated)
-    {
-        pybind11::gil_scoped_acquire acquire_gil;
-        PyBuffer_Release(this);
-    }
+    pybind11::gil_scoped_acquire acquire_gil;
+    PyBuffer_Release(this);
 }

@@ -75,7 +75,7 @@ void BitmapMask<T, T_W, T_H>::expose_via_pybind11(py::module& m)
 }
 
 template<typename T, BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
-BitmapMask<T, T_W, T_H>::BitmapMask(PyArrayView&& bitmap_view_)
+BitmapMask<T, T_W, T_H>::BitmapMask(std::unique_ptr<PyArrayView>&& bitmap_view_)
   : bitmap_view(std::move(bitmap_view_))
 {
 }

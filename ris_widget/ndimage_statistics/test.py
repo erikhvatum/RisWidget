@@ -31,7 +31,7 @@ import unittest
 
 from . import cpp_ndimage_statistics
 
-import freeimage; im = freeimage.read(str(Path(__file__).parent.parent.parent / 'Opteron_6300_die_shot_16_core_mod.jpg'))
+import freeimage; im = freeimage.read(str(Path(__file__).parent.parent.parent / 'Opteron_6300_die_shot_16_core_mod.jpg'))[...,0]
 #im[0,0,0]=1123.456
 #mask = (freeimage.read('/home/ehvatum/code_repositories/ris_widget/top_left_g.png') / 256).astype(numpy.uint8)
 #im = numpy.array([[0,1,2],[3,4,5],[6,7,8]],dtype=numpy.uint8).swapaxes(0,1)
@@ -40,8 +40,9 @@ import freeimage; im = freeimage.read(str(Path(__file__).parent.parent.parent / 
 mask = numpy.zeros((5,15),dtype=numpy.uint8).T
 mask[1,0] = 1
 mask[1,1] = 1
+mask[:] = 1
 #im[im==0]=45
-stats = cpp_ndimage_statistics.NDImageStatistics(im, (0, 255), mask, False)
+stats = cpp_ndimage_statistics.NDImageStatistics(im, (0, 255), False)
 #stats = cpp_ndimage_statistics.NDImageStatistics(im, (0, 255), ((100,100),20), False)
 #stats = cpp_ndimage_statistics.NDImageStatistics(im, (0, 255), False)
 stats.launch_computation()
