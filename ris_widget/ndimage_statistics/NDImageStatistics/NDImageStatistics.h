@@ -74,6 +74,9 @@ protected:
                       bool drop_last_channel_from_overall_stats_,
                       std::shared_ptr<ImageStats<T>>(*compute_fn_)(std::weak_ptr<NDImageStatistics<T>>));
 
+    template<BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
+    void bitmap_mask_constructor_helper(std::unique_ptr<PyArrayView>&& mask_view);
+
     template<typename MASK_T>
     struct ComputeContext
     {

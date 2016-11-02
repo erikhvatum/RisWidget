@@ -76,6 +76,15 @@ NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py,
 }
 
 template<typename T>
+template<BitmapMaskDimensionVsImage T_W, BitmapMaskDimensionVsImage T_H>
+void NDImageStatistics<T>::bitmap_mask_constructor_helper(std::unique_ptr<PyArrayView>&& mask_view)
+{
+    using BM_T = BitmapMask<T, T_W, T_H>;
+    compute_fn = &NDImageStatistics<T>::compute<BM_T>;
+    mask = std::make_shared<BM_T>(std::move(mask_view));
+}
+
+template<typename T>
 NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py,
                                         const std::pair<T, T>& range_,
                                         typed_array_t<std::uint8_t>& mask_,
@@ -83,11 +92,6 @@ NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py,
   : data_view(new PyArrayView(data_py)),
     range(range_),
     drop_last_channel_from_overall_stats(drop_last_channel_from_overall_stats_)
-// : NDImageStatistics<T>(data_py,
-//                       range_,
-//                       std::make_shared<BitmapMask<T>>(mask_),
-//                       drop_last_channel_from_overall_stats_,
-//                       &NDImageStatistics<T>::compute<BitmapMask<T>>)
 {
     if(data_view->ndim < 2 || data_view->ndim > 3) throw std::invalid_argument("data argument must be 2 or 3 dimensional.");
     if(data_view->strides[0] > data_view->strides[1]) throw std::invalid_argument("data argument striding must be (X, Y) or (X, Y, C).");
@@ -99,49 +103,29 @@ NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py,
     if(mask_view->shape[0] < data_view->shape[0])
     {
         if(mask_view->shape[1] < data_view->shape[1])
-        {
-            using BM_T = BitmapMask<T, BitmapMaskDimensionVsImage::Smaller, BitmapMaskDimensionVsImage::Smaller>;
-            compute_fn = &NDImageStatistics<T>::compute<BM_T>;
-            mask = std::make_shared<BM_T>(std::move(mask_view));
-        }
+            bitmap_mask_constructor_helper<BitmapMaskDimensionVsImage::Smaller, BitmapMaskDimensionVsImage::Smaller>(std::move(mask_view));
         else if(mask_view->shape[1] == data_view->shape[1])
-        {
-            compute_fn = &NDImageStatistics<T>::compute<BitmapMask<T, BitmapMaskDimensionVsImage::Smaller, BitmapMaskDimensionVsImage::Same>>;
-        }
+            bitmap_mask_constructor_helper<BitmapMaskDimensionVsImage::Smaller, BitmapMaskDimensionVsImage::Same>(std::move(mask_view));
         else
-        {
-            compute_fn = &NDImageStatistics<T>::compute<BitmapMask<T, BitmapMaskDimensionVsImage::Smaller, BitmapMaskDimensionVsImage::Larger>>;
-        }
+            bitmap_mask_constructor_helper<BitmapMaskDimensionVsImage::Smaller, BitmapMaskDimensionVsImage::Larger>(std::move(mask_view));
     }
     else if(mask_view->shape[0] == data_view->shape[0])
     {
         if(mask_view->shape[1] < data_view->shape[1])
-        {
-            compute_fn = &NDImageStatistics<T>::compute<BitmapMask<T, BitmapMaskDimensionVsImage::Same, BitmapMaskDimensionVsImage::Smaller>>;
-        }
+            bitmap_mask_constructor_helper<BitmapMaskDimensionVsImage::Same, BitmapMaskDimensionVsImage::Smaller>(std::move(mask_view));
         else if(mask_view->shape[1] == data_view->shape[1])
-        {
-            compute_fn = &NDImageStatistics<T>::compute<BitmapMask<T, BitmapMaskDimensionVsImage::Same, BitmapMaskDimensionVsImage::Same>>;
-        }
+            bitmap_mask_constructor_helper<BitmapMaskDimensionVsImage::Same, BitmapMaskDimensionVsImage::Same>(std::move(mask_view));
         else
-        {
-            compute_fn = &NDImageStatistics<T>::compute<BitmapMask<T, BitmapMaskDimensionVsImage::Same, BitmapMaskDimensionVsImage::Larger>>;
-        }
+            bitmap_mask_constructor_helper<BitmapMaskDimensionVsImage::Same, BitmapMaskDimensionVsImage::Larger>(std::move(mask_view));
     }
     else
     {
         if(mask_view->shape[1] < data_view->shape[1])
-        {
-            compute_fn = &NDImageStatistics<T>::compute<BitmapMask<T, BitmapMaskDimensionVsImage::Larger, BitmapMaskDimensionVsImage::Smaller>>;
-        }
+            bitmap_mask_constructor_helper<BitmapMaskDimensionVsImage::Larger, BitmapMaskDimensionVsImage::Smaller>(std::move(mask_view));
         else if(mask_view->shape[1] == data_view->shape[1])
-        {
-            compute_fn = &NDImageStatistics<T>::compute<BitmapMask<T, BitmapMaskDimensionVsImage::Larger, BitmapMaskDimensionVsImage::Same>>;
-        }
+            bitmap_mask_constructor_helper<BitmapMaskDimensionVsImage::Larger, BitmapMaskDimensionVsImage::Same>(std::move(mask_view));
         else
-        {
-            compute_fn = &NDImageStatistics<T>::compute<BitmapMask<T, BitmapMaskDimensionVsImage::Larger, BitmapMaskDimensionVsImage::Larger>>;
-        }
+            bitmap_mask_constructor_helper<BitmapMaskDimensionVsImage::Larger, BitmapMaskDimensionVsImage::Larger>(std::move(mask_view));
     }
 }
 
@@ -360,7 +344,7 @@ void NDImageStatistics<T>::scan_image(ComputeContext<MASK_T>& cc, const COMPUTE_
             channel_stat_p = cc.stats.channel_stats.data();
             for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component(), ++channel_stat_p)
             {
-//                std::cout << "*process_component\n";
+//              std::cout << "*process_component\n";
                 process_component<MASK_T>(cc, **channel_stat_p, *cursor.component, tag);
             }
         }

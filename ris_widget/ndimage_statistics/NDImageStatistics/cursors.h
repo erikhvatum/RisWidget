@@ -110,11 +110,13 @@ struct Cursor<T, BitmapMask<T, T_W, T_H>>
     const std::size_t mask_scanline_count;
     const std::size_t mask_scanline_stride;
     const std::uint8_t*const mask_scanlines_origin;
+    const std::uint8_t*const mask_scanlines_end;
     const std::uint8_t* mask_scanline;
 
     const std::size_t mask_scanline_width;
     const std::size_t mask_element_stride;
     const std::uint8_t* mask_element;
+    const std::uint8_t* mask_elements_end;
 
     BitmapMask<T, T_W, T_H>& mask;
 
