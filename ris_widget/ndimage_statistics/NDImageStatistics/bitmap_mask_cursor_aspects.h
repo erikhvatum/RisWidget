@@ -157,6 +157,7 @@ struct BitmapMaskCursorScanlineAdvanceAspect<BitmapMaskCursor, T, T_W, BitmapMas
             S.scanline_valid = S.mask_scanline_valid = S.mask_scanline < S.mask_scanlines_end;
             if(likely(S.scanline_valid))
             {
+                S.scanline_raw += S.scanline_stride;
                 S.seek_front_element_of_mask_scanline();
                 if(S.mask_element_valid)
                     break;
@@ -313,10 +314,15 @@ struct BitmapMaskCursorPixelAdvanceAspect<BitmapMaskCursor, T, BitmapMaskDimensi
     inline void advance_mask_element()
     {
         BitmapMaskCursor& S = *static_cast<BitmapMaskCursor*>(this);
-
-        S.mask_element += S.mask_element_stride;
-        S.mask_element_valid = S.mask_element < S.mask_elements_end;
-        ++mask_element_idx;
+        assert(S.mask_element_valid);
+        for(;;)
+        {
+            S.mask_element += S.mask_element_stride;
+            S.mask_element_valid = S.mask_element < S.mask_elements_end;
+            ++mask_element_idx;
+            if(unlikely(!S.mask_element_valid) || *S.mask_element != 0)
+                break;
+        }
     }
 
     inline void seek_front_element_of_mask_scanline()
