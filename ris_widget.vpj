@@ -254,7 +254,6 @@
                     <F N="ris_widget/ndimage_statistics/NDImageStatistics/masks_impl.h"/>
                     <F N="ris_widget/ndimage_statistics/NDImageStatistics/NDImageStatistics.h"/>
                     <F N="ris_widget/ndimage_statistics/NDImageStatistics/NDImageStatistics_impl.h"/>
-                    <F N="ris_widget/ndimage_statistics/NDImageStatistics/statses.cpp"/>
                     <F N="ris_widget/ndimage_statistics/NDImageStatistics/statses.h"/>
                     <F N="ris_widget/ndimage_statistics/NDImageStatistics/statses_impl.h"/>
                 </Folder>

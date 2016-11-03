@@ -232,11 +232,10 @@ void NDImageStatistics<T>::dispatch_tagged_compute(ComputeContext<MASK_T>& cc, c
                 cc.bin_count = range_quanta_count;
             bool is_power2;
             std::int16_t power2;
-            std::tie(is_power2, power2) = power_of_two(range_quanta_count);
+            std::tie(is_power2, power2) = power_of_two(range_quanta_count / cc.bin_count);
             if(is_power2)
             {
-                std::uint16_t bin_shift = power2 - power_of_two(cc.bin_count).second;
-                tagged_compute(cc, Power2RangeUnsignedIntegerComputeTag(bin_shift));
+                tagged_compute(cc, Power2RangeUnsignedIntegerComputeTag(power2));
             }
             else
             {
@@ -370,6 +369,28 @@ void NDImageStatistics<T>::process_component(ComputeContext<MASK_T>& cc,
         ++component_stats.histogram->data()[static_cast<std::ptrdiff_t>(bin_factor * (component - cc.range.first))];
     else if(component == cc.range.second)
         ++component_stats.histogram->back();
+    if(component < component_stats.extrema.first)
+        component_stats.extrema.first = component;
+    else if(component > component_stats.extrema.second)
+        component_stats.extrema.second = component;
+}
+
+template<typename T>
+template<typename MASK_T>
+void NDImageStatistics<T>::process_component(ComputeContext<MASK_T>& cc,
+                                             Stats<T>& component_stats,
+                                             const T& component,
+                                             const Power2RangeUnsignedIntegerComputeTag& tag)
+{
+    if(component >= cc.range.first && component <= cc.range.second)
+    {
+        std::uint16_t bin = static_cast<T>((component-cc.range.first)) >> tag.bin_shift;
+        ++(*component_stats.histogram)[bin];
+    }
+    if(component < component_stats.extrema.first)
+        component_stats.extrema.first = component;
+    else if(component > component_stats.extrema.second)
+        component_stats.extrema.second = component;
 }
 
 template<typename T>

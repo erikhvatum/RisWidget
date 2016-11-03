@@ -149,6 +149,12 @@ protected:
     static inline void process_component(ComputeContext<MASK_T>& cc,
                                          Stats<T>& component_stats,
                                          const T& component,
+                                         const Power2RangeUnsignedIntegerComputeTag& tag);
+
+    template<typename MASK_T>
+    static inline void process_component(ComputeContext<MASK_T>& cc,
+                                         Stats<T>& component_stats,
+                                         const T& component,
                                          const FloatComputeTag&);
 
     template<typename MASK_T>

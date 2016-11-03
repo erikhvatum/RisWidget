@@ -103,19 +103,32 @@ void StatsBase<T>::find_max_bin()
 }
 
 template<typename T>
-void FloatStatsBase<T>::expose_via_pybind11(py::module& m)
+void StatsBase<T>::aggregate(const StatsBase<T>& from)
 {
-    StatsBase<T>::expose_via_pybind11(m);
-    std::string s = std::string("_FloatStatsBase_") + component_type_names[std::type_index(typeid(T))];
-    py::class_<FloatStatsBase<T>, std::shared_ptr<FloatStatsBase<T>>, StatsBase<T>>(m, s.c_str())
-        .def_readonly("NaN_count", &FloatStatsBase<T>::NaN_count)
-        .def_readonly("neg_inf_count", &FloatStatsBase<T>::neg_inf_count)
-        .def_readonly("pos_inf_count", &FloatStatsBase<T>::pos_inf_count)
-        .def("__repr__", &FloatStatsBase<T>::operator std::string);
 }
 
 template<typename T>
-FloatStatsBase<T>::FloatStatsBase()
+void Stats<T, true>::expose_via_pybind11(py::module& m)
+{
+    StatsBase<T>::expose_via_pybind11(m);
+    std::string s = std::string("_Stats_") + component_type_names[std::type_index(typeid(T))];
+    py::class_<Stats<T, true>, std::shared_ptr<Stats<T, true>>, StatsBase<T>>(m, s.c_str());
+}
+
+template<typename T>
+void Stats<T, false>::expose_via_pybind11(py::module& m)
+{
+    StatsBase<T>::expose_via_pybind11(m);
+    std::string s = std::string("_Stats_") + component_type_names[std::type_index(typeid(T))];
+    py::class_<Stats<T, false>, std::shared_ptr<Stats<T, false>>, StatsBase<T>>(m, s.c_str())
+        .def_readonly("NaN_count", &Stats<T, false>::NaN_count)
+        .def_readonly("neg_inf_count", &Stats<T, false>::neg_inf_count)
+        .def_readonly("pos_inf_count", &Stats<T, false>::pos_inf_count)
+        .def("__repr__", &Stats<T, false>::operator std::string);
+}
+
+template<typename T>
+Stats<T, false>::Stats()
   : NaN_count(0),
     neg_inf_count(0),
     pos_inf_count(0)
@@ -124,7 +137,7 @@ FloatStatsBase<T>::FloatStatsBase()
 }
 
 template<typename T>
-FloatStatsBase<T>::operator std::string () const
+Stats<T, false>::operator std::string () const
 {
     std::ostringstream o;
     o << "<NaN_count: " << NaN_count << ", neg_inf_count: " << neg_inf_count << ", pos_inf_count: " << pos_inf_count << ", ";
@@ -140,13 +153,9 @@ FloatStatsBase<T>::operator std::string () const
     return o.str();
 }
 
-// Note that concrete specializations of this function for T=float and T=double are found in statses.cpp
 template<typename T>
-void Stats<T>::expose_via_pybind11(py::module& m)
+void Stats<T, false>::aggregate(const StatsBase<T>& from)
 {
-    StatsBase<T>::expose_via_pybind11(m);
-    std::string s = std::string("_Stats_") + component_type_names[std::type_index(typeid(T))];
-    py::class_<Stats<T>, std::shared_ptr<Stats<T>>, StatsBase<T>>(m, s.c_str());
 }
 
 template<typename T>

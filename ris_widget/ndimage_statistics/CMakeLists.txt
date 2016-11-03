@@ -95,8 +95,7 @@ SET(SOURCE_FILES
     cpp_ndimage_statistics_python_module.cpp
     misc/Luts.cpp
     misc/PyArrayView.cpp
-    NDImageStatistics/common.cpp
-    NDImageStatistics/statses.cpp)
+    NDImageStatistics/common.cpp)
 
 SET(HEADER_FILES
     misc/Luts.h

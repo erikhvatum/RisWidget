@@ -37,12 +37,13 @@ import freeimage; im = freeimage.read(str(Path(__file__).parent.parent.parent / 
 #im = numpy.array([[0,1,2],[3,4,5],[6,7,8]],dtype=numpy.uint8).swapaxes(0,1)
 #mask = numpy.array([[0,0,0],[0,0,1],[0,0,0]], dtype=bool).swapaxes(0,1)
 #im = numpy.array(list(range(15*5*3))).astype(numpy.uint8).reshape(5,15,3).swapaxes(0,1)
-mask = numpy.zeros((im.shape[1],im.shape[0]),dtype=numpy.uint8).T
-mask[1,0] = 1
-mask[1,1] = 1
-mask[:] = 1
+mask = freeimage.read(str(Path(__file__).parent.parent.parent / 'mask.png'))
+#mask[:,::3] = 0
+#mask = numpy.zeros(im.shape[::-1],dtype=numpy.uint8).T
+#mask[:] = 1
+#mask[::3,:] = 1
 #im[im==0]=45
-stats = cpp_ndimage_statistics.NDImageStatistics(im, (0, 255), mask, False)
+stats = cpp_ndimage_statistics.NDImageStatistics(im, (128, 191), mask, False)
 #stats = cpp_ndimage_statistics.NDImageStatistics(im, (0, 255), ((100,100),20), False)
 #stats = cpp_ndimage_statistics.NDImageStatistics(im, (0, 255), False)
 stats.launch_computation()

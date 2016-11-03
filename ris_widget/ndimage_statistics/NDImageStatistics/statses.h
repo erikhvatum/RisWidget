@@ -46,40 +46,31 @@ struct StatsBase
     py::object& get_histogram_py();
     virtual void set_bin_count(std::size_t bin_count);
     void find_max_bin();
+    virtual void aggregate(const StatsBase& from);
 };
 
+template<typename T, bool = std::is_integral<T>::value>
+struct Stats;
+
 template<typename T>
-struct Stats
+struct Stats<T, true>
   : StatsBase<T>
 {
     static void expose_via_pybind11(py::module& m);
 };
 
 template<typename T>
-struct FloatStatsBase
+struct Stats<T, false>
   : StatsBase<T>
 {
     static void expose_via_pybind11(py::module& m);
 
-    FloatStatsBase();
+    Stats();
 
     std::uint64_t NaN_count, neg_inf_count, pos_inf_count;
 
     explicit operator std::string () const override;
-};
-
-template<>
-struct Stats<float>
-  : FloatStatsBase<float>
-{
-    static void expose_via_pybind11(py::module& m);
-};
-
-template<>
-struct Stats<double>
-  : FloatStatsBase<double>
-{
-    static void expose_via_pybind11(py::module& m);
+    void aggregate(const StatsBase<T>& from) override;
 };
 
 // This is neat: we only need to provide specializations for Stats; ImageStats automatically inherits the correct
