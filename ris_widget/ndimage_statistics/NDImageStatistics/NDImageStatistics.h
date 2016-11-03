@@ -156,12 +156,6 @@ protected:
                                          Stats<T>& component_stats,
                                          const T& component,
                                          const FloatComputeTag&);
-
-    template<typename MASK_T>
-    static void gather_overall(ComputeContext<MASK_T>& cc, const IntegerComputeTag&);
-
-    template<typename MASK_T>
-    static void gather_overall(ComputeContext<MASK_T>& cc, const FloatComputeTag&);
 };
 
 #include "NDImageStatistics_impl.h"

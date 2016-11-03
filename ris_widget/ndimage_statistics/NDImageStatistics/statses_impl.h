@@ -103,8 +103,35 @@ void StatsBase<T>::find_max_bin()
 }
 
 template<typename T>
-void StatsBase<T>::aggregate(const StatsBase<T>& from)
+void StatsBase<T>::combine(const StatsBase<T>& from, StatCombinationOp op)
 {
+    switch(op)
+    {
+    case StatCombinationOp::Copy:
+        extrema = from.extrema;
+        max_bin = from.max_bin;
+        *histogram = *from.histogram;
+        break;
+    case StatCombinationOp::CopyReference:
+        extrema = from.extrema;
+        max_bin = from.max_bin;
+        histogram = from.histogram;
+        break;
+    case StatCombinationOp::Aggregate:
+        assert(histogram->size() == from.histogram->size());
+        if(from.extrema.first < extrema.first)
+            extrema.first = from.extrema.first;
+        if(from.extrema.second > extrema.second)
+            extrema.second = from.extrema.second;
+        for ( std::uint64_t *hit=histogram->data(), * chit=from.histogram->data(), *const hit_end=histogram->data()+from.histogram->size();
+              hit != hit_end;
+              ++hit, ++chit )
+        {
+            *hit += *chit;
+        }
+        find_max_bin();
+        break;
+    }
 }
 
 template<typename T>
@@ -154,8 +181,24 @@ Stats<T, false>::operator std::string () const
 }
 
 template<typename T>
-void Stats<T, false>::aggregate(const StatsBase<T>& from)
+void Stats<T, false>::combine(const StatsBase<T>& from, StatCombinationOp op)
 {
+    const Stats<T, false>& from_ = dynamic_cast<const Stats<T, false>&>(from);
+    StatsBase<T>::combine(from, op);
+    switch(op)
+    {
+    case StatCombinationOp::Copy:
+    case StatCombinationOp::CopyReference:
+        NaN_count = from_.NaN_count;
+        neg_inf_count = from_.neg_inf_count;
+        pos_inf_count = from_.pos_inf_count;
+        break;
+    case StatCombinationOp::Aggregate:
+        NaN_count += from_.NaN_count;
+        neg_inf_count += from_.neg_inf_count;
+        pos_inf_count += from_.pos_inf_count;
+        break;
+    }
 }
 
 template<typename T>
@@ -197,4 +240,23 @@ void ImageStats<T>::set_bin_count(std::size_t bin_count)
     Stats<T>::set_bin_count(bin_count);
     for(std::shared_ptr<Stats<T>>& channel_stat : channel_stats)
         channel_stat->set_bin_count(bin_count);
+}
+
+template<typename T>
+void ImageStats<T>::gather_overall(bool drop_last_channel_from_overall_stats)
+{
+    const std::size_t overall_component_count{channel_stats.size() - int(drop_last_channel_from_overall_stats)};
+    assert(overall_component_count > 0);
+    if(overall_component_count == 1)
+    {
+        this->combine(*channel_stats[0], StatCombinationOp::CopyReference);
+    }
+    else
+    {
+        std::shared_ptr<Stats<T>> *cit = channel_stats.data();
+        std::shared_ptr<Stats<T>> *const cendIt = cit + overall_component_count;
+        this->combine(**cit++, StatCombinationOp::Copy);
+        for(; cit < cendIt; ++cit)
+            this->combine(**cit, StatCombinationOp::Aggregate);
+    }
 }

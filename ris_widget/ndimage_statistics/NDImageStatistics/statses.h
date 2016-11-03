@@ -25,6 +25,13 @@
 #pragma once
 #include "common.h"
 
+enum class StatCombinationOp : std::uint8_t
+{
+    Copy,
+    CopyReference,
+    Aggregate
+};
+
 template<typename T>
 struct StatsBase
 {
@@ -46,7 +53,7 @@ struct StatsBase
     py::object& get_histogram_py();
     virtual void set_bin_count(std::size_t bin_count);
     void find_max_bin();
-    virtual void aggregate(const StatsBase& from);
+    virtual void combine(const StatsBase& from, StatCombinationOp op);
 };
 
 template<typename T, bool = std::is_integral<T>::value>
@@ -70,7 +77,7 @@ struct Stats<T, false>
     std::uint64_t NaN_count, neg_inf_count, pos_inf_count;
 
     explicit operator std::string () const override;
-    void aggregate(const StatsBase<T>& from) override;
+    void combine(const StatsBase<T>& from, StatCombinationOp op) override;
 };
 
 // This is neat: we only need to provide specializations for Stats; ImageStats automatically inherits the correct
@@ -85,6 +92,7 @@ struct ImageStats
     explicit operator std::string () const override;
     std::vector<std::shared_ptr<Stats<T>>> channel_stats;
     void set_bin_count(std::size_t bin_count) override;
+    void gather_overall(bool drop_last_channel_from_overall_stats);
 };
 
 #include "statses_impl.h"
