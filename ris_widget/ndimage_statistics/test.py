@@ -22,49 +22,25 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
-from pathlib import Path
 import functools
-import math
 import numpy
 import time
 import unittest
+#try:
+#    from . import _measures_fast
+#except ImportError:
+#    import sys
+#    print('\n\n*** The ris_widget.ndimage_statistics._ndimage_statistics binary module must be built in order to test ris_widget.ndimage_statistics. ***\n\n', file=sys.stderr)
+#    raise
+#from . import _measures_slow
+#from . import ndimage_statistics
 
 from . import cpp_ndimage_statistics
 
-import freeimage; im = freeimage.read(str(Path(__file__).parent.parent.parent / 'Opteron_6300_die_shot_16_core_mod.jpg'))#[...,0]
-#im[0,0,0]=1123.456
-#mask = (freeimage.read('/home/ehvatum/code_repositories/ris_widget/top_left_g.png') / 256).astype(numpy.uint8)
-#im = numpy.array([[0,1,2],[3,4,5],[6,7,8]],dtype=numpy.uint8).swapaxes(0,1)
-#mask = numpy.array([[0,0,0],[0,0,1],[0,0,0]], dtype=bool).swapaxes(0,1)
-#im = numpy.array(list(range(15*5*3))).astype(numpy.uint8).reshape(5,15,3).swapaxes(0,1)
-mask = freeimage.read(str(Path(__file__).parent.parent.parent / 'mask.png'))
-#mask[:,::3] = 0
-#mask = numpy.zeros(im.shape[::-1],dtype=numpy.uint8).T
-#mask[:] = 1
-#mask[::3,:] = 1
-#im[im==0]=45
-stats = cpp_ndimage_statistics.NDImageStatistics(im, (0, 255), mask, False)
-#stats = cpp_ndimage_statistics.NDImageStatistics(im, (0, 255), ((100,100),20), False)
-#stats = cpp_ndimage_statistics.NDImageStatistics(im, (0, 255), False)
-stats.launch_computation()
-#del stats
-print(stats.image_stats)
+import concurrent.futures as futures
+import multiprocessing
 
-import sys
-sys.exit(0)
-
-import functools
-import numpy
-import time
-import unittest
-try:
-    from . import _measures_fast
-except ImportError:
-    import sys
-    print('\n\n*** The ris_widget.ndimage_statistics._ndimage_statistics binary module must be built in order to test ris_widget.ndimage_statistics. ***\n\n', file=sys.stderr)
-    raise
-from . import _measures_slow
-from . import ndimage_statistics
+pool = futures.ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()+1)
 
 IMAGE_SHAPE = (2560, 2160)
 IMAGE_COUNT_PER_FLAVOR = 1
@@ -86,7 +62,7 @@ class ImageFlavor:
             example[example < interval[0]] = interval[0]
             example[example > interval[1]] = interval[1]
             return example.astype(dtype).T
-        self.images = [ndimage_statistics.pool.submit(make_example) for i in range(IMAGE_COUNT_PER_FLAVOR)]
+        self.images = [pool.submit(make_example) for i in range(IMAGE_COUNT_PER_FLAVOR)]
 
 IMAGE_FLAVORS = [
     ImageFlavor('uint8', numpy.uint8, (0, 255)),
@@ -98,12 +74,12 @@ FLAVOR_COUNT = len(IMAGE_FLAVORS)
 IMAGE_COUNT = IMAGE_COUNT_PER_FLAVOR * FLAVOR_COUNT
 
 MASKS_IMAGE_SHAPE = [
-    ndimage_statistics.pool.submit(
+    pool.submit(
         lambda: numpy.random.randint(0, 2, (IMAGE_SHAPE[1], IMAGE_SHAPE[0])).astype(numpy.bool).T
     ) for i in range(IMAGE_COUNT_PER_FLAVOR)
 ]
 MASKS_RANDOM_SHAPE = [
-    ndimage_statistics.pool.submit(
+    pool.submit(
         lambda: numpy.random.randint(
             0, 2, (
                 numpy.random.randint(1, IMAGE_SHAPE[1]*2+1),

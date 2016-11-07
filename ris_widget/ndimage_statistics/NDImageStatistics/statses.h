@@ -89,8 +89,11 @@ struct ImageStats
     Stats<T>
 {
     static void expose_via_pybind11(py::module& m);
+
     explicit operator std::string () const override;
+
     std::vector<std::shared_ptr<Stats<T>>> channel_stats;
+
     void set_bin_count(std::size_t bin_count) override;
     void gather_overall(bool drop_last_channel_from_overall_stats);
 };

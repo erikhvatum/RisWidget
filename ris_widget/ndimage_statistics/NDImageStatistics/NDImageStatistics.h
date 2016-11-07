@@ -131,7 +131,10 @@ protected:
     static void init_extrema(ComputeContext<MASK_T>& cc, const UnrangedFloatComputeTag&);
 
     template<typename MASK_T, typename COMPUTE_TAG>
-    static void scan_image(ComputeContext<MASK_T>& cc, const COMPUTE_TAG& tag);
+    static void scan_image_multiple_component(ComputeContext<MASK_T>& cc, const COMPUTE_TAG& tag);
+
+    template<typename MASK_T, typename COMPUTE_TAG>
+    static void scan_image_first_component(ComputeContext<MASK_T>& cc, const COMPUTE_TAG& tag);
 
     template<typename MASK_T>
     static inline void process_component(ComputeContext<MASK_T>& cc,

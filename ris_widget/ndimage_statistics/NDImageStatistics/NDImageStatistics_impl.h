@@ -274,7 +274,10 @@ void NDImageStatistics<T>::tagged_compute(ComputeContext<MASK_T>& cc, const COMP
     std::generate(cc.stats.channel_stats.begin(), cc.stats.channel_stats.end(), std::make_shared<Stats<T>>);
     init_extrema<MASK_T>(cc, tag);
     cc.stats.set_bin_count(cc.bin_count);
-    scan_image<MASK_T>(cc, tag);
+    if(cc.stats.channel_stats.size() == 1)
+        scan_image_first_component<MASK_T>(cc, tag);
+    else
+        scan_image_multiple_component<MASK_T>(cc, tag);
     cc.stats.gather_overall(cc.drop_last_channel_from_overall_stats);
 }
 
@@ -333,7 +336,7 @@ void NDImageStatistics<T>::init_extrema(ComputeContext<MASK_T>& cc, const Unrang
 
 template<typename T>
 template<typename MASK_T, typename COMPUTE_TAG>
-void NDImageStatistics<T>::scan_image(ComputeContext<MASK_T>& cc, const COMPUTE_TAG& tag)
+void NDImageStatistics<T>::scan_image_multiple_component(ComputeContext<MASK_T>& cc, const COMPUTE_TAG& tag)
 {
     Cursor<T, MASK_T> cursor(*cc.data_view, *cc.mask);
     std::shared_ptr<Stats<T>>* channel_stat_p;
@@ -344,13 +347,28 @@ void NDImageStatistics<T>::scan_image(ComputeContext<MASK_T>& cc, const COMPUTE_
             channel_stat_p = cc.stats.channel_stats.data();
             for(cursor.seek_front_component_of_pixel(); cursor.component_valid; cursor.advance_component(), ++channel_stat_p)
             {
-//              std::cout << "*process_component\n";
                 process_component<MASK_T>(cc, **channel_stat_p, *cursor.component, tag);
             }
         }
     }
     for(std::shared_ptr<Stats<T>>& channel_stat : cc.stats.channel_stats)
         channel_stat->find_max_bin();
+}
+
+template<typename T>
+template<typename MASK_T, typename COMPUTE_TAG>
+void NDImageStatistics<T>::scan_image_first_component(ComputeContext<MASK_T>& cc, const COMPUTE_TAG& tag)
+{
+    Cursor<T, MASK_T> cursor(*cc.data_view, *cc.mask);
+    Stats<T>& stats = *cc.stats.channel_stats[0];
+    for(cursor.seek_front_scanline(); cursor.scanline_valid && !cc.ndis_wp.expired(); cursor.advance_scanline())
+    {
+        for(cursor.seek_front_pixel_of_scanline(); cursor.pixel_valid; cursor.advance_pixel())
+        {
+            process_component<MASK_T>(cc, stats, *reinterpret_cast<const T*>(cursor.pixel_raw), tag);
+        }
+    }
+    stats.find_max_bin();
 }
 
 template<typename T>
