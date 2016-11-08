@@ -58,7 +58,9 @@ struct CursorBase
     // The component member variable is a typecasting reference to component_raw. It acts as a toll-free
     // bridge.
     const T*& component = reinterpret_cast<const T*&>(component_raw);
-    // TODO: verify toll-freeness
+    // TODO: verify toll-freeness 
+
+    virtual void dump() {};
 };
 
 template<typename T>
@@ -104,9 +106,6 @@ struct Cursor<T, BitmapMask<T, T_W, T_H>>
 
     volatile bool mask_scanline_valid, mask_element_valid;
 
-    std::ptrdiff_t scanline_idx;
-    std::ptrdiff_t pixel_idx;
-
     const std::size_t mask_scanline_count;
     const std::size_t mask_scanline_stride;
     const std::uint8_t*const mask_scanlines_origin;
@@ -114,11 +113,23 @@ struct Cursor<T, BitmapMask<T, T_W, T_H>>
     const std::uint8_t* mask_scanline;
 
     const std::size_t mask_scanline_width;
-    const std::size_t mask_element_stride;
     const std::uint8_t* mask_element;
     const std::uint8_t* mask_elements_end;
 
     BitmapMask<T, T_W, T_H>& mask;
+
+    void dump() override
+    {
+        double ix = static_cast<double>(this->pixel_raw - this->scanline_raw) / this->pixel_stride;
+        double iy = static_cast<double>(this->scanline_raw - reinterpret_cast<const std::uint8_t*>(this->scanlines_origin)) / this->scanline_stride;
+        double mx = this->mask_element - this->mask_scanline;
+        double my = static_cast<double>(this->mask_scanline - reinterpret_cast<const std::uint8_t*>(this->mask_scanlines_origin)) / this->mask_scanline_stride;
+        std::cerr << ix << "," << iy << " : " << mx << "," << my << std::endl;
+        if(ix == 49 && iy == 24)
+        {
+            int i = 1+1;
+        }
+    }
 
 //  inline void seek_front_scanline();
 //  inline void seek_front_pixel_of_scanline();

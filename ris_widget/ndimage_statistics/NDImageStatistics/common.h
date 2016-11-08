@@ -51,7 +51,7 @@
 #include "../misc/branch_hints.h"
 #include "../misc/Luts.h"
 #include "../misc/PyArrayView.h"
-
+#include <iostream>
 namespace py = pybind11;
 
 PYBIND11_DECLARE_HOLDER_TYPE(_T_, std::shared_ptr<_T_>);

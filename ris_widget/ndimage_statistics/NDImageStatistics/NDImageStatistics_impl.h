@@ -99,7 +99,7 @@ NDImageStatistics<T>::NDImageStatistics(typed_array_t<T>& data_py,
 
     std::unique_ptr<PyArrayView> mask_view{new PyArrayView(mask_)};
     if(mask_view->ndim != 2) throw std::invalid_argument("bitmap mask must be 2 dimensional.");
-    if(mask_view->strides[0] > mask_view->strides[1]) throw std::invalid_argument("bitmap mask striding must be (X, Y).");
+    if(mask_view->strides[0] != 1) throw std::invalid_argument("bitmap mask stripe elements much be adjacent.");
 
     if(mask_view->shape[0] < data_view->shape[0])
     {
@@ -365,6 +365,7 @@ void NDImageStatistics<T>::scan_image_first_component(ComputeContext<MASK_T>& cc
     {
         for(cursor.seek_front_pixel_of_scanline(); cursor.pixel_valid; cursor.advance_pixel())
         {
+            cursor.dump();
             process_component<MASK_T>(cc, stats, *reinterpret_cast<const T*>(cursor.pixel_raw), tag);
         }
     }

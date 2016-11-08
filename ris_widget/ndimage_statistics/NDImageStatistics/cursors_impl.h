@@ -129,7 +129,6 @@ Cursor<T, BitmapMask<T, T_W, T_H>>::Cursor(PyArrayView& data_view, BitmapMask<T,
     mask_scanlines_origin(reinterpret_cast<const std::uint8_t*const>(mask_.bitmap_view->buf)),
     mask_scanlines_end(static_cast<const std::uint8_t*const>(mask_.bitmap_view->buf) + mask_.bitmap_view->shape[1] * mask_.bitmap_view->strides[1]),
     mask_scanline_width(mask_.bitmap_view->shape[0]),
-    mask_element_stride(mask_.bitmap_view->strides[0]),
     mask(mask_)
 {
 }

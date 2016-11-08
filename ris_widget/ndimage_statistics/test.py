@@ -22,25 +22,52 @@
 #
 # Authors: Erik Hvatum <ice.rikh@gmail.com>
 
+from pathlib import Path
+import functools
+import math
+import numpy
+import time
+import unittest
+
+from . import cpp_ndimage_statistics
+
+import freeimage
+#im = freeimage.read(str(Path(__file__).parent.parent.parent / 'Opteron_6300_die_shot_16_core_mod.jpg'))#[...,0]
+im = freeimage.read(str(Path(__file__).parent.parent.parent / 't.png'))[:50,:]
+#mask = (freeimage.read('/home/ehvatum/code_repositories/ris_widget/top_left_g.png') / 256).astype(numpy.uint8)
+#mask = freeimage.read(str(Path(__file__).parent.parent.parent / 'mask.png'))
+maskcol = numpy.array([[0,0,0,1,0,0,1,1,0,1,1,1,0,1,1,1,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1]],dtype=numpy.uint8).T
+mask = numpy.hstack([maskcol] * im.shape[0]).T
+#print(mask)
+#mask.flat = mask.copy().T.flat
+#for lineidx in range(mask.shape[1]):
+#   print(mask[:,lineidx])
+#mask = mask.T
+#print(mask.shape, mask.strides)
+#print(mask.T)
+#mask[:,1::3] = 0
+stats = cpp_ndimage_statistics.NDImageStatistics(im, (0, 255), mask, False)
+#stats = cpp_ndimage_statistics.NDImageStatistics(im, (0, 255), ((100,100),20), False)
+#stats = cpp_ndimage_statistics.NDImageStatistics(im, (0, 255), False)
+stats.launch_computation()
+#del stats
+print(stats.image_stats)
+
+import sys
+sys.exit(0)
+
 import functools
 import numpy
 import time
 import unittest
-#try:
-#    from . import _measures_fast
-#except ImportError:
-#    import sys
-#    print('\n\n*** The ris_widget.ndimage_statistics._ndimage_statistics binary module must be built in order to test ris_widget.ndimage_statistics. ***\n\n', file=sys.stderr)
-#    raise
-#from . import _measures_slow
-#from . import ndimage_statistics
-
-from . import cpp_ndimage_statistics
-
-import concurrent.futures as futures
-import multiprocessing
-
-pool = futures.ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()+1)
+try:
+    from . import _measures_fast
+except ImportError:
+    import sys
+    print('\n\n*** The ris_widget.ndimage_statistics._ndimage_statistics binary module must be built in order to test ris_widget.ndimage_statistics. ***\n\n', file=sys.stderr)
+    raise
+from . import _measures_slow
+from . import ndimage_statistics
 
 IMAGE_SHAPE = (2560, 2160)
 IMAGE_COUNT_PER_FLAVOR = 1
@@ -62,7 +89,7 @@ class ImageFlavor:
             example[example < interval[0]] = interval[0]
             example[example > interval[1]] = interval[1]
             return example.astype(dtype).T
-        self.images = [pool.submit(make_example) for i in range(IMAGE_COUNT_PER_FLAVOR)]
+        self.images = [ndimage_statistics.pool.submit(make_example) for i in range(IMAGE_COUNT_PER_FLAVOR)]
 
 IMAGE_FLAVORS = [
     ImageFlavor('uint8', numpy.uint8, (0, 255)),
@@ -74,12 +101,12 @@ FLAVOR_COUNT = len(IMAGE_FLAVORS)
 IMAGE_COUNT = IMAGE_COUNT_PER_FLAVOR * FLAVOR_COUNT
 
 MASKS_IMAGE_SHAPE = [
-    pool.submit(
+    ndimage_statistics.pool.submit(
         lambda: numpy.random.randint(0, 2, (IMAGE_SHAPE[1], IMAGE_SHAPE[0])).astype(numpy.bool).T
     ) for i in range(IMAGE_COUNT_PER_FLAVOR)
 ]
 MASKS_RANDOM_SHAPE = [
-    pool.submit(
+    ndimage_statistics.pool.submit(
         lambda: numpy.random.randint(
             0, 2, (
                 numpy.random.randint(1, IMAGE_SHAPE[1]*2+1),
